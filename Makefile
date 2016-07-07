@@ -1,17 +1,18 @@
 # Copyright (C) 2016, Isaac Woods. All rights reserved.
 # See LICENCE.md
 
-CC ?= gcc
-CFLAGS = -Wall -Wextra -pedantic -O2 -std=c11 -g
-LFLAGS = -Wall -Wextra -pedantic -O2 -std=c11 -g
+CC = gcc
+CFLAGS = -Wall -Wextra -pedantic -O2 -std=c11 -g -Isrc
+LFLAGS = -Wall -Wextra -pedantic -O2 -std=c11 -g -Isrc
 
 OBJS = \
-  roo.o \
+  src/roo.o \
+  src/parsing.o \
 
 .PHONY: clean
 
 roo: $(OBJS)
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ $(LFLAGS)
 
 %.o: %.c
 	$(CC) -o $@ -c $< $(CFLAGS)

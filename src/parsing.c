@@ -1,12 +1,15 @@
 /*
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
- * See LICENCE.md
  */
 
+#include <parsing.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-const char* ReadFile(const char* path)
+/*
+ * Reads a file as a string. The string is allocated and it is the responsibility of the caller to free it.
+ */
+static const char* ReadFile(const char* path)
 {
   FILE* file = fopen(path, "rb");
 
@@ -39,11 +42,25 @@ const char* ReadFile(const char* path)
   return contents;
 }
 
-int main()
+void CreateParser(roo_parser* parser, const char* sourcePath)
 {
-  printf("Hello, World!\n");
-  const char* fileContents = ReadFile("test.roo");
-  printf("%s\n", fileContents);
+  parser->source = ReadFile(sourcePath);
+  parser->currentChar = parser->source;
+}
 
-  return 0;
+void FreeParser(roo_parser* parser)
+{
+  free(parser->source);
+  parser->source = NULL;
+  parser->currentChar = NULL;
+}
+
+char NextChar(roo_parser* parser)
+{
+  // Don't dereference memory past the end of the string
+  if (parser->currentChar == '\0')
+    return '\0';
+
+  parser->currentChar++;
+  return parser->currentChar;
 }
