@@ -18,4 +18,4 @@ roo: $(OBJS)
 	$(CC) -o $@ -c $< $(CFLAGS)
 
 clean:
-	find . -name '*.o' | xargs rm
+	find . -name '*.o' | xargs rm roo
