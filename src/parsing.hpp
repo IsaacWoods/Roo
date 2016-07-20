@@ -4,7 +4,7 @@
 
 #pragma once
 
-typedef enum
+enum token_type
 {
   // Keywords
   TOKEN_TYPE,
@@ -33,26 +33,26 @@ typedef enum
   TOKEN_IDENTIFIER,
   TOKEN_NEW_LINE,
   TOKEN_INVALID
-} token_type;
+};
 
-typedef struct
+struct token
 {
   token_type   type;
   unsigned int offset;
   const char*  text;
-} token;
+};
 
-typedef struct
+struct roo_parser
 {
   const char* source;
   const char* currentChar; // NOTE(Isaac): this points into `source`
   token       currentToken;
   token       nextToken;
-} roo_parser;
+};
 
-void CreateParser(roo_parser* parser, const char* sourcePath);
-void FreeParser(roo_parser* parser);
-char NextChar(roo_parser* parser);
-void NextToken(roo_parser* parser);
+void CreateParser(roo_parser& parser, const char* sourcePath);
+void FreeParser(roo_parser& parser);
+char NextChar(roo_parser& parser);
+void NextToken(roo_parser& parser);
 
 const char* GetTokenName(token_type type);

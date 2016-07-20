@@ -2,9 +2,9 @@
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
  */
 
-#include <parsing.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <parsing.hpp>
+#include <cstdio>
+#include <cstdlib>
 
 /*
  * Reads a file as a string.
@@ -23,7 +23,7 @@ static const char* ReadFile(const char* path)
   fseek(file, 0, SEEK_END);
   unsigned long length = ftell(file);
   fseek(file, 0, SEEK_SET);
-  char* contents = malloc(length + 1);
+  char* contents = static_cast<char*>(malloc(length + 1));
 
   if (!contents)
   {
@@ -43,35 +43,35 @@ static const char* ReadFile(const char* path)
   return contents;
 }
 
-void CreateParser(roo_parser* parser, const char* sourcePath)
+void CreateParser(roo_parser& parser, const char* sourcePath)
 {
-  parser->source = ReadFile(sourcePath);
-  parser->currentChar = parser->source;
+  parser.source = ReadFile(sourcePath);
+  parser.currentChar = parser.source;
   NextToken(parser);
 }
 
-void FreeParser(roo_parser* parser)
+void FreeParser(roo_parser& parser)
 {
-  free(parser->source);
-  parser->source = NULL;
-  parser->currentChar = NULL;
+  free((void*) parser.source);
+  parser.source = NULL;
+  parser.currentChar = NULL;
 }
 
-char NextChar(roo_parser* parser)
+char NextChar(roo_parser& parser)
 {
   // Don't dereference memory past the end of the string
-  if (parser->currentChar == '\0')
+  if (parser.currentChar == '\0')
     return '\0';
 
-  parser->currentChar++;
-  return *(parser->currentChar);
+  parser.currentChar++;
+  return *(parser.currentChar);
 }
 
-void NextToken(roo_parser* parser)
+void NextToken(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
-  switch (*(parser->currentChar++))
+  switch (*(parser.currentChar++))
   {
     case '.':
       type = TOKEN_DOT;
@@ -137,10 +137,10 @@ void NextToken(roo_parser* parser)
       fprintf(stderr, "Unhandled token type in NextToken()!\n");
   }
 
-  parser->currentToken = (token){TOKEN_INVALID, (unsigned int) (parser->currentChar - parser->source), NULL};
+  parser.currentToken = token{TOKEN_INVALID, (unsigned int) (parser.currentChar - parser.source), NULL};
 
 EmitSimpleToken:
-  parser->currentToken = (token){type, (unsigned int) (parser->currentChar - parser->source), NULL};
+  parser.currentToken = token{type, (unsigned int) (parser.currentChar - parser.source), NULL};
 }
 
 const char* GetTokenName(token_type type)
