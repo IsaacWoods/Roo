@@ -1,9 +1,9 @@
 # Copyright (C) 2016, Isaac Woods. All rights reserved.
 # See LICENCE.md
 
-CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -O2 -std=c11 -g -Isrc
-LFLAGS = -Wall -Wextra -pedantic -O2 -std=c11 -g -Isrc
+CXX = g++
+CFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
+LFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
 
 OBJS = \
   src/roo.o \
@@ -12,10 +12,10 @@ OBJS = \
 .PHONY: clean
 
 roo: $(OBJS)
-	$(CC) -o $@ $^ $(LFLAGS)
+	$(CXX) -o $@ $^ $(LFLAGS)
 
-%.o: %.c
-	$(CC) -o $@ -c $< $(CFLAGS)
+%.o: %.cpp
+	$(CXX) -o $@ -c $< $(CFLAGS)
 
 clean:
 	find . -name '*.o' | xargs rm roo

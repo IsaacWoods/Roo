@@ -2,13 +2,11 @@
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
  */
 
-#include <parsing.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdlib.h>
+#include <parsing.hpp>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <cstddef>
 
 /*
  * Reads a file as a string.
@@ -27,7 +25,7 @@ static const char* ReadFile(const char* path)
   fseek(file, 0, SEEK_END);
   unsigned long length = ftell(file);
   fseek(file, 0, SEEK_SET);
-  char* contents = malloc(length + 1);
+  char* contents = static_cast<char*>(malloc(length + 1));
 
   if (!contents)
   {
@@ -47,14 +45,14 @@ static const char* ReadFile(const char* path)
   return contents;
 }
 
-void CreateParser(roo_parser* parser, const char* sourcePath)
+void CreateParser(roo_parser& parser, const char* sourcePath)
 {
-  parser->source = ReadFile(sourcePath);
-  parser->currentChar = parser->source;
+  parser.source = ReadFile(sourcePath);
+  parser.currentChar = parser.source;
   NextToken(parser);
 }
 
-void FreeParser(roo_parser* parser)
+void FreeParser(roo_parser& parser)
 {
   /*
    * NOTE(Isaac): the cast here is fine; the C standard is actually wrong
@@ -62,18 +60,18 @@ void FreeParser(roo_parser* parser)
    */
   free((char*)parser->source);
 
-  parser->source = NULL;
-  parser->currentChar = NULL;
+  parser->source = nullptr;
+  parser->currentChar = nullptr;
 }
 
-char NextChar(roo_parser* parser)
+char NextChar(roo_parser& parser)
 {
   // Don't dereference memory past the end of the string
-  if (parser->currentChar == '\0')
+  if (parser.currentChar == '\0')
     return '\0';
 
-  parser->currentChar++;
-  return *(parser->currentChar);
+  parser.currentChar++;
+  return *(parser.currentChar);
 }
 
 static bool IsName(char c)
@@ -102,36 +100,36 @@ static bool LexName(roo_parser* parser)
 
   if (memcmp(parser->currentChar, "type", length) == 0)
   {
-    parser->currentToken = (token){TOKEN_TYPE, tokenOffset, startChar, length};
+    parser->currentToken = token{TOKEN_TYPE, tokenOffset, startChar, length};
     return true;
   }
 
   if (memcmp(parser->currentChar, "fn", length) == 0)
   {
-    parser->currentToken = (token){TOKEN_FN, tokenOffset, startChar, length};
+    parser->currentToken = token{TOKEN_FN, tokenOffset, startChar, length};
     return true;
   }
 
   if (memcmp(parser->currentChar, "true", length) == 0)
   {
-    parser->currentToken = (token){TOKEN_TRUE, tokenOffset, startChar, length};
+    parser->currentToken = token{TOKEN_TRUE, tokenOffset, startChar, length};
     return true;
   }
 
   if (memcmp(parser->currentChar, "false", length) == 0)
   {
-    parser->currentToken = (token){TOKEN_FALSE, tokenOffset, startChar, length};
+    parser->currentToken = token{TOKEN_FALSE, tokenOffset, startChar, length};
     return true;
   }
 
   return false;
 }
 
-void NextToken(roo_parser* parser)
+void NextToken(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
-  switch (*(parser->currentChar++))
+  switch (*(parser.currentChar++))
   {
     case '.':
       type = TOKEN_DOT;
@@ -203,11 +201,10 @@ void NextToken(roo_parser* parser)
     }
   }
 
-  parser->currentToken = (token){TOKEN_INVALID, (unsigned int)(parser->currentChar - parser->source), NULL, 0u};
-  return;
+  parser.currentToken = token{TOKEN_INVALID, (unsigned int) (parser.currentChar - parser.source), NULL};
 
 EmitSimpleToken:
-  parser->currentToken = (token){type, (unsigned int)(parser->currentChar - parser->source), NULL, 0u};
+  parser.currentToken = token{type, (unsigned int) (parser.currentChar - parser.source), NULL};
 }
 
 const char* GetTokenName(token_type type)
