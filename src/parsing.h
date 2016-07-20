@@ -39,7 +39,8 @@ typedef struct
 {
   token_type   type;
   unsigned int offset;
-  const char*  text;
+  const char*  textStart;   // NOTE(Isaac): this points into the parser's source
+  unsigned int textLength;
 } token;
 
 typedef struct

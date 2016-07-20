@@ -4,6 +4,10 @@
 
 #include <parsing.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 /*
@@ -52,7 +56,12 @@ void CreateParser(roo_parser* parser, const char* sourcePath)
 
 void FreeParser(roo_parser* parser)
 {
-  free(parser->source);
+  /*
+   * NOTE(Isaac): the cast here is fine; the C standard is actually wrong
+   * The signature of free should be `free(const void*)`.
+   */
+  free((char*)parser->source);
+
   parser->source = NULL;
   parser->currentChar = NULL;
 }
@@ -65,6 +74,57 @@ char NextChar(roo_parser* parser)
 
   parser->currentChar++;
   return *(parser->currentChar);
+}
+
+static bool IsName(char c)
+{
+  return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+}
+
+static bool IsDigit(char c)
+{
+  return (c >= '0' && c <= '9');
+}
+
+/*
+ * Lex identifiers and keywords
+ */
+static bool LexName(roo_parser* parser)
+{
+  // Concat the string until the next character that isn't part of the name
+  const char* startChar = parser->currentChar;
+
+  while (IsName(*(parser->currentChar)))
+    NextChar(parser);
+
+  ptrdiff_t length = (uintptr_t)parser->currentChar - (uintptr_t)startChar;
+  unsigned int tokenOffset = (unsigned int)(parser->currentChar - parser->source);
+
+  if (memcmp(parser->currentChar, "type", length) == 0)
+  {
+    parser->currentToken = (token){TOKEN_TYPE, tokenOffset, startChar, length};
+    return true;
+  }
+
+  if (memcmp(parser->currentChar, "fn", length) == 0)
+  {
+    parser->currentToken = (token){TOKEN_FN, tokenOffset, startChar, length};
+    return true;
+  }
+
+  if (memcmp(parser->currentChar, "true", length) == 0)
+  {
+    parser->currentToken = (token){TOKEN_TRUE, tokenOffset, startChar, length};
+    return true;
+  }
+
+  if (memcmp(parser->currentChar, "false", length) == 0)
+  {
+    parser->currentToken = (token){TOKEN_FALSE, tokenOffset, startChar, length};
+    return true;
+  }
+
+  return false;
 }
 
 void NextToken(roo_parser* parser)
@@ -132,15 +192,22 @@ void NextToken(roo_parser* parser)
     case '/':
       type = TOKEN_SLASH;
       goto EmitSimpleToken;
-
-    default:
-      fprintf(stderr, "Unhandled token type in NextToken()!\n");
   }
 
-  parser->currentToken = (token){TOKEN_INVALID, (unsigned int) (parser->currentChar - parser->source), NULL};
+  // Lex identifiers and keywords
+  if (IsName(*(parser->currentChar)))
+  {
+    if (LexName(parser))
+    {
+      return;
+    }
+  }
+
+  parser->currentToken = (token){TOKEN_INVALID, (unsigned int)(parser->currentChar - parser->source), NULL, 0u};
+  return;
 
 EmitSimpleToken:
-  parser->currentToken = (token){type, (unsigned int) (parser->currentChar - parser->source), NULL};
+  parser->currentToken = (token){type, (unsigned int)(parser->currentChar - parser->source), NULL, 0u};
 }
 
 const char* GetTokenName(token_type type)
