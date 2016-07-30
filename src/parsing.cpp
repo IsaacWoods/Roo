@@ -57,7 +57,7 @@ void CreateParser(roo_parser& parser, const char* sourcePath)
 void FreeParser(roo_parser& parser)
 {
   /*
-   * NOTE(Isaac): the cast here is fine; the C standard is actually wrong
+   * NOTE(Isaac): the cast here is fine; the C standard is actually wrong.
    * The signature of free should be `free(const void*)`.
    */
   free((char*)parser.source);
@@ -72,8 +72,7 @@ char NextChar(roo_parser& parser)
   if (parser.currentChar == '\0')
     return '\0';
 
-  parser.currentChar++;
-  return *(parser.currentChar);
+  return *(parser.currentChar++);
 }
 
 static bool IsName(char c)
@@ -108,6 +107,7 @@ static void LexName(roo_parser& parser)
       return; \
     }
 
+  // See if it's a keyword
   KEYWORD("type", TOKEN_TYPE)
   KEYWORD("fn", TOKEN_FN)
   KEYWORD("true", TOKEN_TRUE)
@@ -121,9 +121,9 @@ void NextToken(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
-  while (*parser.currentChar != '\0')
+  while (NextChar(parser) != '\0')
   {
-    switch (*(parser.currentChar++))
+    switch (*parser.currentChar)
     {
       case '.':
         type = TOKEN_DOT;
@@ -215,6 +215,10 @@ EmitSimpleToken:
   parser.currentToken = token{type, (unsigned int) (parser.currentChar - parser.source), nullptr, 0u};
 }
 
+/*
+ * Get a string representation of a given token type.
+ * This is for debug purposes and it might be worth stripping it from releases.
+ */
 const char* GetTokenName(token_type type)
 {
   switch (type)
