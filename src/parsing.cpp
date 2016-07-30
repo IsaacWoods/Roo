@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstddef>
+#include <cstdint>
 
 /*
  * Reads a file as a string.
@@ -58,10 +59,10 @@ void FreeParser(roo_parser& parser)
    * NOTE(Isaac): the cast here is fine; the C standard is actually wrong
    * The signature of free should be `free(const void*)`.
    */
-  free((char*)parser->source);
+  free((char*)parser.source);
 
-  parser->source = nullptr;
-  parser->currentChar = nullptr;
+  parser.source = nullptr;
+  parser.currentChar = nullptr;
 }
 
 char NextChar(roo_parser& parser)
@@ -87,42 +88,32 @@ static bool IsDigit(char c)
 /*
  * Lex identifiers and keywords
  */
-static bool LexName(roo_parser* parser)
+static void LexName(roo_parser& parser)
 {
-  // Concat the string until the next character that isn't part of the name
-  const char* startChar = parser->currentChar;
+  // Get the current char as well
+  const char* startChar = parser.currentChar - 1u;
 
-  while (IsName(*(parser->currentChar)))
+  // Concat the string until the next character that isn't part of the name
+  while (IsName(*(parser.currentChar)))
     NextChar(parser);
 
-  ptrdiff_t length = (uintptr_t)parser->currentChar - (uintptr_t)startChar;
-  unsigned int tokenOffset = (unsigned int)(parser->currentChar - parser->source);
+  ptrdiff_t length = (uintptr_t)parser.currentChar - (uintptr_t)startChar;
+  unsigned int tokenOffset = (unsigned int)(parser.currentChar - parser.source);
 
-  if (memcmp(parser->currentChar, "type", length) == 0)
-  {
-    parser->currentToken = token{TOKEN_TYPE, tokenOffset, startChar, length};
-    return true;
-  }
+  #define KEYWORD(keyword, tokenType) \
+    if (memcmp(startChar, keyword, length) == 0) \
+    { \
+      parser.currentToken = token{tokenType, tokenOffset, startChar, (unsigned int)length}; \
+      return; \
+    }
 
-  if (memcmp(parser->currentChar, "fn", length) == 0)
-  {
-    parser->currentToken = token{TOKEN_FN, tokenOffset, startChar, length};
-    return true;
-  }
+  KEYWORD("type", TOKEN_TYPE)
+  KEYWORD("fn", TOKEN_FN)
+  KEYWORD("true", TOKEN_TRUE)
+  KEYWORD("false", TOKEN_FALSE)
 
-  if (memcmp(parser->currentChar, "true", length) == 0)
-  {
-    parser->currentToken = token{TOKEN_TRUE, tokenOffset, startChar, length};
-    return true;
-  }
-
-  if (memcmp(parser->currentChar, "false", length) == 0)
-  {
-    parser->currentToken = token{TOKEN_FALSE, tokenOffset, startChar, length};
-    return true;
-  }
-
-  return false;
+  // TODO: return an identifier token
+  parser.currentToken = token{TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length};
 }
 
 void NextToken(roo_parser& parser)
@@ -193,18 +184,16 @@ void NextToken(roo_parser& parser)
   }
 
   // Lex identifiers and keywords
-  if (IsName(*(parser->currentChar)))
+  if (IsName(*parser.currentChar))
   {
-    if (LexName(parser))
-    {
-      return;
-    }
+    LexName(parser);
+    return;
   }
 
-  parser.currentToken = token{TOKEN_INVALID, (unsigned int) (parser.currentChar - parser.source), NULL};
+  parser.currentToken = token{TOKEN_INVALID, (unsigned int) (parser.currentChar - parser.source), nullptr, 0u};
 
 EmitSimpleToken:
-  parser.currentToken = token{type, (unsigned int) (parser.currentChar - parser.source), NULL};
+  parser.currentToken = token{type, (unsigned int) (parser.currentChar - parser.source), nullptr, 0u};
 }
 
 const char* GetTokenName(token_type type)
