@@ -31,7 +31,7 @@ enum token_type
 
   // Other stuff
   TOKEN_IDENTIFIER,
-  TOKEN_NEW_LINE,
+  TOKEN_LINE,
   TOKEN_INVALID
 };
 
@@ -49,6 +49,7 @@ struct roo_parser
   const char* currentChar; // NOTE(Isaac): this points into `source`
   token       currentToken;
   token       nextToken;
+  bool        careAboutLines;
 };
 
 void CreateParser(roo_parser& parser, const char* sourcePath);

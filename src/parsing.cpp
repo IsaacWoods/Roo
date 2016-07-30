@@ -50,6 +50,7 @@ void CreateParser(roo_parser& parser, const char* sourcePath)
 {
   parser.source = ReadFile(sourcePath);
   parser.currentChar = parser.source;
+  parser.careAboutLines = false;
   NextToken(parser);
 }
 
@@ -112,7 +113,7 @@ static void LexName(roo_parser& parser)
   KEYWORD("true", TOKEN_TRUE)
   KEYWORD("false", TOKEN_FALSE)
 
-  // TODO: return an identifier token
+  // It's not a keyword, so create an identifier token
   parser.currentToken = token{TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length};
 }
 
@@ -120,74 +121,92 @@ void NextToken(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
-  switch (*(parser.currentChar++))
+  while (*parser.currentChar != '\0')
   {
-    case '.':
-      type = TOKEN_DOT;
-      goto EmitSimpleToken;
+    switch (*(parser.currentChar++))
+    {
+      case '.':
+        type = TOKEN_DOT;
+        goto EmitSimpleToken;
+  
+      case ',':
+        type = TOKEN_COMMA;
+        goto EmitSimpleToken;
+  
+      case '(':
+        type = TOKEN_LEFT_PAREN;
+        goto EmitSimpleToken;
+  
+      case ')':
+        type = TOKEN_RIGHT_PAREN;
+        goto EmitSimpleToken;
+  
+      case '{':
+        type = TOKEN_LEFT_BRACE;
+        goto EmitSimpleToken;
+  
+      case '}':
+        type = TOKEN_RIGHT_BRACE;
+        goto EmitSimpleToken;
+  
+      case '[':
+        type = TOKEN_LEFT_BLOCK;
+        goto EmitSimpleToken;
+  
+      case ']':
+        type = TOKEN_RIGHT_BLOCK;
+        goto EmitSimpleToken;
+  
+      case '\'':
+        type = TOKEN_SINGLE_QUOTE;
+        goto EmitSimpleToken;
+  
+      case '"':
+        type = TOKEN_DOUBLE_QUOTE;
+        goto EmitSimpleToken;
+  
+      case '*':
+        type = TOKEN_ASTERIX;
+        goto EmitSimpleToken;
+  
+      case '&':
+        type = TOKEN_AMPERSAND;
+        goto EmitSimpleToken;
+  
+      case '+':
+        type = TOKEN_PLUS;
+        goto EmitSimpleToken;
+  
+      case '-':
+        type = TOKEN_MINUS;
+        goto EmitSimpleToken;
+  
+      case '/':
+        type = TOKEN_SLASH;
+        goto EmitSimpleToken;
+  
+      case ' ':
+      case '\t':
+        break;
 
-    case ',':
-      type = TOKEN_COMMA;
-      goto EmitSimpleToken;
-
-    case '(':
-      type = TOKEN_LEFT_PAREN;
-      goto EmitSimpleToken;
-
-    case ')':
-      type = TOKEN_RIGHT_PAREN;
-      goto EmitSimpleToken;
-
-    case '{':
-      type = TOKEN_LEFT_BRACE;
-      goto EmitSimpleToken;
-
-    case '}':
-      type = TOKEN_RIGHT_BRACE;
-      goto EmitSimpleToken;
-
-    case '[':
-      type = TOKEN_LEFT_BLOCK;
-      goto EmitSimpleToken;
-
-    case ']':
-      type = TOKEN_RIGHT_BLOCK;
-      goto EmitSimpleToken;
-
-    case '\'':
-      type = TOKEN_SINGLE_QUOTE;
-      goto EmitSimpleToken;
-
-    case '"':
-      type = TOKEN_DOUBLE_QUOTE;
-      goto EmitSimpleToken;
-
-    case '*':
-      type = TOKEN_ASTERIX;
-      goto EmitSimpleToken;
-
-    case '&':
-      type = TOKEN_AMPERSAND;
-      goto EmitSimpleToken;
-
-    case '+':
-      type = TOKEN_PLUS;
-      goto EmitSimpleToken;
-
-    case '-':
-      type = TOKEN_MINUS;
-      goto EmitSimpleToken;
-
-    case '/':
-      type = TOKEN_SLASH;
-      goto EmitSimpleToken;
-  }
-
-  // Lex identifiers and keywords
-  if (IsName(*parser.currentChar))
-  {
-    LexName(parser);
-    return;
+      case '\n':
+        if (parser.careAboutLines)
+        {
+          type = TOKEN_LINE;
+          goto EmitSimpleToken;
+        }
+        else
+        {
+          break;
+        }
+    }
+  
+    // Lex identifiers and keywords
+    if (IsName(*parser.currentChar))
+    {
+      LexName(parser);
+      return;
+    }
   }
 
   parser.currentToken = token{TOKEN_INVALID, (unsigned int) (parser.currentChar - parser.source), nullptr, 0u};
@@ -242,8 +261,8 @@ const char* GetTokenName(token_type type)
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";
-    case TOKEN_NEW_LINE:
-      return "TOKEN_NEW_LINE";
+    case TOKEN_LINE:
+      return "TOKEN_LINE";
     case TOKEN_INVALID:
       return "TOKEN_INVALID";
 
