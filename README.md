@@ -17,13 +17,13 @@ It looks something like this:
 ``` roo
 type Color
 {
-  Float r
-  Float g
-  Float b
-  Float a
+  r : Float
+  g : Float
+  b : Float
+  a : Float
 }
 
-fn PrintColor(Color& color)
+fn PrintColor(color : Color&)
 {
   PrintFmt("Color: (%f, %f, %f, %f)", color.r, color.g, color.b, color.a)
 }
@@ -33,7 +33,8 @@ fn Main() -> Int
   Print("Hello, World!")
 
   // Make and print a color
-  Color myColor(1.0f, 0.0f, 1.0f, 1.0f)
+
+  myColor : Color(1.0f, 0.0f, 1.0f, 1.0f)
   PrintColor(myColor)
 }
 ```

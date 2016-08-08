@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <nstring.hpp>
+#include <ir.hpp>
+
 enum token_type
 {
   // Keywords
@@ -39,22 +42,29 @@ struct token
 {
   token_type   type;
   unsigned int offset;
+  unsigned int line;
+  unsigned int lineOffset;
+
   const char*  textStart;   // NOTE(Isaac): this points into the parser's source. It is not null-terminated!
   unsigned int textLength;
 };
 
 struct roo_parser
 {
-  const char* source;
-  const char* currentChar; // NOTE(Isaac): this points into `source`
-  token       currentToken;
-  token       nextToken;
-  bool        careAboutLines;
+  const char*   source;
+  const char*   currentChar; // NOTE(Isaac): this points into `source`
+  unsigned int  currentLine;
+  unsigned int  currentLineOffset;
+
+  token         currentToken;
+  token         nextToken;
+  bool          careAboutLines;
+
+  function_def* firstFunctionDef;
 };
 
 void CreateParser(roo_parser& parser, const char* sourcePath);
+void Parse(roo_parser& parser);
 void FreeParser(roo_parser& parser);
-char NextChar(roo_parser& parser);
-void NextToken(roo_parser& parser);
 
 const char* GetTokenName(token_type type);

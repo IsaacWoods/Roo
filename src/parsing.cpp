@@ -8,6 +8,10 @@
 #include <cstdlib>
 #include <cstddef>
 #include <cstdint>
+#include <cstdarg>
+#include <cassert>
+
+#define Match(expectedType) (parser.currentToken.type == expectedType)
 
 /*
  * Reads a file as a string.
@@ -46,31 +50,21 @@ static const char* ReadFile(const char* path)
   return contents;
 }
 
-void CreateParser(roo_parser& parser, const char* sourcePath)
-{
-  parser.source = ReadFile(sourcePath);
-  parser.currentChar = parser.source;
-  parser.careAboutLines = false;
-  NextToken(parser);
-}
-
-void FreeParser(roo_parser& parser)
-{
-  /*
-   * NOTE(Isaac): the cast here is fine; the C standard is actually wrong.
-   * The signature of free should be `free(const void*)`.
-   */
-  free((char*)parser.source);
-
-  parser.source = nullptr;
-  parser.currentChar = nullptr;
-}
-
-char NextChar(roo_parser& parser)
+static char NextChar(roo_parser& parser)
 {
   // Don't dereference memory past the end of the string
-  if (parser.currentChar == '\0')
+  if (*(parser.currentChar) == '\0')
     return '\0';
+
+  if (*(parser.currentChar) == '\n')
+  {
+    parser.currentLine++;
+    parser.currentLineOffset = 0;
+  }
+  else
+  {
+    parser.currentLineOffset++;
+  }
 
   return *(parser.currentChar++);
 }
@@ -83,6 +77,12 @@ static bool IsName(char c)
 static bool IsDigit(char c)
 {
   return (c >= '0' && c <= '9');
+}
+
+static token MakeToken(roo_parser& parser, token_type type, unsigned int offset, const char* startChar,
+    unsigned int length)
+{
+  return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length};
 }
 
 /*
@@ -103,7 +103,7 @@ static void LexName(roo_parser& parser)
   #define KEYWORD(keyword, tokenType) \
     if (memcmp(startChar, keyword, length) == 0) \
     { \
-      parser.currentToken = token{tokenType, tokenOffset, startChar, (unsigned int)length}; \
+      parser.currentToken = MakeToken(parser, tokenType, tokenOffset, startChar, (unsigned int)length); \
       return; \
     }
 
@@ -114,10 +114,10 @@ static void LexName(roo_parser& parser)
   KEYWORD("false", TOKEN_FALSE)
 
   // It's not a keyword, so create an identifier token
-  parser.currentToken = token{TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length};
+  parser.currentToken = MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
 }
 
-void NextToken(roo_parser& parser)
+static token NextToken(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
@@ -205,14 +205,103 @@ void NextToken(roo_parser& parser)
     if (IsName(*parser.currentChar))
     {
       LexName(parser);
-      return;
+      return parser.currentToken;
     }
   }
 
-  parser.currentToken = token{TOKEN_INVALID, (unsigned int) (parser.currentChar - parser.source), nullptr, 0u};
-
 EmitSimpleToken:
-  parser.currentToken = token{type, (unsigned int) (parser.currentChar - parser.source), nullptr, 0u};
+  parser.currentToken = MakeToken(parser, type, (unsigned int)(parser.currentChar - parser.source), nullptr, 0u);
+  return parser.currentToken;
+}
+
+void CreateParser(roo_parser& parser, const char* sourcePath)
+{
+  parser.source = ReadFile(sourcePath);
+  parser.currentChar = parser.source;
+  parser.currentLine = 0u;
+  parser.currentLineOffset = 0u;
+  parser.careAboutLines = false;
+  NextToken(parser);
+}
+
+__attribute__((noreturn))
+static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
+{
+#define ERROR_MESSAGE_LENGTH 1024
+
+  va_list args;
+  va_start(args, messageFmt);
+
+  char message[ERROR_MESSAGE_LENGTH];
+  int length = vsprintf(message, messageFmt, args);
+  assert(length < ERROR_MESSAGE_LENGTH);
+
+  fprintf(stderr, "SYNTAX ERROR(%u:%u): %s\n", parser.currentLine, parser.currentLineOffset, message);
+
+  va_end(args);
+  exit(1);
+#undef ERROR_MESSAGE_LENGTH
+}
+
+static inline void Consume(roo_parser& parser, token_type expectedType)
+{
+  if (parser.currentToken.type != expectedType)
+  {
+    SyntaxError(parser, "Expected %s, but got %s!", GetTokenName(expectedType), GetTokenName(parser.currentToken.type));
+  }
+
+  NextToken(parser);
+}
+
+static inline void ConsumeNext(roo_parser& parser, token_type expectedType)
+{
+  NextToken(parser);
+  Consume(parser, expectedType);
+}
+
+static void Function(roo_parser& parser)
+{
+  printf("--> Function\n");
+  function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
+
+  token nameToken = NextToken(parser);
+  char* name = ToCStr(nstring{nameToken.textStart, nameToken.textLength});
+
+  printf("Function name: %s\n", name);
+
+  Consume(parser, TOKEN_LEFT_PAREN);
+  // TODO: parse parameter list
+  Consume(parser, TOKEN_RIGHT_PAREN);
+
+  // TODO: parse a block
+  Consume(parser, TOKEN_LEFT_BRACE);
+  Consume(parser, TOKEN_RIGHT_BRACE);
+
+  printf("<-- Function\n");
+}
+
+void Parse(roo_parser& parser)
+{
+  printf("--- Starting parse ---\n");
+
+  if (Match(TOKEN_FN))
+  {
+    Function(parser);
+  }
+
+  printf("--- Finished parse ---\n");
+}
+
+void FreeParser(roo_parser& parser)
+{
+  /*
+   * NOTE(Isaac): the cast here is fine; the C standard is actually wrong.
+   * The signature of free should be `free(const void*)`.
+   */
+  free((char*)parser.source);
+
+  parser.source = nullptr;
+  parser.currentChar = nullptr;
 }
 
 /*
