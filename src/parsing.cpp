@@ -12,6 +12,7 @@
 #include <cassert>
 
 #define Match(expectedType) (parser.currentToken.type == expectedType)
+#define MatchNext(expectedType) (parser.nextToken.type == expectedType)
 
 /*
  * Reads a file as a string.
@@ -88,42 +89,47 @@ static token MakeToken(roo_parser& parser, token_type type, unsigned int offset,
 /*
  * Lex identifiers and keywords
  */
-static void LexName(roo_parser& parser)
+static token LexName(roo_parser& parser)
 {
-  // Get the current char as well
+  // NOTE(Isaac): Get the current char as well
   const char* startChar = parser.currentChar - 1u;
 
-  // Concat the string until the next character that isn't part of the name
+  // NOTE(Isaac): Concat the string until the next character that isn't part of the name
   while (IsName(*(parser.currentChar)))
     NextChar(parser);
 
-  ptrdiff_t length = (uintptr_t)parser.currentChar - (uintptr_t)startChar;
+  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)(parser.currentChar - parser.source);
 
+  // Parse a keyword
   #define KEYWORD(keyword, tokenType) \
     if (memcmp(startChar, keyword, length) == 0) \
     { \
-      parser.currentToken = MakeToken(parser, tokenType, tokenOffset, startChar, (unsigned int)length); \
-      return; \
+      return MakeToken(parser, tokenType, tokenOffset, startChar, (unsigned int)length); \
     }
 
-  // See if it's a keyword
   KEYWORD("type", TOKEN_TYPE)
   KEYWORD("fn", TOKEN_FN)
   KEYWORD("true", TOKEN_TRUE)
   KEYWORD("false", TOKEN_FALSE)
 
   // It's not a keyword, so create an identifier token
-  parser.currentToken = MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
+  return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
 }
 
-static token NextToken(roo_parser& parser)
+static token LexNext(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
-  while (NextChar(parser) != '\0')
+  while (*(parser.currentChar) != '\0')
   {
-    switch (*parser.currentChar)
+    /*
+     * When lexing, the current char is actually the char after `c`.
+     * Calling `NextChar()` will actually get the char after the char after `c`.
+     */
+    char c = NextChar(parser);
+
+    switch (c)
     {
       case '.':
         type = TOKEN_DOT;
@@ -186,31 +192,46 @@ static token NextToken(roo_parser& parser)
         goto EmitSimpleToken;
   
       case ' ':
+      case '\r':
       case '\t':
-        break;
+        // Skip past any whitespace
+        while (*(parser.currentChar) == ' '  ||
+               *(parser.currentChar) == '\r' ||
+               *(parser.currentChar) == '\t' ||
+               *(parser.currentChar) == '\n')
+          NextChar(parser);
 
       case '\n':
-        if (parser.careAboutLines)
-        {
           type = TOKEN_LINE;
           goto EmitSimpleToken;
-        }
-        else
-        {
-          break;
-        }
     }
   
-    // Lex identifiers and keywords
     if (IsName(*parser.currentChar))
     {
-      LexName(parser);
-      return parser.currentToken;
+      return LexName(parser);
     }
   }
 
 EmitSimpleToken:
-  parser.currentToken = MakeToken(parser, type, (unsigned int)(parser.currentChar - parser.source), nullptr, 0u);
+  return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
+}
+
+static token PeekToken(roo_parser& parser)
+{
+  return parser.currentToken;
+}
+
+static token PeekNextToken(roo_parser& parser)
+{
+  return parser.nextToken;
+}
+
+static token NextToken(roo_parser& parser)
+{
+  parser.currentToken = parser.nextToken;
+  parser.nextToken = LexNext(parser);
+
+  printf("Next: %s\n", GetTokenName(parser.currentToken.type));
   return parser.currentToken;
 }
 
@@ -220,14 +241,15 @@ void CreateParser(roo_parser& parser, const char* sourcePath)
   parser.currentChar = parser.source;
   parser.currentLine = 0u;
   parser.currentLineOffset = 0u;
-  parser.careAboutLines = false;
-  NextToken(parser);
+
+  parser.currentToken = LexNext(parser);
+  parser.nextToken = LexNext(parser);
 }
 
 __attribute__((noreturn))
 static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
 {
-#define ERROR_MESSAGE_LENGTH 1024
+  const int ERROR_MESSAGE_LENGTH = 1024;
 
   va_list args;
   va_start(args, messageFmt);
@@ -240,7 +262,6 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
 
   va_end(args);
   exit(1);
-#undef ERROR_MESSAGE_LENGTH
 }
 
 static inline void Consume(roo_parser& parser, token_type expectedType)
@@ -269,7 +290,7 @@ static void Function(roo_parser& parser)
 
   printf("Function name: %s\n", name);
 
-  Consume(parser, TOKEN_LEFT_PAREN);
+  ConsumeNext(parser, TOKEN_LEFT_PAREN);
   // TODO: parse parameter list
   Consume(parser, TOKEN_RIGHT_PAREN);
 

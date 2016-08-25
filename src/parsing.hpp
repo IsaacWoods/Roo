@@ -58,7 +58,6 @@ struct roo_parser
 
   token         currentToken;
   token         nextToken;
-  bool          careAboutLines;
 
   function_def* firstFunctionDef;
 };
