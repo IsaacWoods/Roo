@@ -202,8 +202,8 @@ static token LexNext(roo_parser& parser)
           NextChar(parser);
 
       case '\n':
-          type = TOKEN_LINE;
-          goto EmitSimpleToken;
+        type = TOKEN_LINE;
+        goto EmitSimpleToken;
     }
   
     if (IsName(*parser.currentChar))
@@ -216,23 +216,52 @@ EmitSimpleToken:
   return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
 }
 
-static token PeekToken(roo_parser& parser)
-{
-  return parser.currentToken;
-}
-
-static token PeekNextToken(roo_parser& parser)
-{
-  return parser.nextToken;
-}
-
-static token NextToken(roo_parser& parser)
+static token NextToken(roo_parser& parser, bool ignoreLines = true)
 {
   parser.currentToken = parser.nextToken;
   parser.nextToken = LexNext(parser);
 
+  if (ignoreLines)
+  {
+    while (parser.currentToken.type == TOKEN_LINE)
+    {
+      NextToken(parser);
+      printf("INFO: Relexed current token to: %s\n", GetTokenName(parser.currentToken.type));
+    }
+  }
+
   printf("Next: %s\n", GetTokenName(parser.currentToken.type));
   return parser.currentToken;
+}
+
+static token PeekToken(roo_parser& parser, bool ignoreLines = true)
+{
+  if (ignoreLines)
+  {
+    while (parser.currentToken.type == TOKEN_LINE)
+    {
+      NextToken(parser);
+      printf("INFO: Relexed current token to: %s\n", GetTokenName(parser.currentToken.type));
+    }
+  }
+
+  return parser.currentToken;
+}
+
+// TODO(Isaac): should we remove this? It can be useful but because reasons (see below), it's a pain in the ass
+static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
+{
+  if (ignoreLines && parser.nextToken.type == TOKEN_LINE)
+  {
+    /*
+     * NOTE(Isaac): okay, so to be honest, I have literally no idea what would be an even vaguely sensible thing
+     * to do here. The current plan is to shoot ourselves in the head and hope nobody tries to use this.
+     */
+    fprintf(stderr, "PeekNextToken called and TOKEN_LINE is next! Everything's gone tits up\n");
+    exit(1);
+  }
+
+  return parser.nextToken;
 }
 
 void CreateParser(roo_parser& parser, const char* sourcePath)
@@ -264,20 +293,26 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
   exit(1);
 }
 
-static inline void Consume(roo_parser& parser, token_type expectedType)
+static inline void Consume(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
 {
-  if (parser.currentToken.type != expectedType)
+  if (PeekToken(parser, ignoreLines).type != expectedType)
   {
     SyntaxError(parser, "Expected %s, but got %s!", GetTokenName(expectedType), GetTokenName(parser.currentToken.type));
   }
 
-  NextToken(parser);
+  NextToken(parser, ignoreLines);
 }
 
-static inline void ConsumeNext(roo_parser& parser, token_type expectedType)
+static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
 {
-  NextToken(parser);
-  Consume(parser, expectedType);
+  token_type next = NextToken(parser, ignoreLines).type;
+  
+  if (next != expectedType)
+  {
+    SyntaxError(parser, "Expected %s, but got %s!", GetTokenName(expectedType), GetTokenName(next));
+  }
+
+  NextToken(parser, ignoreLines);
 }
 
 static void Function(roo_parser& parser)
