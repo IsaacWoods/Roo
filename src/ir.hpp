@@ -19,6 +19,14 @@ struct node
   } types;
 };
 
+struct parameter_def
+{
+  const char* name;
+  const char* typeName;
+
+  parameter_def* next;
+};
+
 struct function_def
 {
   const char* name;

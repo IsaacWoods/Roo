@@ -138,7 +138,11 @@ static token LexNext(roo_parser& parser)
       case ',':
         type = TOKEN_COMMA;
         goto EmitSimpleToken;
-  
+ 
+      case ':':
+        type = TOKEN_COLON;
+        goto EmitSimpleToken;
+ 
       case '(':
         type = TOKEN_LEFT_PAREN;
         goto EmitSimpleToken;
@@ -216,7 +220,7 @@ EmitSimpleToken:
   return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
 }
 
-static token NextToken(roo_parser& parser, bool ignoreLines = true)
+/*static*/ token NextToken(roo_parser& parser, bool ignoreLines = true)
 {
   parser.currentToken = parser.nextToken;
   parser.nextToken = LexNext(parser);
@@ -273,6 +277,8 @@ void CreateParser(roo_parser& parser, const char* sourcePath)
 
   parser.currentToken = LexNext(parser);
   parser.nextToken = LexNext(parser);
+
+  parser.firstFunction = nullptr;
 }
 
 __attribute__((noreturn))
@@ -315,19 +321,79 @@ static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool
   NextToken(parser, ignoreLines);
 }
 
+// --- Parsing ---
+static parameter_def* ParameterList(roo_parser& parser)
+{
+  ConsumeNext(parser, TOKEN_LEFT_PAREN);
+  parameter_def* paramList = nullptr;
+
+  // Check for an empty parameter list
+  if (Match(TOKEN_RIGHT_PAREN))
+  {
+    Consume(parser, TOKEN_RIGHT_PAREN);
+    return nullptr;
+  }
+
+  do
+  {
+    parameter_def* param = static_cast<parameter_def*>(malloc(sizeof(parameter_def)));
+    param->name = ToCStr(nstring{PeekToken(parser).textStart, PeekToken(parser).textLength});
+    ConsumeNext(parser, TOKEN_COLON);
+    param->typeName = ToCStr(nstring{PeekToken(parser).textStart, PeekToken(parser).textLength});
+    param->next = nullptr;
+
+    printf("Param: %s of type %s\n", param->name, param->typeName);
+
+    if (paramList)
+    {
+      parameter_def* tail = paramList;
+
+      while (tail->next)
+      {
+        tail = tail->next;
+      }
+
+      tail->next = param;
+    }
+    else
+    {
+      paramList = param;
+    }
+  } while (MatchNext(TOKEN_COMMA));
+
+  ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+  return paramList;
+}
+
 static void Function(roo_parser& parser)
 {
   printf("--> Function\n");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
+  definition->next = nullptr;
+
+  // Find a place for the function
+  if (parser.firstFunction)
+  {
+    function_def* tail = parser.firstFunction;
+
+    while (tail->next)
+    {
+      tail = tail->next;
+    }
+
+    tail->next = definition;
+  }
+  else
+  {
+    parser.firstFunction = definition;
+  }
 
   token nameToken = NextToken(parser);
   char* name = ToCStr(nstring{nameToken.textStart, nameToken.textLength});
 
   printf("Function name: %s\n", name);
 
-  ConsumeNext(parser, TOKEN_LEFT_PAREN);
-  // TODO: parse parameter list
-  Consume(parser, TOKEN_RIGHT_PAREN);
+  parameter_def* params = ParameterList(parser);
 
   // TODO: parse a block
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -358,6 +424,15 @@ void FreeParser(roo_parser& parser)
 
   parser.source = nullptr;
   parser.currentChar = nullptr;
+
+  function_def* temp;
+
+  while (parser.firstFunction)
+  {
+    temp = parser.firstFunction;
+    parser.firstFunction = parser.firstFunction->next;
+    free(temp);
+  }
 }
 
 /*
@@ -381,6 +456,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_DOT";
     case TOKEN_COMMA:
       return "TOKEN_COMMA";
+    case TOKEN_COLON:
+      return "TOKEN_COLON";
     case TOKEN_LEFT_PAREN:
       return "TOKEN_LEFT_PAREN";
     case TOKEN_RIGHT_PAREN:

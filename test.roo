@@ -1,4 +1,4 @@
-fn MyFunction()
+fn MyFunction(potato : int)
 {
-  
+
 }

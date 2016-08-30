@@ -18,6 +18,7 @@ enum token_type
   // Punctuation n' shit
   TOKEN_DOT,
   TOKEN_COMMA,
+  TOKEN_COLON,
   TOKEN_LEFT_PAREN,
   TOKEN_RIGHT_PAREN,
   TOKEN_LEFT_BRACE,
@@ -59,7 +60,7 @@ struct roo_parser
   token         currentToken;
   token         nextToken;
 
-  function_def* firstFunctionDef;
+  function_def* firstFunction;
 };
 
 void CreateParser(roo_parser& parser, const char* sourcePath);
