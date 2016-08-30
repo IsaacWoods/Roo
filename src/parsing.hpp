@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <nstring.hpp>
+#include <cstring>
+#include <cstdlib>
 #include <ir.hpp>
 
 enum token_type
@@ -14,6 +15,7 @@ enum token_type
   TOKEN_FN,
   TOKEN_TRUE,
   TOKEN_FALSE,
+  TOKEN_IMPORT,
 
   // Punctuation n' shit
   TOKEN_DOT,
@@ -35,6 +37,8 @@ enum token_type
 
   // Other stuff
   TOKEN_IDENTIFIER,
+  TOKEN_DOTTED_IDENTIFIER,
+  TOKEN_STRING,
   TOKEN_LINE,
   TOKEN_INVALID
 };
@@ -50,9 +54,18 @@ struct token
   unsigned int textLength;
 };
 
+inline char* ExtractText(const token& tkn)
+{
+  char* start = static_cast<char*>(malloc(sizeof(char) * tkn.textLength + 1u));
+  memcpy(start, tkn.textStart, tkn.textLength);
+  start[tkn.textLength] = '\0';
+
+  return start;
+}
+
 struct roo_parser
 {
-  const char*   source;
+  char*         source;
   const char*   currentChar; // NOTE(Isaac): this points into `source`
   unsigned int  currentLine;
   unsigned int  currentLineOffset;

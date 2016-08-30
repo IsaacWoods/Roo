@@ -29,8 +29,9 @@ struct parameter_def
 
 struct function_def
 {
-  const char* name;
-  unsigned int arity;
+  char*          name;
+  unsigned int   arity;
+  parameter_def* params;
 
-  function_def* next;
+  function_def*  next;
 };

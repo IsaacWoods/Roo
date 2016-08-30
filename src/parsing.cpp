@@ -18,7 +18,7 @@
  * Reads a file as a string.
  * The string is allocated on the heap and it is the responsibility of the caller to free it.
  */
-static const char* ReadFile(const char* path)
+static char* ReadFile(const char* path)
 {
   FILE* file = fopen(path, "rb");
 
@@ -112,6 +112,7 @@ static token LexName(roo_parser& parser)
   KEYWORD("fn", TOKEN_FN)
   KEYWORD("true", TOKEN_TRUE)
   KEYWORD("false", TOKEN_FALSE)
+  KEYWORD("import", TOKEN_IMPORT)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
@@ -203,14 +204,17 @@ static token LexNext(roo_parser& parser)
                *(parser.currentChar) == '\r' ||
                *(parser.currentChar) == '\t' ||
                *(parser.currentChar) == '\n')
+        {
           NextChar(parser);
+        }
+        break;
 
       case '\n':
         type = TOKEN_LINE;
         goto EmitSimpleToken;
     }
   
-    if (IsName(*parser.currentChar))
+    if (IsName(c))
     {
       return LexName(parser);
     }
@@ -234,7 +238,6 @@ EmitSimpleToken:
     }
   }
 
-  printf("Next: %s\n", GetTokenName(parser.currentToken.type));
   return parser.currentToken;
 }
 
@@ -299,6 +302,30 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
   exit(1);
 }
 
+static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
+{
+  if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
+  {
+    printf("PEEK: (%s)\n", ExtractText(PeekToken(parser, ignoreLines)));
+  }
+  else
+  {
+    printf("PEEK: %s\n", GetTokenName(PeekToken(parser, ignoreLines).type));
+  }
+}
+
+static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
+{
+  if (PeekNextToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
+  {
+    printf("PEEK_NEXT: (%s)\n", ExtractText(PeekNextToken(parser, ignoreLines)));
+  }
+  else
+  {
+    printf("PEEK_NEXT: %s\n", GetTokenName(PeekNextToken(parser, ignoreLines).type));
+  }
+}
+
 static inline void Consume(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type != expectedType)
@@ -337,9 +364,9 @@ static parameter_def* ParameterList(roo_parser& parser)
   do
   {
     parameter_def* param = static_cast<parameter_def*>(malloc(sizeof(parameter_def)));
-    param->name = ToCStr(nstring{PeekToken(parser).textStart, PeekToken(parser).textLength});
+    param->name = ExtractText(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    param->typeName = ToCStr(nstring{PeekToken(parser).textStart, PeekToken(parser).textLength});
+    param->typeName = ExtractText(PeekToken(parser));
     param->next = nullptr;
 
     printf("Param: %s of type %s\n", param->name, param->typeName);
@@ -365,6 +392,28 @@ static parameter_def* ParameterList(roo_parser& parser)
   return paramList;
 }
 
+static void Import(roo_parser& parser)
+{
+  printf("--> Import\n");
+
+  // Import local library
+  if (MatchNext(TOKEN_IDENTIFIER) ||
+      MatchNext(TOKEN_DOTTED_IDENTIFIER))
+  {
+    // TODO
+    printf("Importing: %s\n", ExtractText(NextToken(parser)));
+  }
+
+  // Match a remote repository
+  if (MatchNext(TOKEN_STRING))
+  {
+    printf("Importing remote: %s\n", ExtractText(NextToken(parser)));
+  }
+
+  NextToken(parser);
+  printf("<-- Import\n");
+}
+
 static void Function(roo_parser& parser)
 {
   printf("--> Function\n");
@@ -388,12 +437,9 @@ static void Function(roo_parser& parser)
     parser.firstFunction = definition;
   }
 
-  token nameToken = NextToken(parser);
-  char* name = ToCStr(nstring{nameToken.textStart, nameToken.textLength});
-
-  printf("Function name: %s\n", name);
-
-  parameter_def* params = ParameterList(parser);
+  definition->name = ExtractText(NextToken(parser));
+  printf("Function name: %s\n", definition->name);
+  definition->params = ParameterList(parser);
 
   // TODO: parse a block
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -406,9 +452,20 @@ void Parse(roo_parser& parser)
 {
   printf("--- Starting parse ---\n");
 
-  if (Match(TOKEN_FN))
+  while (!Match(TOKEN_INVALID))
   {
-    Function(parser);
+    PeekNPrint(parser);
+    PeekNPrintNext(parser);
+
+    if (Match(TOKEN_IMPORT))
+    {
+      Import(parser);
+    }
+  
+    if (Match(TOKEN_FN))
+    {
+      Function(parser);
+    }
   }
 
   printf("--- Finished parse ---\n");
@@ -416,12 +473,7 @@ void Parse(roo_parser& parser)
 
 void FreeParser(roo_parser& parser)
 {
-  /*
-   * NOTE(Isaac): the cast here is fine; the C standard is actually wrong.
-   * The signature of free should be `free(const void*)`.
-   */
-  free((char*)parser.source);
-
+  free(parser.source);
   parser.source = nullptr;
   parser.currentChar = nullptr;
 
@@ -451,6 +503,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_TRUE";
     case TOKEN_FALSE:
       return "TOKEN_FALSE";
+    case TOKEN_IMPORT:
+      return "TOKEN_IMPORT";
 
     case TOKEN_DOT:
       return "TOKEN_DOT";

@@ -8,7 +8,6 @@ LFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
 OBJS = \
   src/roo.o \
   src/parsing.o \
-  src/nstring.o \
 
 .PHONY: clean
 

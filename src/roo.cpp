@@ -17,7 +17,7 @@ int main()
   while (parser.currentToken.type != TOKEN_INVALID)
   {
     if (parser.currentToken.type == TOKEN_IDENTIFIER)
-      printf("Token: (%s)\n", ToCStr(nstring{parser.currentToken.textStart, parser.currentToken.textLength}));
+      printf("Token: (%s)\n", ExtractText(parser.currentToken));
     else
       printf("Token: %s\n", GetTokenName(parser.currentToken.type));
 
