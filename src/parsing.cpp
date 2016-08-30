@@ -80,7 +80,7 @@ static bool IsDigit(char c)
   return (c >= '0' && c <= '9');
 }
 
-static token MakeToken(roo_parser& parser, token_type type, unsigned int offset, const char* startChar,
+static inline token MakeToken(roo_parser& parser, token_type type, unsigned int offset, const char* startChar,
     unsigned int length)
 {
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length};
@@ -306,7 +306,7 @@ static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
-    printf("PEEK: (%s)\n", ExtractText(PeekToken(parser, ignoreLines)));
+    printf("PEEK: (%s)\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
   }
   else
   {
@@ -318,7 +318,7 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekNextToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
-    printf("PEEK_NEXT: (%s)\n", ExtractText(PeekNextToken(parser, ignoreLines)));
+    printf("PEEK_NEXT: (%s)\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
   }
   else
   {
@@ -364,9 +364,9 @@ static parameter_def* ParameterList(roo_parser& parser)
   do
   {
     parameter_def* param = static_cast<parameter_def*>(malloc(sizeof(parameter_def)));
-    param->name = ExtractText(PeekToken(parser));
+    param->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    param->typeName = ExtractText(PeekToken(parser));
+    param->typeName = GetTextFromToken(PeekToken(parser));
     param->next = nullptr;
 
     printf("Param: %s of type %s\n", param->name, param->typeName);
@@ -401,13 +401,13 @@ static void Import(roo_parser& parser)
       MatchNext(TOKEN_DOTTED_IDENTIFIER))
   {
     // TODO
-    printf("Importing: %s\n", ExtractText(NextToken(parser)));
+    printf("Importing: %s\n", GetTextFromToken(NextToken(parser)));
   }
 
   // Match a remote repository
   if (MatchNext(TOKEN_STRING))
   {
-    printf("Importing remote: %s\n", ExtractText(NextToken(parser)));
+    printf("Importing remote: %s\n", GetTextFromToken(NextToken(parser)));
   }
 
   NextToken(parser);
@@ -437,7 +437,7 @@ static void Function(roo_parser& parser)
     parser.firstFunction = definition;
   }
 
-  definition->name = ExtractText(NextToken(parser));
+  definition->name = GetTextFromToken(NextToken(parser));
   printf("Function name: %s\n", definition->name);
   definition->params = ParameterList(parser);
 

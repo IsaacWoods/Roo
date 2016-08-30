@@ -54,7 +54,7 @@ struct token
   unsigned int textLength;
 };
 
-inline char* ExtractText(const token& tkn)
+inline char* GetTextFromToken(const token& tkn)
 {
   char* start = static_cast<char*>(malloc(sizeof(char) * tkn.textLength + 1u));
   memcpy(start, tkn.textStart, tkn.textLength);
