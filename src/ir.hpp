@@ -19,6 +19,8 @@ struct node
   } types;
 };
 
+void FreeNode(node* n);
+
 struct parameter_def
 {
   const char* name;
