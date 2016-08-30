@@ -1,7 +1,7 @@
 # Copyright (C) 2016, Isaac Woods. All rights reserved.
 # See LICENCE.md
 
-CXX = g++
+CXX ?= g++
 CFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
 LFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
 
