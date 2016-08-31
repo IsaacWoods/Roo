@@ -80,6 +80,11 @@ static bool IsDigit(char c)
   return (c >= '0' && c <= '9');
 }
 
+static bool IsHexDigit(char c)
+{
+  return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
+}
+
 static inline token MakeToken(roo_parser& parser, token_type type, unsigned int offset, const char* startChar,
     unsigned int length)
 {
@@ -96,10 +101,12 @@ static token LexName(roo_parser& parser)
 
   // NOTE(Isaac): Concat the string until the next character that isn't part of the name
   while (IsName(*(parser.currentChar)))
+  {
     NextChar(parser);
+  }
 
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
-  unsigned int tokenOffset = (unsigned int)(parser.currentChar - parser.source);
+  unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
   // Parse a keyword
   #define KEYWORD(keyword, tokenType) \
@@ -116,6 +123,48 @@ static token LexName(roo_parser& parser)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
+}
+
+static token LexNumber(roo_parser& parser)
+{
+  const char* startChar = parser.currentChar - 1u;
+  token_type type = TOKEN_NUMBER_INT;
+
+  while (IsDigit(*(parser.currentChar)))
+  {
+    NextChar(parser);
+  }
+
+  // Check for a decimal point
+  if (*(parser.currentChar) == '.' && IsDigit(*(parser.currentChar + 1u)))
+  {
+    NextChar(parser);
+    type = TOKEN_NUMBER_FLOAT;
+
+    while (IsDigit(*(parser.currentChar)))
+    {
+      NextChar(parser);
+    }
+  }
+
+  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
+  unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
+  return MakeToken(parser, type, tokenOffset, startChar, (unsigned int) length);
+}
+
+static token LexHexNumber(roo_parser& parser)
+{
+  NextChar(parser); // NOTE(Isaac): skip over the 'x'
+  const char* startChar = parser.currentChar;
+
+  while (IsHexDigit(*(parser.currentChar)))
+  {
+    NextChar(parser);
+  }
+
+  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
+  unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
+  return MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
 }
 
 static token LexNext(roo_parser& parser)
@@ -218,6 +267,16 @@ static token LexNext(roo_parser& parser)
     {
       return LexName(parser);
     }
+
+    if (c == '0' && *(parser.currentChar) == 'x')
+    {
+      return LexHexNumber(parser);
+    }
+
+    if (IsDigit(c))
+    {
+      return LexNumber(parser);
+    }
   }
 
 EmitSimpleToken:
@@ -306,6 +365,11 @@ static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
   {
     printf("PEEK: (%s)\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
   }
+  else if ((PeekToken(parser, ignoreLines).type == TOKEN_NUMBER_INT) ||
+           (PeekToken(parser, ignoreLines).type == TOKEN_NUMBER_FLOAT))
+  {
+    printf("PEEK_NEXT: [%s]\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
+  }
   else
   {
     printf("PEEK: %s\n", GetTokenName(PeekToken(parser, ignoreLines).type));
@@ -317,6 +381,11 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
   if (PeekNextToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
     printf("PEEK_NEXT: (%s)\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
+  }
+  else if ((PeekNextToken(parser, ignoreLines).type == TOKEN_NUMBER_INT) ||
+           (PeekNextToken(parser, ignoreLines).type == TOKEN_NUMBER_FLOAT))
+  {
+    printf("PEEK_NEXT: [%s]\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
   }
   else
   {
@@ -394,18 +463,24 @@ static void Import(roo_parser& parser)
 {
   printf("--> Import\n");
 
-  // Import local library
-  if (MatchNext(TOKEN_IDENTIFIER) ||
-      MatchNext(TOKEN_DOTTED_IDENTIFIER))
+  switch (parser.nextToken.type)
   {
-    // TODO
-    printf("Importing: %s\n", GetTextFromToken(NextToken(parser)));
-  }
+    // NOTE(Isaac): Import a local library
+    case TOKEN_IDENTIFIER:
+    case TOKEN_DOTTED_IDENTIFIER:
+    {
+      printf("Importing: %s\n", GetTextFromToken(NextToken(parser)));
+    } break;
 
-  // Match a remote repository
-  if (MatchNext(TOKEN_STRING))
-  {
-    printf("Importing remote: %s\n", GetTextFromToken(NextToken(parser)));
+    // NOTE(Isaac): Import a library from a remote repository
+    case TOKEN_STRING:
+    {
+      printf("Importing remote: %s\n", GetTextFromToken(NextToken(parser)));
+    } break;
+
+    default:
+      SyntaxError(parser, "Expected [STRING LITERAL] or [DOTTED IDENTIFIER] after `import`, got %s!",
+                  GetTokenName(parser.nextToken.type));
   }
 
   NextToken(parser);
@@ -539,6 +614,12 @@ const char* GetTokenName(token_type type)
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";
+    case TOKEN_DOTTED_IDENTIFIER:
+      return "TOKEN_DOTTED_IDENTIFIER";
+    case TOKEN_NUMBER_INT:
+      return "TOKEN_NUMBER_INT";
+    case TOKEN_NUMBER_FLOAT:
+      return "TOKEN_NUMBER_FLOAT";
     case TOKEN_LINE:
       return "TOKEN_LINE";
     case TOKEN_INVALID:

@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <parsing.hpp>
 
-#if 0
+#if 1
 token NextToken(roo_parser& parser, bool ignoreLines);
 
 int main()
@@ -17,7 +17,10 @@ int main()
   while (parser.currentToken.type != TOKEN_INVALID)
   {
     if (parser.currentToken.type == TOKEN_IDENTIFIER)
-      printf("Token: (%s)\n", ExtractText(parser.currentToken));
+      printf("Token: (%s)\n", GetTextFromToken(parser.currentToken));
+    else if ((parser.currentToken.type == TOKEN_NUMBER_INT) ||
+             (parser.currentToken.type == TOKEN_NUMBER_FLOAT))
+      printf("Token: [%s]\n", GetTextFromToken(parser.currentToken));
     else
       printf("Token: %s\n", GetTokenName(parser.currentToken.type));
 
