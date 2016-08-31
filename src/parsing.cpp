@@ -167,6 +167,20 @@ static token LexHexNumber(roo_parser& parser)
   return MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
 }
 
+static token LexString(roo_parser& parser)
+{
+  const char* startChar = parser.currentChar;
+
+  while (*(parser.currentChar) != '"')
+  {
+    NextChar(parser);
+  }
+
+  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
+  unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
+  return MakeToken(parser, TOKEN_STRING, tokenOffset, startChar, (unsigned int)length);
+}
+
 static token LexNext(roo_parser& parser)
 {
   token_type type = TOKEN_INVALID;
@@ -217,14 +231,6 @@ static token LexNext(roo_parser& parser)
         type = TOKEN_RIGHT_BLOCK;
         goto EmitSimpleToken;
   
-      case '\'':
-        type = TOKEN_SINGLE_QUOTE;
-        goto EmitSimpleToken;
-  
-      case '"':
-        type = TOKEN_DOUBLE_QUOTE;
-        goto EmitSimpleToken;
-  
       case '*':
         type = TOKEN_ASTERIX;
         goto EmitSimpleToken;
@@ -248,6 +254,7 @@ static token LexNext(roo_parser& parser)
       case ' ':
       case '\r':
       case '\t':
+      {
         // Skip past any whitespace
         while (*(parser.currentChar) == ' '  ||
                *(parser.currentChar) == '\r' ||
@@ -256,26 +263,32 @@ static token LexNext(roo_parser& parser)
         {
           NextChar(parser);
         }
-        break;
+      } break;
 
       case '\n':
         type = TOKEN_LINE;
         goto EmitSimpleToken;
-    }
-  
-    if (IsName(c))
-    {
-      return LexName(parser);
-    }
 
-    if (c == '0' && *(parser.currentChar) == 'x')
-    {
-      return LexHexNumber(parser);
-    }
+      case '"':
+        return LexString(parser);
 
-    if (IsDigit(c))
-    {
-      return LexNumber(parser);
+      default:
+      {
+        if (IsName(c))
+        {
+          return LexName(parser);
+        }
+    
+        if (c == '0' && *(parser.currentChar) == 'x')
+        {
+          return LexHexNumber(parser);
+        }
+    
+        if (IsDigit(c))
+        {
+          return LexNumber(parser);
+        }
+      } break;
     }
   }
 
@@ -479,8 +492,10 @@ static void Import(roo_parser& parser)
     } break;
 
     default:
+    {
       SyntaxError(parser, "Expected [STRING LITERAL] or [DOTTED IDENTIFIER] after `import`, got %s!",
                   GetTokenName(parser.nextToken.type));
+    }
   }
 
   NextToken(parser);
@@ -527,9 +542,6 @@ void Parse(roo_parser& parser)
 
   while (!Match(TOKEN_INVALID))
   {
-    PeekNPrint(parser);
-    PeekNPrintNext(parser);
-
     if (Match(TOKEN_IMPORT))
     {
       Import(parser);
@@ -560,10 +572,6 @@ void FreeParser(roo_parser& parser)
   }
 }
 
-/*
- * Get a string representation of a given token type.
- * This is for debug purposes and it might be worth stripping it from releases.
- */
 const char* GetTokenName(token_type type)
 {
   switch (type)
@@ -597,10 +605,6 @@ const char* GetTokenName(token_type type)
       return "TOKEN_LEFT_BLOCK";
     case TOKEN_RIGHT_BLOCK:
       return "TOKEN_RIGHT_BLOCK";
-    case TOKEN_SINGLE_QUOTE:
-      return "TOKEN_SINGLE_QUOTE";
-    case TOKEN_DOUBLE_QUOTE:
-      return "TOKEN_DOUBLE_QUOTE";
     case TOKEN_ASTERIX:
       return "TOKEN_ASTERIX";
     case TOKEN_AMPERSAND:

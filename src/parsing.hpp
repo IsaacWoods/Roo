@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <ir.hpp>
 
+#define DEBUG_PARSE
+
 enum token_type
 {
   // Keywords
@@ -27,8 +29,6 @@ enum token_type
   TOKEN_RIGHT_BRACE,
   TOKEN_LEFT_BLOCK,
   TOKEN_RIGHT_BLOCK,
-  TOKEN_SINGLE_QUOTE,
-  TOKEN_DOUBLE_QUOTE,
   TOKEN_ASTERIX,
   TOKEN_AMPERSAND,
   TOKEN_PLUS,
