@@ -6,7 +6,7 @@
 
 enum node_type
 {
-
+  BREAK_NODE,
 };
 
 struct node
@@ -20,6 +20,7 @@ struct node
   } types;
 };
 
+node* CreateNode(node_type type, ...);
 void FreeNode(node* n);
 
 struct parameter_def
