@@ -17,6 +17,7 @@ enum token_type
   TOKEN_FALSE,
   TOKEN_IMPORT,
   TOKEN_BREAK,
+  TOKEN_RETURN,
 
   // Punctuation n' shit
   TOKEN_DOT,

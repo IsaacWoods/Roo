@@ -18,7 +18,8 @@ node* CreateNode(node_type type, ...)
 
   switch (type)
   {
-    case BREAK_NODE: break;
+    case BREAK_NODE:      break;
+    case RETURN_NODE:     break;
 
     default:
       fprintf(stderr, "Unhandled node type in CreateNode!\n");

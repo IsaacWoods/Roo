@@ -7,6 +7,7 @@
 enum node_type
 {
   BREAK_NODE,
+  RETURN_NODE
 };
 
 struct node

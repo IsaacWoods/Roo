@@ -121,6 +121,7 @@ static token LexName(roo_parser& parser)
   KEYWORD("false",    TOKEN_FALSE)
   KEYWORD("import",   TOKEN_IMPORT)
   KEYWORD("break",    TOKEN_BREAK)
+  KEYWORD("return",   TOKEN_RETURN)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
@@ -488,6 +489,15 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       }
 
       result = CreateNode(BREAK_NODE);
+      printf("STATEMENT: break\n");
+      NextToken(parser);
+    } break;
+
+    case TOKEN_RETURN:
+    {
+      // TODO: optionally parse an expression to return
+      result = CreateNode(RETURN_NODE);
+      printf("STATEMENT: return\n");
       NextToken(parser);
     } break;
 
@@ -496,7 +506,6 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       exit(1);
   }
 
-  // TODO
   printf("<-- Statement\n");
   return result;
 }
@@ -647,6 +656,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_IMPORT";
     case TOKEN_BREAK:
       return "TOKEN_BREAK";
+    case TOKEN_RETURN:
+      return "TOKEN_RETURN";
 
     case TOKEN_DOT:
       return "TOKEN_DOT";
