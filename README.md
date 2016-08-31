@@ -1,4 +1,5 @@
 # Roo
+[![Build Status](https://travis-ci.org/IsaacWoods/Roo.svg?branch=master)](https://travis-ci.org/IsaacWoods/Roo)
 
 Roo is a predominantly procedural programming language built both the experiment with a new language, and to
 show the construction of a non-trivial compiler. Its construction is detailed in a (currently non-existant) series
