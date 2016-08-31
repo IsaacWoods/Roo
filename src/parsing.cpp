@@ -472,6 +472,45 @@ static parameter_def* ParameterList(roo_parser& parser)
   return paramList;
 }
 
+static node* Statement(roo_parser& parser)
+{
+  // TODO
+  return nullptr;
+}
+
+static node* Block(roo_parser& parser)
+{
+  printf("--> Block\n");
+
+  Consume(parser, TOKEN_LEFT_BRACE);
+  node* code = nullptr;
+
+  while (!Match(TOKEN_RIGHT_BRACE))
+  {
+    node* statement = Statement(parser);
+
+    if (code)
+    {
+      node* tail = statement;
+
+      while (tail->next)
+      {
+        tail = tail->next;
+      }
+
+      tail->next = statement;
+    }
+    else
+    {
+      code = statement;
+    }
+  }
+
+  Consume(parser, TOKEN_RIGHT_BRACE);
+  printf("<-- Block\n");
+  return code;
+}
+
 static void Import(roo_parser& parser)
 {
   printf("--> Import\n");
@@ -528,10 +567,7 @@ static void Function(roo_parser& parser)
   definition->name = GetTextFromToken(NextToken(parser));
   printf("Function name: %s\n", definition->name);
   definition->params = ParameterList(parser);
-
-  // TODO: parse a block
-  Consume(parser, TOKEN_LEFT_BRACE);
-  Consume(parser, TOKEN_RIGHT_BRACE);
+  definition->code = Block(parser);
 
   printf("<-- Function\n");
 }

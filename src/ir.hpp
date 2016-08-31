@@ -12,6 +12,7 @@ enum node_type
 struct node
 {
   node_type type;
+  node* next;
 
   union
   {
@@ -34,6 +35,7 @@ struct function_def
   char*          name;
   unsigned int   arity;
   parameter_def* params;
+  node*          code;
 
   function_def*  next;
 };

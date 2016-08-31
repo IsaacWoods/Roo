@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <parsing.hpp>
 
-#if 1
+#if 0
 token NextToken(roo_parser& parser, bool ignoreLines);
 
 int main()
