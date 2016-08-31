@@ -115,11 +115,12 @@ static token LexName(roo_parser& parser)
       return MakeToken(parser, tokenType, tokenOffset, startChar, (unsigned int)length); \
     }
 
-  KEYWORD("type", TOKEN_TYPE)
-  KEYWORD("fn", TOKEN_FN)
-  KEYWORD("true", TOKEN_TRUE)
-  KEYWORD("false", TOKEN_FALSE)
-  KEYWORD("import", TOKEN_IMPORT)
+  KEYWORD("type",     TOKEN_TYPE)
+  KEYWORD("fn",       TOKEN_FN)
+  KEYWORD("true",     TOKEN_TRUE)
+  KEYWORD("false",    TOKEN_FALSE)
+  KEYWORD("import",   TOKEN_IMPORT)
+  KEYWORD("break",    TOKEN_BREAK)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
@@ -472,10 +473,32 @@ static parameter_def* ParameterList(roo_parser& parser)
   return paramList;
 }
 
-static node* Statement(roo_parser& parser)
+static node* Statement(roo_parser& parser, bool isInLoop)
 {
+  printf("--> Statement\n");
+  node* result = nullptr;
+
+  switch (PeekToken(parser).type)
+  {
+    case TOKEN_BREAK:
+    {
+      if (!isInLoop)
+      {
+        SyntaxError(parser, "`break` only makes sense in a loop!\n");
+      }
+
+      result = CreateNode(BREAK_NODE);
+      NextToken(parser);
+    } break;
+
+    default:
+      fprintf(stderr, "Unhandled token type in Statement!\n");
+      exit(1);
+  }
+
   // TODO
-  return nullptr;
+  printf("<-- Statement\n");
+  return result;
 }
 
 static node* Block(roo_parser& parser)
@@ -487,7 +510,7 @@ static node* Block(roo_parser& parser)
 
   while (!Match(TOKEN_RIGHT_BRACE))
   {
-    node* statement = Statement(parser);
+    node* statement = Statement(parser, false);
 
     if (code)
     {
@@ -622,6 +645,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_FALSE";
     case TOKEN_IMPORT:
       return "TOKEN_IMPORT";
+    case TOKEN_BREAK:
+      return "TOKEN_BREAK";
 
     case TOKEN_DOT:
       return "TOKEN_DOT";

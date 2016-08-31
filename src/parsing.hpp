@@ -8,8 +8,6 @@
 #include <cstdlib>
 #include <ir.hpp>
 
-#define DEBUG_PARSE
-
 enum token_type
 {
   // Keywords
@@ -18,6 +16,7 @@ enum token_type
   TOKEN_TRUE,
   TOKEN_FALSE,
   TOKEN_IMPORT,
+  TOKEN_BREAK,
 
   // Punctuation n' shit
   TOKEN_DOT,
