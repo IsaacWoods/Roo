@@ -11,9 +11,6 @@
 #include <cstdarg>
 #include <cassert>
 
-#define Match(expectedType) (parser.currentToken.type == expectedType)
-#define MatchNext(expectedType) (parser.nextToken.type == expectedType)
-
 /*
  * Reads a file as a string.
  * The string is allocated on the heap and it is the responsibility of the caller to free it.
@@ -430,6 +427,16 @@ static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool
   NextToken(parser, ignoreLines);
 }
 
+static inline bool Match(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
+{
+  return (PeekToken(parser, ignoreLines).type == expectedType);
+}
+
+static inline bool MatchNext(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
+{
+  return (PeekNextToken(parser, ignoreLines).type == expectedType);
+}
+
 // --- Parsing ---
 static parameter_def* ParameterList(roo_parser& parser)
 {
@@ -437,7 +444,7 @@ static parameter_def* ParameterList(roo_parser& parser)
   parameter_def* paramList = nullptr;
 
   // Check for an empty parameter list
-  if (Match(TOKEN_RIGHT_PAREN))
+  if (Match(parser, TOKEN_RIGHT_PAREN))
   {
     Consume(parser, TOKEN_RIGHT_PAREN);
     return nullptr;
@@ -468,15 +475,24 @@ static parameter_def* ParameterList(roo_parser& parser)
     {
       paramList = param;
     }
-  } while (MatchNext(TOKEN_COMMA));
+  } while (MatchNext(parser, TOKEN_COMMA));
 
   ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   return paramList;
 }
 
+static node* Expression(roo_parser& parser)
+{
+  printf("--> Expression\n");
+  // TODO
+  
+  printf("<-- Expression\n");
+  return nullptr;
+}
+
 static node* Statement(roo_parser& parser, bool isInLoop)
 {
-  printf("--> Statement\n");
+  printf("--> Statement(");
   node* result = nullptr;
 
   switch (PeekToken(parser).type)
@@ -489,16 +505,23 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       }
 
       result = CreateNode(BREAK_NODE);
-      printf("STATEMENT: break\n");
+      printf("BREAK)\n");
       NextToken(parser);
     } break;
 
     case TOKEN_RETURN:
     {
-      // TODO: optionally parse an expression to return
-      result = CreateNode(RETURN_NODE);
-      printf("STATEMENT: return\n");
-      NextToken(parser);
+      printf("RETURN)\n");
+      NextToken(parser, false);
+
+      if (Match(parser, TOKEN_LINE, false))
+      {
+        result = CreateNode(RETURN_NODE, nullptr);
+      }
+      else
+      {
+        result = CreateNode(RETURN_NODE, Expression(parser));
+      }
     } break;
 
     default:
@@ -517,7 +540,7 @@ static node* Block(roo_parser& parser)
   Consume(parser, TOKEN_LEFT_BRACE);
   node* code = nullptr;
 
-  while (!Match(TOKEN_RIGHT_BRACE))
+  while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
     node* statement = Statement(parser, false);
 
@@ -608,14 +631,14 @@ void Parse(roo_parser& parser)
 {
   printf("--- Starting parse ---\n");
 
-  while (!Match(TOKEN_INVALID))
+  while (!Match(parser, TOKEN_INVALID))
   {
-    if (Match(TOKEN_IMPORT))
+    if (Match(parser, TOKEN_IMPORT))
     {
       Import(parser);
     }
   
-    if (Match(TOKEN_FN))
+    if (Match(parser, TOKEN_FN))
     {
       Function(parser);
     }
