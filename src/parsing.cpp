@@ -234,7 +234,6 @@ EmitSimpleToken:
     while (parser.currentToken.type == TOKEN_LINE)
     {
       NextToken(parser);
-      printf("INFO: Relexed current token to: %s\n", GetTokenName(parser.currentToken.type));
     }
   }
 
@@ -248,7 +247,6 @@ static token PeekToken(roo_parser& parser, bool ignoreLines = true)
     while (parser.currentToken.type == TOKEN_LINE)
     {
       NextToken(parser);
-      printf("INFO: Relexed current token to: %s\n", GetTokenName(parser.currentToken.type));
     }
   }
 
