@@ -11,6 +11,20 @@
 #include <cstdarg>
 #include <cassert>
 
+void FreeParseResult(parse_result& result)
+{
+  function_def* temp;
+
+  while (result.firstFunction)
+  {
+    temp = result.firstFunction;
+    result.firstFunction = result.firstFunction->next;
+    free(temp);
+  }
+
+  result.firstFunction = nullptr;
+}
+
 /*
  * Reads a file as a string.
  * The string is allocated on the heap and it is the responsibility of the caller to free it.
@@ -340,12 +354,13 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
   return parser.nextToken;
 }
 
-void CreateParser(roo_parser& parser, const char* sourcePath)
+void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
 {
   parser.source = ReadFile(sourcePath);
   parser.currentChar = parser.source;
   parser.currentLine = 0u;
   parser.currentLineOffset = 0u;
+  parser.result = result;
 
   parser.currentToken = LexNext(parser);
   parser.nextToken = LexNext(parser);
@@ -361,9 +376,6 @@ void CreateParser(roo_parser& parser, const char* sourcePath)
       printf("Name parselet!\n");
       return nullptr;
     };
-
-  // --- Empty parse result ---
-  parser.firstFunction = nullptr;
 }
 
 __attribute__((noreturn))
@@ -639,9 +651,9 @@ static void Function(roo_parser& parser)
   definition->next = nullptr;
 
   // Find a place for the function
-  if (parser.firstFunction)
+  if (parser.result->firstFunction)
   {
-    function_def* tail = parser.firstFunction;
+    function_def* tail = parser.result->firstFunction;
 
     while (tail->next)
     {
@@ -652,7 +664,7 @@ static void Function(roo_parser& parser)
   }
   else
   {
-    parser.firstFunction = definition;
+    parser.result->firstFunction = definition;
   }
 
   definition->name = GetTextFromToken(NextToken(parser));
@@ -688,15 +700,7 @@ void FreeParser(roo_parser& parser)
   free(parser.source);
   parser.source = nullptr;
   parser.currentChar = nullptr;
-
-  function_def* temp;
-
-  while (parser.firstFunction)
-  {
-    temp = parser.firstFunction;
-    parser.firstFunction = parser.firstFunction->next;
-    free(temp);
-  }
+  parser.result = nullptr;
 }
 
 const char* GetTokenName(token_type type)

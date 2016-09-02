@@ -67,6 +67,13 @@ inline char* GetTextFromToken(const token& tkn)
   return start;
 }
 
+struct parse_result
+{
+  function_def* firstFunction;
+};
+
+void FreeParseResult(parse_result& result);
+
 struct roo_parser;
 typedef node* (*prefix_parselet)(roo_parser&);
 typedef node* (*infix_parselet)(roo_parser&, node* left);
@@ -85,10 +92,10 @@ struct roo_parser
   infix_parselet  infixMap[NUM_TOKENS];
   unsigned int    precendenceTable[NUM_TOKENS];
 
-  function_def*   firstFunction;
+  parse_result*   result;
 };
 
-void CreateParser(roo_parser& parser, const char* sourcePath);
+void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath);
 void Parse(roo_parser& parser);
 void FreeParser(roo_parser& parser);
 
