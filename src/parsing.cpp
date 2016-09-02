@@ -66,7 +66,9 @@ static char NextChar(roo_parser& parser)
 {
   // Don't dereference memory past the end of the string
   if (*(parser.currentChar) == '\0')
+  {
     return '\0';
+  }
 
   if (*(parser.currentChar) == '\n')
   {
@@ -257,8 +259,18 @@ static token LexNext(roo_parser& parser)
         goto EmitSimpleToken;
   
       case '-':
-        type = TOKEN_MINUS;
+      {
+        if (*(parser.currentChar) == '>')
+        {
+          type = TOKEN_YIELDS;
+        }
+        else
+        {
+          type = TOKEN_MINUS;
+        }
+
         goto EmitSimpleToken;
+      }
   
       case '/':
         type = TOKEN_SLASH;
@@ -338,20 +350,29 @@ static token PeekToken(roo_parser& parser, bool ignoreLines = true)
   return parser.currentToken;
 }
 
-// TODO(Isaac): should we remove this? It can be useful but because reasons (see below), it's a pain in the ass
 static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
 {
-  if (ignoreLines && parser.nextToken.type == TOKEN_LINE)
+  if (!ignoreLines)
   {
-    /*
-     * NOTE(Isaac): okay, so to be honest, I have literally no idea what would be an even vaguely sensible thing
-     * to do here. The current plan is to shoot ourselves in the head and hope nobody tries to use this.
-     */
-    fprintf(stderr, "PeekNextToken called and TOKEN_LINE is next! Everything's gone tits up\n");
-    exit(1);
+    return parser.nextToken;
   }
 
-  return parser.nextToken;
+  // NOTE(Isaac): We need to skip tokens denoting line breaks, without advancing the token stream
+  const char* cachedChar = parser.currentChar;
+  unsigned int cachedLine = parser.currentLine;
+  unsigned int cachedLineOffset = parser.currentLineOffset;
+
+  token next = parser.nextToken;
+
+  while (next.type == TOKEN_LINE)
+  {
+    next = LexNext(parser);
+  }
+
+  parser.currentChar = cachedChar;
+  parser.currentLine = cachedLine;
+  parser.currentLineOffset = cachedLineOffset;
+  return next;
 }
 
 void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
@@ -670,6 +691,23 @@ static void Function(roo_parser& parser)
   definition->name = GetTextFromToken(NextToken(parser));
   printf("Function name: %s\n", definition->name);
   definition->params = ParameterList(parser);
+
+  // Optionally parse a return type
+  if (Match(parser, TOKEN_YIELDS))
+  {
+    Consume(parser, TOKEN_YIELDS);
+    definition->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+    definition->returnType->typeName = GetTextFromToken(PeekToken(parser));
+    NextToken(parser);
+    
+    printf("Return type: %s\n", definition->returnType->typeName);
+  }
+  else
+  {
+    definition->returnType = nullptr;
+    printf("Return type: NONE\n");
+  }
+
   definition->code = Block(parser);
 
   printf("<-- Function\n");
@@ -750,6 +788,9 @@ const char* GetTokenName(token_type type)
       return "TOKEN_MINUS";
     case TOKEN_SLASH:
       return "TOKEN_SLASH";
+
+    case TOKEN_YIELDS:
+      return "TOKEN_YIELDS";
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";

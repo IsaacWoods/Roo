@@ -1,4 +1,4 @@
-fn MyFunction(potato : int)
+fn MyFunction(potato : int) -> int
 {
   return potato
 }

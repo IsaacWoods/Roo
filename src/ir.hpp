@@ -32,11 +32,17 @@ struct parameter_def
   parameter_def* next;
 };
 
+struct type_ref
+{
+  const char* typeName;
+};
+
 struct function_def
 {
   char*          name;
   unsigned int   arity;
   parameter_def* params;
+  type_ref*      returnType;
   node*          code;
 
   function_def*  next;

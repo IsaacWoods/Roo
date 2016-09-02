@@ -35,6 +35,8 @@ enum token_type
   TOKEN_MINUS,
   TOKEN_SLASH,
 
+  TOKEN_YIELDS,   // ->
+
   // Other stuff
   TOKEN_IDENTIFIER,
   TOKEN_DOTTED_IDENTIFIER,
