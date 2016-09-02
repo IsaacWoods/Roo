@@ -17,8 +17,8 @@ struct node
 
   union
   {
-    
-  } types;
+    node* expression;
+  } payload;
 };
 
 node* CreateNode(node_type type, ...);
@@ -47,3 +47,5 @@ struct function_def
 
   function_def*  next;
 };
+
+void FreeFunctionDef(function_def* function);

@@ -18,6 +18,7 @@ void FreeParseResult(parse_result& result)
   while (result.firstFunction)
   {
     temp = result.firstFunction;
+    FreeFunctionDef(temp);
     result.firstFunction = result.firstFunction->next;
     free(temp);
   }
