@@ -42,7 +42,9 @@ enum token_type
   TOKEN_NUMBER_INT,
   TOKEN_NUMBER_FLOAT,
   TOKEN_LINE,
-  TOKEN_INVALID
+  TOKEN_INVALID,
+
+  NUM_TOKENS
 };
 
 struct token
@@ -65,17 +67,25 @@ inline char* GetTextFromToken(const token& tkn)
   return start;
 }
 
+struct roo_parser;
+typedef node* (*prefix_parselet)(roo_parser&);
+typedef node* (*infix_parselet)(roo_parser&, node* left);
+
 struct roo_parser
 {
-  char*         source;
-  const char*   currentChar; // NOTE(Isaac): this points into `source`
-  unsigned int  currentLine;
-  unsigned int  currentLineOffset;
+  char*           source;
+  const char*     currentChar; // NOTE(Isaac): this points into `source`
+  unsigned int    currentLine;
+  unsigned int    currentLineOffset;
 
-  token         currentToken;
-  token         nextToken;
+  token           currentToken;
+  token           nextToken;
 
-  function_def* firstFunction;
+  prefix_parselet prefixMap[NUM_TOKENS];
+  infix_parselet  infixMap[NUM_TOKENS];
+  unsigned int    precendenceTable[NUM_TOKENS];
+
+  function_def*   firstFunction;
 };
 
 void CreateParser(roo_parser& parser, const char* sourcePath);

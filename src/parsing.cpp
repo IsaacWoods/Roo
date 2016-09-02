@@ -350,6 +350,19 @@ void CreateParser(roo_parser& parser, const char* sourcePath)
   parser.currentToken = LexNext(parser);
   parser.nextToken = LexNext(parser);
 
+  // --- Parselets ---
+  memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
+  memset(parser.infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
+  memset(parser.precendenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
+
+  parser.prefixMap[TOKEN_IDENTIFIER] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Name parselet!\n");
+      return nullptr;
+    };
+
+  // --- Empty parse result ---
   parser.firstFunction = nullptr;
 }
 
@@ -481,13 +494,35 @@ static parameter_def* ParameterList(roo_parser& parser)
   return paramList;
 }
 
-static node* Expression(roo_parser& parser)
+static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
   printf("--> Expression\n");
-  // TODO
-  
+  prefix_parselet prefixParselet = parser.prefixMap[NextToken(parser).type];
+
+  if (!prefixParselet)
+  {
+    SyntaxError(parser, "Unexpected token in expression position: %s!\n", GetTokenName(PeekToken(parser).type));
+  }
+
+  node* expression = prefixParselet(parser);
+
+  while (precedence < parser.precendenceTable[PeekNextToken(parser, false).type])
+  {
+    infix_parselet infixParselet = parser.infixMap[PeekNextToken(parser, false).type];
+
+    // NOTE(Isaac): there is no infix expression part - just return the prefix expression
+    if (!infixParselet)
+    {
+      printf("<-- Expression\n");
+      return expression;
+    }
+
+    NextToken(parser);
+    expression = infixParselet(parser, expression);
+  }
+
   printf("<-- Expression\n");
-  return nullptr;
+  return expression;
 }
 
 static node* Statement(roo_parser& parser, bool isInLoop)
@@ -512,9 +547,8 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     case TOKEN_RETURN:
     {
       printf("RETURN)\n");
-      NextToken(parser, false);
 
-      if (Match(parser, TOKEN_LINE, false))
+      if (MatchNext(parser, TOKEN_LINE, false))
       {
         result = CreateNode(RETURN_NODE, nullptr);
       }
@@ -522,10 +556,12 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       {
         result = CreateNode(RETURN_NODE, Expression(parser));
       }
+
+      NextToken(parser);
     } break;
 
     default:
-      fprintf(stderr, "Unhandled token type in Statement!\n");
+      fprintf(stderr, "Unhandled token type in Statement: %s!\n", GetTokenName(PeekToken(parser).type));
       exit(1);
   }
 
