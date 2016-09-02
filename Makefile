@@ -9,6 +9,7 @@ OBJS = \
   src/roo.o \
   src/parsing.o \
 	src/ir.o \
+	src/codegen.o \
 
 .PHONY: clean
 

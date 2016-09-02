@@ -4,8 +4,9 @@
  */
 
 #include <cstdio>
-#include <parsing.hpp>
 #include <tinydir.hpp>
+#include <parsing.hpp>
+#include <codegen.hpp>
 
 #if 0
 token NextToken(roo_parser& parser, bool ignoreLines);
@@ -68,6 +69,10 @@ int main()
 
   // TODO: do something with the parse result
 
+  code_generator generator;
+  CreateCodeGenerator(generator, "test");
+
+  FreeCodeGenerator(generator);
   FreeParseResult(result);
   return 0;
 }
