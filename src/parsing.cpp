@@ -616,8 +616,24 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       // It's a variable definition (probably)
       if (MatchNext(parser, TOKEN_COLON))
       {
-        // TODO: add to something
-        VariableDef(parser);
+        variable_def* variable = VariableDef(parser);
+
+        // Find somewhere to put it
+        if (parser.currentFunction->locals)
+        {
+          variable_def* tail = parser.currentFunction->locals;
+
+          while (tail->next)
+          {
+            tail = tail->next;
+          }
+
+          tail->next = variable;
+        }
+        else
+        {
+          parser.currentFunction->locals = variable;
+        }
       } break;
     } // NOTE(Isaac): no break
 
@@ -697,6 +713,7 @@ static void Function(roo_parser& parser)
 {
   printf("--> Function\n");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
+  parser.currentFunction = definition;
   definition->next = nullptr;
 
   // Find a place for the function
@@ -771,6 +788,8 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
 
   parser.currentToken = LexNext(parser);
   parser.nextToken = LexNext(parser);
+
+  parser.currentFunction = nullptr;
 
   // --- Parselets ---
   memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);

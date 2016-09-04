@@ -55,6 +55,8 @@ struct roo_parser
   unsigned int    precedenceTable[NUM_TOKENS];
 
   parse_result*   result;
+
+  function_def*   currentFunction;
 };
 
 void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath);

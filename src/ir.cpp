@@ -56,6 +56,14 @@ void FreeNode(node* n)
       free(n->payload.expression);
     } break;
 
+    case BINARY_OP_NODE:
+    {
+      FreeNode(n->payload.binaryOp.left);
+      free(n->payload.binaryOp.left);
+      FreeNode(n->payload.binaryOp.right);
+      free(n->payload.binaryOp.right);
+    } break;
+
     default:
       fprintf(stderr, "Unhandled node type in FreeNode!\n");
   }
@@ -89,5 +97,14 @@ void FreeFunctionDef(function_def* function)
     tempParam = function->params;
     function->params = function->params->next;
     free(tempParam);
+  }
+
+  variable_def* tempLocal;
+
+  while (function->locals)
+  {
+    tempLocal = function->locals;
+    function->locals = function->locals->next;
+    free(tempLocal);
   }
 }

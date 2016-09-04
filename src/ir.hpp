@@ -68,6 +68,7 @@ struct function_def
   char*          name;
   unsigned int   arity;
   parameter_def* params;
+  variable_def*  locals;
   type_ref*      returnType;
   node*          code;
 
