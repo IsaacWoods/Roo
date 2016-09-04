@@ -18,7 +18,6 @@ void FreeParseResult(parse_result& result)
   while (result.firstFunction)
   {
     temp = result.firstFunction;
-    FreeFunctionDef(temp);
     result.firstFunction = result.firstFunction->next;
     free(temp);
   }
@@ -67,9 +66,7 @@ static char NextChar(roo_parser& parser)
 {
   // Don't dereference memory past the end of the string
   if (*(parser.currentChar) == '\0')
-  {
     return '\0';
-  }
 
   if (*(parser.currentChar) == '\n')
   {
@@ -351,29 +348,20 @@ static token PeekToken(roo_parser& parser, bool ignoreLines = true)
   return parser.currentToken;
 }
 
+// TODO(Isaac): should we remove this? It can be useful but because reasons (see below), it's a pain in the ass
 static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
 {
-  if (!ignoreLines)
+  if (ignoreLines && parser.nextToken.type == TOKEN_LINE)
   {
-    return parser.nextToken;
+    /*
+     * NOTE(Isaac): okay, so to be honest, I have literally no idea what would be an even vaguely sensible thing
+     * to do here. The current plan is to shoot ourselves in the head and hope nobody tries to use this.
+     */
+    fprintf(stderr, "PeekNextToken called and TOKEN_LINE is next! Everything's gone tits up\n");
+    exit(1);
   }
 
-  // NOTE(Isaac): We need to skip tokens denoting line breaks, without advancing the token stream
-  const char* cachedChar = parser.currentChar;
-  unsigned int cachedLine = parser.currentLine;
-  unsigned int cachedLineOffset = parser.currentLineOffset;
-
-  token next = parser.nextToken;
-
-  while (next.type == TOKEN_LINE)
-  {
-    next = LexNext(parser);
-  }
-
-  parser.currentChar = cachedChar;
-  parser.currentLine = cachedLine;
-  parser.currentLineOffset = cachedLineOffset;
-  return next;
+  return parser.nextToken;
 }
 
 void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
@@ -700,7 +688,7 @@ static void Function(roo_parser& parser)
     definition->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
     definition->returnType->typeName = GetTextFromToken(PeekToken(parser));
     NextToken(parser);
-    
+
     printf("Return type: %s\n", definition->returnType->typeName);
   }
   else
