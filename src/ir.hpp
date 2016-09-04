@@ -4,10 +4,22 @@
 
 #pragma once
 
+#include <token_type.hpp>
+
 enum node_type
 {
   BREAK_NODE,
-  RETURN_NODE
+  RETURN_NODE,
+  BINARY_OP_NODE,
+};
+
+struct node;
+
+struct binary_op_node_part
+{
+  token_type op;
+  node* left;
+  node* right;
 };
 
 struct node
@@ -18,6 +30,7 @@ struct node
   union
   {
     node* expression;
+    binary_op_node_part binaryOp;
   } payload;
 };
 

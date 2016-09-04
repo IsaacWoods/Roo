@@ -21,6 +21,14 @@ node* CreateNode(node_type type, ...)
     case BREAK_NODE:      break;
     case RETURN_NODE:     break;
 
+    case BINARY_OP_NODE:
+    {
+      // NOTE(Isaac): enum types are promoted to `int`s on the stack
+      result->payload.binaryOp.op     = static_cast<token_type>(va_arg(args, int));
+      result->payload.binaryOp.left   = va_arg(args, node*);
+      result->payload.binaryOp.right  = va_arg(args, node*);
+    } break;
+
     default:
       fprintf(stderr, "Unhandled node type in CreateNode!\n");
       exit(1);

@@ -354,91 +354,28 @@ static token PeekToken(roo_parser& parser, bool ignoreLines = true)
 // TODO(Isaac): should we remove this? It can be useful but because reasons (see below), it's a pain in the ass
 static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
 {
-  if (ignoreLines && parser.nextToken.type == TOKEN_LINE)
+  if (!ignoreLines)
   {
-    /*
-     * NOTE(Isaac): okay, so to be honest, I have literally no idea what would be an even vaguely sensible thing
-     * to do here. The current plan is to shoot ourselves in the head and hope nobody tries to use this.
-     */
-    fprintf(stderr, "PeekNextToken called and TOKEN_LINE is next! Everything's gone tits up\n");
-    exit(1);
+    return parser.nextToken;
   }
 
-  return parser.nextToken;
-}
+  // NOTE(Isaac): We need to skip tokens denoting line breaks, without advancing the token stream
+  const char* cachedChar = parser.currentChar;
+  unsigned int cachedLine = parser.currentLine;
+  unsigned int cachedLineOffset = parser.currentLineOffset;
 
-void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
-{
-  parser.source = ReadFile(sourcePath);
-  parser.currentChar = parser.source;
-  parser.currentLine = 0u;
-  parser.currentLineOffset = 0u;
-  parser.result = result;
+  token next = parser.nextToken;
 
-  parser.currentToken = LexNext(parser);
-  parser.nextToken = LexNext(parser);
-
-  // --- Parselets ---
-  memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
-  memset(parser.infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
-  memset(parser.precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
-
-  parser.prefixMap[TOKEN_IDENTIFIER] =
-    [](roo_parser& parser) -> node*
-    {
-      printf("Prefix parselet: TOKEN_IDENTIFIER!\n");
-      return nullptr;
-    };
-
-  parser.prefixMap[TOKEN_NUMBER_INT] =
-    [](roo_parser& parser) -> node*
-    {
-      printf("Prefix parselet: TOKEN_NUMBER_INT\n");
-      return nullptr;
-    };
-
-  parser.prefixMap[TOKEN_NUMBER_FLOAT] =
-    [](roo_parser& parser) -> node*
-    {
-      printf("Prefix parselet: TOKEN_NUMBER_FLOAT\n");
-      return nullptr;
-    };
-
-  parser.infixMap[TOKEN_PLUS] =
-  parser.infixMap[TOKEN_MINUS] =
-  parser.infixMap[TOKEN_ASTERIX] =
-  parser.infixMap[TOKEN_SLASH] =
-    [](roo_parser& parser, node* left) -> node*
-    {
-      printf("Infix parselet: %s\n", GetTokenName(PeekToken(parser).type));
-      return nullptr;
-    };
-
-  // --- Precedence table ---
-  /*
-   * NOTE(Isaac): This is mostly a copy of C++'s operator precedence, for maximum intuitiveness
-   */
-  enum Precedence
+  while (next.type == TOKEN_LINE)
   {
-    P_TERNARY,                  // a?b:c
-    P_LOGICAL_OR,               // ||
-    P_LOGICAL_AND,              // &&
-    P_BITWISE_OR,               // |
-    P_BITWISE_XOR,              // ^
-    P_BITWISE_AND,              // &
-    P_EQUALS_RELATIONAL,        // == and !=
-    P_COMPARATIVE_RELATIONAL,   // <, <=, > and >=
-    P_BITWISE_SHIFTING,         // >> and <<
-    P_ADDITIVE,                 // + and -
-    P_MULTIPLICATIVE,           // *, / and %
-    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *
-    P_SUFFIX,                   // x++, x--
-  };
-  
-  parser.precedenceTable[TOKEN_PLUS]    = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_MINUS]   = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_ASTERIX] = P_MULTIPLICATIVE;
-  parser.precedenceTable[TOKEN_SLASH]   = P_MULTIPLICATIVE;
+    next = LexNext(parser);
+  }
+
+  parser.currentChar = cachedChar;
+  parser.currentLine = cachedLine;
+  parser.currentLineOffset = cachedLineOffset;
+
+  return next;
 }
 
 __attribute__((noreturn))
@@ -775,80 +712,85 @@ void Parse(roo_parser& parser)
   printf("--- Finished parse ---\n");
 }
 
+void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
+{
+  parser.source = ReadFile(sourcePath);
+  parser.currentChar = parser.source;
+  parser.currentLine = 0u;
+  parser.currentLineOffset = 0u;
+  parser.result = result;
+
+  parser.currentToken = LexNext(parser);
+  parser.nextToken = LexNext(parser);
+
+  // --- Parselets ---
+  memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
+  memset(parser.infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
+  memset(parser.precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
+
+  parser.prefixMap[TOKEN_IDENTIFIER] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Prefix parselet: TOKEN_IDENTIFIER!\n");
+      return nullptr;
+    };
+
+  parser.prefixMap[TOKEN_NUMBER_INT] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Prefix parselet: TOKEN_NUMBER_INT\n");
+      return nullptr;
+    };
+
+  parser.prefixMap[TOKEN_NUMBER_FLOAT] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Prefix parselet: TOKEN_NUMBER_FLOAT\n");
+      return nullptr;
+    };
+
+  parser.infixMap[TOKEN_PLUS] =
+  parser.infixMap[TOKEN_MINUS] =
+  parser.infixMap[TOKEN_ASTERIX] =
+  parser.infixMap[TOKEN_SLASH] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      printf("Infix parselet: %s\n", GetTokenName(PeekToken(parser).type));
+      return CreateNode(BINARY_OP_NODE, PeekToken(parser).type, left,
+                        Expression(parser, parser.precedenceTable[PeekToken(parser).type]));
+    };
+
+  // --- Precedence table ---
+  /*
+   * NOTE(Isaac): This is mostly a copy of C++'s operator precedence, for maximum intuitiveness
+   */
+  enum Precedence
+  {
+    P_TERNARY,                  // a?b:c
+    P_LOGICAL_OR,               // ||
+    P_LOGICAL_AND,              // &&
+    P_BITWISE_OR,               // |
+    P_BITWISE_XOR,              // ^
+    P_BITWISE_AND,              // &
+    P_EQUALS_RELATIONAL,        // == and !=
+    P_COMPARATIVE_RELATIONAL,   // <, <=, > and >=
+    P_BITWISE_SHIFTING,         // >> and <<
+    P_ADDITIVE,                 // + and -
+    P_MULTIPLICATIVE,           // *, / and %
+    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *
+    P_SUFFIX,                   // x++, x--
+  };
+  
+  parser.precedenceTable[TOKEN_PLUS]    = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_MINUS]   = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_ASTERIX] = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_SLASH]   = P_MULTIPLICATIVE;
+}
+
 void FreeParser(roo_parser& parser)
 {
   free(parser.source);
   parser.source = nullptr;
   parser.currentChar = nullptr;
   parser.result = nullptr;
-}
-
-const char* GetTokenName(token_type type)
-{
-  switch (type)
-  {
-    case TOKEN_TYPE:
-      return "TOKEN_TYPE";
-    case TOKEN_FN:
-      return "TOKEN_FN";
-    case TOKEN_TRUE:
-      return "TOKEN_TRUE";
-    case TOKEN_FALSE:
-      return "TOKEN_FALSE";
-    case TOKEN_IMPORT:
-      return "TOKEN_IMPORT";
-    case TOKEN_BREAK:
-      return "TOKEN_BREAK";
-    case TOKEN_RETURN:
-      return "TOKEN_RETURN";
-
-    case TOKEN_DOT:
-      return "TOKEN_DOT";
-    case TOKEN_COMMA:
-      return "TOKEN_COMMA";
-    case TOKEN_COLON:
-      return "TOKEN_COLON";
-    case TOKEN_LEFT_PAREN:
-      return "TOKEN_LEFT_PAREN";
-    case TOKEN_RIGHT_PAREN:
-      return "TOKEN_RIGHT_PAREN";
-    case TOKEN_LEFT_BRACE:
-      return "TOKEN_LEFT_BRACE";
-    case TOKEN_RIGHT_BRACE:
-      return "TOKEN_RIGHT_BRACE";
-    case TOKEN_LEFT_BLOCK:
-      return "TOKEN_LEFT_BLOCK";
-    case TOKEN_RIGHT_BLOCK:
-      return "TOKEN_RIGHT_BLOCK";
-    case TOKEN_ASTERIX:
-      return "TOKEN_ASTERIX";
-    case TOKEN_AMPERSAND:
-      return "TOKEN_AMPERSAND";
-    case TOKEN_PLUS:
-      return "TOKEN_PLUS";
-    case TOKEN_MINUS:
-      return "TOKEN_MINUS";
-    case TOKEN_SLASH:
-      return "TOKEN_SLASH";
-
-    case TOKEN_YIELDS:
-      return "TOKEN_YIELDS";
-
-    case TOKEN_IDENTIFIER:
-      return "TOKEN_IDENTIFIER";
-    case TOKEN_DOTTED_IDENTIFIER:
-      return "TOKEN_DOTTED_IDENTIFIER";
-    case TOKEN_NUMBER_INT:
-      return "TOKEN_NUMBER_INT";
-    case TOKEN_NUMBER_FLOAT:
-      return "TOKEN_NUMBER_FLOAT";
-    case TOKEN_LINE:
-      return "TOKEN_LINE";
-    case TOKEN_INVALID:
-      return "TOKEN_INVALID";
-
-    default:
-      fprintf(stderr, "Unhandled token type in GetTokenName!\n");
-      exit(1);
-  }
 }
