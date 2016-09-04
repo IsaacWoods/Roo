@@ -62,11 +62,11 @@ struct token
 
 inline char* GetTextFromToken(const token& tkn)
 {
-  char* start = static_cast<char*>(malloc(sizeof(char) * tkn.textLength + 1u));
-  memcpy(start, tkn.textStart, tkn.textLength);
-  start[tkn.textLength] = '\0';
+  char* text = static_cast<char*>(malloc(sizeof(char) * tkn.textLength + 1u));
+  memcpy(text, tkn.textStart, tkn.textLength);
+  text[tkn.textLength] = '\0';
 
-  return start;
+  return text;
 }
 
 struct parse_result
@@ -92,7 +92,7 @@ struct roo_parser
 
   prefix_parselet prefixMap[NUM_TOKENS];
   infix_parselet  infixMap[NUM_TOKENS];
-  unsigned int    precendenceTable[NUM_TOKENS];
+  unsigned int    precedenceTable[NUM_TOKENS];
 
   parse_result*   result;
 };
