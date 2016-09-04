@@ -1,4 +1,5 @@
 fn MyFunction(potato : int) -> int
 {
-  return 4 + 3
+  myVar : int = 4 + 3 * 2
+  return myVar
 }

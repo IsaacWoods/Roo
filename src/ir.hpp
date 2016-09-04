@@ -47,8 +47,21 @@ struct parameter_def
 
 struct type_ref
 {
-  const char* typeName;
+  char* typeName;
 };
+
+void FreeTypeRef(type_ref& typeRef);
+
+struct variable_def
+{
+  char*         name;
+  type_ref      type;
+  node*         initValue;
+
+  variable_def* next;
+};
+
+void FreeVariableDef(variable_def* variable);
 
 struct function_def
 {

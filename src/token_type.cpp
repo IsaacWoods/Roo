@@ -53,6 +53,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_MINUS";
     case TOKEN_SLASH:
       return "TOKEN_SLASH";
+    case TOKEN_EQUALS:
+      return "TOKEN_EQUALS";
 
     case TOKEN_YIELDS:
       return "TOKEN_YIELDS";

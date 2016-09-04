@@ -61,6 +61,19 @@ void FreeNode(node* n)
   }
 }
 
+void FreeTypeRef(type_ref& typeRef)
+{
+  free(typeRef.typeName);
+}
+
+void FreeVariableDef(variable_def* variable)
+{
+  free(variable->name);
+
+  FreeNode(variable->initValue);
+  free(variable->initValue);
+}
+
 void FreeFunctionDef(function_def* function)
 {
   free(function->name);

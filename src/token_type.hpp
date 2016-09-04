@@ -30,6 +30,7 @@ enum token_type
   TOKEN_PLUS,
   TOKEN_MINUS,
   TOKEN_SLASH,
+  TOKEN_EQUALS,
 
   TOKEN_YIELDS,   // ->
 

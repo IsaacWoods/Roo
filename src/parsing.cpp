@@ -276,7 +276,11 @@ static token LexNext(roo_parser& parser)
       case '/':
         type = TOKEN_SLASH;
         goto EmitSimpleToken;
-  
+ 
+      case '=':
+        type = TOKEN_EQUALS;
+        goto EmitSimpleToken;
+
       case ' ':
       case '\r':
       case '\t':
@@ -513,7 +517,8 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   if (!prefixParselet)
   {
-    SyntaxError(parser, "Unexpected token in expression position: %s!\n", GetTokenName(PeekToken(parser).type));
+    SyntaxError(parser, "Unexpected token in expression(PREFIX) position: %s!\n",
+                GetTokenName(PeekToken(parser).type));
   }
 
   node* expression = prefixParselet(parser);
@@ -535,6 +540,38 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   printf("<-- Expression\n");
   return expression;
+}
+
+static type_ref TypeRef(roo_parser& parser)
+{
+  type_ref result;
+  result.typeName = GetTextFromToken(PeekToken(parser));
+  NextToken(parser);
+
+  return result;
+}
+
+static variable_def* VariableDef(roo_parser& parser)
+{
+  variable_def* definition = static_cast<variable_def*>(malloc(sizeof(variable_def)));
+  definition->name = GetTextFromToken(PeekToken(parser));
+  definition->next = nullptr;
+
+  ConsumeNext(parser, TOKEN_COLON);
+  definition->type = TypeRef(parser);
+  
+  if (Match(parser, TOKEN_EQUALS))
+  {
+    definition->initValue = Expression(parser);
+    NextToken(parser);
+  }
+  else
+  {
+    definition->initValue = nullptr;
+  }
+
+  printf("Defined variable: %s of type: %s\n", definition->name, definition->type.typeName);
+  return definition;
 }
 
 static node* Statement(roo_parser& parser, bool isInLoop)
@@ -571,6 +608,18 @@ static node* Statement(roo_parser& parser, bool isInLoop)
 
       NextToken(parser);
     } break;
+
+    case TOKEN_IDENTIFIER:
+    {
+      printf("IDENTIFIER)\n");
+
+      // It's a variable definition (probably)
+      if (MatchNext(parser, TOKEN_COLON))
+      {
+        // TODO: add to something
+        VariableDef(parser);
+      } break;
+    } // NOTE(Isaac): no break
 
     default:
       fprintf(stderr, "Unhandled token type in Statement: %s!\n", GetTokenName(PeekToken(parser).type));
