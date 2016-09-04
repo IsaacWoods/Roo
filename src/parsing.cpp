@@ -381,28 +381,64 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
   // --- Parselets ---
   memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
   memset(parser.infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
-  memset(parser.precendenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
+  memset(parser.precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
 
   parser.prefixMap[TOKEN_IDENTIFIER] =
     [](roo_parser& parser) -> node*
     {
-      printf("Parselet: TOKEN_IDENTIFIER!\n");
+      printf("Prefix parselet: TOKEN_IDENTIFIER!\n");
       return nullptr;
     };
 
   parser.prefixMap[TOKEN_NUMBER_INT] =
     [](roo_parser& parser) -> node*
     {
-      printf("Parselet: TOKEN_NUMBER_INT\n");
+      printf("Prefix parselet: TOKEN_NUMBER_INT\n");
       return nullptr;
     };
 
   parser.prefixMap[TOKEN_NUMBER_FLOAT] =
     [](roo_parser& parser) -> node*
     {
-      printf("Parselet: TOKEN_NUMBER_FLOAT\n");
+      printf("Prefix parselet: TOKEN_NUMBER_FLOAT\n");
       return nullptr;
     };
+
+  parser.infixMap[TOKEN_PLUS] =
+  parser.infixMap[TOKEN_MINUS] =
+  parser.infixMap[TOKEN_ASTERIX] =
+  parser.infixMap[TOKEN_SLASH] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      printf("Infix parselet: %s\n", GetTokenName(PeekToken(parser).type));
+      return nullptr;
+    };
+
+  // --- Precedence table ---
+  /*
+   * NOTE(Isaac): This is mostly a copy of C++'s operator precedence, for maximum intuitiveness
+   */
+  enum Precedence
+  {
+    P_TERNARY,                  // a?b:c
+    P_LOGICAL_OR,               // ||
+    P_LOGICAL_AND,              // &&
+    P_BITWISE_OR,               // |
+    P_BITWISE_XOR,              // ^
+    P_BITWISE_AND,              // &
+    P_EQUALS_RELATIONAL,        // == and !=
+    P_COMPARATIVE_RELATIONAL,   // <, <=, > and >=
+    P_BITWISE_SHIFTING,         // >> and <<
+    P_ADDITIVE,                 // + and -
+    P_MULTIPLICATIVE,           // *, / and %
+    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *
+    P_SUFFIX,                   // x++, x--
+  };
+  
+  parser.precedenceTable[TOKEN_PLUS]    = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_MINUS]   = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_ASTERIX] = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_SLASH]   = P_MULTIPLICATIVE;
 }
 
 __attribute__((noreturn))
@@ -432,7 +468,7 @@ static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
   else if ((PeekToken(parser, ignoreLines).type == TOKEN_NUMBER_INT) ||
            (PeekToken(parser, ignoreLines).type == TOKEN_NUMBER_FLOAT))
   {
-    printf("PEEK_NEXT: [%s]\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
+    printf("PEEK: [%s]\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
   }
   else
   {
@@ -545,7 +581,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   node* expression = prefixParselet(parser);
 
-  while (precedence < parser.precendenceTable[PeekNextToken(parser, false).type])
+  while (precedence < parser.precedenceTable[PeekNextToken(parser, false).type])
   {
     infix_parselet infixParselet = parser.infixMap[PeekNextToken(parser, false).type];
 

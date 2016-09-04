@@ -13,8 +13,11 @@ token NextToken(roo_parser& parser, bool ignoreLines);
 
 int main()
 {
+  parse_result result;
+  result.firstFunction = nullptr;
+
   roo_parser parser;
-  CreateParser(parser, "test.roo");
+  CreateParser(parser, &result, "test.roo");
   
   while (parser.currentToken.type != TOKEN_INVALID)
   {
@@ -34,11 +37,14 @@ int main()
 
     NextToken(parser, false);
   }
+
+  FreeParseResult(result);
 }
 #else
 int main()
 {
   parse_result result;
+  result.firstFunction = nullptr;
 
   // Parse .roo files in the current directory
   {
