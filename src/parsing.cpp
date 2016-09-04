@@ -386,7 +386,21 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
   parser.prefixMap[TOKEN_IDENTIFIER] =
     [](roo_parser& parser) -> node*
     {
-      printf("Name parselet!\n");
+      printf("Parselet: TOKEN_IDENTIFIER!\n");
+      return nullptr;
+    };
+
+  parser.prefixMap[TOKEN_NUMBER_INT] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Parselet: TOKEN_NUMBER_INT\n");
+      return nullptr;
+    };
+
+  parser.prefixMap[TOKEN_NUMBER_FLOAT] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Parselet: TOKEN_NUMBER_FLOAT\n");
       return nullptr;
     };
 }
