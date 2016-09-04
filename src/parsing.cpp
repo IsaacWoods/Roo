@@ -18,6 +18,7 @@ void FreeParseResult(parse_result& result)
   while (result.firstFunction)
   {
     temp = result.firstFunction;
+    FreeFunctionDef(temp);
     result.firstFunction = result.firstFunction->next;
     free(temp);
   }
@@ -66,7 +67,9 @@ static char NextChar(roo_parser& parser)
 {
   // Don't dereference memory past the end of the string
   if (*(parser.currentChar) == '\0')
+  {
     return '\0';
+  }
 
   if (*(parser.currentChar) == '\n')
   {
