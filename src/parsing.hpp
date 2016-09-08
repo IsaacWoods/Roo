@@ -32,6 +32,7 @@ inline char* GetTextFromToken(const token& tkn)
 struct parse_result
 {
   function_def* firstFunction;
+  type_def*     firstType;
 };
 
 void FreeParseResult(parse_result& result);

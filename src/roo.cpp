@@ -15,6 +15,7 @@ int main()
 {
   parse_result result;
   result.firstFunction = nullptr;
+  result.firstType = nullptr;
 
   roo_parser parser;
   CreateParser(parser, &result, "test.roo");
@@ -45,6 +46,7 @@ int main()
 {
   parse_result result;
   result.firstFunction = nullptr;
+  result.firstType = nullptr;
 
   // Parse .roo files in the current directory
   {

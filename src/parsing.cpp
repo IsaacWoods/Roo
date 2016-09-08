@@ -646,10 +646,64 @@ static node* Statement(roo_parser& parser, bool isInLoop)
   return result;
 }
 
+static void TypeDef(roo_parser& parser)
+{
+  printf("--> TypeDef(");
+  Consume(parser, TOKEN_TYPE);
+  type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
+  type->next = nullptr;
+
+  // NOTE(Isaac): find a place for the type def
+  if (parser.result->firstType)
+  {
+    type_def* tail = parser.result->firstType;
+
+    while (tail->next)
+    {
+      tail = tail->next;
+    }
+
+    tail->next = type;
+  }
+  else
+  {
+    parser.result->firstType = type;
+  }
+
+  type->name = GetTextFromToken(PeekToken(parser));
+  printf("%s)\n", type->name);
+  type->firstMember = nullptr;
+  
+  ConsumeNext(parser, TOKEN_LEFT_BRACE);
+
+  while (PeekToken(parser).type != TOKEN_RIGHT_BRACE)
+  {
+    variable_def* member = VariableDef(parser);
+
+    if (type->firstMember)
+    {
+      variable_def* tail = type->firstMember;
+
+      while (tail->next)
+      {
+        tail = tail->next;
+      }
+
+      tail->next = member;
+    }
+    else
+    {
+      type->firstMember = member;
+    }
+  }
+
+  Consume(parser, TOKEN_RIGHT_BRACE);
+  printf("<-- TypeDef\n");
+}
+
 static node* Block(roo_parser& parser)
 {
   printf("--> Block\n");
-
   Consume(parser, TOKEN_LEFT_BRACE);
   node* code = nullptr;
 
@@ -711,7 +765,7 @@ static void Import(roo_parser& parser)
 
 static void Function(roo_parser& parser)
 {
-  printf("--> Function\n");
+  printf("--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
   definition->next = nullptr;
@@ -734,7 +788,7 @@ static void Function(roo_parser& parser)
   }
 
   definition->name = GetTextFromToken(NextToken(parser));
-  printf("Function name: %s\n", definition->name);
+  printf("%s)\n", definition->name);
   definition->firstParam = ParameterList(parser);
   definition->firstLocal = nullptr;
 
@@ -769,10 +823,17 @@ void Parse(roo_parser& parser)
     {
       Import(parser);
     }
-  
-    if (Match(parser, TOKEN_FN))
+    else if (Match(parser, TOKEN_FN))
     {
       Function(parser);
+    }
+    else if (Match(parser, TOKEN_TYPE))
+    {
+      TypeDef(parser);
+    }
+    else
+    {
+      SyntaxError(parser, "Unexpected token at top-level: %s!", GetTokenName(PeekToken(parser).type));
     }
   }
 
@@ -831,7 +892,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
 
   // --- Precedence table ---
   /*
-   * NOTE(Isaac): This is mostly a copy of C++'s operator precedence, for maximum intuitiveness
+   * NOTE(Isaac): This is mostly the same as C++'s operator precedence, for maximum intuitiveness
    */
   enum Precedence
   {

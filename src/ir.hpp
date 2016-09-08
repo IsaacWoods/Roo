@@ -90,3 +90,13 @@ struct function_def
 };
 
 void FreeFunctionDef(function_def* function);
+
+struct type_def
+{
+  char*         name;
+  variable_def* firstMember;
+
+  type_def*     next;
+};
+
+void FreeTypeDef(type_def* type);
