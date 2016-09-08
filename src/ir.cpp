@@ -29,6 +29,11 @@ node* CreateNode(node_type type, ...)
       result->payload.binaryOp.right  = va_arg(args, node*);
     } break;
 
+    case VARIABLE_NODE:
+    {
+      result->payload.variable.name   = va_arg(args, char*);
+    } break;
+
     default:
       fprintf(stderr, "Unhandled node type in CreateNode!\n");
       exit(1);
@@ -74,6 +79,11 @@ void FreeTypeRef(type_ref& typeRef)
   free(typeRef.typeName);
 }
 
+void FreeScopeRef(scope_ref& scope)
+{
+  // TODO
+}
+
 void FreeVariableDef(variable_def* variable)
 {
   free(variable->name);
@@ -92,19 +102,19 @@ void FreeFunctionDef(function_def* function)
 
   parameter_def* tempParam;
 
-  while (function->params)
+  while (function->firstParam)
   {
-    tempParam = function->params;
-    function->params = function->params->next;
+    tempParam = function->firstParam;
+    function->firstParam = function->firstParam->next;
     free(tempParam);
   }
 
   variable_def* tempLocal;
 
-  while (function->locals)
+  while (function->firstLocal)
   {
-    tempLocal = function->locals;
-    function->locals = function->locals->next;
+    tempLocal = function->firstLocal;
+    function->firstLocal = function->firstLocal->next;
     free(tempLocal);
   }
 }

@@ -619,9 +619,9 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         variable_def* variable = VariableDef(parser);
 
         // Find somewhere to put it
-        if (parser.currentFunction->locals)
+        if (parser.currentFunction->firstLocal)
         {
-          variable_def* tail = parser.currentFunction->locals;
+          variable_def* tail = parser.currentFunction->firstLocal;
 
           while (tail->next)
           {
@@ -632,7 +632,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         }
         else
         {
-          parser.currentFunction->locals = variable;
+          parser.currentFunction->firstLocal = variable;
         }
       } break;
     } // NOTE(Isaac): no break
@@ -735,7 +735,8 @@ static void Function(roo_parser& parser)
 
   definition->name = GetTextFromToken(NextToken(parser));
   printf("Function name: %s\n", definition->name);
-  definition->params = ParameterList(parser);
+  definition->firstParam = ParameterList(parser);
+  definition->firstLocal = nullptr;
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
@@ -800,7 +801,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     [](roo_parser& parser) -> node*
     {
       printf("Prefix parselet: TOKEN_IDENTIFIER!\n");
-      return nullptr;
+      return CreateNode(VARIABLE_NODE, GetTextFromToken(PeekToken(parser)));
     };
 
   parser.prefixMap[TOKEN_NUMBER_INT] =

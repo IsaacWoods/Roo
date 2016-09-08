@@ -11,6 +11,7 @@ enum node_type
   BREAK_NODE,
   RETURN_NODE,
   BINARY_OP_NODE,
+  VARIABLE_NODE,
 };
 
 struct node;
@@ -22,6 +23,11 @@ struct binary_op_node_part
   node* right;
 };
 
+struct variable_node_part
+{
+  char* name;
+};
+
 struct node
 {
   node_type type;
@@ -29,8 +35,9 @@ struct node
 
   union
   {
-    node* expression;
+    node*               expression;
     binary_op_node_part binaryOp;
+    variable_node_part  variable;
   } payload;
 };
 
@@ -52,6 +59,13 @@ struct type_ref
 
 void FreeTypeRef(type_ref& typeRef);
 
+struct scope_ref
+{
+  // TODO
+};
+
+void FreeScopeRef(scope_ref& scope);
+
 struct variable_def
 {
   char*         name;
@@ -67,8 +81,8 @@ struct function_def
 {
   char*          name;
   unsigned int   arity;
-  parameter_def* params;
-  variable_def*  locals;
+  parameter_def* firstParam;
+  variable_def*  firstLocal;
   type_ref*      returnType;
   node*          code;
 
