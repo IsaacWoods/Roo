@@ -26,5 +26,8 @@ import roo.random
 
 A remote Git repository (automatically cloned to latest commit):
 ``` roo
-import 'https://github.com/IsaacWoods/SomeRooLibrary.git
+import "https://github.com/IsaacWoods/SomeRooLibrary.git"
 ```
+
+### Traits
+Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their members. The trait can then be used as an alias for any type that inherits from it.
