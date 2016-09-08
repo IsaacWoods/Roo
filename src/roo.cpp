@@ -81,6 +81,13 @@ int main()
   code_generator generator;
   CreateCodeGenerator(generator, "test");
 
+  for (function_def* function = result.firstFunction;
+       function;
+       function = function->next)
+  {
+    GenFunction(generator, function);
+  }
+
   // Free everything
   FreeCodeGenerator(generator);
   FreeParseResult(result);
