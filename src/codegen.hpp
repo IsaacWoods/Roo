@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdio>
+#include <ir.hpp>
 
 struct code_generator
 {

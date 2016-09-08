@@ -6,7 +6,6 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdarg>
-#include <ir.hpp>
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath)
 {
@@ -29,7 +28,7 @@ static char* MangleFunctionName(function_def* function)
   return mangled;
 }
 
-#define Emit(format, ...) Emit_(generator, format, __VA_ARGS__)
+#define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
 {
   va_list args;
@@ -66,4 +65,12 @@ void GenFunction(code_generator& generator, function_def* function)
   char* mangledName = MangleFunctionName(function);
   Emit("%s:\n", mangledName);
   free(mangledName);
+
+  generator.tabCount++;
+  Emit("push rbp\n");
+  Emit("mov rbp, rsp\n\n");
+
+  Emit("leave\n");
+  Emit("ret\n");
+  generator.tabCount--;
 }
