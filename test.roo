@@ -1,4 +1,4 @@
-import potato
+import "github.com/IsaacWoods/SomeRooLib.git"
 
 type Color
 {

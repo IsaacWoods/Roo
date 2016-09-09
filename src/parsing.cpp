@@ -186,16 +186,18 @@ static token LexHexNumber(roo_parser& parser)
 static token LexString(roo_parser& parser)
 {
   const char* startChar = parser.currentChar;
-  printf("String: start char '%c'\n", *startChar);
 
   while ((*(parser.currentChar) != '\0') && (*(parser.currentChar) != '"'))
   {
-    printf("String: char: '%c'\n", *(parser.currentChar));
     NextChar(parser);
   }
 
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
+
+  // NOTE(Isaac): skip the ending '"' character
+  NextChar(parser);
+
   return MakeToken(parser, TOKEN_STRING, tokenOffset, startChar, (unsigned int)length);
 }
 
@@ -740,9 +742,6 @@ static void Import(roo_parser& parser)
   printf("--> Import\n");
   Consume(parser, TOKEN_IMPORT);
 
-  PeekNPrint(parser);
-  PeekNPrintNext(parser);
-
   switch (PeekToken(parser).type)
   {
     // NOTE(Isaac): Import a local library
@@ -755,7 +754,7 @@ static void Import(roo_parser& parser)
     // NOTE(Isaac): Import a library from a remote repository
     case TOKEN_STRING:
     {
-      printf("Importing remote: %s\n", GetTextFromToken(NextToken(parser)));
+      printf("Importing remote: %s\n", GetTextFromToken(PeekToken(parser)));
     } break;
 
     default:
