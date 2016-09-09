@@ -1,7 +1,6 @@
 _R_MyFunction:
-push rbp
-	mov rbp, rsp
+  push rbp
+  mov rbp, rsp
 
-	leave
-	ret
-	
+  leave
+  ret

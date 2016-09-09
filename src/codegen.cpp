@@ -40,17 +40,20 @@ static void Emit_(code_generator& generator, const char* format, ...)
   }
   else
   {
-    char* newFormat = static_cast<char*>(malloc(sizeof(char) * (strlen(format) +
-              strlen("\t") * generator.tabCount)));
-    strcpy(newFormat, format);
+    const char* tabString = "  ";
 
-    for (unsigned int i = 0u;
+    char* newFormat = static_cast<char*>(malloc(sizeof(char) * (strlen(format) +
+              strlen(tabString) * generator.tabCount)));
+    strcpy(newFormat, tabString);
+
+    for (unsigned int i = 1u;
          i < generator.tabCount;
          i++)
     {
-      strcat(newFormat, "\t");
+      strcat(newFormat, tabString);
     }
 
+    strcat(newFormat, format);
     vfprintf(generator.output, newFormat, args);
     free(newFormat);
   }
