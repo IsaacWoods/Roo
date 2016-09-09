@@ -186,9 +186,11 @@ static token LexHexNumber(roo_parser& parser)
 static token LexString(roo_parser& parser)
 {
   const char* startChar = parser.currentChar;
+  printf("String: start char '%c'\n", *startChar);
 
-  while (*(parser.currentChar) != '"')
+  while ((*(parser.currentChar) != '\0') && (*(parser.currentChar) != '"'))
   {
+    printf("String: char: '%c'\n", *(parser.currentChar));
     NextChar(parser);
   }
 
@@ -736,14 +738,18 @@ static node* Block(roo_parser& parser)
 static void Import(roo_parser& parser)
 {
   printf("--> Import\n");
+  Consume(parser, TOKEN_IMPORT);
 
-  switch (parser.nextToken.type)
+  PeekNPrint(parser);
+  PeekNPrintNext(parser);
+
+  switch (PeekToken(parser).type)
   {
     // NOTE(Isaac): Import a local library
     case TOKEN_IDENTIFIER:
     case TOKEN_DOTTED_IDENTIFIER:
     {
-      printf("Importing: %s\n", GetTextFromToken(NextToken(parser)));
+      printf("Importing: %s\n", GetTextFromToken(PeekToken(parser)));
     } break;
 
     // NOTE(Isaac): Import a library from a remote repository
@@ -755,7 +761,7 @@ static void Import(roo_parser& parser)
     default:
     {
       SyntaxError(parser, "Expected [STRING LITERAL] or [DOTTED IDENTIFIER] after `import`, got %s!",
-                  GetTokenName(parser.nextToken.type));
+                  GetTokenName(PeekToken(parser).type));
     }
   }
 
