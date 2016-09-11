@@ -1,5 +1,3 @@
-import "github.com/IsaacWoods/SomeRooLib.git"
-
 type Color
 {
   r : float
@@ -10,6 +8,14 @@ type Color
 
 fn MyFunction(potato : int) -> int
 {
-  myVar : int = 4 + 3 * 2
-  return myVar
+  myVar : int = 4 + 3
+
+  if (myVar > potato)
+  {
+    return myVar
+  }
+  else
+  {
+    return 0
+  }
 }

@@ -12,20 +12,36 @@ enum node_type
   RETURN_NODE,
   BINARY_OP_NODE,
   VARIABLE_NODE,
+  CONDITION_NODE,
+  IF_NODE,
 };
 
 struct node;
 
 struct binary_op_node_part
 {
-  token_type op;
-  node* left;
-  node* right;
+  token_type  op;
+  node*       left;
+  node*       right;
 };
 
 struct variable_node_part
 {
   char* name;
+};
+
+struct condition_node_part
+{
+  token_type  condition;
+  node*       left;
+  node*       right;
+};
+
+struct if_node_part
+{
+  node* condition;
+  node* thenCode;
+  node* elseCode;
 };
 
 struct node
@@ -38,6 +54,8 @@ struct node
     node*               expression;
     binary_op_node_part binaryOp;
     variable_node_part  variable;
+    condition_node_part condition;
+    if_node_part        ifThing;
   } payload;
 };
 

@@ -136,6 +136,8 @@ static token LexName(roo_parser& parser)
   KEYWORD("import",   TOKEN_IMPORT)
   KEYWORD("break",    TOKEN_BREAK)
   KEYWORD("return",   TOKEN_RETURN)
+  KEYWORD("if",       TOKEN_IF)
+  KEYWORD("else",     TOKEN_ELSE)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
@@ -268,6 +270,7 @@ static token LexNext(roo_parser& parser)
         if (*(parser.currentChar) == '>')
         {
           type = TOKEN_YIELDS;
+          NextChar(parser);
         }
         else
         {
@@ -276,13 +279,68 @@ static token LexNext(roo_parser& parser)
 
         goto EmitSimpleToken;
       }
-  
-      case '/':
-        type = TOKEN_SLASH;
-        goto EmitSimpleToken;
  
       case '=':
-        type = TOKEN_EQUALS;
+      {
+        if (*(parser.currentChar) == '=')
+        {
+          type = TOKEN_EQUALS_EQUALS;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_EQUALS;
+        }
+
+        goto EmitSimpleToken;
+      }
+
+      case '!':
+      {
+        if (*(parser.currentChar) == '=')
+        {
+          type = TOKEN_BANG_EQUALS;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_BANG;
+        }
+
+        goto EmitSimpleToken;
+      }
+
+      case '>':
+      {
+        if (*(parser.currentChar) == '=')
+        {
+          type = TOKEN_GREATER_THAN_EQUAL_TO;
+        }
+        else
+        {
+          type = TOKEN_GREATER_THAN;
+        }
+
+        goto EmitSimpleToken;
+      }
+
+      case '<':
+      {
+        if (*(parser.currentChar) == '=')
+        {
+          type = TOKEN_LESS_THAN_EQUAL_TO;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_LESS_THAN;
+        }
+
+        goto EmitSimpleToken;
+      }
+
+      case '/':
+        type = TOKEN_SLASH;
         goto EmitSimpleToken;
 
       case ' ':
@@ -322,6 +380,9 @@ static token LexNext(roo_parser& parser)
         {
           return LexNumber(parser);
         }
+
+        // NOTE(Isaac): We aren't handling whatever character's next
+        fprintf(stderr, "WARNING: Skipping unlexable character: '%c'\n", c);
       } break;
     }
   }
@@ -517,7 +578,7 @@ static parameter_def* ParameterList(roo_parser& parser)
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
   printf("--> Expression\n");
-  prefix_parselet prefixParselet = parser.prefixMap[NextToken(parser).type];
+  prefix_parselet prefixParselet = parser.prefixMap[PeekToken(parser).type];
 
   if (!prefixParselet)
   {
@@ -566,6 +627,7 @@ static variable_def* VariableDef(roo_parser& parser)
   
   if (Match(parser, TOKEN_EQUALS))
   {
+    Consume(parser, TOKEN_EQUALS);
     definition->initValue = Expression(parser);
     NextToken(parser);
   }
@@ -578,9 +640,89 @@ static variable_def* VariableDef(roo_parser& parser)
   return definition;
 }
 
+static node* Statement(roo_parser& parser, bool isInLoop = false);
+
+static node* Block(roo_parser& parser)
+{
+  printf("--> Block\n");
+  Consume(parser, TOKEN_LEFT_BRACE);
+  node* code = nullptr;
+
+  while (!Match(parser, TOKEN_RIGHT_BRACE))
+  {
+    node* statement = Statement(parser, false);
+
+    if (code)
+    {
+      node* tail = statement;
+
+      while (tail->next)
+      {
+        tail = tail->next;
+      }
+
+      tail->next = statement;
+    }
+    else
+    {
+      code = statement;
+    }
+  }
+
+  Consume(parser, TOKEN_RIGHT_BRACE);
+  printf("<-- Block\n");
+  return code;
+}
+
+static node* Condition(roo_parser& parser)
+{
+  printf("--> Condition\n");
+  node* left = Expression(parser);
+
+  token_type condition = PeekToken(parser).type;
+
+  if ((condition != TOKEN_EQUALS_EQUALS)          &&
+      (condition != TOKEN_BANG_EQUALS)            &&
+      (condition != TOKEN_GREATER_THAN)           &&
+      (condition != TOKEN_GREATER_THAN_EQUAL_TO)  &&
+      (condition != TOKEN_LESS_THAN)              &&
+      (condition != TOKEN_LESS_THAN_EQUAL_TO))
+  {
+    SyntaxError(parser, "Expected [CONDITION], got %s instead!", GetTokenName(condition));
+  }
+
+  NextToken(parser);
+  node* right = Expression(parser);
+
+  printf("<-- Condition\n");
+  return CreateNode(CONDITION_NODE, condition, left, right);
+}
+
+static node* If(roo_parser& parser)
+{
+  printf("--> If\n");
+
+  Consume(parser, TOKEN_IF);
+  Consume(parser, TOKEN_LEFT_PAREN);
+  node* condition = Condition(parser);
+  Consume(parser, TOKEN_RIGHT_PAREN);
+
+  node* thenCode = Block(parser);
+  node* elseCode = nullptr;
+
+  if (Match(parser, TOKEN_ELSE))
+  {
+    NextToken(parser);
+    elseCode = Block(parser);
+  }
+
+  printf("<-- If\n");
+  return CreateNode(IF_NODE, condition, thenCode, elseCode);
+}
+
 static node* Statement(roo_parser& parser, bool isInLoop)
 {
-  printf("--> Statement(");
+  printf("--> Statement");
   node* result = nullptr;
 
   switch (PeekToken(parser).type)
@@ -593,13 +735,13 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       }
 
       result = CreateNode(BREAK_NODE);
-      printf("BREAK)\n");
+      printf("(BREAK)\n");
       NextToken(parser);
     } break;
 
     case TOKEN_RETURN:
     {
-      printf("RETURN)\n");
+      printf("(RETURN)\n");
 
       if (MatchNext(parser, TOKEN_LINE, false))
       {
@@ -607,20 +749,27 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       }
       else
       {
+        NextToken(parser);
         result = CreateNode(RETURN_NODE, Expression(parser));
       }
+    } break;
 
-      NextToken(parser);
+    case TOKEN_IF:
+    {
+      printf("(IF)\n");
+
+      node* thing = If(parser);
     } break;
 
     case TOKEN_IDENTIFIER:
     {
-      printf("IDENTIFIER)\n");
+      printf("(IDENTIFIER)\n");
 
       // It's a variable definition (probably)
       if (MatchNext(parser, TOKEN_COLON))
       {
         variable_def* variable = VariableDef(parser);
+        NextToken(parser);
 
         // Find somewhere to put it
         if (parser.currentFunction->firstLocal)
@@ -642,6 +791,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     } // NOTE(Isaac): no break
 
     default:
+      printf("\n");
       fprintf(stderr, "Unhandled token type in Statement: %s!\n", GetTokenName(PeekToken(parser).type));
       exit(1);
   }
@@ -703,38 +853,6 @@ static void TypeDef(roo_parser& parser)
 
   Consume(parser, TOKEN_RIGHT_BRACE);
   printf("<-- TypeDef\n");
-}
-
-static node* Block(roo_parser& parser)
-{
-  printf("--> Block\n");
-  Consume(parser, TOKEN_LEFT_BRACE);
-  node* code = nullptr;
-
-  while (!Match(parser, TOKEN_RIGHT_BRACE))
-  {
-    node* statement = Statement(parser, false);
-
-    if (code)
-    {
-      node* tail = statement;
-
-      while (tail->next)
-      {
-        tail = tail->next;
-      }
-
-      tail->next = statement;
-    }
-    else
-    {
-      code = statement;
-    }
-  }
-
-  Consume(parser, TOKEN_RIGHT_BRACE);
-  printf("<-- Block\n");
-  return code;
 }
 
 static void Import(roo_parser& parser)
@@ -867,13 +985,16 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     [](roo_parser& parser) -> node*
     {
       printf("Prefix parselet: TOKEN_IDENTIFIER!\n");
-      return CreateNode(VARIABLE_NODE, GetTextFromToken(PeekToken(parser)));
+      char* name = GetTextFromToken(PeekToken(parser));
+      NextToken(parser);
+      return CreateNode(VARIABLE_NODE, name);
     };
 
   parser.prefixMap[TOKEN_NUMBER_INT] =
     [](roo_parser& parser) -> node*
     {
       printf("Prefix parselet: TOKEN_NUMBER_INT\n");
+      NextToken(parser);
       return nullptr;
     };
 
@@ -881,6 +1002,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     [](roo_parser& parser) -> node*
     {
       printf("Prefix parselet: TOKEN_NUMBER_FLOAT\n");
+      NextToken(parser);
       return nullptr;
     };
 
@@ -891,8 +1013,9 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     [](roo_parser& parser, node* left) -> node*
     {
       printf("Infix parselet: %s\n", GetTokenName(PeekToken(parser).type));
-      return CreateNode(BINARY_OP_NODE, PeekToken(parser).type, left,
-                        Expression(parser, parser.precedenceTable[PeekToken(parser).type]));
+      token_type operation = PeekToken(parser).type;
+      NextToken(parser);
+      return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, parser.precedenceTable[operation]));
     };
 
   // --- Precedence table ---

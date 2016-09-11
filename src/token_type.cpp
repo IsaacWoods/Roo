@@ -24,6 +24,10 @@ const char* GetTokenName(token_type type)
       return "TOKEN_BREAK";
     case TOKEN_RETURN:
       return "TOKEN_RETURN";
+    case TOKEN_IF:
+      return "TOKEN_IF";
+    case TOKEN_ELSE:
+      return "TOKEN_ELSE";
 
     case TOKEN_DOT:
       return "TOKEN_DOT";
@@ -55,9 +59,23 @@ const char* GetTokenName(token_type type)
       return "TOKEN_SLASH";
     case TOKEN_EQUALS:
       return "TOKEN_EQUALS";
+    case TOKEN_BANG:
+      return "TOKEN_BANG";
 
     case TOKEN_YIELDS:
       return "TOKEN_YIELDS";
+    case TOKEN_EQUALS_EQUALS:
+      return "TOKEN_EQUALS_EQUALS";
+    case TOKEN_BANG_EQUALS:
+      return "TOKEN_BANG_EQUALS";
+    case TOKEN_GREATER_THAN:
+      return "TOKEN_GREATER_THAN";
+    case TOKEN_GREATER_THAN_EQUAL_TO:
+      return "TOKEN_GREATER_THAN_EQUAL_TO";
+    case TOKEN_LESS_THAN:
+      return "TOKEN_LESS_THAN";
+    case TOKEN_LESS_THAN_EQUAL_TO:
+      return "TOKEN_LESS_THAN_EQUAL_TO";
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";

@@ -24,14 +24,28 @@ node* CreateNode(node_type type, ...)
     case BINARY_OP_NODE:
     {
       // NOTE(Isaac): enum types are promoted to `int`s on the stack
-      result->payload.binaryOp.op     = static_cast<token_type>(va_arg(args, int));
-      result->payload.binaryOp.left   = va_arg(args, node*);
-      result->payload.binaryOp.right  = va_arg(args, node*);
+      result->payload.binaryOp.op             = static_cast<token_type>(va_arg(args, int));
+      result->payload.binaryOp.left           = va_arg(args, node*);
+      result->payload.binaryOp.right          = va_arg(args, node*);
     } break;
 
     case VARIABLE_NODE:
     {
-      result->payload.variable.name   = va_arg(args, char*);
+      result->payload.variable.name           = va_arg(args, char*);
+    } break;
+
+    case CONDITION_NODE:
+    {
+      result->payload.condition.condition     = static_cast<token_type>(va_arg(args, int));
+      result->payload.condition.left          = va_arg(args, node*);
+      result->payload.condition.right         = va_arg(args, node*);
+    } break;
+
+    case IF_NODE:
+    {
+      result->payload.ifThing.condition      = va_arg(args, node*);
+      result->payload.ifThing.thenCode       = va_arg(args, node*);
+      result->payload.ifThing.elseCode       = va_arg(args, node*);
     } break;
 
     default:
@@ -65,8 +79,35 @@ void FreeNode(node* n)
     {
       FreeNode(n->payload.binaryOp.left);
       free(n->payload.binaryOp.left);
+
       FreeNode(n->payload.binaryOp.right);
       free(n->payload.binaryOp.right);
+    } break;
+
+    case VARIABLE_NODE:
+    {
+      free(n->payload.variable.name);
+    } break;
+
+    case CONDITION_NODE:
+    {
+      FreeNode(n->payload.condition.left);
+      free(n->payload.condition.left);
+
+      FreeNode(n->payload.condition.right);
+      free(n->payload.condition.right);
+    } break;
+
+    case IF_NODE:
+    {
+      FreeNode(n->payload.ifThing.condition);
+      free(n->payload.ifThing.condition);
+
+      FreeNode(n->payload.ifThing.thenCode);
+      free(n->payload.ifThing.thenCode);
+
+      FreeNode(n->payload.ifThing.elseCode);
+      free(n->payload.ifThing.elseCode);
     } break;
 
     default:
