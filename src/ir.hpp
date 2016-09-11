@@ -14,6 +14,7 @@ enum node_type
   VARIABLE_NODE,
   CONDITION_NODE,
   IF_NODE,
+  NUMBER_CONSTANT_NODE,
 };
 
 struct node;
@@ -44,6 +45,21 @@ struct if_node_part
   node* elseCode;
 };
 
+struct number_constant_part
+{
+  enum constant_type
+  {
+    CONSTANT_TYPE_INT,
+    CONSTANT_TYPE_FLOAT
+  } type;
+
+  union
+  {
+    int   asInt;
+    float asFloat;
+  } constant;
+};
+
 struct node
 {
   node_type type;
@@ -51,11 +67,12 @@ struct node
 
   union
   {
-    node*               expression;
-    binary_op_node_part binaryOp;
-    variable_node_part  variable;
-    condition_node_part condition;
-    if_node_part        ifThing;
+    node*                   expression;
+    binary_op_node_part     binaryOp;
+    variable_node_part      variable;
+    condition_node_part     condition;
+    if_node_part            ifThing;
+    number_constant_part    numberConstant;
   } payload;
 };
 

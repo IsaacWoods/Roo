@@ -994,16 +994,25 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     [](roo_parser& parser) -> node*
     {
       printf("Prefix parselet: TOKEN_NUMBER_INT\n");
+      char* tokenText = GetTextFromToken(PeekToken(parser));
+      int value = strtol(tokenText, nullptr, 10); // TODO(Isaac): parse hexadecimal here too
+      free(tokenText);
+
       NextToken(parser);
-      return nullptr;
+      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
     };
 
   parser.prefixMap[TOKEN_NUMBER_FLOAT] =
     [](roo_parser& parser) -> node*
     {
       printf("Prefix parselet: TOKEN_NUMBER_FLOAT\n");
+      char* tokenText = GetTextFromToken(PeekToken(parser));
+      float value = strtof(tokenText, nullptr);
+      free(tokenText);
+
+
       NextToken(parser);
-      return nullptr;
+      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
     };
 
   parser.infixMap[TOKEN_PLUS] =

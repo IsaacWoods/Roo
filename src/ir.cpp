@@ -24,33 +24,59 @@ node* CreateNode(node_type type, ...)
     case BINARY_OP_NODE:
     {
       // NOTE(Isaac): enum types are promoted to `int`s on the stack
-      result->payload.binaryOp.op             = static_cast<token_type>(va_arg(args, int));
-      result->payload.binaryOp.left           = va_arg(args, node*);
-      result->payload.binaryOp.right          = va_arg(args, node*);
+      result->payload.binaryOp.op           = static_cast<token_type>(va_arg(args, int));
+      result->payload.binaryOp.left         = va_arg(args, node*);
+      result->payload.binaryOp.right        = va_arg(args, node*);
     } break;
 
     case VARIABLE_NODE:
     {
-      result->payload.variable.name           = va_arg(args, char*);
+      result->payload.variable.name         = va_arg(args, char*);
     } break;
 
     case CONDITION_NODE:
     {
-      result->payload.condition.condition     = static_cast<token_type>(va_arg(args, int));
-      result->payload.condition.left          = va_arg(args, node*);
-      result->payload.condition.right         = va_arg(args, node*);
+      result->payload.condition.condition   = static_cast<token_type>(va_arg(args, int));
+      result->payload.condition.left        = va_arg(args, node*);
+      result->payload.condition.right       = va_arg(args, node*);
     } break;
 
     case IF_NODE:
     {
-      result->payload.ifThing.condition      = va_arg(args, node*);
-      result->payload.ifThing.thenCode       = va_arg(args, node*);
-      result->payload.ifThing.elseCode       = va_arg(args, node*);
+      result->payload.ifThing.condition     = va_arg(args, node*);
+      result->payload.ifThing.thenCode      = va_arg(args, node*);
+      result->payload.ifThing.elseCode      = va_arg(args, node*);
+    } break;
+
+    case NUMBER_CONSTANT_NODE:
+    {
+      result->payload.numberConstant.type   = static_cast<number_constant_part::constant_type>(va_arg(args, int));
+
+      switch (result->payload.numberConstant.type)
+      {
+        case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+        {
+          result->payload.numberConstant.constant.asInt = va_arg(args, int);
+        } break;
+
+        case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+        {
+          result->payload.numberConstant.constant.asFloat = static_cast<float>(va_arg(args, double));
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unhandled number constant types in CreateNode!\n");
+          exit(1);
+        }
+      }
     } break;
 
     default:
+    {
       fprintf(stderr, "Unhandled node type in CreateNode!\n");
       exit(1);
+    }
   }
 
   va_end(args);
