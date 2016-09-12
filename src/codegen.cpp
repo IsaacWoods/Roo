@@ -4,6 +4,7 @@
 
 #include <codegen.hpp>
 #include <cstring>
+#include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
 
@@ -31,34 +32,77 @@ static char* MangleFunctionName(function_def* function)
 #define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
 {
+  const char* tabString = "  ";
+
   va_list args;
   va_start(args, format);
 
-  if (generator.tabCount == 0)
-  {
-    vfprintf(generator.output, format, args);
-  }
-  else
-  {
-    const char* tabString = "  ";
+  char c;
 
-    char* newFormat = static_cast<char*>(malloc(sizeof(char) * (strlen(format) +
-              strlen(tabString) * generator.tabCount)));
-    strcpy(newFormat, tabString);
-
-    for (unsigned int i = 1u;
-         i < generator.tabCount;
-         i++)
+  while ((c = *format++))
+  {
+    if (c == '%')
     {
-      strcat(newFormat, tabString);
+      // TODO
     }
 
-    strcat(newFormat, format);
-    vfprintf(generator.output, newFormat, args);
-    free(newFormat);
+    fputc(c, generator.output);
   }
 
   va_end(args);
+}
+
+void GenNode(code_generator& generator, node* n)
+{
+  switch (n->type)
+  {
+    case BREAK_NODE:
+    {
+
+    } break;
+
+    case RETURN_NODE:
+    {
+      if (n->payload.expression)
+      {
+        Emit("mov rax, %n", n->payload.expression);
+      }
+
+      Emit("leave\n");
+      Emit("ret\n");
+    } break;
+
+    case BINARY_OP_NODE:
+    {
+
+    } break;
+
+    case VARIABLE_NODE:
+    {
+      
+    } break;
+
+    case CONDITION_NODE:
+    {
+
+    } break;
+
+    case IF_NODE:
+    {
+
+    } break;
+
+    case NUMBER_CONSTANT_NODE:
+    {
+
+    } break;
+
+    default:
+    {
+      fprintf(stderr, "Unhandled node type in GenNode!\n");
+      exit(1);
+    }
+  }
 }
 
 void GenFunction(code_generator& generator, function_def* function)
