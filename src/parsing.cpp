@@ -864,8 +864,8 @@ static void Import(roo_parser& parser)
   {
     // NOTE(Isaac): Import a local library
     case TOKEN_IDENTIFIER:
-    case TOKEN_DOTTED_IDENTIFIER:
     {
+      // TODO(Isaac): handle dotted identifiers
       printf("Importing: %s\n", GetTextFromToken(PeekToken(parser)));
     } break;
 

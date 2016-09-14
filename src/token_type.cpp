@@ -79,8 +79,6 @@ const char* GetTokenName(token_type type)
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";
-    case TOKEN_DOTTED_IDENTIFIER:
-      return "TOKEN_DOTTED_IDENTIFIER";
     case TOKEN_STRING:
       return "TOKEN_STRING";
     case TOKEN_NUMBER_INT:
