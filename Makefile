@@ -2,11 +2,12 @@
 # See LICENCE.md
 
 CXX ?= g++
-CFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
-LFLAGS = -Wall -Wextra -pedantic -O2 -std=c++11 -g -Isrc
+CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++11 -g -Isrc
+LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++11 -g -Isrc
 
 OBJS = \
   src/roo.o \
+	src/common.o \
 	src/token_type.o \
   src/parsing.o \
 	src/ir.o \

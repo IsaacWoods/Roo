@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
+#include <common.hpp>
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath)
 {
@@ -29,6 +30,8 @@ static char* MangleFunctionName(function_def* function)
   return mangled;
 }
 
+char* GenNode(code_generator&, node*);
+
 #define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
 {
@@ -37,22 +40,70 @@ static void Emit_(code_generator& generator, const char* format, ...)
   va_list args;
   va_start(args, format);
 
-  char c;
-
-  while ((c = *format++))
+  while (*format)
   {
-    if (c == '%')
+    if (*format == '%')
     {
-      // TODO
-    }
+      switch (*(++format))
+      {
+        case 'c':
+        {
+          fputc(static_cast<char>(va_arg(args, int)), generator.output);
+        } break;
 
-    fputc(c, generator.output);
+        case 's':
+        {
+          ++format;
+          const char* str = va_arg(args, const char*);
+          fputs(str, generator.output);
+        } break;
+
+        case 'u':
+        {
+          format++;
+          char buffer[32];
+          itoa(va_arg(args, int), buffer, 10);
+          fputs(buffer, generator.output);
+        } break;
+
+        case 'x':
+        {
+          format++;
+          char buffer[32];
+          itoa(va_arg(args, int), buffer, 2);
+          fputs(buffer, generator.output);
+        } break;
+
+        case 'n':
+        {
+          char* nodeResult = GenNode(generator, va_arg(args, node*));
+
+          if (!nodeResult)
+          {
+            fprintf(stderr, "WARNING: Tried to print node result, but it generated nothing!\n");
+          }
+
+          fputs(nodeResult, generator.output);
+          free(nodeResult);
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unsupported format specifier in Emit: '%c'!\n", *format);
+          exit(1);
+        }
+      }
+    }
+    else
+    {
+      fputc(*format++, generator.output);
+    }
   }
 
   va_end(args);
 }
 
-void GenNode(code_generator& generator, node* n)
+char* GenNode(code_generator& generator, node* n)
 {
   switch (n->type)
   {
