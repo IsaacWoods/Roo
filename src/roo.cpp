@@ -46,7 +46,7 @@ int main()
 
   // Generate code
   code_generator generator;
-  CreateCodeGenerator(generator, "test");
+  CreateCodeGenerator(generator, "test.s");
 
   for (function_def* function = result.firstFunction;
        function;

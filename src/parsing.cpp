@@ -122,6 +122,24 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length};
 }
 
+__attribute__((noreturn))
+static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
+{
+  const int ERROR_MESSAGE_LENGTH = 1024;
+
+  va_list args;
+  va_start(args, messageFmt);
+
+  char message[ERROR_MESSAGE_LENGTH];
+  int length = vsprintf(message, messageFmt, args);
+  assert(length < ERROR_MESSAGE_LENGTH);
+
+  fprintf(stderr, "SYNTAX ERROR(%u:%u): %s\n", parser.currentLine, parser.currentLineOffset, message);
+
+  va_end(args);
+  exit(1);
+}
+
 /*
  * Lex identifiers and keywords
  */
@@ -218,6 +236,19 @@ static token LexString(roo_parser& parser)
   NextChar(parser);
 
   return MakeToken(parser, TOKEN_STRING, tokenOffset, startChar, (unsigned int)length);
+}
+
+static token LexCharConstant(roo_parser& parser)
+{
+  const char* c = parser.currentChar;
+  NextChar(parser);
+
+  if (*(parser.currentChar) != '\'')
+  {
+    SyntaxError(parser, "Expected ' to end the char constant!\n");
+  }
+
+  return MakeToken(parser, TOKEN_CHAR_CONSTANT, (unsigned int)((uintptr_t)c - (uintptr_t)parser.source), c, 1u);
 }
 
 static token LexNext(roo_parser& parser)
@@ -450,6 +481,9 @@ static token LexNext(roo_parser& parser)
       case '"':
         return LexString(parser);
 
+      case '\'':
+        return LexCharConstant(parser);
+
       default:
       {
         if (IsName(c))
@@ -477,7 +511,7 @@ EmitSimpleToken:
   return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
 }
 
-/*static*/ token NextToken(roo_parser& parser, bool ignoreLines = true)
+static token NextToken(roo_parser& parser, bool ignoreLines = true)
 {
   parser.currentToken = parser.nextToken;
   parser.nextToken = LexNext(parser);
@@ -533,23 +567,6 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
   return next;
 }
 
-__attribute__((noreturn))
-static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
-{
-  const int ERROR_MESSAGE_LENGTH = 1024;
-
-  va_list args;
-  va_start(args, messageFmt);
-
-  char message[ERROR_MESSAGE_LENGTH];
-  int length = vsprintf(message, messageFmt, args);
-  assert(length < ERROR_MESSAGE_LENGTH);
-
-  fprintf(stderr, "SYNTAX ERROR(%u:%u): %s\n", parser.currentLine, parser.currentLineOffset, message);
-
-  va_end(args);
-  exit(1);
-}
 
 static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
