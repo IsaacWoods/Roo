@@ -49,8 +49,6 @@ const char* GetTokenName(token_type type)
       return "TOKEN_RIGHT_BLOCK";
     case TOKEN_ASTERIX:
       return "TOKEN_ASTERIX";
-    case TOKEN_AMPERSAND:
-      return "TOKEN_AMPERSAND";
     case TOKEN_PLUS:
       return "TOKEN_PLUS";
     case TOKEN_MINUS:
@@ -61,6 +59,12 @@ const char* GetTokenName(token_type type)
       return "TOKEN_EQUALS";
     case TOKEN_BANG:
       return "TOKEN_BANG";
+    case TOKEN_TILDE:
+      return "TOKEN_TILDE";
+    case TOKEN_PERCENT:
+      return "TOKEN_PERCENT";
+    case TOKEN_QUESTION_MARK:
+      return "TOKEN_QUESTION_MARK";
 
     case TOKEN_YIELDS:
       return "TOKEN_YIELDS";
@@ -76,6 +80,24 @@ const char* GetTokenName(token_type type)
       return "TOKEN_LESS_THAN";
     case TOKEN_LESS_THAN_EQUAL_TO:
       return "TOKEN_LESS_THAN_EQUAL_TO";
+    case TOKEN_DOUBLE_PLUS:
+      return "TOKEN_DOUBLE_PLUS";
+    case TOKEN_DOUBLE_MINUS:
+      return "TOKEN_DOUBLE_MINUS";
+    case TOKEN_LEFT_SHIFT:
+      return "TOKEN_LEFT_SHIFT";
+    case TOKEN_RIGHT_SHIFT:
+      return "TOKEN_RIGHT_SHIFT";
+    case TOKEN_LOGICAL_AND:
+      return "TOKEN_LOGICAL_AND";
+    case TOKEN_LOGICAL_OR:
+      return "TOKEN_LOGICAL_OR";
+    case TOKEN_BITWISE_AND:
+      return "TOKEN_BITWISE_AND";
+    case TOKEN_BITWISE_OR:
+      return "TOKEN_BITWISE_OR";
+    case TOKEN_BITWISE_XOR:
+      return "TOKEN_BITWISE_XOR";
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";
@@ -85,6 +107,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_NUMBER_INT";
     case TOKEN_NUMBER_FLOAT:
       return "TOKEN_NUMBER_FLOAT";
+    case TOKEN_CHAR_CONSTANT:
+      return "TOKEN_CHAR_CONSTANT";
     case TOKEN_LINE:
       return "TOKEN_LINE";
     case TOKEN_INVALID:

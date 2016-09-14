@@ -274,19 +274,47 @@ static token LexNext(roo_parser& parser)
         type = TOKEN_ASTERIX;
         goto EmitSimpleToken;
   
-      case '&':
-        type = TOKEN_AMPERSAND;
+      case '~':
+        type = TOKEN_TILDE;
         goto EmitSimpleToken;
-  
+
+      case '%':
+        type = TOKEN_PERCENT;
+        goto EmitSimpleToken;
+
+      case '?':
+        type = TOKEN_QUESTION_MARK;
+        goto EmitSimpleToken;
+
+      case '^':
+        type = TOKEN_BITWISE_XOR;
+        goto EmitSimpleToken;
+
       case '+':
-        type = TOKEN_PLUS;
+      {
+        if (*(parser.currentChar) == '+')
+        {
+          type = TOKEN_DOUBLE_PLUS;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_PLUS;
+        }
+
         goto EmitSimpleToken;
-  
+      }
+ 
       case '-':
       {
         if (*(parser.currentChar) == '>')
         {
           type = TOKEN_YIELDS;
+          NextChar(parser);
+        }
+        else if (*(parser.currentChar) == '-')
+        {
+          type = TOKEN_DOUBLE_MINUS;
           NextChar(parser);
         }
         else
@@ -332,6 +360,12 @@ static token LexNext(roo_parser& parser)
         if (*(parser.currentChar) == '=')
         {
           type = TOKEN_GREATER_THAN_EQUAL_TO;
+          NextChar(parser);
+        }
+        else if (*(parser.currentChar) == '>')
+        {
+          type = TOKEN_RIGHT_SHIFT;
+          NextChar(parser);
         }
         else
         {
@@ -348,9 +382,44 @@ static token LexNext(roo_parser& parser)
           type = TOKEN_LESS_THAN_EQUAL_TO;
           NextChar(parser);
         }
+        else if (*(parser.currentChar) == '<')
+        {
+          type = TOKEN_LEFT_SHIFT;
+          NextChar(parser);
+        }
         else
         {
           type = TOKEN_LESS_THAN;
+        }
+
+        goto EmitSimpleToken;
+      }
+
+      case '&':
+      {
+        if (*(parser.currentChar) == '&')
+        {
+          type = TOKEN_LOGICAL_AND;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_BITWISE_AND;
+        }
+
+        goto EmitSimpleToken;
+      }
+
+      case '|':
+      {
+        if (*(parser.currentChar) == '|')
+        {
+          type = TOKEN_LOGICAL_OR;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_BITWISE_OR;
         }
 
         goto EmitSimpleToken;
