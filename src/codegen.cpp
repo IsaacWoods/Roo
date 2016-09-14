@@ -40,6 +40,13 @@ static void Emit_(code_generator& generator, const char* format, ...)
   va_list args;
   va_start(args, format);
 
+  for (unsigned int i = 0u;
+       i < generator.tabCount;
+       i++)
+  {
+    fputs(tabString, generator.output);
+  }
+
   while (*format)
   {
     if (*format == '%')
