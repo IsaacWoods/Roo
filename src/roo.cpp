@@ -8,43 +8,10 @@
 #include <parsing.hpp>
 #include <codegen.hpp>
 
-#if 0
-token NextToken(roo_parser& parser, bool ignoreLines);
-
 int main()
 {
   parse_result result;
-  result.firstFunction = nullptr;
-  result.firstType = nullptr;
-
-  roo_parser parser;
-  CreateParser(parser, &result, "test.roo");
-  
-  while (parser.currentToken.type != TOKEN_INVALID)
-  {
-    if (parser.currentToken.type == TOKEN_IDENTIFIER)
-    {
-      printf("Token: (%s)\n", GetTextFromToken(parser.currentToken));
-    }
-    else if ((parser.currentToken.type == TOKEN_NUMBER_INT) ||
-             (parser.currentToken.type == TOKEN_NUMBER_FLOAT))
-    {
-      printf("Token: [%s]\n", GetTextFromToken(parser.currentToken));
-    }
-    else
-    {
-      printf("Token: %s\n", GetTokenName(parser.currentToken.type));
-    }
-
-    NextToken(parser, false);
-  }
-
-  FreeParseResult(result);
-}
-#else
-int main()
-{
-  parse_result result;
+  result.firstDependency = nullptr;
   result.firstFunction = nullptr;
   result.firstType = nullptr;
 
@@ -93,4 +60,3 @@ int main()
   FreeParseResult(result);
   return 0;
 }
-#endif

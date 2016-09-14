@@ -6,6 +6,21 @@
 
 #include <token_type.hpp>
 
+struct dependency_def
+{
+  enum dependency_type
+  {
+    LOCAL,
+    REMOTE
+  } type;
+
+  char* path;
+
+  dependency_def* next;
+};
+
+void FreeDependencyDef(dependency_def* dependency);
+
 enum node_type
 {
   BREAK_NODE,

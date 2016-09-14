@@ -10,20 +10,37 @@
 #include <cstdint>
 #include <cstdarg>
 #include <cassert>
+#include <ir.hpp>
 
 void FreeParseResult(parse_result& result)
 {
-  function_def* temp;
+  while (result.firstDependency)
+  {
+    dependency_def* temp = result.firstDependency;
+    FreeDependencyDef(temp);
+    result.firstDependency = result.firstDependency->next;
+    free(temp);
+  }
 
   while (result.firstFunction)
   {
-    temp = result.firstFunction;
+    function_def* temp = result.firstFunction;
     FreeFunctionDef(temp);
     result.firstFunction = result.firstFunction->next;
     free(temp);
   }
 
-  result.firstFunction = nullptr;
+  while (result.firstType)
+  {
+    type_def* temp = result.firstType;
+    FreeTypeDef(temp);
+    result.firstType = result.firstType->next;
+    free(temp);
+  }
+
+  result.firstDependency  = nullptr;
+  result.firstFunction    = nullptr;
+  result.firstType        = nullptr;
 }
 
 /*
@@ -860,6 +877,9 @@ static void Import(roo_parser& parser)
   printf("--> Import\n");
   Consume(parser, TOKEN_IMPORT);
 
+  dependency_def* dependency = static_cast<dependency_def*>(malloc(sizeof(dependency_def)));
+  dependency->next = nullptr;
+
   switch (PeekToken(parser).type)
   {
     // NOTE(Isaac): Import a local library
@@ -867,12 +887,16 @@ static void Import(roo_parser& parser)
     {
       // TODO(Isaac): handle dotted identifiers
       printf("Importing: %s\n", GetTextFromToken(PeekToken(parser)));
+      dependency->type = dependency_def::dependency_type::LOCAL;
+      dependency->path = GetTextFromToken(PeekToken(parser));
     } break;
 
     // NOTE(Isaac): Import a library from a remote repository
     case TOKEN_STRING:
     {
       printf("Importing remote: %s\n", GetTextFromToken(PeekToken(parser)));
+      dependency->type = dependency_def::dependency_type::REMOTE;
+      dependency->path = GetTextFromToken(PeekToken(parser));
     } break;
 
     default:
@@ -880,6 +904,22 @@ static void Import(roo_parser& parser)
       SyntaxError(parser, "Expected [STRING LITERAL] or [DOTTED IDENTIFIER] after `import`, got %s!",
                   GetTokenName(PeekToken(parser).type));
     }
+  }
+
+  if (parser.result->firstDependency)
+  {
+    dependency_def* tail = parser.result->firstDependency;
+
+    while (tail->next)
+    {
+      tail = tail->next;
+    }
+
+    tail->next = dependency;
+  }
+  else
+  {
+    parser.result->firstDependency = dependency;
   }
 
   NextToken(parser);

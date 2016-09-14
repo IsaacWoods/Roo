@@ -7,6 +7,11 @@
 #include <cstdlib>
 #include <cstdarg>
 
+void FreeDependencyDef(dependency_def* dependency)
+{
+  free(dependency->path);
+}
+
 node* CreateNode(node_type type, ...)
 {
   va_list args;
@@ -184,4 +189,19 @@ void FreeFunctionDef(function_def* function)
     function->firstLocal = function->firstLocal->next;
     free(tempLocal);
   }
+}
+
+void FreeTypeDef(type_def* type)
+{
+  free(type->name);
+  
+  while (type->firstMember)
+  {
+    variable_def* temp = type->firstMember;
+    type->firstMember = type->firstMember->next;
+    FreeVariableDef(temp);
+    free(temp);
+  }
+
+  type->firstMember = nullptr;
 }
