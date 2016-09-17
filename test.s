@@ -5,5 +5,3 @@ _R_MyFunction:
   mov rax, 4
   leave
   ret
-  leave
-  ret

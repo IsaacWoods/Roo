@@ -218,7 +218,11 @@ void GenFunction(code_generator& generator, function_def* function)
   GenNode(generator, function->code);
 
   // Leave the stack frame and return
-  Emit("leave\n");
-  Emit("ret\n");
+  if (function->shouldAutoReturn)
+  {
+    Emit("leave\n");
+    Emit("ret\n");
+  }
+
   generator.tabCount--;
 }

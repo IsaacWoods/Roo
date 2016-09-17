@@ -845,6 +845,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     case TOKEN_RETURN:
     {
       printf("(RETURN)\n");
+      parser.currentFunction->shouldAutoReturn = false;
 
       if (MatchNext(parser, TOKEN_LINE, false))
       {
@@ -1017,6 +1018,7 @@ static void Function(roo_parser& parser)
   printf("--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
+  definition->shouldAutoReturn = true;
   definition->next = nullptr;
 
   // Find a place for the function

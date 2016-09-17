@@ -135,6 +135,7 @@ struct function_def
   variable_def*  firstLocal;
   type_ref*      returnType;
   node*          code;
+  bool           shouldAutoReturn;
 
   function_def*  next;
 };
