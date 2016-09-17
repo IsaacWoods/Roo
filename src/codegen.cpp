@@ -83,11 +83,14 @@ static void Emit_(code_generator& generator, const char* format, ...)
 
         case 'n':
         {
+          format++;
           char* nodeResult = GenNode(generator, va_arg(args, node*));
 
           if (!nodeResult)
           {
             fprintf(stderr, "WARNING: Tried to print node result, but it generated nothing!\n");
+            fputs("[MISSING NODE RESULT]", generator.output);
+            break;
           }
 
           fputs(nodeResult, generator.output);
@@ -123,7 +126,7 @@ char* GenNode(code_generator& generator, node* n)
     {
       if (n->payload.expression)
       {
-        Emit("mov rax, %n", n->payload.expression);
+        Emit("mov rax, %n\n", n->payload.expression);
       }
 
       Emit("leave\n");
@@ -152,7 +155,34 @@ char* GenNode(code_generator& generator, node* n)
 
     case NUMBER_CONSTANT_NODE:
     {
+      switch (n->payload.numberConstant.type)
+      {
+        case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+        {
+          size_t strLength = snprintf(nullptr, 0, "%d", n->payload.numberConstant.constant.asInt);
+          // NOTE(Isaac): add one for the null terminator
+          char* result = static_cast<char*>(malloc(sizeof(char) * (strLength + 1u)));
+          sprintf(result, "%d", n->payload.numberConstant.constant.asInt);
 
+          return result;
+        } break;
+
+        case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+        {
+          size_t strLength = snprintf(nullptr, 0, "%f", n->payload.numberConstant.constant.asFloat);
+          // NOTE(Isaac): add one for the null terminator
+          char* result = static_cast<char*>(malloc(sizeof(char) * (strLength + 1u)));
+          sprintf(result, "%f", n->payload.numberConstant.constant.asFloat);
+
+          return result;
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unhandled constant type in NUMBER_CONSTANT_NODE of GenNode!\n");
+          exit(1);
+        } break;
+      }
     } break;
 
     default:
@@ -161,6 +191,14 @@ char* GenNode(code_generator& generator, node* n)
       exit(1);
     }
   }
+
+  // If there is one, visit the next node in the block
+  if (n->next)
+  {
+    GenNode(generator, n->next);
+  }
+
+  return nullptr;
 }
 
 void GenFunction(code_generator& generator, function_def* function)
@@ -171,10 +209,15 @@ void GenFunction(code_generator& generator, function_def* function)
   Emit("%s:\n", mangledName);
   free(mangledName);
 
+  // Create a new stack frame
   generator.tabCount++;
   Emit("push rbp\n");
   Emit("mov rbp, rsp\n\n");
 
+  // Recurse through the AST
+  GenNode(generator, function->code);
+
+  // Leave the stack frame and return
   Emit("leave\n");
   Emit("ret\n");
   generator.tabCount--;

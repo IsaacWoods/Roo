@@ -78,7 +78,7 @@ struct number_constant_part
 struct node
 {
   node_type type;
-  node* next;
+  node*     next;
 
   union
   {

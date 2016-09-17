@@ -1,21 +1,4 @@
-type Color
+fn MyFunction() -> int
 {
-  r : float
-  g : float
-  b : float
-  a : float
-}
-
-fn MyFunction(potato : int) -> int
-{
-  myVar : int = 4 + 3
-
-  if (myVar > potato)
-  {
-    return myVar
-  }
-  else
-  {
-    return 0
-  }
+  return 4
 }

@@ -23,8 +23,14 @@ node* CreateNode(node_type type, ...)
 
   switch (type)
   {
-    case BREAK_NODE:      break;
-    case RETURN_NODE:     break;
+    case BREAK_NODE:
+    {
+    } break;
+
+    case RETURN_NODE:
+    {
+      result->payload.expression            = va_arg(args, node*);
+    } break;
 
     case BINARY_OP_NODE:
     {
@@ -98,7 +104,9 @@ void FreeNode(node* n)
 
   switch (n->type)
   {
-    case BREAK_NODE:      break;
+    case BREAK_NODE:
+    {
+    } break;
 
     case RETURN_NODE:
     {
@@ -139,6 +147,10 @@ void FreeNode(node* n)
 
       FreeNode(n->payload.ifThing.elseCode);
       free(n->payload.ifThing.elseCode);
+    } break;
+
+    case NUMBER_CONSTANT_NODE:
+    {
     } break;
 
     default:
