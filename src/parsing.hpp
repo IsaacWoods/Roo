@@ -29,15 +29,6 @@ inline char* GetTextFromToken(const token& tkn)
   return text;
 }
 
-struct parse_result
-{
-  dependency_def*   firstDependency;
-  function_def*     firstFunction;
-  type_def*         firstType;
-};
-
-void FreeParseResult(parse_result& result);
-
 struct roo_parser;
 typedef node* (*prefix_parselet)(roo_parser&);
 typedef node* (*infix_parselet)(roo_parser&, node* left);

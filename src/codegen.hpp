@@ -15,5 +15,5 @@ struct code_generator
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath);
 void FreeCodeGenerator(code_generator& generator);
-
-void GenFunction(code_generator& generator, function_def* function);
+void GenCodeSection(code_generator& generator, parse_result& parse);
+void GenDataSection(code_generator& generator, parse_result& parse);

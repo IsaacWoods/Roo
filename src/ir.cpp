@@ -7,9 +7,80 @@
 #include <cstdlib>
 #include <cstdarg>
 
+void CreateParseResult(parse_result& result)
+{
+  result.firstDependency  = nullptr;
+  result.firstFunction    = nullptr;
+  result.firstType        = nullptr;
+  result.firstString      = nullptr;
+}
+
+void FreeParseResult(parse_result& result)
+{
+  while (result.firstDependency)
+  {
+    dependency_def* temp = result.firstDependency;
+    FreeDependencyDef(temp);
+    result.firstDependency = result.firstDependency->next;
+    free(temp);
+  }
+
+  while (result.firstFunction)
+  {
+    function_def* temp = result.firstFunction;
+    FreeFunctionDef(temp);
+    result.firstFunction = result.firstFunction->next;
+    free(temp);
+  }
+
+  while (result.firstType)
+  {
+    type_def* temp = result.firstType;
+    FreeTypeDef(temp);
+    result.firstType = result.firstType->next;
+    free(temp);
+  }
+
+  while (result.firstString)
+  {
+    string_constant* temp = result.firstString;
+    FreeStringConstant(temp);
+    result.firstString = result.firstString->next;
+    free(temp);
+  }
+
+  result.firstDependency  = nullptr;
+  result.firstFunction    = nullptr;
+  result.firstType        = nullptr;
+  result.firstString      = nullptr;
+}
+
 void FreeDependencyDef(dependency_def* dependency)
 {
   free(dependency->path);
+}
+
+string_constant* CreateStringConstant(parse_result* result, char* string)
+{
+  string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
+  string_constant* tail = result->firstString;
+
+  while (tail->next)
+  {
+    tail = tail->next;
+  }
+
+  constant->handle = tail->handle + 1u;
+  constant->string = string;
+  constant->next = nullptr;
+
+  tail->next = constant;
+  return constant;
+}
+
+void FreeStringConstant(string_constant* string)
+{
+  free(string->string);
 }
 
 node* CreateNode(node_type type, ...)
@@ -83,6 +154,11 @@ node* CreateNode(node_type type, ...)
       }
     } break;
 
+    case STRING_CONSTANT_NODE:
+    {
+      result->payload.stringConstant        = va_arg(args, string_constant*);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type in CreateNode!\n");
@@ -151,6 +227,11 @@ void FreeNode(node* n)
 
     case NUMBER_CONSTANT_NODE:
     {
+    } break;
+
+    case STRING_CONSTANT_NODE:
+    {
+      // NOTE(Isaac): Don't free the string constant here; it might be shared!
     } break;
 
     default:

@@ -12,37 +12,6 @@
 #include <cassert>
 #include <ir.hpp>
 
-void FreeParseResult(parse_result& result)
-{
-  while (result.firstDependency)
-  {
-    dependency_def* temp = result.firstDependency;
-    FreeDependencyDef(temp);
-    result.firstDependency = result.firstDependency->next;
-    free(temp);
-  }
-
-  while (result.firstFunction)
-  {
-    function_def* temp = result.firstFunction;
-    FreeFunctionDef(temp);
-    result.firstFunction = result.firstFunction->next;
-    free(temp);
-  }
-
-  while (result.firstType)
-  {
-    type_def* temp = result.firstType;
-    FreeTypeDef(temp);
-    result.firstType = result.firstType->next;
-    free(temp);
-  }
-
-  result.firstDependency  = nullptr;
-  result.firstFunction    = nullptr;
-  result.firstType        = nullptr;
-}
-
 /*
  * Reads a file as a string.
  * The string is allocated on the heap and it is the responsibility of the caller to free it.
@@ -1138,9 +1107,18 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       float value = strtof(tokenText, nullptr);
       free(tokenText);
 
-
       NextToken(parser);
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
+    };
+
+  parser.prefixMap[TOKEN_STRING] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("Prefix parselet: TOKEN_STRING\n");
+      char* tokenText = GetTextFromToken(PeekToken(parser));
+      NextToken(parser);
+
+      return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
     };
 
   parser.infixMap[TOKEN_PLUS] =

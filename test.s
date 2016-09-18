@@ -1,3 +1,5 @@
+section .text
+
 _R_MyFunction:
   push rbp
   mov rbp, rsp
@@ -5,3 +7,5 @@ _R_MyFunction:
   mov rax, 4
   leave
   ret
+
+section .data

@@ -6,6 +6,22 @@
 
 #include <token_type.hpp>
 
+struct dependency_def;
+struct function_def;
+struct type_def;
+struct string_constant;
+
+struct parse_result
+{
+  dependency_def*   firstDependency;
+  function_def*     firstFunction;
+  type_def*         firstType;
+  string_constant*  firstString;
+};
+
+void CreateParseResult(parse_result& result);
+void FreeParseResult(parse_result& result);
+
 struct dependency_def
 {
   enum dependency_type
@@ -21,6 +37,17 @@ struct dependency_def
 
 void FreeDependencyDef(dependency_def* dependency);
 
+struct string_constant
+{
+  unsigned int      handle;
+  char*             string;
+
+  string_constant*  next;
+};
+
+string_constant* CreateStringConstant(parse_result* result, char* string);
+void FreeStringConstant(string_constant* string);
+
 enum node_type
 {
   BREAK_NODE,
@@ -30,6 +57,7 @@ enum node_type
   CONDITION_NODE,
   IF_NODE,
   NUMBER_CONSTANT_NODE,
+  STRING_CONSTANT_NODE,
 };
 
 struct node;
@@ -88,6 +116,7 @@ struct node
     condition_node_part     condition;
     if_node_part            ifThing;
     number_constant_part    numberConstant;
+    string_constant*        stringConstant;
   } payload;
 };
 

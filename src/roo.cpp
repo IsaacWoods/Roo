@@ -11,9 +11,7 @@
 int main()
 {
   parse_result result;
-  result.firstDependency = nullptr;
-  result.firstFunction = nullptr;
-  result.firstType = nullptr;
+  CreateParseResult(result);
 
   // Parse .roo files in the current directory
   {
@@ -47,13 +45,8 @@ int main()
   // Generate code
   code_generator generator;
   CreateCodeGenerator(generator, "test.s");
-
-  for (function_def* function = result.firstFunction;
-       function;
-       function = function->next)
-  {
-    GenFunction(generator, function);
-  }
+  GenCodeSection(generator, result);
+  GenDataSection(generator, result);
 
   // Free everything
   FreeCodeGenerator(generator);

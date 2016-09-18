@@ -185,6 +185,13 @@ char* GenNode(code_generator& generator, node* n)
       }
     } break;
 
+    case STRING_CONSTANT_NODE:
+    {
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0, "str%u", n->payload.stringConstant->handle)));
+      sprintf(result, "str%u", n->payload.stringConstant->handle);
+      return result;
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type in GenNode!\n");
@@ -201,7 +208,7 @@ char* GenNode(code_generator& generator, node* n)
   return nullptr;
 }
 
-void GenFunction(code_generator& generator, function_def* function)
+static void GenFunction(code_generator& generator, function_def* function)
 {
   printf("Generating code for function: %s\n", function->name);
 
@@ -222,6 +229,35 @@ void GenFunction(code_generator& generator, function_def* function)
   {
     Emit("leave\n");
     Emit("ret\n");
+  }
+
+  generator.tabCount--;
+}
+
+void GenCodeSection(code_generator& generator, parse_result& parse)
+{
+  generator.tabCount = 0u;
+  Emit("section .text\n\n");
+
+  for (function_def* function = parse.firstFunction;
+       function;
+       function = function->next)
+  {
+    GenFunction(generator, function);
+  }
+}
+
+void GenDataSection(code_generator& generator, parse_result& parse)
+{
+  generator.tabCount = 0u;
+  Emit("\nsection .data\n");
+  generator.tabCount++;
+
+  for (string_constant* string = parse.firstString;
+       string;
+       string = string->next)
+  {
+    Emit("str%u: db \"%s\", 0\n", string->handle, string->string);
   }
 
   generator.tabCount--;
