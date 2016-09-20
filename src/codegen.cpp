@@ -290,6 +290,7 @@ static void GenFunction(code_generator& generator, function_def* function)
   }
 
   generator.tabCount--;
+  Emit("\n");
 }
 
 void GenCodeSection(code_generator& generator, parse_result& parse)
@@ -308,7 +309,7 @@ void GenCodeSection(code_generator& generator, parse_result& parse)
 void GenDataSection(code_generator& generator, parse_result& parse)
 {
   generator.tabCount = 0u;
-  Emit("\nsection .data\n");
+  Emit("section .data\n");
   generator.tabCount++;
 
   for (string_constant* string = parse.firstString;

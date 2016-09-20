@@ -7,6 +7,7 @@ _R_SomeFunction:
   mov rax, 4
   leave
   ret
+
 _R_Main:
   push rbp
   mov rbp, rsp
