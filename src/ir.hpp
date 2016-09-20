@@ -58,6 +58,7 @@ enum node_type
   IF_NODE,
   NUMBER_CONSTANT_NODE,
   STRING_CONSTANT_NODE,
+  FUNCTION_CALL_NODE,
 };
 
 struct node;
@@ -103,12 +104,23 @@ struct number_constant_part
   } constant;
 };
 
+struct function_call_part
+{
+  char* name;
+  
+  struct param_def
+  {
+    node*       expression;
+    param_def*  next;
+  } *firstParam;
+};
+
 struct node
 {
   node_type type;
   node*     next;
 
-  union
+  union node_payload
   {
     node*                   expression;
     binary_op_node_part     binaryOp;
@@ -117,6 +129,7 @@ struct node
     if_node_part            ifThing;
     number_constant_part    numberConstant;
     string_constant*        stringConstant;
+    function_call_part      functionCall;
   } payload;
 };
 

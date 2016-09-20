@@ -92,6 +92,8 @@ node* CreateNode(node_type type, ...)
   result->type = type;
   result->next = nullptr;
 
+  node::node_payload& payload = result->payload;
+
   switch (type)
   {
     case BREAK_NODE:
@@ -100,55 +102,55 @@ node* CreateNode(node_type type, ...)
 
     case RETURN_NODE:
     {
-      result->payload.expression            = va_arg(args, node*);
+      payload.expression                  = va_arg(args, node*);
     } break;
 
     case BINARY_OP_NODE:
     {
       // NOTE(Isaac): enum types are promoted to `int`s on the stack
-      result->payload.binaryOp.op           = static_cast<token_type>(va_arg(args, int));
-      result->payload.binaryOp.left         = va_arg(args, node*);
-      result->payload.binaryOp.right        = va_arg(args, node*);
+      payload.binaryOp.op                 = static_cast<token_type>(va_arg(args, int));
+      payload.binaryOp.left               = va_arg(args, node*);
+      payload.binaryOp.right              = va_arg(args, node*);
     } break;
 
     case VARIABLE_NODE:
     {
-      result->payload.variable.name         = va_arg(args, char*);
+      payload.variable.name               = va_arg(args, char*);
     } break;
 
     case CONDITION_NODE:
     {
-      result->payload.condition.condition   = static_cast<token_type>(va_arg(args, int));
-      result->payload.condition.left        = va_arg(args, node*);
-      result->payload.condition.right       = va_arg(args, node*);
+      payload.condition.condition         = static_cast<token_type>(va_arg(args, int));
+      payload.condition.left              = va_arg(args, node*);
+      payload.condition.right             = va_arg(args, node*);
     } break;
 
     case IF_NODE:
     {
-      result->payload.ifThing.condition     = va_arg(args, node*);
-      result->payload.ifThing.thenCode      = va_arg(args, node*);
-      result->payload.ifThing.elseCode      = va_arg(args, node*);
+      payload.ifThing.condition           = va_arg(args, node*);
+      payload.ifThing.thenCode            = va_arg(args, node*);
+      payload.ifThing.elseCode            = va_arg(args, node*);
     } break;
 
     case NUMBER_CONSTANT_NODE:
     {
-      result->payload.numberConstant.type   = static_cast<number_constant_part::constant_type>(va_arg(args, int));
+      payload.numberConstant.type         = static_cast<number_constant_part::constant_type>(va_arg(args, int));
 
-      switch (result->payload.numberConstant.type)
+      switch (payload.numberConstant.type)
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          result->payload.numberConstant.constant.asInt = va_arg(args, int);
+          payload.numberConstant.constant.asInt = va_arg(args, int);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          result->payload.numberConstant.constant.asFloat = static_cast<float>(va_arg(args, double));
+          payload.numberConstant.constant.asFloat = static_cast<float>(va_arg(args, double));
         } break;
 
         default:
         {
-          fprintf(stderr, "Unhandled number constant types in CreateNode!\n");
+          fprintf(stderr, "Unhandled number constant type in CreateNode!\n");
           exit(1);
         }
       }
@@ -156,7 +158,13 @@ node* CreateNode(node_type type, ...)
 
     case STRING_CONSTANT_NODE:
     {
-      result->payload.stringConstant        = va_arg(args, string_constant*);
+      payload.stringConstant              = va_arg(args, string_constant*);
+    } break;
+
+    case FUNCTION_CALL_NODE:
+    {
+      payload.functionCall.name           = va_arg(args, char*);
+      payload.functionCall.firstParam     = va_arg(args, function_call_part::param_def*);
     } break;
 
     default:

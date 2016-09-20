@@ -32,6 +32,48 @@ static char* MangleFunctionName(function_def* function)
 
 char* GenNode(code_generator&, node*);
 
+const char* GetRegisterName(reg r)
+{
+  switch (r)
+  {
+    case RAX:
+      return "rax";
+    case RBX:
+      return "rbx";
+    case RCX:
+      return "rcx";
+    case RDX:
+      return "rdx";
+    case RSI:
+      return "rsi";
+    case RDI:
+      return "rdi";
+    case RBP:
+      return "rbp";
+    case RSP:
+      return "rsp";
+    case R8:
+      return "r8";
+    case R9:
+      return "r9";
+    case R10:
+      return "r10";
+    case R11:
+      return "r11";
+    case R12:
+      return "r12";
+    case R13:
+      return "r13";
+    case R14:
+      return "r14";
+    case R15:
+      return "r15";
+  }
+
+  fprintf(stderr, "Unhandled register in GetRegisterName!\n");
+  exit(1);
+}
+
 #define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
 {
@@ -95,6 +137,13 @@ static void Emit_(code_generator& generator, const char* format, ...)
 
           fputs(nodeResult, generator.output);
           free(nodeResult);
+        } break;
+
+        case 'r':
+        {
+          format++;
+          reg r = static_cast<reg>(va_arg(args, int));
+          fputs(GetRegisterName(r), generator.output);
         } break;
 
         default:
@@ -192,6 +241,12 @@ char* GenNode(code_generator& generator, node* n)
       return result;
     } break;
 
+    case FUNCTION_CALL_NODE:
+    {
+      // TODO(Isaac): move parameters into correct registers and stack S&T
+      Emit("call %s\n", n->payload.functionCall.name);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type in GenNode!\n");
@@ -222,7 +277,10 @@ static void GenFunction(code_generator& generator, function_def* function)
   Emit("mov rbp, rsp\n\n");
 
   // Recurse through the AST
-  GenNode(generator, function->code);
+  if (function->code)
+  {
+    GenNode(generator, function->code);
+  }
 
   // Leave the stack frame and return
   if (function->shouldAutoReturn)

@@ -1,4 +1,8 @@
-fn MyFunction() -> int
+fn SomeFunction() -> int
 {
   return 4
+}
+
+fn Main()
+{
 }

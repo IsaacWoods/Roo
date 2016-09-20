@@ -536,7 +536,8 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
   return next;
 }
 
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
@@ -570,6 +571,7 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
     printf("PEEK_NEXT: %s\n", GetTokenName(PeekNextToken(parser, ignoreLines).type));
   }
 }
+#pragma GCC diagnostic pop
 
 static inline void Consume(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
 {
@@ -660,9 +662,9 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   node* expression = prefixParselet(parser);
 
-  while (precedence < parser.precedenceTable[PeekNextToken(parser, false).type])
+  while (precedence < parser.precedenceTable[PeekToken(parser, false).type])
   {
-    infix_parselet infixParselet = parser.infixMap[PeekNextToken(parser, false).type];
+    infix_parselet infixParselet = parser.infixMap[PeekToken(parser, false).type];
 
     // NOTE(Isaac): there is no infix expression part - just return the prefix expression
     if (!infixParselet)
@@ -671,7 +673,6 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
       return expression;
     }
 
-    NextToken(parser);
     expression = infixParselet(parser, expression);
   }
 
@@ -831,7 +832,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     {
       printf("(IF)\n");
 
-      node* thing = If(parser);
+      result = If(parser);
     } break;
 
     case TOKEN_IDENTIFIER:
@@ -864,9 +865,10 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     } // NOTE(Isaac): no break
 
     default:
-      printf("\n");
-      fprintf(stderr, "Unhandled token type in Statement: %s!\n", GetTokenName(PeekToken(parser).type));
-      exit(1);
+      printf("(EXPRESSION STATEMENT)\n");
+      result = Expression(parser);
+
+      // TODO(Isaac): make sure it's a valid node type to appear at top level
   }
 
   printf("<-- Statement\n");
@@ -1081,43 +1083,48 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
   parser.prefixMap[TOKEN_IDENTIFIER] =
     [](roo_parser& parser) -> node*
     {
-      printf("Prefix parselet: TOKEN_IDENTIFIER!\n");
+      printf("--> [PARSELET] Identifier\n");
       char* name = GetTextFromToken(PeekToken(parser));
+
       NextToken(parser);
+      printf("<-- [PARSELET] Identifier\n");
       return CreateNode(VARIABLE_NODE, name);
     };
 
   parser.prefixMap[TOKEN_NUMBER_INT] =
     [](roo_parser& parser) -> node*
     {
-      printf("Prefix parselet: TOKEN_NUMBER_INT\n");
+      printf("--> [PARSELET] Number constant (integer)\n");
       char* tokenText = GetTextFromToken(PeekToken(parser));
       int value = strtol(tokenText, nullptr, 10); // TODO(Isaac): parse hexadecimal here too
       free(tokenText);
 
       NextToken(parser);
+      printf("<-- [PARSELET] Number constant (integer)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
     };
 
   parser.prefixMap[TOKEN_NUMBER_FLOAT] =
     [](roo_parser& parser) -> node*
     {
-      printf("Prefix parselet: TOKEN_NUMBER_FLOAT\n");
+      printf("--> [PARSELET] Number constant (floating point)\n");
       char* tokenText = GetTextFromToken(PeekToken(parser));
       float value = strtof(tokenText, nullptr);
       free(tokenText);
 
       NextToken(parser);
+      printf("<-- [PARSELET] Number constant (floating point)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
     };
 
   parser.prefixMap[TOKEN_STRING] =
     [](roo_parser& parser) -> node*
     {
-      printf("Prefix parselet: TOKEN_STRING\n");
+      printf("--> [PARSELET] String\n");
       char* tokenText = GetTextFromToken(PeekToken(parser));
       NextToken(parser);
 
+      printf("<-- [PARSELET] String\n");
       return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
     };
 
@@ -1127,10 +1134,60 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
   parser.infixMap[TOKEN_SLASH] =
     [](roo_parser& parser, node* left) -> node*
     {
-      printf("Infix parselet: %s\n", GetTokenName(PeekToken(parser).type));
+      printf("--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
+
       NextToken(parser);
+      printf("<-- [PARSELET] Binary operator\n");
       return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, parser.precedenceTable[operation]));
+    };
+
+  // Parses a function call
+  parser.infixMap[TOKEN_LEFT_PAREN] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      printf("--> [PARSELET] Function Call\n");
+
+      if (left->type != VARIABLE_NODE)
+      {
+        SyntaxError(parser, "Unrecognised function name!");
+      }
+
+      char* functionName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
+      strcpy(functionName, left->payload.variable.name);
+      FreeNode(left);
+      free(left);
+
+      function_call_part::param_def* firstParam = nullptr;
+      ConsumeNext(parser, TOKEN_LEFT_PAREN);
+
+      while (!Match(parser, TOKEN_RIGHT_PAREN))
+      {
+        function_call_part::param_def* param = static_cast<function_call_part::param_def*>(malloc(sizeof(function_call_part::param_def)));
+        NextToken(parser);
+        param->expression = Expression(parser);
+        param->next = nullptr;
+
+        if (firstParam)
+        {
+          function_call_part::param_def* tail = firstParam;
+
+          while (tail->next)
+          {
+            tail = tail->next;
+          }
+
+          tail->next = param;
+        }
+        else
+        {
+          firstParam = param;
+        }
+      }
+
+      Consume(parser, TOKEN_RIGHT_PAREN);
+      printf("<-- [PARSELET] Function call\n");
+      return CreateNode(FUNCTION_CALL_NODE, functionName, firstParam);
     };
 
   // --- Precedence table ---
@@ -1150,14 +1207,15 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     P_BITWISE_SHIFTING,         // >> and <<
     P_ADDITIVE,                 // + and -
     P_MULTIPLICATIVE,           // *, / and %
-    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *
+    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *, x(...)
     P_SUFFIX,                   // x++, x--
   };
   
-  parser.precedenceTable[TOKEN_PLUS]    = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_MINUS]   = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_ASTERIX] = P_MULTIPLICATIVE;
-  parser.precedenceTable[TOKEN_SLASH]   = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_SLASH]         = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_LEFT_PAREN]    = P_PREFIX;
 }
 
 void FreeParser(roo_parser& parser)
