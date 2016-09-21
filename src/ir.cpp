@@ -242,6 +242,20 @@ void FreeNode(node* n)
       // NOTE(Isaac): Don't free the string constant here; it might be shared!
     } break;
 
+    case FUNCTION_CALL_NODE:
+    {
+      free(n->payload.functionCall.name);
+
+      while (n->payload.functionCall.firstParam)
+      {
+        function_call_part::param_def* temp = n->payload.functionCall.firstParam;
+        n->payload.functionCall.firstParam = n->payload.functionCall.firstParam->next;
+        free(temp->expression);
+      }
+
+      n->payload.functionCall.firstParam = nullptr;
+    } break;
+
     default:
       fprintf(stderr, "Unhandled node type in FreeNode!\n");
   }

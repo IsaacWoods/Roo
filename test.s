@@ -12,6 +12,8 @@ _R_Main:
   push rbp
   mov rbp, rsp
 
+  mov rax,   call SomeFunction
+[MISSING NODE RESULT]
   leave
   ret
 

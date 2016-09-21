@@ -1159,7 +1159,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       free(left);
 
       function_call_part::param_def* firstParam = nullptr;
-      ConsumeNext(parser, TOKEN_LEFT_PAREN);
+      Consume(parser, TOKEN_LEFT_PAREN);
 
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
