@@ -136,14 +136,6 @@ struct node
 node* CreateNode(node_type type, ...);
 void FreeNode(node* n);
 
-struct parameter_def
-{
-  const char* name;
-  const char* typeName;
-
-  parameter_def* next;
-};
-
 struct type_ref
 {
   char* typeName;
@@ -171,15 +163,15 @@ void FreeVariableDef(variable_def* variable);
 
 struct function_def
 {
-  char*          name;
-  unsigned int   arity;
-  parameter_def* firstParam;
-  variable_def*  firstLocal;
-  type_ref*      returnType;
-  node*          code;
-  bool           shouldAutoReturn;
+  char*           name;
+  unsigned int    arity;
+  variable_def*   firstParam;
+  variable_def*   firstLocal;
+  type_ref*       returnType;
+  node*           code;
+  bool            shouldAutoReturn;
 
-  function_def*  next;
+  function_def*   next;
 };
 
 void FreeFunctionDef(function_def* function);

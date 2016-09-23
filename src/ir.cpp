@@ -287,22 +287,20 @@ void FreeFunctionDef(function_def* function)
   FreeNode(function->code);
   free(function->code);
 
-  parameter_def* tempParam;
-
   while (function->firstParam)
   {
-    tempParam = function->firstParam;
+    variable_def* temp = function->firstParam;
     function->firstParam = function->firstParam->next;
-    free(tempParam);
+    FreeVariableDef(temp);
+    free(temp);
   }
-
-  variable_def* tempLocal;
 
   while (function->firstLocal)
   {
-    tempLocal = function->firstLocal;
+    variable_def* temp = function->firstLocal;
     function->firstLocal = function->firstLocal->next;
-    free(tempLocal);
+    FreeVariableDef(temp);
+    free(temp);
   }
 }
 

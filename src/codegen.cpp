@@ -9,6 +9,41 @@
 #include <cstdarg>
 #include <common.hpp>
 
+static void InitRegisterStateSet(register_state_set& set, const char* tag = nullptr)
+{
+  set.tag = tag;
+
+  for (unsigned int i = 0u;
+       i < NUM_REGISTERS;
+       i++)
+  {
+    register_state& r = set[static_cast<reg>(i)];
+    r.usage = register_state::register_usage::FREE;
+    r.variable = nullptr;
+  }
+
+  set[RBP].usage           = register_state::register_usage::UNUSABLE;
+  set[RSP].usage           = register_state::register_usage::UNUSABLE;
+}
+
+static void PrintRegisterStateSet(register_state_set& set)
+{
+  printf("/ %20s \\\n", (set.tag ? set.tag : "UNTAGGED"));
+  printf("|----------------------|\n");
+  
+  for (unsigned int i = 0u;
+       i < NUM_REGISTERS;
+       i++)
+  {
+    register_state& r = set[static_cast<reg>(i)];
+    printf("| %3s     - %10s |\n", GetRegisterName(static_cast<reg>(i)),
+        ((r.usage == register_state::register_usage::FREE) ? "FREE" :
+        ((r.usage == register_state::register_usage::IN_USE) ? "IN USE" : "UNUSABLE")));
+  }
+
+  printf("\\----------------------/\n");
+}
+
 void CreateCodeGenerator(code_generator& generator, const char* outputPath)
 {
   generator.output = fopen(outputPath, "w");
@@ -68,6 +103,8 @@ const char* GetRegisterName(reg r)
       return "r14";
     case R15:
       return "r15";
+    default:
+      return "[INVALID REGISTER]";
   }
 
   fprintf(stderr, "Unhandled register in GetRegisterName!\n");
@@ -162,6 +199,12 @@ static void Emit_(code_generator& generator, const char* format, ...)
   va_end(args);
 }
 
+static reg Registerize(code_generator& generator, node* n)
+{
+  // TODO
+  return RDI;
+}
+
 char* GenNode(code_generator& generator, node* n)
 {
   switch (n->type)
@@ -184,7 +227,43 @@ char* GenNode(code_generator& generator, node* n)
 
     case BINARY_OP_NODE:
     {
+      reg leftReg = Registerize(generator, n->payload.binaryOp.left);
 
+      switch (n->payload.binaryOp.op)
+      {
+        case TOKEN_PLUS:
+        {
+          Emit("add %r, %n\n", leftReg, n->payload.binaryOp.right);
+        } break;
+
+        case TOKEN_MINUS:
+        {
+          Emit("sub %r, %n\n", leftReg, n->payload.binaryOp.right);
+        } break;
+
+        case TOKEN_ASTERIX:
+        {
+          Emit("mul %r, %n\n", leftReg, n->payload.binaryOp.right);
+        } break;
+
+        case TOKEN_SLASH:
+        {
+          Emit("div %r, %n\n", leftReg, n->payload.binaryOp.right);
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unhandled binary operation in GenNode!\n");
+          exit(1);
+        }
+      }
+
+      // NOTE(Isaac): yes, this is a dirty dirty hack, but we need to be able to free the memory later...
+      // TODO(Isaac): dear God please find a better way to manage this
+      const char* leftRegName = GetRegisterName(leftReg);
+      char* leftRegNameCopy = static_cast<char*>(malloc(sizeof(char) * strlen(leftRegName)));
+      strcpy(leftRegNameCopy, leftRegName);
+      return leftRegNameCopy;
     } break;
 
     case VARIABLE_NODE:
@@ -245,6 +324,11 @@ char* GenNode(code_generator& generator, node* n)
     {
       // TODO(Isaac): move parameters into correct registers and stack S&T
       Emit("call %s\n", n->payload.functionCall.name);
+
+      // TODO(Isaac): sort this disgrace out
+      char* eww = static_cast<char*>(malloc(sizeof(char) * strlen("rax")));
+      strcpy(eww, "rax");
+      return eww;
     } break;
 
     default:
@@ -266,6 +350,32 @@ char* GenNode(code_generator& generator, node* n)
 static void GenFunction(code_generator& generator, function_def* function)
 {
   printf("Generating code for function: %s\n", function->name);
+
+  register_state_set initialState;
+  InitRegisterStateSet(initialState, "Initial");
+
+  // Mark registers holding parameters as in-use
+  unsigned int i = 0u;
+  const unsigned int NUM_INT_REGS = 5u;
+  reg paramRegs[] = { RDI, RSI, RDX, RCX, R8 };
+
+  for (variable_def* param = function->firstParam;
+       param;
+       param = param->next)
+  {
+    if (i == NUM_INT_REGS)
+    {
+      break;
+    }
+
+    // TODO(Isaac): continue if it can't be put in a register for some reason
+
+    initialState[paramRegs[i]].usage = register_state::register_usage::IN_USE;
+    initialState[paramRegs[i]].variable = param;
+    i++;
+  }
+
+  PrintRegisterStateSet(initialState);
 
   char* mangledName = MangleFunctionName(function);
   Emit("%s:\n", mangledName);

@@ -13,7 +13,7 @@ _R_Main:
   mov rbp, rsp
 
   mov rax,   call SomeFunction
-[MISSING NODE RESULT]
+rax
   leave
   ret
 

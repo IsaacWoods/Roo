@@ -606,10 +606,10 @@ static inline bool MatchNext(roo_parser& parser, token_type expectedType, bool i
 }
 
 // --- Parsing ---
-static parameter_def* ParameterList(roo_parser& parser)
+static variable_def* ParameterList(roo_parser& parser)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
-  parameter_def* paramList = nullptr;
+  variable_def* paramList = nullptr;
 
   // Check for an empty parameter list
   if (Match(parser, TOKEN_RIGHT_PAREN))
@@ -620,17 +620,17 @@ static parameter_def* ParameterList(roo_parser& parser)
 
   do
   {
-    parameter_def* param = static_cast<parameter_def*>(malloc(sizeof(parameter_def)));
+    variable_def* param = static_cast<variable_def*>(malloc(sizeof(variable_def)));
     param->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    param->typeName = GetTextFromToken(PeekToken(parser));
+    param->type.typeName = GetTextFromToken(PeekToken(parser));
     param->next = nullptr;
 
-    printf("Param: %s of type %s\n", param->name, param->typeName);
+    printf("Param: %s of type %s\n", param->name, param->type.typeName);
 
     if (paramList)
     {
-      parameter_def* tail = paramList;
+      variable_def* tail = paramList;
 
       while (tail->next)
       {
