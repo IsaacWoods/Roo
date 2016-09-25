@@ -114,6 +114,9 @@ const char* GetRegisterName(reg r)
 #define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
 {
+  static const char* TAB_STRING = "  ";
+  static const char* MISSING_NODE_RESULT = "[MISSING NODE RESULT]";
+
   va_list args;
   va_start(args, format);
 
@@ -125,13 +128,11 @@ static void Emit_(code_generator& generator, const char* format, ...)
   char string[1024u] = { 0 };
 
   // Add the correct amount of indent
-  const char* tabString = "  ";
-
   for (unsigned int i = 0u;
        i < generator.tabCount;
        i++)
   {
-    strcat(string, tabString);
+    strcat(string, TAB_STRING);
   }
 
   while (*format)
@@ -179,7 +180,7 @@ static void Emit_(code_generator& generator, const char* format, ...)
           if (!nodeResult)
           {
             fprintf(stderr, "WARNING: Tried to print node result, but it generated nothing!\n");
-            fputs("[MISSING NODE RESULT]", generator.output);
+            strcat(string, MISSING_NODE_RESULT);
             break;
           }
 
@@ -215,8 +216,10 @@ static void Emit_(code_generator& generator, const char* format, ...)
 
 static reg Registerize(code_generator& generator, node* n)
 {
-  // TODO
-  return RDI;
+  // TODO: find the correct register
+  reg r = RDI;
+  Emit("mov %r, %n\n", r, n);
+  return r;
 }
 
 char* GenNode(code_generator& generator, node* n)

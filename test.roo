@@ -1,4 +1,4 @@
 fn SomeFunction(x : int) -> int
 {
-  return 4 + x
+  return 4 + 7
 }

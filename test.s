@@ -4,7 +4,8 @@ _R_SomeFunction:
   push rbp
   mov rbp, rsp
 
-[MISSING NODE RESULT]  add rdi, 
+  mov rdi, 4
+  add rdi, 7
   mov rax, rdi
   leave
   ret
