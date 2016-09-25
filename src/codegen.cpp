@@ -114,16 +114,24 @@ const char* GetRegisterName(reg r)
 #define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
 {
-  const char* tabString = "  ";
-
   va_list args;
   va_start(args, format);
+
+  /*
+   * NOTE(Isaac): this was previously written with `realloc` to dynamically
+   * grow the string, but glibc's implementation of `realloc` was returning
+   * bogus memory, so let's just hope this doesn't overflow instead...
+   */
+  char string[1024u] = { 0 };
+
+  // Add the correct amount of indent
+  const char* tabString = "  ";
 
   for (unsigned int i = 0u;
        i < generator.tabCount;
        i++)
   {
-    fputs(tabString, generator.output);
+    strcat(string, tabString);
   }
 
   while (*format)
@@ -134,14 +142,15 @@ static void Emit_(code_generator& generator, const char* format, ...)
       {
         case 'c':
         {
-          fputc(static_cast<char>(va_arg(args, int)), generator.output);
+          string[strlen(string)] = static_cast<char>(va_arg(args, int));
         } break;
 
         case 's':
         {
           ++format;
           const char* str = va_arg(args, const char*);
-          fputs(str, generator.output);
+
+          strcat(string, str);
         } break;
 
         case 'u':
@@ -149,7 +158,8 @@ static void Emit_(code_generator& generator, const char* format, ...)
           format++;
           char buffer[32];
           itoa(va_arg(args, int), buffer, 10);
-          fputs(buffer, generator.output);
+
+          strcat(string, buffer);
         } break;
 
         case 'x':
@@ -157,7 +167,8 @@ static void Emit_(code_generator& generator, const char* format, ...)
           format++;
           char buffer[32];
           itoa(va_arg(args, int), buffer, 2);
-          fputs(buffer, generator.output);
+
+          strcat(string, buffer);
         } break;
 
         case 'n':
@@ -172,7 +183,7 @@ static void Emit_(code_generator& generator, const char* format, ...)
             break;
           }
 
-          fputs(nodeResult, generator.output);
+          strcat(string, nodeResult);
           free(nodeResult);
         } break;
 
@@ -180,7 +191,9 @@ static void Emit_(code_generator& generator, const char* format, ...)
         {
           format++;
           reg r = static_cast<reg>(va_arg(args, int));
-          fputs(GetRegisterName(r), generator.output);
+          const char* regName = GetRegisterName(r);
+
+          strcat(string, regName);
         } break;
 
         default:
@@ -192,10 +205,11 @@ static void Emit_(code_generator& generator, const char* format, ...)
     }
     else
     {
-      fputc(*format++, generator.output);
+      string[strlen(string)] = *format++;
     }
   }
 
+  fputs(string, generator.output);
   va_end(args);
 }
 

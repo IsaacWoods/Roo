@@ -1,9 +1,4 @@
-fn SomeFunction() -> int
+fn SomeFunction(x : int) -> int
 {
-  return 4
-}
-
-fn Main()
-{
-  return SomeFunction()
+  return 4 + x
 }
