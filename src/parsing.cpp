@@ -1164,7 +1164,6 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
         function_call_part::param_def* param = static_cast<function_call_part::param_def*>(malloc(sizeof(function_call_part::param_def)));
-        NextToken(parser);
         param->expression = Expression(parser);
         param->next = nullptr;
 

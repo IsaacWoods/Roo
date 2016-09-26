@@ -10,4 +10,14 @@ _R_SomeFunction:
   leave
   ret
 
+_R_Main:
+  push rbp
+  mov rbp, rsp
+
+  mov rdi, 11
+  call SomeFunction
+  mov rax, rax
+  leave
+  ret
+
 section .data

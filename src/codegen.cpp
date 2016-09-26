@@ -339,7 +339,25 @@ char* GenNode(code_generator& generator, node* n)
 
     case FUNCTION_CALL_NODE:
     {
-      // TODO(Isaac): move parameters into correct registers and stack S&T
+      unsigned int i = 0u;
+      const unsigned int NUM_INT_REGS = 5u;
+      reg paramRegs[] = { RDI, RSI, RDX, RCX, R8 };
+
+      for (function_call_part::param_def* param = n->payload.functionCall.firstParam;
+           param;
+           param = param->next)
+      {
+        if (i == NUM_INT_REGS)
+        {
+          // TODO: push them onto the stack instead
+          fprintf(stderr, "Failed to fit parameters in registers!\n");
+          break;
+        }
+
+        printf("Putting parameter in register: %s\n", GetRegisterName(paramRegs[i]));
+        Emit("mov %r, %n\n", paramRegs[i++], param->expression);
+      }
+
       Emit("call %s\n", n->payload.functionCall.name);
 
       // TODO(Isaac): sort this disgrace out

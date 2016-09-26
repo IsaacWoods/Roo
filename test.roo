@@ -2,3 +2,8 @@ fn SomeFunction(x : int) -> int
 {
   return 4 + 7
 }
+
+fn Main() -> int
+{
+  return SomeFunction(11)
+}
