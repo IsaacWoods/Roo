@@ -113,6 +113,12 @@ node* CreateNode(node_type type, ...)
       payload.binaryOp.right              = va_arg(args, node*);
     } break;
 
+    case PREFIX_OP_NODE:
+    {
+      payload.prefixOp.op                 = static_cast<token_type>(va_arg(args, int));
+      payload.prefixOp.right              = va_arg(args, node*);
+    } break;
+
     case VARIABLE_NODE:
     {
       payload.variable.name               = va_arg(args, char*);
@@ -205,6 +211,12 @@ void FreeNode(node* n)
 
       FreeNode(n->payload.binaryOp.right);
       free(n->payload.binaryOp.right);
+    } break;
+
+    case PREFIX_OP_NODE:
+    {
+      FreeNode(n->payload.prefixOp.right);
+      free(n->payload.prefixOp.right);
     } break;
 
     case VARIABLE_NODE:

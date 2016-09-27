@@ -1075,11 +1075,40 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
 
   parser.currentFunction = nullptr;
 
+  // --- Precedence table ---
+  memset(parser.precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
+
+  /*
+   * NOTE(Isaac): This is mostly the same as C++'s operator precedence, for maximum intuitiveness
+   */
+  enum Precedence
+  {
+    P_TERNARY,                  // a?b:c
+    P_LOGICAL_OR,               // ||
+    P_LOGICAL_AND,              // &&
+    P_BITWISE_OR,               // |
+    P_BITWISE_XOR,              // ^
+    P_BITWISE_AND,              // &
+    P_EQUALS_RELATIONAL,        // == and !=
+    P_COMPARATIVE_RELATIONAL,   // <, <=, > and >=
+    P_BITWISE_SHIFTING,         // >> and <<
+    P_ADDITIVE,                 // + and -
+    P_MULTIPLICATIVE,           // *, / and %
+    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *, x(...)
+    P_SUFFIX,                   // x++, x--
+  };
+  
+  parser.precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
+  parser.precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_SLASH]         = P_MULTIPLICATIVE;
+  parser.precedenceTable[TOKEN_LEFT_PAREN]    = P_PREFIX;
+
   // --- Parselets ---
   memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
   memset(parser.infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
-  memset(parser.precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
 
+  // --- Prefix Parselets
   parser.prefixMap[TOKEN_IDENTIFIER] =
     [](roo_parser& parser) -> node*
     {
@@ -1128,6 +1157,21 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
     };
 
+  parser.prefixMap[TOKEN_PLUS] =
+  parser.prefixMap[TOKEN_MINUS] =
+  parser.prefixMap[TOKEN_BANG] =
+  parser.prefixMap[TOKEN_TILDE] =
+    [](roo_parser& parser) -> node*
+    {
+      printf("--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
+      token_type operation = PeekToken(parser).type;
+
+      NextToken(parser);
+      printf("<-- [PARSELET] Prefix operation\n");
+      return CreateNode(PREFIX_OP_NODE, operation, Expression(parser, P_PREFIX));
+    };
+
+  // --- Infix Parselets ---
   parser.infixMap[TOKEN_PLUS] =
   parser.infixMap[TOKEN_MINUS] =
   parser.infixMap[TOKEN_ASTERIX] =
@@ -1188,33 +1232,6 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       printf("<-- [PARSELET] Function call\n");
       return CreateNode(FUNCTION_CALL_NODE, functionName, firstParam);
     };
-
-  // --- Precedence table ---
-  /*
-   * NOTE(Isaac): This is mostly the same as C++'s operator precedence, for maximum intuitiveness
-   */
-  enum Precedence
-  {
-    P_TERNARY,                  // a?b:c
-    P_LOGICAL_OR,               // ||
-    P_LOGICAL_AND,              // &&
-    P_BITWISE_OR,               // |
-    P_BITWISE_XOR,              // ^
-    P_BITWISE_AND,              // &
-    P_EQUALS_RELATIONAL,        // == and !=
-    P_COMPARATIVE_RELATIONAL,   // <, <=, > and >=
-    P_BITWISE_SHIFTING,         // >> and <<
-    P_ADDITIVE,                 // + and -
-    P_MULTIPLICATIVE,           // *, / and %
-    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *, x(...)
-    P_SUFFIX,                   // x++, x--
-  };
-  
-  parser.precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
-  parser.precedenceTable[TOKEN_SLASH]         = P_MULTIPLICATIVE;
-  parser.precedenceTable[TOKEN_LEFT_PAREN]    = P_PREFIX;
 }
 
 void FreeParser(roo_parser& parser)

@@ -53,6 +53,7 @@ enum node_type
   BREAK_NODE,
   RETURN_NODE,
   BINARY_OP_NODE,
+  PREFIX_OP_NODE,
   VARIABLE_NODE,
   CONDITION_NODE,
   IF_NODE,
@@ -67,6 +68,12 @@ struct binary_op_node_part
 {
   token_type  op;
   node*       left;
+  node*       right;
+};
+
+struct prefix_op_node_part
+{
+  token_type  op;
   node*       right;
 };
 
@@ -124,6 +131,7 @@ struct node
   {
     node*                   expression;
     binary_op_node_part     binaryOp;
+    prefix_op_node_part     prefixOp;
     variable_node_part      variable;
     condition_node_part     condition;
     if_node_part            ifThing;

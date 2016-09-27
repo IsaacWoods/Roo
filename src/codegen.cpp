@@ -217,7 +217,7 @@ static void Emit_(code_generator& generator, const char* format, ...)
 static reg Registerize(code_generator& generator, node* n)
 {
   // TODO: find the correct register
-  reg r = RDI;
+  reg r = RCX;
   Emit("mov %r, %n\n", r, n);
   return r;
 }
@@ -281,6 +281,47 @@ char* GenNode(code_generator& generator, node* n)
       char* leftRegNameCopy = static_cast<char*>(malloc(sizeof(char) * strlen(leftRegName)));
       strcpy(leftRegNameCopy, leftRegName);
       return leftRegNameCopy;
+    } break;
+
+    case PREFIX_OP_NODE:
+    {
+      reg rightReg = Registerize(generator, n->payload.prefixOp.right);
+
+      switch (n->payload.prefixOp.op)
+      {
+        case TOKEN_PLUS:
+        {
+          // TODO
+          Emit("[FIND ABSOLUTE OF %r]\n", rightReg);
+        } break;
+
+        case TOKEN_MINUS:
+        {
+          Emit("neg %r\n", rightReg);
+        } break;
+
+        case TOKEN_BANG:
+        {
+          // TODO: what do we actually want to do here?
+        } break;
+
+        case TOKEN_TILDE:
+        {
+          Emit("not %r\n", rightReg);
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unhandled prefix operation in GenNode!\n");
+          exit(1);
+        }
+      }
+
+      // TODO(Isaac): eww
+      const char* rightRegName = GetRegisterName(rightReg);
+      char* rightRegNameCopy = static_cast<char*>(malloc(sizeof(char) * strlen(rightRegName)));
+      strcpy(rightRegNameCopy, rightRegName);
+      return rightRegNameCopy;
     } break;
 
     case VARIABLE_NODE:

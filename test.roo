@@ -5,5 +5,5 @@ fn SomeFunction(x : int) -> int
 
 fn Main() -> int
 {
-  return SomeFunction(11)
+  return SomeFunction(~11)
 }
