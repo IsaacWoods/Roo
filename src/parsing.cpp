@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <cstdarg>
 #include <cassert>
-#include <ir.hpp>
 
 /*
  * Reads a file as a string.

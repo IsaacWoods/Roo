@@ -7,7 +7,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <token_type.hpp>
-#include <ir.hpp>
+#include <ast.hpp>
 
 struct token
 {

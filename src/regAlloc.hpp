@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <ast.hpp>
+
 enum reg
 {
   RAX,

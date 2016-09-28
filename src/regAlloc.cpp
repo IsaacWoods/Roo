@@ -3,6 +3,8 @@
  */
 
 #include <regAlloc.hpp>
+#include <cstdio>
+#include <cstdlib>
 
 const char* GetRegisterName(reg r)
 {
@@ -101,9 +103,8 @@ void AllocateRegisters(register_allocation& allocation, function_def* function)
     numRegisterUsers++;
   }
 
-  printf("Register users: %u\n", registerUsers);
+  printf("Register users: %u\n", numRegisterUsers);
 
-   = static_cast<register_usage_node*>(
-      malloc(sizeof(register_usage_node) * numRegisterUsers));
+  allocation.userList = static_cast<register_usage_node*>(malloc(sizeof(register_usage_node) * numRegisterUsers));
 
 }

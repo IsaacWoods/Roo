@@ -345,8 +345,6 @@ char* GenNode(code_generator& generator, node* n)
   return nullptr;
 }
 
-
-
 static void GenFunction(code_generator& generator, function_def* function)
 {
   printf("Generating code for function: %s\n", function->name);
@@ -377,12 +375,6 @@ static void GenFunction(code_generator& generator, function_def* function)
 
   PrintRegisterStateSet(initialState);
 
-  // Count things we can put in registers
-  unsigned int numRegisterUsers = 0u;
-
-
-  // TODO: find 
-
   char* mangledName = MangleFunctionName(function);
   Emit("%s:\n", mangledName);
   free(mangledName);
@@ -407,8 +399,6 @@ static void GenFunction(code_generator& generator, function_def* function)
 
   generator.tabCount--;
   Emit("\n");
-
-  free(registerUserList);
 }
 
 void GenCodeSection(code_generator& generator, parse_result& parse)

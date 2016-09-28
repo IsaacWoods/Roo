@@ -10,8 +10,9 @@ OBJS = \
 	src/common.o \
 	src/token_type.o \
   src/parsing.o \
-	src/ir.o \
+	src/ast.o \
 	src/codegen.o \
+	src/regAlloc.o \
 
 .PHONY: clean
 

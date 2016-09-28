@@ -2,7 +2,7 @@
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
  */
 
-#include <ir.hpp>
+#include <ast.hpp>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
