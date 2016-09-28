@@ -8,41 +8,7 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <common.hpp>
-
-static void InitRegisterStateSet(register_state_set& set, const char* tag = nullptr)
-{
-  set.tag = tag;
-
-  for (unsigned int i = 0u;
-       i < NUM_REGISTERS;
-       i++)
-  {
-    register_state& r = set[static_cast<reg>(i)];
-    r.usage = register_state::register_usage::FREE;
-    r.variable = nullptr;
-  }
-
-  set[RBP].usage           = register_state::register_usage::UNUSABLE;
-  set[RSP].usage           = register_state::register_usage::UNUSABLE;
-}
-
-static void PrintRegisterStateSet(register_state_set& set)
-{
-  printf("/ %20s \\\n", (set.tag ? set.tag : "UNTAGGED"));
-  printf("|----------------------|\n");
-  
-  for (unsigned int i = 0u;
-       i < NUM_REGISTERS;
-       i++)
-  {
-    register_state& r = set[static_cast<reg>(i)];
-    printf("| %3s     - %10s |\n", GetRegisterName(static_cast<reg>(i)),
-        ((r.usage == register_state::register_usage::FREE) ? "FREE" :
-        ((r.usage == register_state::register_usage::IN_USE) ? "IN USE" : "UNUSABLE")));
-  }
-
-  printf("\\----------------------/\n");
-}
+#include <regAlloc.hpp>
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath)
 {
@@ -66,50 +32,6 @@ static char* MangleFunctionName(function_def* function)
 }
 
 char* GenNode(code_generator&, node*);
-
-const char* GetRegisterName(reg r)
-{
-  switch (r)
-  {
-    case RAX:
-      return "rax";
-    case RBX:
-      return "rbx";
-    case RCX:
-      return "rcx";
-    case RDX:
-      return "rdx";
-    case RSI:
-      return "rsi";
-    case RDI:
-      return "rdi";
-    case RBP:
-      return "rbp";
-    case RSP:
-      return "rsp";
-    case R8:
-      return "r8";
-    case R9:
-      return "r9";
-    case R10:
-      return "r10";
-    case R11:
-      return "r11";
-    case R12:
-      return "r12";
-    case R13:
-      return "r13";
-    case R14:
-      return "r14";
-    case R15:
-      return "r15";
-    default:
-      return "[INVALID REGISTER]";
-  }
-
-  fprintf(stderr, "Unhandled register in GetRegisterName!\n");
-  exit(1);
-}
 
 #define Emit(...) Emit_(generator, __VA_ARGS__)
 static void Emit_(code_generator& generator, const char* format, ...)
@@ -423,6 +345,8 @@ char* GenNode(code_generator& generator, node* n)
   return nullptr;
 }
 
+
+
 static void GenFunction(code_generator& generator, function_def* function)
 {
   printf("Generating code for function: %s\n", function->name);
@@ -453,6 +377,12 @@ static void GenFunction(code_generator& generator, function_def* function)
 
   PrintRegisterStateSet(initialState);
 
+  // Count things we can put in registers
+  unsigned int numRegisterUsers = 0u;
+
+
+  // TODO: find 
+
   char* mangledName = MangleFunctionName(function);
   Emit("%s:\n", mangledName);
   free(mangledName);
@@ -477,6 +407,8 @@ static void GenFunction(code_generator& generator, function_def* function)
 
   generator.tabCount--;
   Emit("\n");
+
+  free(registerUserList);
 }
 
 void GenCodeSection(code_generator& generator, parse_result& parse)
