@@ -8,9 +8,9 @@ LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++11 -g -Isrc
 OBJS = \
   src/roo.o \
 	src/common.o \
-	src/token_type.o \
   src/parsing.o \
 	src/ast.o \
+	src/air.o \
 	src/codegen.o \
 	src/regAlloc.o \
 

@@ -4,49 +4,7 @@
 
 #pragma once
 
-#include <token_type.hpp>
-
-struct dependency_def;
-struct function_def;
-struct type_def;
-struct string_constant;
-
-struct parse_result
-{
-  dependency_def*   firstDependency;
-  function_def*     firstFunction;
-  type_def*         firstType;
-  string_constant*  firstString;
-};
-
-void CreateParseResult(parse_result& result);
-void FreeParseResult(parse_result& result);
-
-struct dependency_def
-{
-  enum dependency_type
-  {
-    LOCAL,
-    REMOTE
-  } type;
-
-  char* path;
-
-  dependency_def* next;
-};
-
-void FreeDependencyDef(dependency_def* dependency);
-
-struct string_constant
-{
-  unsigned int      handle;
-  char*             string;
-
-  string_constant*  next;
-};
-
-string_constant* CreateStringConstant(parse_result* result, char* string);
-void FreeStringConstant(string_constant* string);
+#include <common.hpp>
 
 enum node_type
 {
@@ -143,53 +101,3 @@ struct node
 
 node* CreateNode(node_type type, ...);
 void FreeNode(node* n);
-
-struct type_ref
-{
-  char* typeName;
-};
-
-void FreeTypeRef(type_ref& typeRef);
-
-struct scope_ref
-{
-  // TODO
-};
-
-void FreeScopeRef(scope_ref& scope);
-
-struct variable_def
-{
-  char*         name;
-  type_ref      type;
-  node*         initValue;
-
-  variable_def* next;
-};
-
-void FreeVariableDef(variable_def* variable);
-
-struct function_def
-{
-  char*           name;
-  unsigned int    arity;
-  variable_def*   firstParam;
-  variable_def*   firstLocal;
-  type_ref*       returnType;
-  node*           code;
-  bool            shouldAutoReturn;
-
-  function_def*   next;
-};
-
-void FreeFunctionDef(function_def* function);
-
-struct type_def
-{
-  char*         name;
-  variable_def* firstMember;
-
-  type_def*     next;
-};
-
-void FreeTypeDef(type_def* type);
