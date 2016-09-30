@@ -5,6 +5,7 @@
 #pragma once
 
 char* itoa(int num, char* str, int base);
+char* ReadFile(const char* path);
 
 struct dependency_def;
 struct function_def;

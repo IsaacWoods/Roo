@@ -5,11 +5,16 @@
 
 #include <cstdio>
 #include <tinydir.hpp>
-#include <parsing.hpp>
 #include <codegen.hpp>
+
+// NOTE(Isaac): defined in `parsing.cpp`
+void InitParseletMaps();
+void Parse(parse_result* result, const char* sourcePath);
 
 int main()
 {
+  InitParseletMaps();
+
   parse_result result;
   CreateParseResult(result);
 
@@ -30,12 +35,7 @@ int main()
       }
   
       printf("Parsing Roo source file: %s\n", file.name);
-  
-      roo_parser parser;
-      CreateParser(parser, &result, file.name);
-      Parse(parser);
-      FreeParser(parser);
-  
+      Parse(&result, file.name); 
       tinydir_next(&dir);
     }
   

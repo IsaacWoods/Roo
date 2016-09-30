@@ -55,6 +55,40 @@ char* itoa(int num, char* str, int base)
   return str;
 }
 
+char* ReadFile(const char* path)
+{
+  FILE* file = fopen(path, "rb");
+
+  if (!file)
+  {
+    fprintf(stderr, "Failed to read source file: %s\n", path);
+    exit(1);
+  }
+
+  fseek(file, 0, SEEK_END);
+  unsigned long length = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  char* contents = static_cast<char*>(malloc(length + 1));
+
+  if (!contents)
+  {
+    fprintf(stderr, "Failed to allocate space for source file!\n");
+    exit(1);
+  }
+
+  if (fread(contents, 1, length, file) != length)
+  {
+    fprintf(stderr, "Failed to read source file: %s\n", path);
+    exit(1);
+  }
+
+  contents[length] = '\0';
+  fclose(file);
+
+  return contents;
+}
+
+
 void CreateParseResult(parse_result& result)
 {
   result.firstDependency  = nullptr;

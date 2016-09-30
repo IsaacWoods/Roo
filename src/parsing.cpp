@@ -2,7 +2,6 @@
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
  */
 
-#include <parsing.hpp>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -10,42 +9,41 @@
 #include <cstdint>
 #include <cstdarg>
 #include <cassert>
+#include <common.hpp>
+#include <ast.hpp>
 
-/*
- * Reads a file as a string.
- * The string is allocated on the heap and it is the responsibility of the caller to free it.
- */
-static char* ReadFile(const char* path)
+struct token
 {
-  FILE* file = fopen(path, "rb");
+  token_type   type;
+  unsigned int offset;
+  unsigned int line;
+  unsigned int lineOffset;
 
-  if (!file)
-  {
-    fprintf(stderr, "Failed to read source file: %s\n", path);
-    exit(1);
-  }
+  const char*  textStart;   // NOTE(Isaac): this points into the parser's source. It is not null-terminated!
+  unsigned int textLength;
+};
 
-  fseek(file, 0, SEEK_END);
-  unsigned long length = ftell(file);
-  fseek(file, 0, SEEK_SET);
-  char* contents = static_cast<char*>(malloc(length + 1));
+struct roo_parser
+{
+  char*           source;
+  const char*     currentChar; // NOTE(Isaac): this points into `source`
+  unsigned int    currentLine;
+  unsigned int    currentLineOffset;
 
-  if (!contents)
-  {
-    fprintf(stderr, "Failed to allocate space for source file!\n");
-    exit(1);
-  }
+  token           currentToken;
+  token           nextToken;
 
-  if (fread(contents, 1, length, file) != length)
-  {
-    fprintf(stderr, "Failed to read source file: %s\n", path);
-    exit(1);
-  }
+  parse_result*   result;
+  function_def*   currentFunction;
+};
 
-  contents[length] = '\0';
-  fclose(file);
+static inline char* GetTextFromToken(const token& tkn)
+{
+  char* text = static_cast<char*>(malloc(sizeof(char) * tkn.textLength + 1u));
+  memcpy(text, tkn.textStart, tkn.textLength);
+  text[tkn.textLength] = '\0';
 
-  return contents;
+  return text;
 }
 
 static char NextChar(roo_parser& parser)
@@ -605,6 +603,13 @@ static inline bool MatchNext(roo_parser& parser, token_type expectedType, bool i
 }
 
 // --- Parsing ---
+typedef node* (*prefix_parselet)(roo_parser&);
+typedef node* (*infix_parselet)(roo_parser&, node*);
+
+prefix_parselet g_prefixMap[NUM_TOKENS];
+infix_parselet  g_infixMap[NUM_TOKENS];
+unsigned int    g_precedenceTable[NUM_TOKENS];
+
 static variable_def* ParameterList(roo_parser& parser)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
@@ -651,7 +656,7 @@ static variable_def* ParameterList(roo_parser& parser)
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
   printf("--> Expression\n");
-  prefix_parselet prefixParselet = parser.prefixMap[PeekToken(parser).type];
+  prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
 
   if (!prefixParselet)
   {
@@ -661,9 +666,9 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   node* expression = prefixParselet(parser);
 
-  while (precedence < parser.precedenceTable[PeekToken(parser, false).type])
+  while (precedence < g_precedenceTable[PeekToken(parser, false).type])
   {
-    infix_parselet infixParselet = parser.infixMap[PeekToken(parser, false).type];
+    infix_parselet infixParselet = g_infixMap[PeekToken(parser, false).type];
 
     // NOTE(Isaac): there is no infix expression part - just return the prefix expression
     if (!infixParselet)
@@ -1034,8 +1039,18 @@ static void Function(roo_parser& parser)
   printf("<-- Function\n");
 }
 
-void Parse(roo_parser& parser)
+void Parse(parse_result* result, const char* sourcePath)
 {
+  roo_parser parser;
+  parser.source = ReadFile(sourcePath);
+  parser.currentChar = parser.source;
+  parser.currentLine = 0u;
+  parser.currentLineOffset = 0u;
+  parser.result = result;
+
+  parser.currentToken = LexNext(parser);
+  parser.nextToken    = LexNext(parser);
+
   printf("--- Starting parse ---\n");
 
   while (!Match(parser, TOKEN_INVALID))
@@ -1059,6 +1074,11 @@ void Parse(roo_parser& parser)
   }
 
   printf("--- Finished parse ---\n");
+
+  free(parser.source);
+  parser.source = nullptr;
+  parser.currentChar = nullptr;
+  parser.result = nullptr;
 }
 
 void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
@@ -1073,9 +1093,12 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
   parser.nextToken = LexNext(parser);
 
   parser.currentFunction = nullptr;
+}
 
+void InitParseletMaps()
+{
   // --- Precedence table ---
-  memset(parser.precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
+  memset(g_precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
 
   /*
    * NOTE(Isaac): This is mostly the same as C++'s operator precedence, for maximum intuitiveness
@@ -1097,18 +1120,18 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     P_SUFFIX,                   // x++, x--
   };
   
-  parser.precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
-  parser.precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
-  parser.precedenceTable[TOKEN_SLASH]         = P_MULTIPLICATIVE;
-  parser.precedenceTable[TOKEN_LEFT_PAREN]    = P_PREFIX;
+  g_precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
+  g_precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
+  g_precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_SLASH]         = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_LEFT_PAREN]    = P_PREFIX;
 
   // --- Parselets ---
-  memset(parser.prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
-  memset(parser.infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
+  memset(g_prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
+  memset(g_infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
 
   // --- Prefix Parselets
-  parser.prefixMap[TOKEN_IDENTIFIER] =
+  g_prefixMap[TOKEN_IDENTIFIER] =
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] Identifier\n");
@@ -1119,7 +1142,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       return CreateNode(VARIABLE_NODE, name);
     };
 
-  parser.prefixMap[TOKEN_NUMBER_INT] =
+  g_prefixMap[TOKEN_NUMBER_INT] =
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] Number constant (integer)\n");
@@ -1132,7 +1155,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
     };
 
-  parser.prefixMap[TOKEN_NUMBER_FLOAT] =
+  g_prefixMap[TOKEN_NUMBER_FLOAT] =
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] Number constant (floating point)\n");
@@ -1145,7 +1168,7 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
     };
 
-  parser.prefixMap[TOKEN_STRING] =
+  g_prefixMap[TOKEN_STRING] =
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] String\n");
@@ -1156,10 +1179,10 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
       return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
     };
 
-  parser.prefixMap[TOKEN_PLUS] =
-  parser.prefixMap[TOKEN_MINUS] =
-  parser.prefixMap[TOKEN_BANG] =
-  parser.prefixMap[TOKEN_TILDE] =
+  g_prefixMap[TOKEN_PLUS]   =
+  g_prefixMap[TOKEN_MINUS]  =
+  g_prefixMap[TOKEN_BANG]   =
+  g_prefixMap[TOKEN_TILDE]  =
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
@@ -1171,10 +1194,10 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     };
 
   // --- Infix Parselets ---
-  parser.infixMap[TOKEN_PLUS] =
-  parser.infixMap[TOKEN_MINUS] =
-  parser.infixMap[TOKEN_ASTERIX] =
-  parser.infixMap[TOKEN_SLASH] =
+  g_infixMap[TOKEN_PLUS] =
+  g_infixMap[TOKEN_MINUS] =
+  g_infixMap[TOKEN_ASTERIX] =
+  g_infixMap[TOKEN_SLASH] =
     [](roo_parser& parser, node* left) -> node*
     {
       printf("--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
@@ -1182,11 +1205,11 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
 
       NextToken(parser);
       printf("<-- [PARSELET] Binary operator\n");
-      return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, parser.precedenceTable[operation]));
+      return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, g_precedenceTable[operation]));
     };
 
   // Parses a function call
-  parser.infixMap[TOKEN_LEFT_PAREN] =
+  g_infixMap[TOKEN_LEFT_PAREN] =
     [](roo_parser& parser, node* left) -> node*
     {
       printf("--> [PARSELET] Function Call\n");
@@ -1233,10 +1256,3 @@ void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePa
     };
 }
 
-void FreeParser(roo_parser& parser)
-{
-  free(parser.source);
-  parser.source = nullptr;
-  parser.currentChar = nullptr;
-  parser.result = nullptr;
-}
