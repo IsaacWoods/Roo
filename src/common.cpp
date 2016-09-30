@@ -198,7 +198,8 @@ void FreeFunctionDef(function_def* function)
     function->firstLocal = function->firstLocal->next;
     FreeVariableDef(temp);
     free(temp);
-  } 
+  }
+
   if (function->ast)
   {
     FreeNode(function->ast);
@@ -210,7 +211,6 @@ void FreeFunctionDef(function_def* function)
     air_instruction* temp = function->code;
     function->code = function->code->next;
     FreeInstruction(temp);
-    free(temp);
   }
 }
 

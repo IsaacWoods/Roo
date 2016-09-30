@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <tinydir.hpp>
+#include <air.hpp>
 #include <codegen.hpp>
 
 // NOTE(Isaac): defined in `parsing.cpp`
@@ -40,6 +41,15 @@ int main()
     }
   
     tinydir_close(&dir);
+  }
+
+  // Generate AIR instructions from the AST
+  // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
+  for (function_def* function = result.firstFunction;
+       function;
+       function = function->next)
+  {
+    GenerateAIRForFunction(function);
   }
 
   // Generate code

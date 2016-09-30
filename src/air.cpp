@@ -5,8 +5,9 @@
 #include <air.hpp>
 #include <cstdio>
 #include <cstdlib>
+#include <cassert>
 
-air_instruction* CreateInstruction(instruction_type type, ...)
+static air_instruction* CreateInstruction(instruction_type type, ...)
 {
   air_instruction* i = static_cast<air_instruction*>(malloc(sizeof(air_instruction)));
   i->type = type;
@@ -30,6 +31,19 @@ air_instruction* CreateInstruction(instruction_type type, ...)
   }
 
   return i;
+}
+
+void GenerateAIRForFunction(function_def* function)
+{
+  assert(function->code == nullptr);
+  function->code = CreateInstruction(I_ENTER_STACK_FRAME);
+  air_instruction* tail = function->code;
+
+  #define PUSH(instruction) \
+    tail->next = instruction; \
+    tail = tail->next;
+
+  PUSH(CreateInstruction(I_LEAVE_STACK_FRAME));
 }
 
 void PrintInstruction(air_instruction* instruction)

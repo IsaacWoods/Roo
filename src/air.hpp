@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <common.hpp>
+
 enum instruction_type
 {
   I_ENTER_STACK_FRAME,
@@ -19,6 +21,6 @@ struct air_instruction
   air_instruction*  next;
 };
 
-air_instruction* CreateInstruction(instruction_type, ...);
+void GenerateAIRForFunction(function_def* function);
 void PrintInstruction(air_instruction* instruction);
 void FreeInstruction(air_instruction* instruction);
