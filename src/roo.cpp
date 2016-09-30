@@ -43,13 +43,13 @@ int main()
   }
 
   // Generate code
-  code_generator generator;
+/*  code_generator generator;
   CreateCodeGenerator(generator, "test.s");
   GenCodeSection(generator, result);
-  GenDataSection(generator, result);
+  GenDataSection(generator, result);*/
 
   // Free everything
-  FreeCodeGenerator(generator);
+//  FreeCodeGenerator(generator);
   FreeParseResult(result);
   return 0;
 }
