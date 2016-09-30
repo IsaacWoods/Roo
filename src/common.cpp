@@ -5,6 +5,7 @@
 #include <common.hpp>
 #include <algorithm>
 #include <ast.hpp>
+#include <air.hpp>
 
 char* itoa(int num, char* str, int base)
 {
@@ -182,9 +183,6 @@ void FreeFunctionDef(function_def* function)
 {
   free(function->name);
   free(function->returnType);
-  
-  FreeNode(function->code);
-  free(function->code);
 
   while (function->firstParam)
   {
@@ -199,6 +197,19 @@ void FreeFunctionDef(function_def* function)
     variable_def* temp = function->firstLocal;
     function->firstLocal = function->firstLocal->next;
     FreeVariableDef(temp);
+    free(temp);
+  } 
+  if (function->ast)
+  {
+    FreeNode(function->ast);
+    free(function->ast);
+  }
+
+  while (function->code)
+  {
+    air_instruction* temp = function->code;
+    function->code = function->code->next;
+    FreeInstruction(temp);
     free(temp);
   }
 }

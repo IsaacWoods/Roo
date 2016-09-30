@@ -385,9 +385,9 @@ static void GenFunction(code_generator& generator, function_def* function)
   Emit("mov rbp, rsp\n\n");
 
   // Recurse through the AST
-  if (function->code)
+  if (function->ast)
   {
-    GenNode(generator, function->code);
+    GenNode(generator, function->ast);
   }
 
   // Leave the stack frame and return

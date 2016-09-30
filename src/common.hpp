@@ -12,6 +12,7 @@ struct function_def;
 struct type_def;
 struct string_constant;
 struct node;
+struct air_instruction;
 
 struct parse_result
 {
@@ -70,15 +71,17 @@ void FreeVariableDef(variable_def* variable);
 
 struct function_def
 {
-  char*           name;
-  unsigned int    arity;
-  variable_def*   firstParam;
-  variable_def*   firstLocal;
-  type_ref*       returnType;
-  node*           code;
-  bool            shouldAutoReturn;
+  char*             name;
+  unsigned int      arity;
+  variable_def*     firstParam;
+  variable_def*     firstLocal;
+  type_ref*         returnType;
+  bool              shouldAutoReturn;
 
-  function_def*   next;
+  node*             ast;
+  air_instruction*  code;
+
+  function_def*     next;
 };
 
 void FreeFunctionDef(function_def* function);

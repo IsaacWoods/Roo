@@ -994,6 +994,7 @@ static void Function(roo_parser& parser)
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
   definition->shouldAutoReturn = true;
+  definition->code = nullptr;
   definition->next = nullptr;
 
   // Find a place for the function
@@ -1034,7 +1035,7 @@ static void Function(roo_parser& parser)
     printf("Return type: NONE\n");
   }
 
-  definition->code = Block(parser);
+  definition->ast = Block(parser);
 
   printf("<-- Function\n");
 }
