@@ -103,33 +103,29 @@ void FreeParseResult(parse_result& result)
   while (result.firstDependency)
   {
     dependency_def* temp = result.firstDependency;
-    FreeDependencyDef(temp);
     result.firstDependency = result.firstDependency->next;
-    free(temp);
+    FreeDependencyDef(temp);
   }
 
   while (result.firstFunction)
   {
     function_def* temp = result.firstFunction;
-    FreeFunctionDef(temp);
     result.firstFunction = result.firstFunction->next;
-    free(temp);
+    FreeFunctionDef(temp);
   }
 
   while (result.firstType)
   {
     type_def* temp = result.firstType;
-    FreeTypeDef(temp);
     result.firstType = result.firstType->next;
-    free(temp);
+    FreeTypeDef(temp);
   }
 
   while (result.firstString)
   {
     string_constant* temp = result.firstString;
-    FreeStringConstant(temp);
     result.firstString = result.firstString->next;
-    free(temp);
+    FreeStringConstant(temp);
   }
 
   result.firstDependency  = nullptr;
@@ -141,6 +137,7 @@ void FreeParseResult(parse_result& result)
 void FreeDependencyDef(dependency_def* dependency)
 {
   free(dependency->path);
+  free(dependency);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)
@@ -164,32 +161,39 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
 void FreeStringConstant(string_constant* string)
 {
   free(string->string);
+  free(string);
 }
 
-void FreeTypeRef(type_ref& typeRef)
+type_ref* CreateTypeRef(char* typeName)
 {
-  free(typeRef.typeName);
+  type_ref* r = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+  r->typeName = typeName;
+  return r;
+}
+
+void FreeTypeRef(type_ref* typeRef)
+{
+  free(typeRef->typeName);
+  free(typeRef);
 }
 
 void FreeVariableDef(variable_def* variable)
 {
   free(variable->name);
-
+  FreeTypeRef(variable->type);
   FreeNode(variable->initValue);
-  free(variable->initValue);
 }
 
 void FreeFunctionDef(function_def* function)
 {
   free(function->name);
-  free(function->returnType);
+  FreeTypeRef(function->returnType);
 
   while (function->firstParam)
   {
     variable_def* temp = function->firstParam;
     function->firstParam = function->firstParam->next;
     FreeVariableDef(temp);
-    free(temp);
   }
 
   while (function->firstLocal)
@@ -197,13 +201,11 @@ void FreeFunctionDef(function_def* function)
     variable_def* temp = function->firstLocal;
     function->firstLocal = function->firstLocal->next;
     FreeVariableDef(temp);
-    free(temp);
   }
 
   if (function->ast)
   {
     FreeNode(function->ast);
-    free(function->ast);
   }
 
   while (function->code)
@@ -223,10 +225,10 @@ void FreeTypeDef(type_def* type)
     variable_def* temp = type->firstMember;
     type->firstMember = type->firstMember->next;
     FreeVariableDef(temp);
-    free(temp);
   }
 
   type->firstMember = nullptr;
+  free(type);
 }
 
 const char* GetTokenName(token_type type)

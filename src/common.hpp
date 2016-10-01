@@ -56,12 +56,13 @@ struct type_ref
   char* typeName;
 };
 
-void FreeTypeRef(type_ref& typeRef);
+type_ref* CreateTypeRef(char* typeName);
+void FreeTypeRef(type_ref* typeRef);
 
 struct variable_def
 {
   char*         name;
-  type_ref      type;
+  type_ref*     type;
   node*         initValue;
 
   variable_def* next;

@@ -627,10 +627,10 @@ static variable_def* ParameterList(roo_parser& parser)
     variable_def* param = static_cast<variable_def*>(malloc(sizeof(variable_def)));
     param->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    param->type.typeName = GetTextFromToken(PeekToken(parser));
+    param->type = CreateTypeRef(GetTextFromToken(PeekToken(parser)));
     param->next = nullptr;
 
-    printf("Param: %s of type %s\n", param->name, param->type.typeName);
+    printf("Param: %s of type %s\n", param->name, param->type->typeName);
 
     if (paramList)
     {
@@ -684,10 +684,9 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
   return expression;
 }
 
-static type_ref TypeRef(roo_parser& parser)
+static type_ref* TypeRef(roo_parser& parser)
 {
-  type_ref result;
-  result.typeName = GetTextFromToken(PeekToken(parser));
+  type_ref* result = CreateTypeRef(GetTextFromToken(PeekToken(parser)));
   NextToken(parser);
 
   return result;
@@ -712,7 +711,7 @@ static variable_def* VariableDef(roo_parser& parser)
     definition->initValue = nullptr;
   }
 
-  printf("Defined variable: %s of type: %s\n", definition->name, definition->type.typeName);
+  printf("Defined variable: %s of type: %s\n", definition->name, definition->type->typeName);
   return definition;
 }
 
@@ -1225,7 +1224,6 @@ void InitParseletMaps()
       char* functionName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
       strcpy(functionName, left->payload.variable.name);
       FreeNode(left);
-      free(left);
 
       function_call_part::param_def* firstParam = nullptr;
       Consume(parser, TOKEN_LEFT_PAREN);
@@ -1272,7 +1270,6 @@ void InitParseletMaps()
       char* variableName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
       strcpy(variableName, left->payload.variable.name);
       FreeNode(left);
-      free(left);
 
       NextToken(parser);
       // NOTE(Isaac): minus one from the precedence because assignment is right-associative

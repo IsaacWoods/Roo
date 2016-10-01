@@ -131,22 +131,17 @@ void FreeNode(node* n)
     case RETURN_NODE:
     {
       FreeNode(n->payload.expression);
-      free(n->payload.expression);
     } break;
 
     case BINARY_OP_NODE:
     {
       FreeNode(n->payload.binaryOp.left);
-      free(n->payload.binaryOp.left);
-
       FreeNode(n->payload.binaryOp.right);
-      free(n->payload.binaryOp.right);
     } break;
 
     case PREFIX_OP_NODE:
     {
       FreeNode(n->payload.prefixOp.right);
-      free(n->payload.prefixOp.right);
     } break;
 
     case VARIABLE_NODE:
@@ -157,22 +152,14 @@ void FreeNode(node* n)
     case CONDITION_NODE:
     {
       FreeNode(n->payload.condition.left);
-      free(n->payload.condition.left);
-
       FreeNode(n->payload.condition.right);
-      free(n->payload.condition.right);
     } break;
 
     case IF_NODE:
     {
       FreeNode(n->payload.ifThing.condition);
-      free(n->payload.ifThing.condition);
-
       FreeNode(n->payload.ifThing.thenCode);
-      free(n->payload.ifThing.thenCode);
-
       FreeNode(n->payload.ifThing.elseCode);
-      free(n->payload.ifThing.elseCode);
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -192,7 +179,7 @@ void FreeNode(node* n)
       {
         function_call_part::param_def* temp = n->payload.functionCall.firstParam;
         n->payload.functionCall.firstParam = n->payload.functionCall.firstParam->next;
-        free(temp->expression);
+        FreeNode(temp->expression);
       }
 
       n->payload.functionCall.firstParam = nullptr;
@@ -201,12 +188,12 @@ void FreeNode(node* n)
     case VARIABLE_ASSIGN_NODE:
     {
       free(n->payload.variableAssign.variableName);
-      
       FreeNode(n->payload.variableAssign.newValue);
-      free(n->payload.variableAssign.newValue);
     } break;
 
     default:
       fprintf(stderr, "Unhandled node type in FreeNode!\n");
   }
+
+  free(n);
 }
