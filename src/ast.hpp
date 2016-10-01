@@ -18,6 +18,7 @@ enum node_type
   NUMBER_CONSTANT_NODE,
   STRING_CONSTANT_NODE,
   FUNCTION_CALL_NODE,
+  VARIABLE_ASSIGN_NODE,
 };
 
 struct node;
@@ -80,6 +81,12 @@ struct function_call_part
   } *firstParam;
 };
 
+struct variable_assign_part
+{
+  char* variableName;
+  node* newValue;
+};
+
 struct node
 {
   node_type type;
@@ -96,6 +103,7 @@ struct node
     number_constant_part    numberConstant;
     string_constant*        stringConstant;
     function_call_part      functionCall;
+    variable_assign_part    variableAssign;
   } payload;
 };
 

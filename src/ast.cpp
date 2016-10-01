@@ -97,6 +97,12 @@ node* CreateNode(node_type type, ...)
       payload.functionCall.firstParam     = va_arg(args, function_call_part::param_def*);
     } break;
 
+    case VARIABLE_ASSIGN_NODE:
+    {
+      payload.variableAssign.variableName = va_arg(args, char*);
+      payload.variableAssign.newValue     = va_arg(args, node*);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type in CreateNode!\n");
@@ -190,6 +196,14 @@ void FreeNode(node* n)
       }
 
       n->payload.functionCall.firstParam = nullptr;
+    } break;
+
+    case VARIABLE_ASSIGN_NODE:
+    {
+      free(n->payload.variableAssign.variableName);
+      
+      FreeNode(n->payload.variableAssign.newValue);
+      free(n->payload.variableAssign.newValue);
     } break;
 
     default:

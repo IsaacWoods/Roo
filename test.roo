@@ -1,6 +1,8 @@
 fn SomeFunction(x : int) -> int
 {
-  return 4 + 7
+  y : int = 4
+  y = y + x
+  return y
 }
 
 fn Main() -> int

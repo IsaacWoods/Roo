@@ -655,7 +655,7 @@ static variable_def* ParameterList(roo_parser& parser)
 
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
-  printf("--> Expression\n");
+  printf("--> Expression(%u)\n", precedence);
   prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
 
   if (!prefixParselet)
@@ -673,7 +673,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
     // NOTE(Isaac): there is no infix expression part - just return the prefix expression
     if (!infixParselet)
     {
-      printf("<-- Expression\n");
+      printf("<-- Expression(NO INFIX)\n");
       return expression;
     }
 
@@ -706,7 +706,6 @@ static variable_def* VariableDef(roo_parser& parser)
   {
     Consume(parser, TOKEN_EQUALS);
     definition->initValue = Expression(parser);
-    NextToken(parser);
   }
   else
   {
@@ -841,13 +840,11 @@ static node* Statement(roo_parser& parser, bool isInLoop)
 
     case TOKEN_IDENTIFIER:
     {
-      printf("(IDENTIFIER)\n");
-
       // It's a variable definition (probably)
       if (MatchNext(parser, TOKEN_COLON))
       {
+        printf("(VARIABLE DEFINITION)\n");
         variable_def* variable = VariableDef(parser);
-        NextToken(parser);
 
         // Find somewhere to put it
         if (parser.currentFunction->firstLocal)
@@ -865,7 +862,9 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         {
           parser.currentFunction->firstLocal = variable;
         }
-      } break;
+
+        break;
+      }
     } // NOTE(Isaac): no break
 
     default:
@@ -1103,9 +1102,11 @@ void InitParseletMaps()
 
   /*
    * NOTE(Isaac): This is mostly the same as C++'s operator precedence, for maximum intuitiveness
+   * NOTE(Isaac): Precedence starts at 1, as a precedence of 0 has special meaning
    */
   enum Precedence
   {
+    P_ASSIGNMENT = 1u,          // =
     P_TERNARY,                  // a?b:c
     P_LOGICAL_OR,               // ||
     P_LOGICAL_AND,              // &&
@@ -1121,6 +1122,7 @@ void InitParseletMaps()
     P_SUFFIX,                   // x++, x--
   };
   
+  g_precedenceTable[TOKEN_EQUALS]        = P_ASSIGNMENT;
   g_precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
   g_precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
   g_precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
@@ -1255,5 +1257,28 @@ void InitParseletMaps()
       printf("<-- [PARSELET] Function call\n");
       return CreateNode(FUNCTION_CALL_NODE, functionName, firstParam);
     };
-}
 
+  // Parses a variable assignment
+  g_infixMap[TOKEN_EQUALS] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      printf("--> [PARSELET] Variable assignment\n");
+
+      if (left->type != VARIABLE_NODE)
+      {
+        SyntaxError(parser, "Expected variable name before '=' token!");
+      }
+
+      char* variableName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
+      strcpy(variableName, left->payload.variable.name);
+      FreeNode(left);
+      free(left);
+
+      NextToken(parser);
+      // NOTE(Isaac): minus one from the precedence because assignment is right-associative
+      node* expression = Expression(parser, P_ASSIGNMENT - 1u);
+
+      printf("<-- [PARSELET] Variable assignment\n");
+      return CreateNode(VARIABLE_ASSIGN_NODE, variableName, expression);
+    };
+}
