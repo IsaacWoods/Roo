@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#include <cstdarg>
+#include <ast.hpp>
 
 static air_instruction* CreateInstruction(instruction_type type, ...)
 {
@@ -32,8 +34,20 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
     case I_JUMP:
     {
-      i->payload.jump.cond                    = static_cast<jump_instruction_part::condition(va_arg(args, int));
-      i->payload.jump.labelInstruction        = va_arg(args, air_instruction*);
+      i->payload.jump.cond                    = static_cast<jump_instruction::condition>(va_arg(args, int));
+      i->payload.jump.label                   = va_arg(args, instruction_label*);
+    } break;
+
+    // NOTE(Isaac): a lot of instructions operate on two slots apparently...
+    case I_MOV:
+    case I_CMP:
+    case I_ADD:
+    case I_SUB:
+    case I_MUL:
+    case I_DIV:
+    {
+      i->payload.slotPair.a                   = va_arg(args, slot);
+      i->payload.slotPair.b                   = va_arg(args, slot);
     } break;
 
     default:
@@ -51,87 +65,146 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
   tail->next = instruction; \
   tail = tail->next;
 
-static void GenNodeAIR(air_instruction* tail, node* n)
+template<typename T = void>
+T GenNodeAIR(air_instruction* tail, node* n);
+
+template<>
+slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
 {
-  assert(n != nullptr);
+  assert(tail);
+  assert(n);
 
   switch (n->type)
   {
-    case BREAK_NODE:
+    case BINARY_OP_NODE:
     {
-      instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
-      // TODO: find the end of the loop and attach the label
+      slot* left = GenNodeAIR<slot*>(tail, n->payload.binaryOp.left);
+      slot* right = GenNodeAIR<slot*>(tail, n->payload.binaryOp.right);
 
-      PUSH(CreateInstruction(I_JUMP, UNCONDITIONAL, label));
+      switch (n->payload.binaryOp.op)
+      {
+        case TOKEN_PLUS:
+        {
+          PUSH(CreateInstruction(I_ADD, left, right));
+        } break;
+
+        case TOKEN_MINUS:
+        {
+          PUSH(CreateInstruction(I_SUB, left, right));
+        } break;
+
+        case TOKEN_ASTERIX:
+        {
+          PUSH(CreateInstruction(I_MUL, left, right));
+        } break;
+
+        case TOKEN_SLASH:
+        {
+          PUSH(CreateInstruction(I_DIV, left, right));
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unhandled AST binary op in GenNodeAIR!\n");
+          exit(1);
+        }
+      }
+
+      // TODO(Isaac): return the slot that the result is in
     } break;
 
+    default:
+    {
+      fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR!\n");
+      exit(1);
+    }
+  }
+}
+
+template<>
+jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruction* tail, node* n)
+{
+  assert(tail);
+  assert(n);
+
+  switch (n->type)
+  {
+    case CONDITION_NODE:
+    {
+      slot* a = GenNodeAIR<slot*>(tail, n->payload.condition.left);
+      slot* b = GenNodeAIR<slot*>(tail, n->payload.condition.right);
+      PUSH(CreateInstruction(I_CMP, a, b));
+
+      switch (n->payload.condition.condition)
+      {
+        case TOKEN_EQUALS_EQUALS:
+        {
+          return jump_instruction::condition::IF_EQUAL;
+        }
+
+        case TOKEN_BANG_EQUALS:
+        {
+          return jump_instruction::condition::IF_NOT_EQUAL;
+        }
+
+        case TOKEN_GREATER_THAN:
+        {
+          return jump_instruction::condition::IF_GREATER;
+        }
+
+        case TOKEN_GREATER_THAN_EQUAL_TO:
+        {
+          return jump_instruction::condition::IF_GREATER_OR_EQUAL;
+        }
+
+        case TOKEN_LESS_THAN:
+        {
+          return jump_instruction::condition::IF_LESSER;
+        }
+
+        case TOKEN_LESS_THAN_EQUAL_TO:
+        {
+          return jump_instruction::condition::IF_LESSER_OR_EQUAL;
+        }
+
+        default:
+        {
+          fprintf(stderr, "Unhandled AST conditional in GenNodeAIR!\n");
+          exit(1);
+        }
+      }
+    } break;
+
+    default:
+    {
+      fprintf(stderr, "Unhandled node type for returning a `jump_instruction::condition` in GenNodeAIR!\n");
+      exit(1);
+    }
+  }
+}
+
+template<>
+void GenNodeAIR<void>(air_instruction* tail, node* n)
+{
+  assert(tail);
+  assert(n);
+
+  switch (n->type)
+  {
     case RETURN_NODE:
     {
       PUSH(CreateInstruction(I_LEAVE_STACK_FRAME));
       PUSH(CreateInstruction(I_RETURN));
     } break;
 
-    case BINARY_OP_NODE:
-    {
-
-    } break;
-
-    case PREFIX_OP_NODE:
-    {
-
-    } break;
-
-    case VARIABLE_NODE:
-    {
-
-    };
-
-    case CONDITION_NODE:
-    {
-    } break;
-
-    case IF_NODE:
-    {
-
-    } break;
-
-    case NUMBER_CONSTANT_NODE:
-    {
-
-    } break;
-
-    case STRING_CONSTANT_NODE:
-    {
-
-    } break;
-
-    case FUNCTION_CALL_NODE:
-    {
-
-    } break;
-
-    case FUNCTION_CALL_NODE:
-    {
-
-    } break;
-
-    case VARIABLE_ASSIGN_NODE:
-    {
-      slot* variableSlot = static_cast<slot*>(malloc(sizeof(slot)));
-      // TODO
-
-      slot* expressionSlot = static_cast<slot*>(malloc(sizeof(slot)));
-      // TODO
-
-      PUSH(CreateInstruction(I_MOV, variableSlot, expressionSlot));
-    } break;
-
     default:
     {
-      fprintf("Unhandled AST node type in GenNodeAIR!\n");
+      fprintf(stderr, "Unhandled node type for returning nothing in GenNodeAIR!\n");
       exit(1);
     }
   }
+
+  fprintf(stderr, "Unhandled stuff and things in returnless GenNodeAIR!");
 }
 
 void GenFunctionAIR(function_def* function)
@@ -189,31 +262,6 @@ void FreeInstruction(air_instruction* instruction)
   if (instruction->label)
   {
     FreeInstructionLabel(instruction->label);
-  }
-
-  switch (instruction->type)
-  {
-    case I_ENTER_STACK_FRAME:
-    {
-    } break;
-
-    case I_LEAVE_STACK_FRAME:
-    {
-    } break;
-
-    case I_RETURN:
-    {
-    } break;
-
-    case I_JUMP:
-    {
-    } break;
-
-    default:
-    {
-      fprintf(stderr, "Unhandled AIR instruction type in FreeInstruction!\n");
-      exit(1);
-    }
   }
 
   free(instruction);

@@ -99,8 +99,8 @@ node* CreateNode(node_type type, ...)
 
     case VARIABLE_ASSIGN_NODE:
     {
-      payload.variableAssign.variableName = va_arg(args, char*);
-      payload.variableAssign.newValue     = va_arg(args, node*);
+      payload.variableAssignment.variableName = va_arg(args, char*);
+      payload.variableAssignment.newValue     = va_arg(args, node*);
     } break;
 
     default:
@@ -187,8 +187,8 @@ void FreeNode(node* n)
 
     case VARIABLE_ASSIGN_NODE:
     {
-      free(n->payload.variableAssign.variableName);
-      FreeNode(n->payload.variableAssign.newValue);
+      free(n->payload.variableAssignment.variableName);
+      FreeNode(n->payload.variableAssignment.newValue);
     } break;
 
     default:

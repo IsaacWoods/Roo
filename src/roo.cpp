@@ -49,7 +49,7 @@ int main()
        function;
        function = function->next)
   {
-    GenerateAIRForFunction(function);
+    GenFunctionAIR(function);
   }
 
   // Generate code

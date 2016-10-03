@@ -13,6 +13,11 @@ enum instruction_type
   I_RETURN,
   I_JUMP,
   I_MOV,
+  I_CMP,
+  I_ADD,
+  I_SUB,
+  I_MUL,
+  I_DIV,
 
   NUM_INSTRUCTIONS
 };
@@ -30,11 +35,11 @@ struct slot
     LOCAL,
   } type;
 
-  variable_def* variableDef;
+  const variable_def* variableDef;
   unsigned int  tag;
 };
 
-struct jump_instruction_part
+struct jump_instruction
 {
   enum condition
   {
@@ -45,8 +50,10 @@ struct jump_instruction_part
     IF_NOT_OVERFLOW,
     IF_SIGN,
     IF_NOT_SIGN,
-    IF_LESSER,
     IF_GREATER,
+    IF_GREATER_OR_EQUAL,
+    IF_LESSER,
+    IF_LESSER_OR_EQUAL,
     IF_PARITY_EVEN,
     IF_PARITY_ODD
   } cond;
@@ -54,10 +61,10 @@ struct jump_instruction_part
   const instruction_label* label;
 };
 
-struct mov_instruction_part
+struct slot_pair_instruction
 {
-  slot* a;
-  slot* b;
+  slot a;
+  slot b;
 };
 
 struct air_instruction
@@ -69,7 +76,8 @@ struct air_instruction
 
   union
   {
-    jump_instruction_part jump;
+    jump_instruction        jump;
+    slot_pair_instruction   slotPair;
   } payload;
 };
 

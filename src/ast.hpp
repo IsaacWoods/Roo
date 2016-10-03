@@ -85,6 +85,11 @@ struct variable_assign_part
 {
   char* variableName;
   node* newValue;
+
+  /*
+   * NOTE(Isaac): this starts as `nullptr`, and is filled in after we finish parsing... hopefully
+   */
+  variable_def* variable;
 };
 
 struct node
@@ -103,7 +108,7 @@ struct node
     number_constant_part    numberConstant;
     string_constant*        stringConstant;
     function_call_part      functionCall;
-    variable_assign_part    variableAssign;
+    variable_assign_part    variableAssignment;
   } payload;
 };
 
