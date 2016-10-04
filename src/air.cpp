@@ -164,7 +164,7 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR!\n");
+      fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR: %s\n", GetNodeName(n->type));
       exit(1);
     }
   }
@@ -227,7 +227,7 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruct
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning a `jump_instruction::condition` in GenNodeAIR!\n");
+      fprintf(stderr, "Unhandled node type for returning a `jump_instruction::condition` in GenNodeAIR: %s\n", GetNodeName(n->type));
       exit(1);
     }
   }
@@ -250,7 +250,7 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning nothing in GenNodeAIR!\n");
+      fprintf(stderr, "Unhandled node type for returning nothing in GenNodeAIR: %s\n", GetNodeName(n->type));
       exit(1);
     }
   }
@@ -275,7 +275,7 @@ instruction_label* GenNodeAIR<instruction_label*>(air_instruction* tail, node* n
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning a `instruction_label*` in GenNodeAIR!\n");
+      fprintf(stderr, "Unhandled node type for returning a `instruction_label*` in GenNodeAIR: %s\n", GetNodeName(n->type));
       exit(1);
     }
   }
@@ -308,24 +308,7 @@ void PrintInstruction(air_instruction* instruction)
     printf("[LABEL]: ");
   }
 
-  switch (instruction->type)
-  {
-    case I_ENTER_STACK_FRAME:
-    {
-      printf("ENTER_STACK_FRAME\n");
-    } break;
-
-    case I_LEAVE_STACK_FRAME:
-    {
-      printf("LEAVE_STACK_FRAME\n");
-    } break;
-
-    default:
-    {
-      fprintf(stderr, "Unhandled AIR instruction type in PrintInstruction!\n");
-      exit(1);
-    }
-  }
+  printf("%s\n", GetInstructionName(instruction->type));
 }
 
 static void FreeInstructionLabel(instruction_label* label)
@@ -341,4 +324,39 @@ void FreeInstruction(air_instruction* instruction)
   }
 
   free(instruction);
+}
+
+const char* GetInstructionName(instruction_type type)
+{
+  switch (type)
+  {
+    case I_ENTER_STACK_FRAME:
+      return "ENTER_STACK_FRAME";
+    case I_LEAVE_STACK_FRAME:
+      return "LEAVE_STACK_FRAME";
+    case I_RETURN:
+      return "RETURN";
+    case I_JUMP:
+      return "JUMP";
+    case I_MOV:
+      return "MOV";
+    case I_CMP:
+      return "CMP";
+    case I_ADD:
+      return "ADD";
+    case I_SUB:
+      return "SUB";
+    case I_MUL:
+      return "MUL";
+    case I_DIV:
+      return "DIV";
+    case I_NEGATE:
+      return "NEGATE";
+
+    default:
+    {
+      fprintf(stderr, "Unhandled AIR instruction type in GetInstructionName!\n");
+      exit(1);
+    }
+  }
 }

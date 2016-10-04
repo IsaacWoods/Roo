@@ -23,6 +23,8 @@ enum instruction_type
   NUM_INSTRUCTIONS
 };
 
+const char* GetInstructionName(instruction_type type);
+
 struct instruction_label
 {
   
