@@ -14,6 +14,11 @@ struct string_constant;
 struct node;
 struct air_instruction;
 
+struct codegen_target
+{
+  const char* name;
+};
+
 struct parse_result
 {
   dependency_def*   firstDependency;

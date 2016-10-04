@@ -12,7 +12,7 @@ void InitParseletMaps();
 void Parse(parse_result* result, const char* sourcePath);
 
 // NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
-void Generate(const char* outputPath, parse_result* result);
+void Generate(const char* outputPath, codegen_target& target, parse_result& result);
 
 int main()
 {
@@ -56,7 +56,11 @@ int main()
 
   // Generate code
   // TODO(Isaac): find a better way to create a filename for the executable
-  Generate("test", &result);
+  codegen_target target;
+  target.name = "X64_ELF";
+
+  printf("--- Generating a %s executable ---\n", target.name);  
+  Generate("test", target, result);
 
   // Free everything
   FreeParseResult(result);

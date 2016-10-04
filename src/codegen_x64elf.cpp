@@ -13,9 +13,8 @@ static void GenerateELFHeader(FILE* f)
   fputc('F', f);
 }
 
-void Generate(const char* outputPath, parse_result* result)
+void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
-  printf("--- Generating a x64 ELF executable ---\n");
   FILE* file = fopen(outputPath, "wb");
 
   GenerateELFHeader(file);
