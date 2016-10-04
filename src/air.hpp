@@ -63,8 +63,8 @@ struct jump_instruction
 
 struct slot_pair_instruction
 {
-  slot a;
-  slot b;
+  slot* a;
+  slot* b;
 };
 
 struct air_instruction

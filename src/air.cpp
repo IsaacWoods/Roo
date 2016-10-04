@@ -46,8 +46,8 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
     case I_MUL:
     case I_DIV:
     {
-      i->payload.slotPair.a                   = va_arg(args, slot);
-      i->payload.slotPair.b                   = va_arg(args, slot);
+      i->payload.slotPair.a                   = va_arg(args, slot*);
+      i->payload.slotPair.b                   = va_arg(args, slot*);
     } break;
 
     default:
