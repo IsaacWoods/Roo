@@ -21,6 +21,8 @@ enum node_type
   VARIABLE_ASSIGN_NODE,
 };
 
+const char* GetNodeName(node_type type);
+
 struct node;
 
 /*

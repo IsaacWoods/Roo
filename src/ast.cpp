@@ -197,3 +197,38 @@ void FreeNode(node* n)
 
   free(n);
 }
+
+const char* GetNodeName(node_type type)
+{
+  switch (type)
+  {
+    case BREAK_NODE:
+      return "BREAK_NODE";
+    case RETURN_NODE:
+      return "RETURN_NODE";
+    case BINARY_OP_NODE:
+      return "BINARY_OP_NODE";
+    case PREFIX_OP_NODE:
+      return "PREFIX_OP_NODE";
+    case VARIABLE_NODE:
+      return "VARIABLE_NODE";
+    case CONDITION_NODE:
+      return "CONDITION_NODE";
+    case IF_NODE:
+      return "IF_NODE";
+    case NUMBER_CONSTANT_NODE:
+      return "NUMBER_CONSTANT_NODE";
+    case STRING_CONSTANT_NODE:
+      return "STRING_CONSTANT_NODE";
+    case FUNCTION_CALL_NODE:
+      return "FUNCTION_CALL_NODE";
+    case VARIABLE_ASSIGN_NODE:
+      return "VARIABLE_ASSIGN_NODE";
+
+    default:
+    {
+      fprintf(stderr, "Unhandled AST node type in GetNodeName!\n");
+      exit(1);
+    }
+  }
+}
