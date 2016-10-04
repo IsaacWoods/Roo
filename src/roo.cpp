@@ -6,11 +6,13 @@
 #include <cstdio>
 #include <tinydir.hpp>
 #include <air.hpp>
-#include <codegen.hpp>
 
 // NOTE(Isaac): defined in `parsing.cpp`
 void InitParseletMaps();
 void Parse(parse_result* result, const char* sourcePath);
+
+// NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
+void Generate(const char* outputPath, parse_result* result);
 
 int main()
 {
@@ -45,21 +47,18 @@ int main()
 
   // Generate AIR instructions from the AST
   // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-  for (function_def* function = result.firstFunction;
+/*  for (function_def* function = result.firstFunction;
        function;
        function = function->next)
   {
     GenFunctionAIR(function);
-  }
+  }*/
 
   // Generate code
-/*  code_generator generator;
-  CreateCodeGenerator(generator, "test.s");
-  GenCodeSection(generator, result);
-  GenDataSection(generator, result);*/
+  // TODO(Isaac): find a better way to create a filename for the executable
+  Generate("test", &result);
 
   // Free everything
-//  FreeCodeGenerator(generator);
   FreeParseResult(result);
   return 0;
 }

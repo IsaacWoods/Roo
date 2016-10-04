@@ -11,8 +11,7 @@ OBJS = \
   src/parsing.o \
 	src/ast.o \
 	src/air.o \
-	src/codegen.o \
-	src/regAlloc.o \
+	src/codegen_x64elf.o \
 
 .PHONY: clean
 

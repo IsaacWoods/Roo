@@ -10,7 +10,6 @@
 struct code_generator
 {
   FILE* output;
-  unsigned int tabCount;
 };
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath);

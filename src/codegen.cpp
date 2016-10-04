@@ -12,8 +12,7 @@
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath)
 {
-  generator.output = fopen(outputPath, "w");
-  generator.tabCount = 0u;
+  generator.output = fopen(outputPath, "wb");
 }
 
 void FreeCodeGenerator(code_generator& generator)
