@@ -9,11 +9,20 @@
 #include <cstdarg>
 #include <ast.hpp>
 
+/*
+ * NOTE(Isaac): because the C++11 spec is written in a stupid-ass manner, the instruction type has to be a vararg.
+ * Always supply an AIR instruction type as the first vararg!
+ */
+#define PushInstruction(...) \
+  tail->next = CreateInstruction(__VA_ARGS__); \
+  tail = tail->next; \
+
 static air_instruction* CreateInstruction(instruction_type type, ...)
 {
   air_instruction* i = static_cast<air_instruction*>(malloc(sizeof(air_instruction)));
   i->type = type;
   i->next = nullptr;
+  air_instruction::instruction_payload& payload = i->payload;
 
   va_list args;
   va_start(args, type);
@@ -34,11 +43,10 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
     case I_JUMP:
     {
-      i->payload.jump.cond                    = static_cast<jump_instruction::condition>(va_arg(args, int));
-      i->payload.jump.label                   = va_arg(args, instruction_label*);
+      payload.jump.cond                     = static_cast<jump_instruction::condition>(va_arg(args, int));
+      payload.jump.label                    = va_arg(args, instruction_label*);
     } break;
 
-    // NOTE(Isaac): a lot of instructions operate on two slots apparently...
     case I_MOV:
     case I_CMP:
     case I_ADD:
@@ -46,8 +54,15 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
     case I_MUL:
     case I_DIV:
     {
-      i->payload.slotPair.a                   = va_arg(args, slot*);
-      i->payload.slotPair.b                   = va_arg(args, slot*);
+      payload.slotTriple.left               = va_arg(args, slot*);
+      payload.slotTriple.right              = va_arg(args, slot*);
+      payload.slotTriple.result             = va_arg(args, slot*);
+    } break;
+
+    case I_NEGATE:
+    {
+      payload.slotPair.right                = va_arg(args, slot*);
+      payload.slotPair.result               = va_arg(args, slot*);
     } break;
 
     default:
@@ -60,10 +75,6 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
   va_end(args);
   return i;
 }
-
-#define PUSH(instruction) \
-  tail->next = instruction; \
-  tail = tail->next;
 
 template<typename T = void>
 T GenNodeAIR(air_instruction* tail, node* n);
@@ -80,27 +91,28 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
     {
       slot* left = GenNodeAIR<slot*>(tail, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(tail, n->payload.binaryOp.right);
+      slot* result = static_cast<slot*>(malloc(sizeof(slot)));
 
       switch (n->payload.binaryOp.op)
       {
         case TOKEN_PLUS:
         {
-          PUSH(CreateInstruction(I_ADD, left, right));
+          PushInstruction(I_ADD, left, right, result);
         } break;
 
         case TOKEN_MINUS:
         {
-          PUSH(CreateInstruction(I_SUB, left, right));
+          PushInstruction(I_SUB, left, right, result);
         } break;
 
         case TOKEN_ASTERIX:
         {
-          PUSH(CreateInstruction(I_MUL, left, right));
+          PushInstruction(I_MUL, left, right, result);
         } break;
 
         case TOKEN_SLASH:
         {
-          PUSH(CreateInstruction(I_DIV, left, right));
+          PushInstruction(I_DIV, left, right, result);
         } break;
 
         default:
@@ -110,7 +122,44 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
         }
       }
 
-      // TODO(Isaac): return the slot that the result is in
+      return result;
+    } break;
+
+    case PREFIX_OP_NODE:
+    {
+      slot* right = GenNodeAIR<slot*>(tail, n->payload.prefixOp.right);
+      slot* result = static_cast<slot*>(malloc(sizeof(slot)));
+
+      switch (n->payload.prefixOp.op)
+      {
+        case TOKEN_PLUS:
+        {
+          // TODO
+        } break;
+
+        case TOKEN_MINUS:
+        {
+          // TODO
+        } break;
+
+        case TOKEN_BANG:
+        {
+          // TODO
+        } break;
+
+        case TOKEN_TILDE:
+        {
+          PushInstruction(I_NEGATE, right, result);
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "Unhandled AST prefix op in GenNodeAIR!\n");
+          exit(1);
+        }
+      }
+
+      return result;
     } break;
 
     default:
@@ -131,9 +180,10 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruct
   {
     case CONDITION_NODE:
     {
+      printf("Emitting compare instruction\n");
       slot* a = GenNodeAIR<slot*>(tail, n->payload.condition.left);
       slot* b = GenNodeAIR<slot*>(tail, n->payload.condition.right);
-      PUSH(CreateInstruction(I_CMP, a, b));
+      PushInstruction(I_CMP, a, b);
 
       switch (n->payload.condition.condition)
       {
@@ -193,8 +243,9 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
   {
     case RETURN_NODE:
     {
-      PUSH(CreateInstruction(I_LEAVE_STACK_FRAME));
-      PUSH(CreateInstruction(I_RETURN));
+      printf("Emitting return instruction\n");
+      PushInstruction(I_LEAVE_STACK_FRAME);
+      PushInstruction(I_RETURN);
     } break;
 
     default:
@@ -203,8 +254,33 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
       exit(1);
     }
   }
+}
 
-  fprintf(stderr, "Unhandled stuff and things in returnless GenNodeAIR!");
+template<>
+instruction_label* GenNodeAIR<instruction_label*>(air_instruction* tail, node* n)
+{
+  assert(tail);
+  assert(n);
+
+  switch (n->type)
+  {
+    case BREAK_NODE:
+    {
+      printf("Emitting break instruction\n");
+      instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
+      PushInstruction(I_JUMP, jump_instruction::condition::UNCONDITIONAL, label);
+
+      return label;
+    } break;
+
+    default:
+    {
+      fprintf(stderr, "Unhandled node type for returning a `instruction_label*` in GenNodeAIR!\n");
+      exit(1);
+    }
+  }
+
+  return nullptr;
 }
 
 void GenFunctionAIR(function_def* function)
@@ -221,7 +297,7 @@ void GenFunctionAIR(function_def* function)
     GenNodeAIR(tail, n);
   }
 
-  PUSH(CreateInstruction(I_LEAVE_STACK_FRAME));
+  PushInstruction(I_LEAVE_STACK_FRAME);
 }
 
 void PrintInstruction(air_instruction* instruction)

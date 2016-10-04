@@ -23,6 +23,13 @@ enum node_type
 
 struct node;
 
+/*
+ * Binary operations:
+ *     TOKEN_PLUS
+ *     TOKEN_MINUS
+ *     TOKEN_ASTERIX
+ *     TOKEN_SLASH
+ */
 struct binary_op_node_part
 {
   token_type  op;
@@ -30,6 +37,13 @@ struct binary_op_node_part
   node*       right;
 };
 
+/*
+ * Prefix operations:
+ *    TOKEN_PLUS
+ *    TOKEN_MINUS
+ *    TOKEN_BANG
+ *    TOKEN_TILDE
+ */
 struct prefix_op_node_part
 {
   token_type  op;

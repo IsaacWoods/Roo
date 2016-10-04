@@ -18,6 +18,7 @@ enum instruction_type
   I_SUB,
   I_MUL,
   I_DIV,
+  I_NEGATE,
 
   NUM_INSTRUCTIONS
 };
@@ -61,10 +62,17 @@ struct jump_instruction
   const instruction_label* label;
 };
 
-struct slot_pair_instruction
+struct slot_pair
 {
-  slot* a;
-  slot* b;
+  slot* right;
+  slot* result;
+};
+
+struct slot_triple
+{
+  slot* left;
+  slot* right;
+  slot* result;
 };
 
 struct air_instruction
@@ -74,10 +82,11 @@ struct air_instruction
   instruction_type      type;
   instruction_label*    label;    // NOTE(Isaac): `nullptr` for unlabelled instructions
 
-  union
+  union instruction_payload
   {
-    jump_instruction        jump;
-    slot_pair_instruction   slotPair;
+    jump_instruction      jump;
+    slot_pair             slotPair;
+    slot_triple           slotTriple;
   } payload;
 };
 
