@@ -18,9 +18,43 @@ struct elf_header
   uint16_t sectionNameIndexInSectionHeader;
 };
 
+#define SEGMENT_ATTRIB_X        0x1         // NOTE(Isaac): marks the segment as executable
+#define SEGMENT_ATTRIB_W        0x2         // NOTE(Isaac): marks the segment as writable
+#define SEGMENT_ATTRIB_R        0x4         // NOTE(Isaac): marks the segment as readable
+#define SEGMENT_ATTRIB_MASKOS   0x00FF0000  // NOTE(Isaac): environment-specific (nobody really knows :P)
+#define SEGMENT_ATTRIB_MASKPROC 0xFF000000  // NOTE(Isaac): processor-specific (even fewer people know)
+
+struct elf_segment
+{
+  enum segment_type : uint32_t
+  {
+    PT_NULL     = 0u,
+    PT_LOAD     = 1u,
+    PT_DYNAMIC  = 2u,
+    PT_INTERP   = 3u,
+    PT_NOTE     = 4u,
+    PT_SHLIB    = 5u,
+    PT_PHDR     = 6u,
+    PT_TLS      = 7u,
+    PT_LOOS     = 0x60000000,
+    PT_HIOS     = 0x6FFFFFFF,
+    PT_LOPROC   = 0x70000000,
+    PT_HIPROC   = 0x7FFFFFFF
+  } type;
+  uint32_t flags;
+  uint64_t offset;          // Offset of the first byte of the segment from the image
+  uint64_t virtualAddress;
+  uint64_t physicalAddress;
+  uint64_t fileSize;        // Number of bytes in the file image of the segment (may be zero)
+  uint64_t memorySize;      // Number of bytes in the memory image of the segment (may be zero)
+  uint16_t alignment;       // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this `alignment`
+};
+
 static void GenerateHeader(FILE* f, elf_header& header)
 {
-  // --- Generate ELF Header ---
+  const uint16_t programHeaderEntrySize = 32u;  // TODO umm
+  const uint16_t sectionHeaderEntrySize = 32u;  // TODO umm
+
 /*0x00*/fputc(0x7F    , f); // Emit the 4 byte magic value
         fputc('E'     , f);
         fputc('L'     , f);
@@ -51,19 +85,26 @@ static void GenerateHeader(FILE* f, elf_header& header)
         fputc(0x00    , f);
 /*0x34*/fputc(64u     , f); // Specify the size of the header (64 bytes)
         fputc(0x00    , f);
-/*0x36*/fputc(0x10    , f); // Specify the size of an entry in the program header TODO
-        fputc(0x00    , f);
+/*0x36*/fwrite(&programHeaderEntrySize, sizeof(uint16_t), 1, f);
 /*0x38*/fwrite(&(header.numProgramHeaderEntries), sizeof(uint16_t), 1, f);
 /*0x3A*/fputc(0x10    , f); // Specify the size of an entry in the section header TODO
         fputc(0x00    , f);
+/*0x3A*/fwrite(&sectionHeaderEntrySize, sizeof(uint16_t), 1, f);
 /*0x3C*/fwrite(&(header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
 /*0x3E*/fwrite(&(header.sectionNameIndexInSectionHeader), sizeof(uint16_t), 1, f);
+}
 
-  // --- Generate Program Header ---
-  // TODO
-
-  // --- Generate Section Header
-  // TODO
+static void GenerateSegment(FILE* f, elf_segment& segment)
+{
+/*0x00*/fwrite(&(segment.type), sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(segment.flags), sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(segment.offset), sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(segment.virtualAddress), sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(segment.physicalAddress), sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(segment.fileSize), sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(segment.memorySize), sizeof(uint64_t), 1, f);
+/*0x30*/fwrite(&(segment.alignment), sizeof(uint16_t), 1, f);
+/*0x32*/
 }
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
