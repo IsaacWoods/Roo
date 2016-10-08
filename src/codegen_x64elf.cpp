@@ -15,7 +15,7 @@ struct elf_header
   uint64_t sectionHeaderOffset;
   uint16_t numProgramHeaderEntries;
   uint16_t numSectionHeaderEntries;
-  uint16_t sectionNameIndexInSectionHeader;
+  uint16_t sectionWithSectionNames;
 };
 
 #define SEGMENT_ATTRIB_X        0x1         // NOTE(Isaac): marks the segment as executable
@@ -100,71 +100,71 @@ static void GenerateHeader(FILE* f, elf_header& header)
   const uint16_t programHeaderEntrySize = 0x38;
   const uint16_t sectionHeaderEntrySize = 0x40;
 
-/*0x00*/fputc(0x7F    , f); // Emit the 4 byte magic value
-        fputc('E'     , f);
-        fputc('L'     , f);
-        fputc('F'     , f);
-/*0x04*/fputc(2       , f); // Specify we are targetting a 64-bit system
-/*0x05*/fputc(1       , f); // Specify we are targetting a little-endian system
-/*0x06*/fputc(1       , f); // Specify that we are targetting the first version of ELF
-/*0x07*/fputc(0x00    , f); // Specify that we are targetting the System-V ABI
+/*0x00*/fputc(0x7F,     f); // Emit the 4 byte magic value
+        fputc('E',      f);
+        fputc('L',      f);
+        fputc('F',      f);
+/*0x04*/fputc(2,        f); // Specify we are targetting a 64-bit system
+/*0x05*/fputc(1,        f); // Specify we are targetting a little-endian system
+/*0x06*/fputc(1,        f); // Specify that we are targetting the first version of ELF
+/*0x07*/fputc(0x00,     f); // Specify that we are targetting the System-V ABI
 /*0x08*/for (unsigned int i = 0x08;
              i < 0x10;
              i++)
         {
-          fputc(0x00  , f); // Pad out EI_ABIVERSION and EI_PAD
+          fputc(0x00,   f); // Pad out EI_ABIVERSION and EI_PAD
         }
 /*0x10*/fwrite(&(header.fileType), sizeof(uint16_t), 1, f);
-/*0x12*/fputc(0x3E    , f); // Specify we are targetting the x86_64 ISA
-        fputc(0x00    , f);
-/*0x14*/fputc(0x01    , f); // Specify we are targetting the first version of ELF
-        fputc(0x00    , f);
-        fputc(0x00    , f);
-        fputc(0x00    , f);
+/*0x12*/fputc(0x3E,     f); // Specify we are targetting the x86_64 ISA
+        fputc(0x00,     f);
+/*0x14*/fputc(0x01,     f); // Specify we are targetting the first version of ELF
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
 /*0x18*/fwrite(&(header.entryPoint), sizeof(uint64_t), 1, f);
 /*0x20*/fwrite(&(header.programHeaderOffset), sizeof(uint64_t), 1, f);
 /*0x28*/fwrite(&(header.sectionHeaderOffset), sizeof(uint64_t), 1, f);
-/*0x30*/fputc(0x00    , f); // Specify some flags (undefined for x86_64)
-        fputc(0x00    , f);
-        fputc(0x00    , f);
-        fputc(0x00    , f);
-/*0x34*/fputc(64u     , f); // Specify the size of the header (64 bytes)
-        fputc(0x00    , f);
-/*0x36*/fwrite(&programHeaderEntrySize, sizeof(uint16_t), 1, f);
+/*0x30*/fputc(0x00,     f); // Specify some flags (undefined for x86_64)
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+/*0x34*/fputc(64u,      f); // Specify the size of the header (64 bytes)
+        fputc(0x00,     f);
+/*0x36*/fwrite(&programHeaderEntrySize,           sizeof(uint16_t), 1, f);
 /*0x38*/fwrite(&(header.numProgramHeaderEntries), sizeof(uint16_t), 1, f);
-/*0x3A*/fwrite(&sectionHeaderEntrySize, sizeof(uint16_t), 1, f);
+/*0x3A*/fwrite(&sectionHeaderEntrySize,           sizeof(uint16_t), 1, f);
 /*0x3C*/fwrite(&(header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
-/*0x3E*/fwrite(&(header.sectionNameIndexInSectionHeader), sizeof(uint16_t), 1, f);
+/*0x3E*/fwrite(&(header.sectionWithSectionNames), sizeof(uint16_t), 1, f);
 /*0x40*/
 }
 
 static void GenerateSegment(FILE* f, elf_segment& segment)
 {
 /*n + */
-/*0x00*/fwrite(&(segment.type), sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(segment.flags), sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(segment.offset), sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(segment.virtualAddress), sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(segment.physicalAddress), sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(segment.fileSize), sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(segment.memorySize), sizeof(uint64_t), 1, f);
-/*0x30*/fwrite(&(segment.alignment), sizeof(uint64_t), 1, f);
+/*0x00*/fwrite(&(segment.type),             sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(segment.flags),            sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(segment.offset),           sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(segment.virtualAddress),   sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(segment.physicalAddress),  sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(segment.fileSize),         sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(segment.memorySize),       sizeof(uint64_t), 1, f);
+/*0x30*/fwrite(&(segment.alignment),        sizeof(uint64_t), 1, f);
 /*0x38*/
 }
 
 static void GenerateSection(FILE* f, elf_section& section)
 {
 /*n + */
-/*0x00*/fwrite(&(section.name), sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(section.type), sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(section.flags), sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(section.address), sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(section.offset), sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(section.size), sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(section.link), sizeof(uint32_t), 1, f);
-/*0x2C*/fwrite(&(section.info), sizeof(uint32_t), 1, f);
+/*0x00*/fwrite(&(section.name),             sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(section.type),             sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(section.flags),            sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(section.address),          sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(section.offset),           sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(section.size),             sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(section.link),             sizeof(uint32_t), 1, f);
+/*0x2C*/fwrite(&(section.info),             sizeof(uint32_t), 1, f);
 /*0x30*/fwrite(&(section.addressAlignment), sizeof(uint64_t), 1, f);
-/*0x38*/fwrite(&(section.entrySize), sizeof(uint64_t), 1, f);
+/*0x38*/fwrite(&(section.entrySize),        sizeof(uint64_t), 1, f);
 /*0x40*/
 }
 
@@ -172,15 +172,21 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 {
   FILE* file = fopen(outputPath, "wb");
 
+  if (!file)
+  {
+    fprintf(stderr, "Failed to open output file: %s\n", outputPath);
+    exit(1);
+  }
+
   // Generate the ELF header
   elf_header header;
   header.fileType = 0x02; // NOTE(Isaac): executable file
   header.entryPoint = 0x63; // random
   header.programHeaderOffset = 0x40;  // NOTE(Isaac): right after the header
-  header.sectionHeaderOffset = 0x0; // random
+  header.sectionHeaderOffset = 0x80; // random
   header.numProgramHeaderEntries = 0x1; // TODO
-  header.numSectionHeaderEntries = 0x0; // TODO
-  header.sectionNameIndexInSectionHeader = 0x0; // TODO
+  header.numSectionHeaderEntries = 0x1; // TODO
+  header.sectionWithSectionNames = 0x0; // TODO
   GenerateHeader(file, header);
 
   // Create a segment for .text
@@ -195,18 +201,20 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   segment.alignment = 0x1000;
   GenerateSegment(file, segment);
 
-  // Create the .text section
-/*  elf_section textSection;
+  // Create the .text section (at the beginning of the section header)
+  fseek(file, 0x80, SEEK_SET);
+  elf_section textSection;
   textSection.name = 0; // TODO
   textSection.type = elf_section::section_type::SHT_PROGBITS;
   textSection.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
+  textSection.address = 0;
   textSection.offset = 0; // TODO
   textSection.size = 0; // TODO
   textSection.link = 0u; // TODO
   textSection.info = 0u; // TODO
   textSection.addressAlignment = 0x10;
   textSection.entrySize = 0u;
-  GenerateSection(file, textSection);*/
+  GenerateSection(file, textSection);
 
   fclose(file);
 }
