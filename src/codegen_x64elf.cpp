@@ -47,13 +47,58 @@ struct elf_segment
   uint64_t physicalAddress;
   uint64_t fileSize;        // Number of bytes in the file image of the segment (may be zero)
   uint64_t memorySize;      // Number of bytes in the memory image of the segment (may be zero)
-  uint16_t alignment;       // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this `alignment`
+  uint64_t alignment;       // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this `alignment`
+};
+
+#define SECTION_ATTRIB_W        0x1         // NOTE(Isaac): marks the section as writable
+#define SECTION_ATTRIB_A        0x2         // NOTE(Isaac): marks the section to be allocated in the memory image
+#define SECTION_ATTRIB_E        0x4         // NOTE(Isaac): marks the section as executable
+#define SECTION_ATTRIB_MASKOS   0x0F000000  // NOTE(Isaac): environment-specific
+#define SECTION_ATTRIB_MASKPROC 0xF0000000  // NOTE(Isaac): processor-specific
+
+struct elf_section
+{
+  uint32_t name;                        // Offset in the string table to the section name
+  enum section_type : uint32_t
+  {
+    SHT_NULL            = 0u,
+    SHT_PROGBITS        = 1u,
+    SHT_SYMTAB          = 2u,
+    SHT_STRTAB          = 3u,
+    SHT_RELA            = 4u,
+    SHT_HASH            = 5u,
+    SHT_DYNAMIC         = 6u,
+    SHT_NOTE            = 7u,
+    SHT_NOBITS          = 8u,
+    SHT_REL             = 9u,
+    SHT_SHLIB           = 10u,
+    SHT_DYNSYM          = 11u,
+    SHT_INIT_ARRAY      = 14u,
+    SHT_FINI_ARRAY      = 15u,
+    SHT_PREINIT_ARRAY   = 16u,
+    SHT_GROUP           = 17u,
+    SHT_SYMTAB_SHNDX    = 18u,
+    SHT_LOOS            = 0x60000000,
+    SHT_HIOS            = 0x6FFFFFFF,
+    SHT_LOPROC          = 0x70000000,
+    SHT_HIPROC          = 0x7FFFFFFF,
+    SHT_LOUSER          = 0x80000000,
+    SHT_HIUSER          = 0x8FFFFFFF
+  } type;
+  uint64_t flags;
+  uint64_t address;                     // Virtual address of the beginning of the section in memory
+  uint64_t offset;                      // Offset of the beginning of the section in the file
+  uint64_t size;                        // NOTE(Isaac): for SHT_NOBITS, this is NOT the size in the file!
+  uint32_t link;                        // Index of an associated section
+  uint32_t info;
+  uint64_t addressAlignment;            // Required alignment of this section
+  uint64_t entrySize;                   // Size of each section entry (if fixed, zero otherwise)
 };
 
 static void GenerateHeader(FILE* f, elf_header& header)
 {
-  const uint16_t programHeaderEntrySize = 32u;  // TODO umm
-  const uint16_t sectionHeaderEntrySize = 32u;  // TODO umm
+  const uint16_t programHeaderEntrySize = 0x38;
+  const uint16_t sectionHeaderEntrySize = 0x40;
 
 /*0x00*/fputc(0x7F    , f); // Emit the 4 byte magic value
         fputc('E'     , f);
@@ -87,15 +132,15 @@ static void GenerateHeader(FILE* f, elf_header& header)
         fputc(0x00    , f);
 /*0x36*/fwrite(&programHeaderEntrySize, sizeof(uint16_t), 1, f);
 /*0x38*/fwrite(&(header.numProgramHeaderEntries), sizeof(uint16_t), 1, f);
-/*0x3A*/fputc(0x10    , f); // Specify the size of an entry in the section header TODO
-        fputc(0x00    , f);
 /*0x3A*/fwrite(&sectionHeaderEntrySize, sizeof(uint16_t), 1, f);
 /*0x3C*/fwrite(&(header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
 /*0x3E*/fwrite(&(header.sectionNameIndexInSectionHeader), sizeof(uint16_t), 1, f);
+/*0x40*/
 }
 
 static void GenerateSegment(FILE* f, elf_segment& segment)
 {
+/*n + */
 /*0x00*/fwrite(&(segment.type), sizeof(uint32_t), 1, f);
 /*0x04*/fwrite(&(segment.flags), sizeof(uint32_t), 1, f);
 /*0x08*/fwrite(&(segment.offset), sizeof(uint64_t), 1, f);
@@ -103,23 +148,65 @@ static void GenerateSegment(FILE* f, elf_segment& segment)
 /*0x18*/fwrite(&(segment.physicalAddress), sizeof(uint64_t), 1, f);
 /*0x20*/fwrite(&(segment.fileSize), sizeof(uint64_t), 1, f);
 /*0x28*/fwrite(&(segment.memorySize), sizeof(uint64_t), 1, f);
-/*0x30*/fwrite(&(segment.alignment), sizeof(uint16_t), 1, f);
-/*0x32*/
+/*0x30*/fwrite(&(segment.alignment), sizeof(uint64_t), 1, f);
+/*0x38*/
+}
+
+static void GenerateSection(FILE* f, elf_section& section)
+{
+/*n + */
+/*0x00*/fwrite(&(section.name), sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(section.type), sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(section.flags), sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(section.address), sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(section.offset), sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(section.size), sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(section.link), sizeof(uint32_t), 1, f);
+/*0x2C*/fwrite(&(section.info), sizeof(uint32_t), 1, f);
+/*0x30*/fwrite(&(section.addressAlignment), sizeof(uint64_t), 1, f);
+/*0x38*/fwrite(&(section.entrySize), sizeof(uint64_t), 1, f);
+/*0x40*/
 }
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
   FILE* file = fopen(outputPath, "wb");
 
+  // Generate the ELF header
   elf_header header;
   header.fileType = 0x02; // NOTE(Isaac): executable file
   header.entryPoint = 0x63; // random
   header.programHeaderOffset = 0x40;  // NOTE(Isaac): right after the header
-  header.sectionHeaderOffset = 0x60; // random
-  header.numProgramHeaderEntries = 0x0; // TODO
-  header.numSectionHeaderEntries = 0x4; // TODO
+  header.sectionHeaderOffset = 0x0; // random
+  header.numProgramHeaderEntries = 0x1; // TODO
+  header.numSectionHeaderEntries = 0x0; // TODO
   header.sectionNameIndexInSectionHeader = 0x0; // TODO
   GenerateHeader(file, header);
+
+  // Create a segment for .text
+  elf_segment segment;
+  segment.type = elf_segment::segment_type::PT_LOAD;
+  segment.flags = SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R;
+  segment.offset = 0;// TODO
+  segment.virtualAddress = 0x08048000;
+  segment.physicalAddress = 0x08048000;
+  segment.fileSize = 0;
+  segment.memorySize = 0;
+  segment.alignment = 0x1000;
+  GenerateSegment(file, segment);
+
+  // Create the .text section
+/*  elf_section textSection;
+  textSection.name = 0; // TODO
+  textSection.type = elf_section::section_type::SHT_PROGBITS;
+  textSection.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
+  textSection.offset = 0; // TODO
+  textSection.size = 0; // TODO
+  textSection.link = 0u; // TODO
+  textSection.info = 0u; // TODO
+  textSection.addressAlignment = 0x10;
+  textSection.entrySize = 0u;
+  GenerateSection(file, textSection);*/
 
   fclose(file);
 }
