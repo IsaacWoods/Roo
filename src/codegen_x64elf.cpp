@@ -138,8 +138,10 @@ static void GenerateHeader(FILE* f, elf_header& header)
 /*0x40*/
 }
 
-static void GenerateSegment(FILE* f, elf_segment& segment)
+static void GenerateSegmentHeaderEntry(FILE* f, elf_header& header, elf_segment& segment)
 {
+  header.numProgramHeaderEntries++;
+
 /*n + */
 /*0x00*/fwrite(&(segment.type),             sizeof(uint32_t), 1, f);
 /*0x04*/fwrite(&(segment.flags),            sizeof(uint32_t), 1, f);
@@ -152,8 +154,10 @@ static void GenerateSegment(FILE* f, elf_segment& segment)
 /*0x38*/
 }
 
-static void GenerateSection(FILE* f, elf_section& section)
+static void GenerateSectionHeaderEntry(FILE* f, elf_header& header, elf_section& section)
 {
+  header.numSectionHeaderEntries++;
+
 /*n + */
 /*0x00*/fwrite(&(section.name),             sizeof(uint32_t), 1, f);
 /*0x04*/fwrite(&(section.type),             sizeof(uint32_t), 1, f);
@@ -168,6 +172,29 @@ static void GenerateSection(FILE* f, elf_section& section)
 /*0x40*/
 }
 
+void GenerateTextSection(elf_section& section, elf_header& header, parse_result& result)
+{
+  section.name = 0; // TODO
+  section.type = elf_section::section_type::SHT_PROGBITS;
+  section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
+  section.address = 0;
+  section.offset = 0; // TODO
+  section.size = 0; // TODO
+  section.link = 0u; // TODO
+  section.info = 0u; // TODO
+  section.addressAlignment = 0x10;
+
+  header.entryPoint = 0u; // TODO
+
+  // Generate code for each function
+  for (function_def* function = result.firstFunction;
+       function;
+       function = function->next)
+  {
+    printf("Generating object code for function: %s\n", function->name);
+  }
+}
+
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
   FILE* file = fopen(outputPath, "wb");
@@ -178,18 +205,14 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     exit(1);
   }
 
-  // Generate the ELF header
   elf_header header;
-  header.fileType = 0x02; // NOTE(Isaac): executable file
-  header.entryPoint = 0x63; // random
-  header.programHeaderOffset = 0x40;  // NOTE(Isaac): right after the header
-  header.sectionHeaderOffset = 0x80; // random
-  header.numProgramHeaderEntries = 0x1; // TODO
-  header.numSectionHeaderEntries = 0x1; // TODO
-  header.sectionWithSectionNames = 0x0; // TODO
-  GenerateHeader(file, header);
+  header.fileType = 0x02;
+  header.programHeaderOffset = 0x40;
+  header.numProgramHeaderEntries = 0u;
+  header.numSectionHeaderEntries = 0u;
 
-  // Create a segment for .text
+  // [0x40] Create a segment for .text
+  fseek(file, 0x40, SEEK_SET);
   elf_segment segment;
   segment.type = elf_segment::segment_type::PT_LOAD;
   segment.flags = SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R;
@@ -199,22 +222,39 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   segment.fileSize = 0;
   segment.memorySize = 0;
   segment.alignment = 0x1000;
-  GenerateSegment(file, segment);
+  GenerateSegmentHeaderEntry(file, header, segment);
 
-  // Create the .text section (at the beginning of the section header)
-  fseek(file, 0x80, SEEK_SET);
+  // [0x78] Generate the object code that will be in the .text section
   elf_section textSection;
-  textSection.name = 0; // TODO
-  textSection.type = elf_section::section_type::SHT_PROGBITS;
-  textSection.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  textSection.address = 0;
-  textSection.offset = 0; // TODO
-  textSection.size = 0; // TODO
-  textSection.link = 0u; // TODO
-  textSection.info = 0u; // TODO
-  textSection.addressAlignment = 0x10;
-  textSection.entrySize = 0u;
-  GenerateSection(file, textSection);
+  GenerateTextSection(textSection, header, result);
+
+  // [???] Create the string table
+  // TODO
+  header.sectionWithSectionNames = 0u; // TODO
+
+  // [???] Create the section header
+  header.sectionHeaderOffset = ftell(file);
+  
+  // Create a sentinel null section at index 0
+  elf_section nullSection;
+  nullSection.name = 0;
+  nullSection.type = elf_section::section_type::SHT_NULL;
+  nullSection.flags = 0;
+  nullSection.address = 0;
+  nullSection.offset = 0;
+  nullSection.size = 0u;
+  nullSection.link = 0u;
+  nullSection.info = 0u;
+  nullSection.addressAlignment = 0u;
+  nullSection.entrySize = 0u;
+  GenerateSectionHeaderEntry(file, header, nullSection);
+
+  // Emit the text section header
+  GenerateSectionHeaderEntry(file, header, textSection);
+
+  // [0x00] Generate the ELF header
+  fseek(file, 0x00, SEEK_SET);
+  GenerateHeader(file, header);
 
   fclose(file);
 }
