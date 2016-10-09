@@ -5,7 +5,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <cassert>
+#include <cstdarg>
 #include <common.hpp>
+#include <air.hpp>
 
 struct elf_header
 {
@@ -172,7 +175,84 @@ static void GenerateSectionHeaderEntry(FILE* f, elf_header& header, elf_section&
 /*0x40*/
 }
 
-void GenerateTextSection(elf_section& section, elf_header& header, parse_result& result)
+enum reg
+{
+  RAX,
+  RBX,
+  RCX,
+  RDX,
+  RSP,
+  RBP,
+  RSI,
+  RDI,
+  R8,
+  R9,
+  R10,
+  R11,
+  R12,
+  R13,
+  R14,
+  R15
+};
+
+struct x64_register
+{
+  uint8_t opcodeOffset;
+};
+
+static x64_register registerSet[16u] =
+{
+  x64_register{0u},   // RAX
+  x64_register{3u},   // RBX
+  x64_register{1u},   // RCX
+  x64_register{2u},   // RDX
+  x64_register{4u},   // RSP
+  x64_register{5u},   // RBP
+  x64_register{6u},   // RSI
+  x64_register{7u},   // RDI
+  x64_register{8u},   // R8
+  x64_register{9u},   // R9
+  x64_register{10u},  // R10
+  x64_register{11u},  // R11
+  x64_register{12u},  // R12
+  x64_register{13u},  // R13
+  x64_register{14u},  // R14
+  x64_register{15u},  // R15
+};
+
+enum class i : uint8_t
+{
+  PUSH_REG = 0x50       // +r
+};
+
+/*
+ * NOTE(Isaac): returns the number of bytes emitted
+ */
+uint64_t Emit(FILE* f, i instruction, ...)
+{
+  va_list args;
+  va_start(args, instruction);
+  uint64_t numBytesEmitted = 0u;
+
+  #define EMIT(thing) \
+    fputc(thing, f); \
+    numBytesEmitted++;
+
+  switch (instruction)
+  {
+    case i::PUSH_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+      EMIT(static_cast<uint8_t>(i::PUSH_REG) + registerSet[r].opcodeOffset);
+    } break;
+  }
+
+  va_end(args);
+  return numBytesEmitted;
+  #undef EMIT
+}
+
+void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, parse_result& result)
 {
   section.name = 0; // TODO
   section.type = elf_section::section_type::SHT_PROGBITS;
@@ -192,6 +272,76 @@ void GenerateTextSection(elf_section& section, elf_header& header, parse_result&
        function = function->next)
   {
     printf("Generating object code for function: %s\n", function->name);
+    assert(function->code);
+
+    for (air_instruction* instruction = function->code;
+         instruction;
+         instruction = instruction->next)
+    {
+      switch (instruction->type)
+      {
+        case I_ENTER_STACK_FRAME:
+        {
+          Emit(file, i::PUSH_REG, RBX);
+        } break;
+
+        case I_LEAVE_STACK_FRAME:
+        {
+
+        } break;
+
+        case I_RETURN:
+        {
+
+        } break;
+
+        case I_JUMP:
+        {
+
+        } break;
+
+        case I_MOV:
+        {
+
+        } break;
+
+        case I_CMP:
+        {
+
+        } break;
+
+        case I_ADD:
+        {
+
+        } break;
+
+        case I_SUB:
+        {
+
+        } break;
+
+        case I_MUL:
+        {
+
+        } break;
+
+        case I_DIV:
+        {
+
+        } break;
+
+        case I_NEGATE:
+        {
+
+        } break;
+
+        case I_NUM_INSTRUCTIONS:
+        {
+          fprintf(stderr, "Tried to generate code for AIR instruction of type `I_NUM_INSTRUCTIONS`!\n");
+          exit(1);
+        }
+      }
+    }
   }
 }
 
@@ -226,7 +376,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // [0x78] Generate the object code that will be in the .text section
   elf_section textSection;
-  GenerateTextSection(textSection, header, result);
+  GenerateTextSection(file, textSection, header, result);
 
   // [???] Create the string table
   // TODO

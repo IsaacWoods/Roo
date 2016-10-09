@@ -20,7 +20,7 @@ enum instruction_type
   I_DIV,
   I_NEGATE,
 
-  NUM_INSTRUCTIONS
+  I_NUM_INSTRUCTIONS
 };
 
 const char* GetInstructionName(instruction_type type);
@@ -39,7 +39,7 @@ struct slot
   } type;
 
   const variable_def* variableDef;
-  unsigned int  tag;
+  unsigned int tag;
 };
 
 struct jump_instruction

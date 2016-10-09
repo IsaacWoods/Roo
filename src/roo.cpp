@@ -47,12 +47,12 @@ int main()
 
   // Generate AIR instructions from the AST
   // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-/*  for (function_def* function = result.firstFunction;
+  for (function_def* function = result.firstFunction;
        function;
        function = function->next)
   {
     GenFunctionAIR(function);
-  }*/
+  }
 
   // Generate code
   // TODO(Isaac): find a better way to create a filename for the executable
