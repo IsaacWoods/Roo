@@ -21,6 +21,7 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 {
   air_instruction* i = static_cast<air_instruction*>(malloc(sizeof(air_instruction)));
   i->type = type;
+  i->label = nullptr;
   i->next = nullptr;
   air_instruction::instruction_payload& payload = i->payload;
 
@@ -48,6 +49,11 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
     } break;
 
     case I_MOV:
+    {
+      payload.mov.destination               = va_arg(args, slot*);
+      payload.mov.source                    = va_arg(args, slot*);
+    } break;
+
     case I_CMP:
     case I_ADD:
     case I_SUB:
@@ -75,6 +81,26 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
   va_end(args);
   return i;
 }
+
+static slot* GetVariableSlot(variable_def* variable)
+{
+  // TODO
+  return nullptr;
+}
+
+/*
+ * BREAK_NODE:              `
+ * RETURN_NODE:             `Nothing
+ * BINARY_OP_NODE:          `slot*
+ * PREFIX_OP_NODE:          `slot*
+ * VARIABLE_NAME:           `slot*
+ * CONDITION_NODE:          `
+ * IF_NODE:                 `Nothing
+ * NUMBER_NODE:             `slot*
+ * STRING_CONSTANT_NODE:    `
+ * FUNCTION_CALL_NODE:      `slot*      `Nothing
+ * VARIABLE_ASSIGN_NODE:    `Nothing
+ */
 
 template<typename T = void>
 T GenNodeAIR(air_instruction* tail, node* n);
@@ -162,6 +188,12 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
       return result;
     } break;
 
+    case VARIABLE_NODE:
+    {
+      // TODO: resolve the slot of the variable we need
+      return nullptr;
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR: %s\n", GetNodeName(n->type));
@@ -246,6 +278,13 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
       printf("Emitting return instruction\n");
       PushInstruction(I_LEAVE_STACK_FRAME);
       PushInstruction(I_RETURN);
+    } break;
+
+    case VARIABLE_ASSIGN_NODE:
+    {
+      slot* variableSlot = GetVariableSlot(n->payload.variableAssignment.variable);
+      slot* newValueSlot = GenNodeAIR<slot*>(tail, n->payload.variableAssignment.newValue);
+      PushInstruction(I_MOV, variableSlot, newValueSlot);
     } break;
 
     default:

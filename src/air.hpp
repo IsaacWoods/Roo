@@ -64,6 +64,12 @@ struct jump_instruction
   const instruction_label* label;
 };
 
+struct mov_instruction
+{
+  slot* destination;
+  slot* source;
+};
+
 struct slot_pair
 {
   slot* right;
@@ -87,6 +93,7 @@ struct air_instruction
   union instruction_payload
   {
     jump_instruction      jump;
+    mov_instruction       mov;
     slot_pair             slotPair;
     slot_triple           slotTriple;
   } payload;
