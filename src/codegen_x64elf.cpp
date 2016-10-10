@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cstdint>
 #include <cassert>
 #include <cstdarg>
@@ -175,6 +176,26 @@ static void GenerateSectionHeaderEntry(FILE* f, elf_header& header, elf_section&
 /*0x40*/
 }
 
+static uint32_t EmitStringTableEntry(FILE* f, elf_section& section, const char* str)
+{
+  // NOTE(Isaac): index 0 is the leading null-terminator and so is non-existant - blame the ELF spec
+  static uint32_t stringIndex = 1u;
+
+  for (unsigned int i = 0u;
+       i < strlen(str);
+       i++)
+  {
+    fputc(str[i], f);
+    section.size++;
+  }
+
+  // Add a null-terminator
+  fputc('\0', f);
+  section.size++;
+  
+  return stringIndex++;
+}
+
 enum reg
 {
   RAX,
@@ -257,12 +278,13 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
   section.name = 0; // TODO
   section.type = elf_section::section_type::SHT_PROGBITS;
   section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  section.address = 0;
-  section.offset = 0; // TODO
-  section.size = 0; // TODO
-  section.link = 0u; // TODO
-  section.info = 0u; // TODO
+  section.address = 0x08048000; // TODO(Isaac): tbh I have no idea where this value comes from, but it's the same as the segment's virtual address
+  section.offset = ftell(file);
+  section.size = 0u;
+  section.link = 0u;
+  section.info = 0u;
   section.addressAlignment = 0x10;
+  section.entrySize = 0x00;
 
   header.entryPoint = 0u; // TODO
 
@@ -282,7 +304,7 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
       {
         case I_ENTER_STACK_FRAME:
         {
-          Emit(file, i::PUSH_REG, RBX);
+          section.size += Emit(file, i::PUSH_REG, RBX);
         } break;
 
         case I_LEAVE_STACK_FRAME:
@@ -361,26 +383,36 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   header.numProgramHeaderEntries = 0u;
   header.numSectionHeaderEntries = 0u;
 
-  // [0x40] Create a segment for .text
-  fseek(file, 0x40, SEEK_SET);
-  elf_segment segment;
-  segment.type = elf_segment::segment_type::PT_LOAD;
-  segment.flags = SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R;
-  segment.offset = 0;// TODO
-  segment.virtualAddress = 0x08048000;
-  segment.physicalAddress = 0x08048000;
-  segment.fileSize = 0;
-  segment.memorySize = 0;
-  segment.alignment = 0x1000;
-  GenerateSegmentHeaderEntry(file, header, segment);
+  // Segment for .text
+  elf_segment textSegment;
+  textSegment.type = elf_segment::segment_type::PT_LOAD;
+  textSegment.flags = SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R;
+  textSegment.virtualAddress = 0x08048000;
+  textSegment.physicalAddress = 0x08048000;
+  textSegment.alignment = 0x1000;
 
   // [0x78] Generate the object code that will be in the .text section
+  fseek(file, 0x78, SEEK_SET);
   elf_section textSection;
   GenerateTextSection(file, textSection, header, result);
 
   // [???] Create the string table
-  // TODO
-  header.sectionWithSectionNames = 0u; // TODO
+  elf_section stringTableSection;
+  stringTableSection.name = 0u;
+  stringTableSection.type = elf_section::section_type::SHT_STRTAB;
+  stringTableSection.flags = 0u;
+  stringTableSection.address = 0u;
+  stringTableSection.offset = ftell(file);
+  stringTableSection.size = 1u; // NOTE(Isaac): 1 because of the leading null-terminator
+  stringTableSection.link = 0u;
+  stringTableSection.info = 0u;
+  stringTableSection.addressAlignment = 1u;
+  stringTableSection.entrySize = 0u;
+  header.sectionWithSectionNames = 2u; // NOTE(Isaac): this is hardcoded
+
+  // NOTE(Isaac): start with a leading null-terminator
+  fputc('\0', file);
+  textSection.name = EmitStringTableEntry(file, stringTableSection, ".text");
 
   // [???] Create the section header
   header.sectionHeaderOffset = ftell(file);
@@ -399,8 +431,17 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   nullSection.entrySize = 0u;
   GenerateSectionHeaderEntry(file, header, nullSection);
 
-  // Emit the text section header
   GenerateSectionHeaderEntry(file, header, textSection);
+  GenerateSectionHeaderEntry(file, header, stringTableSection);
+
+  // [0x40] Generate the program header
+  fseek(file, 0x40, SEEK_SET);
+
+  // Finish off the .text segment definition and emit it
+  textSegment.offset = textSection.offset;
+  textSegment.fileSize = textSection.size;
+  textSegment.memorySize = textSection.size;
+  GenerateSegmentHeaderEntry(file, header, textSegment);
 
   // [0x00] Generate the ELF header
   fseek(file, 0x00, SEEK_SET);

@@ -337,6 +337,18 @@ void GenFunctionAIR(function_def* function)
   }
 
   PushInstruction(I_LEAVE_STACK_FRAME);
+
+  // Print all the instructions
+#if 1
+  printf("--- AIR instruction listing for function: %s\n", function->name);
+
+  for (air_instruction* i = function->code;
+       i;
+       i = i->next)
+  {
+    PrintInstruction(i);
+  }
+#endif
 }
 
 void PrintInstruction(air_instruction* instruction)
