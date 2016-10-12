@@ -426,6 +426,21 @@ static token LexNext(roo_parser& parser)
         type = TOKEN_SLASH;
         goto EmitSimpleToken;
 
+      case '#':
+      {
+        if (*(parser.currentChar) == '[')
+        {
+          type = TOKEN_START_ATTRIBUTE;
+          NextChar(parser);
+        }
+        else
+        {
+          type = TOKEN_POUND;
+        }
+
+        goto EmitSimpleToken;
+      }
+
       case ' ':
       case '\r':
       case '\t':
@@ -877,11 +892,12 @@ static node* Statement(roo_parser& parser, bool isInLoop)
   return result;
 }
 
-static void TypeDef(roo_parser& parser)
+static void TypeDef(roo_parser& parser, uint32_t attribMask)
 {
   printf("--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
+  type->attribMask = attribMask;
   type->next = nullptr;
 
   // NOTE(Isaac): find a place for the type def
@@ -986,13 +1002,14 @@ static void Import(roo_parser& parser)
   printf("<-- Import\n");
 }
 
-static void Function(roo_parser& parser)
+static void Function(roo_parser& parser, uint32_t attribMask)
 {
   printf("--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
   definition->shouldAutoReturn = true;
   definition->code = nullptr;
+  definition->attribMask = attribMask;
   definition->next = nullptr;
 
   // Find a place for the function
@@ -1038,6 +1055,28 @@ static void Function(roo_parser& parser)
   printf("<-- Function\n");
 }
 
+/*
+ * NOTE(Isaac): the result of this can be added to an existing set of attribs to concatenate them
+ */
+static uint32_t Attribute(roo_parser& parser)
+{
+  uint32_t result;
+  char* attribName = GetTextFromToken(NextToken(parser));
+
+  if (strcmp(attribName, "Entry") == 0)
+  {
+    result = function_attribs::ENTRY;
+  }
+  else
+  {
+    SyntaxError(parser, "Unrecognised attribute: '%s'!", attribName);
+  }
+
+  ConsumeNext(parser, TOKEN_RIGHT_BLOCK);
+  free(attribName);
+  return result;
+}
+
 void Parse(parse_result* result, const char* sourcePath)
 {
   roo_parser parser;
@@ -1052,6 +1091,8 @@ void Parse(parse_result* result, const char* sourcePath)
 
   printf("--- Starting parse ---\n");
 
+  uint32_t attribMask = 0u;
+
   while (!Match(parser, TOKEN_INVALID))
   {
     if (Match(parser, TOKEN_IMPORT))
@@ -1060,16 +1101,27 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else if (Match(parser, TOKEN_FN))
     {
-      Function(parser);
+      Function(parser, attribMask);
+      attribMask = 0u;
     }
     else if (Match(parser, TOKEN_TYPE))
     {
-      TypeDef(parser);
+      TypeDef(parser, attribMask);
+      attribMask = 0u;
+    }
+    else if (Match(parser, TOKEN_START_ATTRIBUTE))
+    {
+      attribMask += Attribute(parser);
     }
     else
     {
       SyntaxError(parser, "Unexpected token at top-level: %s!", GetTokenName(PeekToken(parser).type));
     }
+  }
+
+  if (attribMask != 0u)
+  {
+    SyntaxError(parser, "Trailing attribute not applied to anything!");
   }
 
   printf("--- Finished parse ---\n");
@@ -1078,20 +1130,6 @@ void Parse(parse_result* result, const char* sourcePath)
   parser.source = nullptr;
   parser.currentChar = nullptr;
   parser.result = nullptr;
-}
-
-void CreateParser(roo_parser& parser, parse_result* result, const char* sourcePath)
-{
-  parser.source = ReadFile(sourcePath);
-  parser.currentChar = parser.source;
-  parser.currentLine = 0u;
-  parser.currentLineOffset = 0u;
-  parser.result = result;
-
-  parser.currentToken = LexNext(parser);
-  parser.nextToken = LexNext(parser);
-
-  parser.currentFunction = nullptr;
 }
 
 void InitParseletMaps()

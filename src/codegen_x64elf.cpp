@@ -178,7 +178,7 @@ static void GenerateSectionHeaderEntry(FILE* f, elf_header& header, elf_section&
 
 static uint32_t EmitStringTableEntry(FILE* f, elf_section& section, const char* str)
 {
-  // NOTE(Isaac): index 0 is the leading null-terminator and so is non-existant - blame the ELF spec
+  // NOTE(Isaac): index 0 is the leading null-terminator and so is non-existant
   static uint32_t stringIndex = 1u;
 
   for (unsigned int i = 0u;
@@ -278,7 +278,7 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
   section.name = 0; // TODO
   section.type = elf_section::section_type::SHT_PROGBITS;
   section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  section.address = 0x08048000; // TODO(Isaac): tbh I have no idea where this value comes from, but it's the same as the segment's virtual address
+  section.address = 0x08048000; // TODO(Isaac): tbh I have no idea where this value came from, but it's the same as the segment's virtual address
   section.offset = ftell(file);
   section.size = 0u;
   section.link = 0u;

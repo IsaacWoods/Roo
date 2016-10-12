@@ -140,6 +140,24 @@ void FreeDependencyDef(dependency_def* dependency)
   free(dependency);
 }
 
+void PrintFunctionAttribs(uint32_t attribMask)
+{
+  if (attribMask == 0u)
+  {
+    printf("--- Emptry attribute set ---\n");
+    return;
+  }
+
+  printf("--- Function Attrib Set ---\n");
+
+  if (attribMask & function_attribs::ENTRY)
+  {
+    printf("| ENTRY |");
+  }
+
+  printf("---------------------------\n");
+}
+
 string_constant* CreateStringConstant(parse_result* result, char* string)
 {
   string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
@@ -290,9 +308,13 @@ const char* GetTokenName(token_type type)
       return "TOKEN_PERCENT";
     case TOKEN_QUESTION_MARK:
       return "TOKEN_QUESTION_MARK";
+    case TOKEN_POUND:
+      return "TOKEN_POUND";
 
     case TOKEN_YIELDS:
       return "TOKEN_YIELDS";
+    case TOKEN_START_ATTRIBUTE:
+      return "TOKEN_START_ATTRIBUTE";
     case TOKEN_EQUALS_EQUALS:
       return "TOKEN_EQUALS_EQUALS";
     case TOKEN_BANG_EQUALS:

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
 
@@ -45,6 +47,13 @@ struct dependency_def
 
 void FreeDependencyDef(dependency_def* dependency);
 
+enum function_attribs : uint32_t
+{
+  ENTRY       = (1<<0),
+};
+
+void PrintFunctionAttribs(uint32_t attribMask);
+
 struct string_constant
 {
   unsigned int      handle;
@@ -83,6 +92,7 @@ struct function_def
   variable_def*     firstLocal;
   type_ref*         returnType;
   bool              shouldAutoReturn;
+  uint32_t          attribMask;
 
   node*             ast;
   air_instruction*  code;
@@ -96,6 +106,7 @@ struct type_def
 {
   char*         name;
   variable_def* firstMember;
+  uint32_t      attribMask;
 
   type_def*     next;
 };
@@ -121,21 +132,23 @@ enum token_type
   TOKEN_COLON,
   TOKEN_LEFT_PAREN,
   TOKEN_RIGHT_PAREN,
-  TOKEN_LEFT_BRACE,
-  TOKEN_RIGHT_BRACE,
-  TOKEN_LEFT_BLOCK,
-  TOKEN_RIGHT_BLOCK,
+  TOKEN_LEFT_BRACE,             // {
+  TOKEN_RIGHT_BRACE,            // }
+  TOKEN_LEFT_BLOCK,             // [
+  TOKEN_RIGHT_BLOCK,            // ]
   TOKEN_ASTERIX,
   TOKEN_PLUS,
   TOKEN_MINUS,
   TOKEN_SLASH,
   TOKEN_EQUALS,
-  TOKEN_BANG,
-  TOKEN_TILDE,
+  TOKEN_BANG,                   // !
+  TOKEN_TILDE,                  // ~
   TOKEN_PERCENT,
   TOKEN_QUESTION_MARK,
+  TOKEN_POUND,                  // #
 
-  TOKEN_YIELDS,   // ->
+  TOKEN_YIELDS,                 // ->
+  TOKEN_START_ATTRIBUTE,        // #[
   TOKEN_EQUALS_EQUALS,
   TOKEN_BANG_EQUALS,
   TOKEN_GREATER_THAN,

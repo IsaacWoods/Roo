@@ -5,6 +5,7 @@ fn SomeFunction(x : int) -> int
   return y
 }
 
+#[Entry]
 fn Main() -> int
 {
   return SomeFunction(~11)
