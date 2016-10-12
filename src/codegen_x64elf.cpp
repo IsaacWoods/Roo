@@ -243,7 +243,10 @@ static x64_register registerSet[16u] =
 
 enum class i : uint8_t
 {
-  PUSH_REG = 0x50       // +r
+  PUSH_REG        = 0x50,       // +r
+  MOV_REG_REG     = 0x89,
+  RET             = 0xC3,
+  LEAVE           = 0xC9,
 };
 
 /*
@@ -265,6 +268,29 @@ uint64_t Emit(FILE* f, i instruction, ...)
     {
       reg r = static_cast<reg>(va_arg(args, int));
       EMIT(static_cast<uint8_t>(i::PUSH_REG) + registerSet[r].opcodeOffset);
+    } break;
+
+    case i::MOV_REG_REG:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      reg src  = static_cast<reg>(va_arg(args, int));
+
+      // TODO: `48` as a prefix is used to signify we are moving a 64-bit value into a 64-bit register. We should probably check this is the case.
+      EMIT(0x48);
+      EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
+
+      // Construct the ModR/M byte
+      uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
+      modRM |= registerSet[dest].opcodeOffset << 3;
+      modRM |= registerSet[src].opcodeOffset;
+      EMIT(modRM);
+    } break;
+
+    // NOTE(Isaac): these are the single-opcode instructions with no extra crap
+    case i::RET:
+    case i::LEAVE:
+    {
+      EMIT(static_cast<uint8_t>(instruction));
     } break;
   }
 
@@ -309,12 +335,14 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
       {
         case I_ENTER_STACK_FRAME:
         {
-          section.size += Emit(file, i::PUSH_REG, RBX);
+          section.size += Emit(file, i::PUSH_REG, RBP);
+          section.size += Emit(file, i::MOV_REG_REG, RBP, RSP);
         } break;
 
         case I_LEAVE_STACK_FRAME:
         {
-
+          section.size += Emit(file, i::LEAVE);
+          section.size += Emit(file, i::RET);
         } break;
 
         case I_RETURN:

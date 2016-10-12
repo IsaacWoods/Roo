@@ -36,9 +36,17 @@ struct slot
   {
     PARAM,
     LOCAL,
+    INT_CONSTANT,
+    FLOAT_CONSTANT
   } type;
 
-  const variable_def* variableDef;
+  union
+  {
+    const variable_def* variableDef;
+    int                 i;
+    float               f;
+  } payload;
+
   unsigned int tag;
 };
 

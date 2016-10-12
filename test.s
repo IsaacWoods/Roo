@@ -5,5 +5,5 @@ _entry:
   push rbp
   mov rbp, rsp
 
-  mov rsp, rbp
-  pop rbp
+  leave
+  ret
