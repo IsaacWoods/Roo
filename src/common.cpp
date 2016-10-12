@@ -226,12 +226,7 @@ void FreeFunctionDef(function_def* function)
     FreeNode(function->ast);
   }
 
-  while (function->code)
-  {
-    air_instruction* temp = function->code;
-    function->code = function->code->next;
-    FreeInstruction(temp);
-  }
+  FreeAIRFunction(function->air);
 }
 
 void FreeTypeDef(type_def* type)

@@ -50,6 +50,12 @@ struct slot
   unsigned int tag;
 };
 
+struct slot_link
+{
+  slot*       s;
+  slot_link*  next;
+};
+
 struct jump_instruction
 {
   enum condition
@@ -107,6 +113,12 @@ struct air_instruction
   } payload;
 };
 
+struct air_function
+{
+  air_instruction*  code;
+  slot_link*        firstSlot;
+};
+
 void GenFunctionAIR(function_def* function);
+void FreeAIRFunction(air_function* function);
 void PrintInstruction(air_instruction* instruction);
-void FreeInstruction(air_instruction* instruction);

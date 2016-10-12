@@ -332,7 +332,8 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
        function = function->next)
   {
     printf("Generating object code for function: %s\n", function->name);
-    assert(function->code);
+    assert(function->air);
+    assert(function->air->code);
 
     // NOTE(Isaac): Check if this is the program's entry point
     if (function->attribMask & function_attribs::ENTRY)
@@ -341,7 +342,7 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
       header.entryPoint = virtualAddress + (ftell(file) - section.offset);
     }
 
-    for (air_instruction* instruction = function->code;
+    for (air_instruction* instruction = function->air->code;
          instruction;
          instruction = instruction->next)
     {

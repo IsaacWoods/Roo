@@ -10,7 +10,7 @@
 #include <ast.hpp>
 
 /*
- * NOTE(Isaac): because the C++11 spec is written in a stupid-ass manner, the instruction type has to be a vararg.
+ * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
  * Always supply an AIR instruction type as the first vararg!
  */
 #define PushInstruction(...) \
@@ -115,6 +115,7 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
   {
     case BINARY_OP_NODE:
     {
+      printf("AIR: BINARY_OP\n");
       slot* left = GenNodeAIR<slot*>(tail, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(tail, n->payload.binaryOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
@@ -153,6 +154,7 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
 
     case PREFIX_OP_NODE:
     {
+      printf("AIR: PREFIX_OP\n");
       slot* right = GenNodeAIR<slot*>(tail, n->payload.prefixOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
 
@@ -190,6 +192,7 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
 
     case VARIABLE_NODE:
     {
+      printf("AIR: VARIABLE\n");
       // TODO: resolve the slot of the variable we need
       return nullptr;
     } break;
@@ -212,7 +215,7 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruct
   {
     case CONDITION_NODE:
     {
-      printf("Emitting compare instruction\n");
+      printf("AIR: CONDITION\n");
       slot* a = GenNodeAIR<slot*>(tail, n->payload.condition.left);
       slot* b = GenNodeAIR<slot*>(tail, n->payload.condition.right);
       PushInstruction(I_CMP, a, b);
@@ -275,13 +278,14 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
   {
     case RETURN_NODE:
     {
-      printf("Emitting return instruction\n");
+      printf("AIR: RETURN\n");
       PushInstruction(I_LEAVE_STACK_FRAME);
       PushInstruction(I_RETURN);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
+      printf("AIR: VARIABLE_ASSIGN\n");
       slot* variableSlot = GetVariableSlot(n->payload.variableAssignment.variable);
       slot* newValueSlot = GenNodeAIR<slot*>(tail, n->payload.variableAssignment.newValue);
       PushInstruction(I_MOV, variableSlot, newValueSlot);
@@ -305,7 +309,7 @@ instruction_label* GenNodeAIR<instruction_label*>(air_instruction* tail, node* n
   {
     case BREAK_NODE:
     {
-      printf("Emitting break instruction\n");
+      printf("AIR: BREAK\n");
       instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
       PushInstruction(I_JUMP, jump_instruction::condition::UNCONDITIONAL, label);
 
@@ -324,10 +328,12 @@ instruction_label* GenNodeAIR<instruction_label*>(air_instruction* tail, node* n
 
 void GenFunctionAIR(function_def* function)
 {
-  assert(function->code == nullptr);
+  assert(function->air == nullptr);
+  function->air = static_cast<air_function*>(malloc(sizeof(air_function)));
+  function->air->firstSlot = nullptr;
 
-  function->code = CreateInstruction(I_ENTER_STACK_FRAME);
-  air_instruction* tail = function->code;
+  function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
+  air_instruction* tail = function->air->code;
 
   for (node* n = function->ast;
        n;
@@ -342,13 +348,39 @@ void GenFunctionAIR(function_def* function)
 #if 1
   printf("--- AIR instruction listing for function: %s\n", function->name);
 
-  for (air_instruction* i = function->code;
+  for (air_instruction* i = function->air->code;
        i;
        i = i->next)
   {
     PrintInstruction(i);
   }
 #endif
+}
+
+void FreeAIRFunction(air_function* function)
+{
+  while (function->firstSlot)
+  {
+    slot_link* temp = function->firstSlot;
+    function->firstSlot = function->firstSlot->next;
+    
+    free(temp->s);
+    free(temp);
+  }
+
+  function->firstSlot = nullptr;
+
+  while (function->code)
+  {
+    air_instruction* temp = function->code;
+    function->code = function->code->next;
+
+    // Free the instruction
+    free(temp->label);
+    free(temp);
+  }
+
+  free(function);
 }
 
 void PrintInstruction(air_instruction* instruction)
@@ -360,21 +392,6 @@ void PrintInstruction(air_instruction* instruction)
   }
 
   printf("%s\n", GetInstructionName(instruction->type));
-}
-
-static void FreeInstructionLabel(instruction_label* label)
-{
-  free(label);
-}
-
-void FreeInstruction(air_instruction* instruction)
-{
-  if (instruction->label)
-  {
-    FreeInstructionLabel(instruction->label);
-  }
-
-  free(instruction);
 }
 
 const char* GetInstructionName(instruction_type type)

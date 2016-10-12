@@ -84,6 +84,8 @@ struct variable_def
 
 void FreeVariableDef(variable_def* variable);
 
+struct air_function;
+
 struct function_def
 {
   char*             name;
@@ -95,7 +97,7 @@ struct function_def
   uint32_t          attribMask;
 
   node*             ast;
-  air_instruction*  code;
+  air_function*     air;
 
   function_def*     next;
 };

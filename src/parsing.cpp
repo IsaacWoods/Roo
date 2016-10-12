@@ -1008,7 +1008,7 @@ static void Function(roo_parser& parser, uint32_t attribMask)
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
   definition->shouldAutoReturn = true;
-  definition->code = nullptr;
+  definition->air = nullptr;
   definition->attribMask = attribMask;
   definition->next = nullptr;
 
