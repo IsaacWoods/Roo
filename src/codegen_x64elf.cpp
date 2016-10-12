@@ -250,9 +250,28 @@ enum class i : uint8_t
 };
 
 /*
+ * ModR/M bytes are used to encode an instruction's operands, when there are only two and they are direct
+ * registers or effective memory addresses.
+ *
+ *   7                           0
+ * +---+---+---+---+---+---+---+---+
+ * |  mod  |    dest   |    src    |
+ * +---+---+---+---+---+---+---+---+
+ *
+ * `mod`: register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
+ */
+static inline uint8_t CreateModRM(reg dest, reg src)
+{
+  uint8_t result = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
+  result |= registerSet[dest].opcodeOffset << 3;
+  result |= registerSet[src].opcodeOffset;
+  return result;
+}
+
+/*
  * NOTE(Isaac): returns the number of bytes emitted
  */
-uint64_t Emit(FILE* f, i instruction, ...)
+static uint64_t Emit(FILE* f, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -278,12 +297,7 @@ uint64_t Emit(FILE* f, i instruction, ...)
       // TODO: `48` as a prefix is used to signify we are moving a 64-bit value into a 64-bit register. We should probably check this is the case.
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
-
-      // Construct the ModR/M byte
-      uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-      modRM |= registerSet[dest].opcodeOffset << 3;
-      modRM |= registerSet[src].opcodeOffset;
-      EMIT(modRM);
+      EMIT(CreateModRM(dest, src));
     } break;
 
     // NOTE(Isaac): these are the single-opcode instructions with no extra crap
