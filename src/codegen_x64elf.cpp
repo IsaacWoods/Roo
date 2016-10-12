@@ -273,20 +273,18 @@ uint64_t Emit(FILE* f, i instruction, ...)
   #undef EMIT
 }
 
-void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, parse_result& result)
+void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, parse_result& result,
+                         uint64_t virtualAddress)
 {
-  section.name = 0; // TODO
   section.type = elf_section::section_type::SHT_PROGBITS;
   section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  section.address = 0x08048000; // TODO(Isaac): tbh I have no idea where this value came from, but it's the same as the segment's virtual address
+  section.address = virtualAddress;
   section.offset = ftell(file);
   section.size = 0u;
   section.link = 0u;
   section.info = 0u;
   section.addressAlignment = 0x10;
   section.entrySize = 0x00;
-
-  header.entryPoint = 0u; // TODO
 
   // Generate code for each function
   for (function_def* function = result.firstFunction;
@@ -295,6 +293,13 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
   {
     printf("Generating object code for function: %s\n", function->name);
     assert(function->code);
+
+    // NOTE(Isaac): Check if this is the program's entry point
+    if (function->attribMask & function_attribs::ENTRY)
+    {
+      printf("Found program entry point: %s!\n", function->name);
+      header.entryPoint = virtualAddress + (ftell(file) - section.offset);
+    }
 
     for (air_instruction* instruction = function->code;
          instruction;
@@ -394,7 +399,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   // [0x78] Generate the object code that will be in the .text section
   fseek(f, 0x78, SEEK_SET);
   elf_section textSection;
-  GenerateTextSection(f, textSection, header, result);
+  GenerateTextSection(f, textSection, header, result, textSegment.virtualAddress);
 
   // [???] Create the string table
   elf_section stringTableSection;
