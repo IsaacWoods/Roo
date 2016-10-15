@@ -89,7 +89,6 @@ struct air_function;
 struct function_def
 {
   char*             name;
-  unsigned int      arity;
   variable_def*     firstParam;
   variable_def*     firstLocal;
   type_ref*         returnType;

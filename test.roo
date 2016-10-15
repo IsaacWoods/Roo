@@ -1,6 +1,6 @@
 #[Entry]
 fn Main() -> int
 {
-  return 4 + 5
-  return 7
+  x : int = 4 + 5 * 2
+  return x
 }
