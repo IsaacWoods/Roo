@@ -272,7 +272,6 @@ void OutputDOTOfAST(function_def* function)
     [&](node* n) -> char*
     {
       assert(n);
-      printf("Generating node of type: %s\n", GetNodeName(n->type));
 
       // Generate a new node name
       // NOTE(Isaac): it's possible this could overflow with high values of i
@@ -285,7 +284,7 @@ void OutputDOTOfAST(function_def* function)
       {
         case BREAK_NODE:
         {
-          
+          fprintf(f, "\t%s[label=\"Break\"];\n", name);
         } break;
 
         case RETURN_NODE:
@@ -395,7 +394,7 @@ void OutputDOTOfAST(function_def* function)
 
         case STRING_CONSTANT_NODE:
         {
-
+          fprintf(f, "\t%s[label=\"\"%s\"\"];\n", name, n->payload.stringConstant->string);
         } break;
 
         case FUNCTION_CALL_NODE:
@@ -405,7 +404,13 @@ void OutputDOTOfAST(function_def* function)
 
         case VARIABLE_ASSIGN_NODE:
         {
+//          assert(n->payload.variableAssignment.variable);
 
+          fprintf(f, "\t%s[label=\"`%s`=\"];\n", name, n->payload.variableAssignment.variableName);
+
+          char* newValueName = EmitNode(n->payload.variableAssignment.newValue);
+          fprintf(f, "\t%s -> %s;\n", name, newValueName);
+          free(newValueName);
         } break;
       }
 
