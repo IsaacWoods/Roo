@@ -47,7 +47,10 @@ struct slot
     float               f;
   } payload;
 
-  unsigned int tag;
+  /*
+   * -1 : signifies this slot holds a constant
+   */
+  signed int tag;
 };
 
 struct slot_link

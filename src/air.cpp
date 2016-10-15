@@ -9,6 +9,46 @@
 #include <cstdarg>
 #include <ast.hpp>
 
+slot* CreateSlot(slot::slot_type type, ...)
+{
+  va_list args;
+  va_start(args, type);
+
+  slot* s = static_cast<slot*>(malloc(sizeof(slot)));
+  s->type = type;
+  
+  switch (type)
+  {
+    case slot::slot_type::PARAM:
+    {
+      s->payload.variableDef = va_arg(args, variable_def*);
+      // TODO: set the tag
+    } break;
+
+    case slot::slot_type::LOCAL:
+    {
+      s->payload.variableDef = va_arg(args, variable_def*);
+      // TODO: set the tag
+    } break;
+
+    case slot::slot_type::INT_CONSTANT:
+    {
+      s->payload.i = va_arg(args, int);
+      s->tag = -1;
+    } break;
+
+    case slot::slot_type::FLOAT_CONSTANT:
+    {
+      // NOTE(Isaac): `float` is helpfully promoted to `double`...
+      s->payload.f = static_cast<float>(va_arg(args, double));
+      s->tag = -1;
+    } break;
+  }
+
+  va_end(args);
+  return nullptr;
+}
+
 /*
  * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
  * Always supply an AIR instruction type as the first vararg!
@@ -80,12 +120,6 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
   va_end(args);
   return i;
-}
-
-static slot* GetVariableSlot(variable_def* variable)
-{
-  // TODO
-  return nullptr;
 }
 
 /*
@@ -197,6 +231,22 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
       return nullptr;
     } break;
 
+    case NUMBER_CONSTANT_NODE:
+    {
+      switch (n->payload.numberConstant.type)
+      {
+        case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+        {
+          return CreateSlot(slot::slot_type::INT_CONSTANT, n->payload.numberConstant.constant.i);
+        } break;
+
+        case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+        {
+          return CreateSlot(slot::slot_type::FLOAT_CONSTANT, n->payload.numberConstant.constant.f);
+        } break;
+      }
+    };
+
     default:
     {
       fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR: %s\n", GetNodeName(n->type));
@@ -286,7 +336,9 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
     case VARIABLE_ASSIGN_NODE:
     {
       printf("AIR: VARIABLE_ASSIGN\n");
-      slot* variableSlot = GetVariableSlot(n->payload.variableAssignment.variable);
+      //slot* variableSlot = GetVariableSlot(n->payload.variableAssignment.variable);
+      // TODO
+      slot* variableSlot = nullptr;
       slot* newValueSlot = GenNodeAIR<slot*>(tail, n->payload.variableAssignment.newValue);
       PushInstruction(I_MOV, variableSlot, newValueSlot);
     } break;

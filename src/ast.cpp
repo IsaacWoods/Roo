@@ -70,12 +70,12 @@ node* CreateNode(node_type type, ...)
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          payload.numberConstant.constant.asInt = va_arg(args, int);
+          payload.numberConstant.constant.i = va_arg(args, int);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          payload.numberConstant.constant.asFloat = static_cast<float>(va_arg(args, double));
+          payload.numberConstant.constant.f = static_cast<float>(va_arg(args, double));
         } break;
 
         default:

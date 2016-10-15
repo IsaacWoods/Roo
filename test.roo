@@ -1,12 +1,6 @@
-fn SomeFunction(x : int) -> int
-{
-  y : int = 4
-  y = y + x
-  return y
-}
-
 #[Entry]
 fn Main() -> int
 {
-  return SomeFunction(~11)
+  y : int = 4
+  return y
 }

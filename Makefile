@@ -13,6 +13,7 @@ OBJS = \
 	src/air.o \
 	src/codegen_x64elf.o \
 
+.PHONY: graphAST
 .PHONY: clean
 
 roo: $(OBJS)
@@ -20,6 +21,9 @@ roo: $(OBJS)
 
 %.o: %.cpp
 	$(CXX) -o $@ -c $< $(CFLAGS)
+
+graphAST:
+	dot -Tpng ast.dot -o ast.png
 
 clean:
 	find . -name '*.o' | xargs rm roo

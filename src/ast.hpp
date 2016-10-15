@@ -81,8 +81,8 @@ struct number_constant_part
 
   union
   {
-    int   asInt;
-    float asFloat;
+    int   i;
+    float f;
   } constant;
 };
 
