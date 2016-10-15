@@ -280,11 +280,103 @@ void OutputDOTOfAST(function_def* function)
       name[0] = 'n';
       itoa(i++, &(name[1]), 10);
 
-      // Generate the node
-      fprintf(f, "\t%s[label=\"%s\"];\n", name, GetNodeName(n->type));
+      // Generate the node and its children
+      switch (n->type)
+      {
+        case BREAK_NODE:
+        {
+          
+        } break;
 
-      // Generate the node's children
-//      switch (
+        case RETURN_NODE:
+        {
+          fprintf(f, "\t%s[label=\"Return\"];\n", name);
+
+          char* expressionName = EmitNode(n->payload.expression);
+          fprintf(f, "\t%s -> %s;\n", name, expressionName);
+          free(expressionName);
+        } break;
+
+        case BINARY_OP_NODE:
+        {
+          switch (n->payload.binaryOp.op)
+          {
+            case TOKEN_PLUS:      fprintf(f, "\t%s[label=\"+\"];\n", name); break;
+            case TOKEN_MINUS:     fprintf(f, "\t%s[label=\"-\"];\n", name); break;
+            case TOKEN_ASTERIX:   fprintf(f, "\t%s[label=\"*\"];\n", name); break;
+            case TOKEN_SLASH:     fprintf(f, "\t%s[label=\"/\"];\n", name); break;
+            default:
+            {
+              fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
+              exit(1);
+            }
+          }
+
+          char* leftName = EmitNode(n->payload.binaryOp.left);
+          fprintf(f, "\t%s -> %s;\n", name, leftName);
+          free(leftName);
+
+          char* rightName = EmitNode(n->payload.binaryOp.left);
+          fprintf(f, "\t%s -> %s;\n", name, rightName);
+          free(rightName);
+        } break;
+
+        case PREFIX_OP_NODE:
+        {
+          switch (n->payload.prefixOp.op)
+          {
+            case TOKEN_PLUS:  fprintf(f, "\t%s[label=\"+\"];\n", name); break;
+            case TOKEN_MINUS: fprintf(f, "\t%s[label=\"-\"];\n", name); break;
+            case TOKEN_BANG:  fprintf(f, "\t%s[label=\"!\"];\n", name); break;
+            case TOKEN_TILDE: fprintf(f, "\t%s[label=\"~\"];\n", name); break;
+            default:
+            {
+              fprintf(stderr, "Unhandled prefix op node in OutputDOTForAST\n");
+              exit(1);
+            }
+          }
+
+          char* rightName = EmitNode(n->payload.binaryOp.left);
+          fprintf(f, "\t%s -> %s;\n", name, rightName);
+          free(rightName);
+
+        } break;
+
+        case VARIABLE_NODE:
+        {
+
+        } break;
+
+        case CONDITION_NODE:
+        {
+
+        } break;
+
+        case IF_NODE:
+        {
+
+        } break;
+
+        case NUMBER_CONSTANT_NODE:
+        {
+
+        } break;
+
+        case STRING_CONSTANT_NODE:
+        {
+
+        } break;
+
+        case FUNCTION_CALL_NODE:
+        {
+
+        } break;
+
+        case VARIABLE_ASSIGN_NODE:
+        {
+
+        } break;
+      }
 
       // Generate the next node, and draw an edge between this node and the next
       if (n->next)
