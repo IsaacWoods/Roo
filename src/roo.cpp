@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <tinydir.hpp>
+#include <ast.hpp>
 #include <air.hpp>
 
 // NOTE(Isaac): defined in `parsing.cpp`
@@ -43,6 +44,14 @@ int main()
     }
   
     tinydir_close(&dir);
+  }
+
+  // Emit DOT files for function ASTs
+  for (function_def* function = result.firstFunction;
+       function;
+       function = function->next)
+  {
+    OutputDOTOfAST(function);
   }
 
   // Generate AIR instructions from the AST

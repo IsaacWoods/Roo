@@ -130,3 +130,4 @@ struct node
 
 node* CreateNode(node_type type, ...);
 void FreeNode(node* n);
+void OutputDOTOfAST(function_def* function);

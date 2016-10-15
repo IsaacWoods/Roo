@@ -5,3 +5,6 @@
 *.dll
 *.swp
 roo
+test
+*.dot
+*.png

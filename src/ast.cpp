@@ -232,3 +232,73 @@ const char* GetNodeName(node_type type)
     }
   }
 }
+
+#include <cstring>
+#include <cstdlib>
+#include <cassert>
+#include <functional>
+
+/*
+ * Outputs a DOT file of a function's AST.
+ * NOTE(Isaac): The code of the DOT is not guaranteed to be pretty.
+ */
+void OutputDOTOfAST(function_def* function)
+{
+  // Check if the function's empty
+  if (function->ast == nullptr)
+  {
+    return;
+  }
+
+  printf("--- Outputting DOT file for function: %s ---\n", function->name);
+
+  unsigned int i = 0u;
+  char fileName[128u] = {0};
+  strcpy(fileName, function->name);
+  strcat(fileName, "AST.dot");
+  FILE* f = fopen(fileName, "w");
+
+  if (!f)
+  {
+    fprintf(stderr, "Failed to open DOT file: %s!\n", fileName);
+    exit(1);
+  }
+
+  fprintf(f, "digraph G\n{\n");
+
+  // NOTE(Isaac): yes, this is a recursive lambda
+  // NOTE(Isaac): yeah, this also uses disgusting C++ STL stuff, but function pointers aren't powerful enough so
+  std::function<char*(node*)> EmitNode =
+    [&](node* n) -> char*
+    {
+      assert(n);
+      printf("Generating node of type: %s\n", GetNodeName(n->type));
+
+      // Generate a new node name
+      // NOTE(Isaac): it's possible this could overflow with high values of i
+      char* name = static_cast<char*>(malloc(sizeof(char) * 16u));
+      name[0] = 'n';
+      itoa(i++, &(name[1]), 10);
+
+      // Generate the node
+      fprintf(f, "\t%s[label=\"%s\"];\n", name, GetNodeName(n->type));
+
+      // Generate the node's children
+//      switch (
+
+      // Generate the next node, and draw an edge between this node and the next
+      if (n->next)
+      {
+        char* nextName = EmitNode(n->next);
+        fprintf(f, "\t%s -> %s\n", name, nextName);
+        free(nextName);
+      }
+
+      return name;
+    };
+
+  free(EmitNode(function->ast));
+
+  fprintf(f, "}\n");
+  fclose(f);
+}
