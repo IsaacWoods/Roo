@@ -316,7 +316,7 @@ void OutputDOTOfAST(function_def* function)
           fprintf(f, "\t%s -> %s;\n", name, leftName);
           free(leftName);
 
-          char* rightName = EmitNode(n->payload.binaryOp.left);
+          char* rightName = EmitNode(n->payload.binaryOp.right);
           fprintf(f, "\t%s -> %s;\n", name, rightName);
           free(rightName);
         } break;
@@ -339,17 +339,37 @@ void OutputDOTOfAST(function_def* function)
           char* rightName = EmitNode(n->payload.binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, rightName);
           free(rightName);
-
         } break;
 
         case VARIABLE_NODE:
         {
-
+          fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.name);
         } break;
 
         case CONDITION_NODE:
         {
+          switch (n->payload.binaryOp.op)
+          {
+            case TOKEN_EQUALS_EQUALS:           fprintf(f, "\t%s[label=\"==\"];\n", name); break;
+            case TOKEN_BANG_EQUALS:             fprintf(f, "\t%s[label=\"!=\"];\n", name); break;
+            case TOKEN_GREATER_THAN:            fprintf(f, "\t%s[label=\">\"];\n",  name); break;
+            case TOKEN_GREATER_THAN_EQUAL_TO:   fprintf(f, "\t%s[label=\">=\"];\n", name); break;
+            case TOKEN_LESS_THAN:               fprintf(f, "\t%s[label=\"<\"];\n",  name); break;
+            case TOKEN_LESS_THAN_EQUAL_TO:      fprintf(f, "\t%s[label=\"<=\"];\n", name); break;
+            default:
+            {
+              fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
+              exit(1);
+            }
+          }
 
+          char* leftName = EmitNode(n->payload.binaryOp.left);
+          fprintf(f, "\t%s -> %s;\n", name, leftName);
+          free(leftName);
+
+          char* rightName = EmitNode(n->payload.binaryOp.right);
+          fprintf(f, "\t%s -> %s;\n", name, rightName);
+          free(rightName);
         } break;
 
         case IF_NODE:
@@ -359,7 +379,18 @@ void OutputDOTOfAST(function_def* function)
 
         case NUMBER_CONSTANT_NODE:
         {
+          switch (n->payload.numberConstant.type)
+          {
+            case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+            {
+              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->payload.numberConstant.constant.i);
+            } break;
 
+            case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+            {
+              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->payload.numberConstant.constant.f);
+            } break;
+          }
         } break;
 
         case STRING_CONSTANT_NODE:

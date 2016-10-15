@@ -57,6 +57,15 @@ struct variable_node_part
   char* name;
 };
 
+/*
+ * Conditions:
+ *    TOKEN_EQUALS_EQUALS
+ *    TOKEN_BANG_EQUALS
+ *    TOKEN_GREATER_THAN
+ *    TOKEN_GREATER_THAN_EQUAL_TO
+ *    TOKEN_LESS_THAN
+ *    TOKEN_LESS_THAN_EQUAL_TO
+ */
 struct condition_node_part
 {
   token_type  condition;
