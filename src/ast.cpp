@@ -255,7 +255,7 @@ void OutputDOTOfAST(function_def* function)
   unsigned int i = 0u;
   char fileName[128u] = {0};
   strcpy(fileName, function->name);
-  strcat(fileName, "AST.dot");
+  strcat(fileName, ".dot");
   FILE* f = fopen(fileName, "w");
 
   if (!f)
@@ -290,7 +290,7 @@ void OutputDOTOfAST(function_def* function)
       if (n->next)
       {
         char* nextName = EmitNode(n->next);
-        fprintf(f, "\t%s -> %s\n", name, nextName);
+        fprintf(f, "\t%s -> %s[color=blue];\n", name, nextName);
         free(nextName);
       }
 

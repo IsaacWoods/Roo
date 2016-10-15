@@ -22,8 +22,5 @@ roo: $(OBJS)
 %.o: %.cpp
 	$(CXX) -o $@ -c $< $(CFLAGS)
 
-graphAST:
-	dot -Tpng ast.dot -o ast.png
-
 clean:
-	find . -name '*.o' | xargs rm roo
+	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo
