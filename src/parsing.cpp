@@ -751,12 +751,10 @@ static node* Block(roo_parser& parser)
         tail = tail->next;
       }
 
-      printf("* Adding statement to tail of type: %s\n", GetNodeName(tail->type));
       tail->next = statement;
     }
     else
     {
-      printf("* Setting statement as first in block\n");
       code = statement;
     }
   }

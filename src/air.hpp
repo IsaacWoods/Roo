@@ -34,11 +34,11 @@ struct slot
 {
   enum slot_type
   {
-    PARAM,
-    LOCAL,
-    INTERMEDIATE,
-    INT_CONSTANT,
-    FLOAT_CONSTANT,
+    PARAM,            // NOTE(Isaac): `variable` field of `payload` is valid
+    LOCAL,            // NOTE(Isaac): `variable` field of `payload` is valid
+    INTERMEDIATE,     // NOTE(Isaac): `payload` is undefined
+    INT_CONSTANT,     // NOTE(Isaac): `i` field of `payload` is valid
+    FLOAT_CONSTANT,   // NOTE(Isaac): `f` field of `payload` is valid
   } type;
 
   union
@@ -52,6 +52,10 @@ struct slot
    * -1 : signifies this slot holds a constant
    */
   signed int tag;
+
+#if 1
+  unsigned int dotTag;
+#endif
 };
 
 struct jump_instruction
@@ -111,10 +115,18 @@ struct air_instruction
   } payload;
 };
 
+struct slot_interference
+{
+  slot* a;
+  slot* b;
+};
+
 struct air_function
 {
-  air_instruction*    code;
-  linked_list<slot*>  slots;
+  air_instruction*                code;
+  linked_list<slot*>              slots;
+  linked_list<slot_interference>  interferences;
+  int                             numIntermediates;
 };
 
 void GenFunctionAIR(function_def* function);

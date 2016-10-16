@@ -35,8 +35,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 
     case slot::slot_type::INTERMEDIATE:
     {
-      s->payload.variable = va_arg(args, variable_def*);
-      // TODO: set the tag
+      s->tag = function->numIntermediates++;
     } break;
 
     case slot::slot_type::INT_CONSTANT:
@@ -55,18 +54,6 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 
   AddToLinkedList<slot*>(function->slots, s);
   va_end(args);
-  return nullptr;
-}
-
-slot* CreateTemporary(air_function* function)
-{
-  static int numTemporaries = 0;
-
-  slot* s = static_cast<slot*>(malloc(sizeof(slot)));
-  s->type = slot::slot_type::INTERMEDIATE;
-  s->payload.variable = nullptr;
-  s->tag = numTemporaries++;
-
   return s;
 }
 
@@ -173,7 +160,12 @@ slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
       printf("AIR: BINARY_OP\n");
       slot* left = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.right);
-      slot* result = static_cast<slot*>(malloc(sizeof(slot)));
+      slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
+      printf("(%p, %p, %p)\n", left, right, result);
+
+      AddToLinkedList<slot_interference>(function->interferences, slot_interference{left, right});
+      AddToLinkedList<slot_interference>(function->interferences, slot_interference{left, result});
+      AddToLinkedList<slot_interference>(function->interferences, slot_interference{right, result});
 
       switch (n->payload.binaryOp.op)
       {
@@ -404,6 +396,9 @@ void GenFunctionAIR(function_def* function)
   assert(function->air == nullptr);
   function->air = static_cast<air_function*>(malloc(sizeof(air_function)));
   CreateLinkedList<slot*>(function->air->slots);
+  CreateLinkedList<slot_interference>(function->air->interferences);
+  function->air->numIntermediates = 0;
+
   function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
   air_instruction* tail = function->air->code;
 
@@ -520,6 +515,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
   fprintf(f, "digraph G\n{\n");
   unsigned int i = 0u;
   
+  // Emit nodes
   for (auto* slotIt = function->slots.first;
        slotIt;
        slotIt = slotIt->next)
@@ -538,7 +534,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
       case slot::slot_type::INTERMEDIATE:
       {
-        fprintf(f, "\ts%u[label=\"%s : INTERMEDIATE(%d)\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag);
+        fprintf(f, "\ts%u[label=\"t%d : INTERMEDIATE\"];\n", i, (**slotIt)->tag);
       } break;
 
       case slot::slot_type::INT_CONSTANT:
@@ -552,7 +548,16 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
       } break;
     }
 
+    (**slotIt)->dotTag = i;
     i++;
+  }
+
+  // Emit the interferences between them
+  for (auto* interferenceIt = function->interferences.first;
+       interferenceIt;
+       interferenceIt = interferenceIt->next)
+  {
+    fprintf(f, "\ts%u -> s%u;\n", (**interferenceIt).a->dotTag, (**interferenceIt).b->dotTag);
   }
 
   fprintf(f, "}\n");
