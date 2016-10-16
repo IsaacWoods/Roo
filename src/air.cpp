@@ -21,6 +21,8 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 
   slot* s = static_cast<slot*>(malloc(sizeof(slot)));
   s->type = type;
+  s->numInterferences = 0u;
+  memset(s->interferences, 0, sizeof(slot*) * MAX_INTERFERENCES);
   s->color = -1;
   
   switch (type)
@@ -64,6 +66,12 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   AddToLinkedList<slot*>(function->slots, s);
   va_end(args);
   return s;
+}
+
+static void AddInterference(slot* a, slot* b)
+{
+  a->interferences[a->numInterferences++] = b;
+  b->interferences[b->numInterferences++] = a;
 }
 
 /*
@@ -171,9 +179,9 @@ slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
       slot* right = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
 
-      AddToLinkedList<slot_interference>(function->interferences, slot_interference{left, right});
-      AddToLinkedList<slot_interference>(function->interferences, slot_interference{left, result});
-      AddToLinkedList<slot_interference>(function->interferences, slot_interference{right, result});
+      AddInterference(left, right);
+      AddInterference(left, result);
+      AddInterference(right, result);
 
       switch (n->payload.binaryOp.op)
       {
@@ -399,12 +407,41 @@ instruction_label* GenNodeAIR<instruction_label*>(air_function* /*function*/, ai
   return nullptr;
 }
 
+static void ColorSlots(air_function* function)
+{
+  assert(GetNumGeneralRegisters() > 1u);
+
+  // Turn the linked list of slots into a nice array
+  unsigned int numSlots;
+  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
+
+  // TODO: color the params the correct colors
+
+  // Assign the first color to the first slot (that is colorable)
+  for (unsigned int i = 0;
+       i < numSlots;
+       i++)
+  {
+    if (slots[i]->shouldBeColored)
+    {
+      slots[i] = 0u;
+      goto ColoredFirst;
+    }
+  }
+
+  fprintf(stderr, "No nodes needed coloring... this stinks more than Lenin probably does by now...\n");
+  exit(1);
+
+ColoredFirst:
+  // TODO: color the rest
+  return;
+}
+
 void GenFunctionAIR(function_def* function)
 {
   assert(function->air == nullptr);
   function->air = static_cast<air_function*>(malloc(sizeof(air_function)));
   CreateLinkedList<slot*>(function->air->slots);
-  CreateLinkedList<slot_interference>(function->air->interferences);
   function->air->numIntermediates = 0;
 
   function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
@@ -422,8 +459,6 @@ void GenFunctionAIR(function_def* function)
   CreateInterferenceDOT(function->air, function->name);
 
 #if 1
-  printf("Num slots in function: %u\n", GetSizeOfLinkedList<slot*>(function->air->slots));
-
   // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", function->name);
 
@@ -568,11 +603,20 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
   }
 
   // Emit the interferences between them
-  for (auto* interferenceIt = function->interferences.first;
-       interferenceIt;
-       interferenceIt = interferenceIt->next)
+  for (auto* slotIt = function->slots.first;
+       slotIt;
+       slotIt = slotIt->next)
   {
-    fprintf(f, "\ts%u -> s%u;\n", (**interferenceIt).a->dotTag, (**interferenceIt).b->dotTag);
+    for (unsigned int i = 0u;
+         i < (**slotIt)->numInterferences;
+         i++)
+    {
+      // NOTE(Isaac): this is a slightly tenuous way to avoid emitting duplicates
+      if ((**slotIt)->dotTag < (**slotIt)->interferences[i]->dotTag)
+      {
+        fprintf(f, "\ts%u -> s%u[dir=none];\n", (**slotIt)->dotTag, (**slotIt)->interferences[i]->dotTag);
+      }
+    }
   }
 
   fprintf(f, "}\n");

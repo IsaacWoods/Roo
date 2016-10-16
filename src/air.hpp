@@ -6,6 +6,9 @@
 
 #include <common.hpp>
 
+// NOTE(Isaac): Could be considered bad practice, but stops us needing a gazillion dynamic arrays everywhere??
+#define MAX_INTERFERENCES 32u
+
 enum instruction_type
 {
   I_ENTER_STACK_FRAME,
@@ -52,6 +55,9 @@ struct slot
    * -1 : signifies this slot holds a constant
    */
   signed int tag;
+
+  unsigned int numInterferences;
+  slot* interferences[MAX_INTERFERENCES];
 
   /*
    * -1: signifies that this slot has not been colored
@@ -121,17 +127,10 @@ struct air_instruction
   } payload;
 };
 
-struct slot_interference
-{
-  slot* a;
-  slot* b;
-};
-
 struct air_function
 {
   air_instruction*                code;
   linked_list<slot*>              slots;
-  linked_list<slot_interference>  interferences;
   int                             numIntermediates;
 };
 

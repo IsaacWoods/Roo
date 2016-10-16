@@ -84,6 +84,28 @@ unsigned int GetSizeOfLinkedList(linked_list<T>& list)
   return size;
 }
 
+/*
+ * Turn the linked-list into a contiguous array of the same elements.
+ */
+// O(n)
+template<typename T>
+T* LinearizeLinkedList(linked_list<T>& list, unsigned int* size)
+{
+  T* result = static_cast<T*>(malloc(sizeof(T) * GetSizeOfLinkedList<T>(list)));
+
+  unsigned int i = 0u;
+
+  for (auto* it = list.first;
+       it;
+       it = it->next)
+  {
+    result[i++] = **it;
+  }
+
+  *size = i;
+  return result;
+}
+
 // --- Common functions ---
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
