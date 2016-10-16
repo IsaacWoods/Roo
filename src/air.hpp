@@ -53,6 +53,12 @@ struct slot
    */
   signed int tag;
 
+  /*
+   * -1: signifies that this slot has not been colored
+   */
+  bool shouldBeColored;
+  signed int color;
+
 #if 1
   unsigned int dotTag;
 #endif

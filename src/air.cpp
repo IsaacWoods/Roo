@@ -11,6 +11,9 @@
 #include <common.hpp>
 #include <ast.hpp>
 
+// NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
+unsigned int GetNumGeneralRegisters();
+
 slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 {
   va_list args;
@@ -18,6 +21,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 
   slot* s = static_cast<slot*>(malloc(sizeof(slot)));
   s->type = type;
+  s->color = -1;
   
   switch (type)
   {
@@ -25,23 +29,27 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
     {
       s->payload.variable = va_arg(args, variable_def*);
       // TODO: set the tag
+      s->shouldBeColored = true;
     } break;
 
     case slot::slot_type::LOCAL:
     {
       s->payload.variable = va_arg(args, variable_def*);
       // TODO: set the tag
+      s->shouldBeColored = true;
     } break;
 
     case slot::slot_type::INTERMEDIATE:
     {
       s->tag = function->numIntermediates++;
+      s->shouldBeColored = true;
     } break;
 
     case slot::slot_type::INT_CONSTANT:
     {
       s->payload.i = va_arg(args, int);
       s->tag = -1;
+      s->shouldBeColored = false;
     } break;
 
     case slot::slot_type::FLOAT_CONSTANT:
@@ -49,6 +57,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
       // NOTE(Isaac): `float` is helpfully promoted to `double` all on its own...
       s->payload.f = static_cast<float>(va_arg(args, double));
       s->tag = -1;
+      s->shouldBeColored = false;
     } break;
   }
 
@@ -161,7 +170,6 @@ slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
       slot* left = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
-      printf("(%p, %p, %p)\n", left, right, result);
 
       AddToLinkedList<slot_interference>(function->interferences, slot_interference{left, right});
       AddToLinkedList<slot_interference>(function->interferences, slot_interference{left, result});
@@ -520,31 +528,38 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
        slotIt;
        slotIt = slotIt->next)
   {
+    const char* color = "black";
+
+    if (!(**slotIt)->shouldBeColored)
+    {
+      color = "gray";
+    }
+
     switch ((**slotIt)->type)
     {
       case slot::slot_type::PARAM:
       {
-        fprintf(f, "\ts%u[label=\"%s : PARAM(%d)\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag);
+        fprintf(f, "\ts%u[label=\"%s : PARAM(%d)\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag, color, color);
       } break;
 
       case slot::slot_type::LOCAL:
       {
-        fprintf(f, "\ts%u[label=\"%s : LOCAL(%d)\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag);
+        fprintf(f, "\ts%u[label=\"%s : LOCAL(%d)\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag, color, color);
       } break;
 
       case slot::slot_type::INTERMEDIATE:
       {
-        fprintf(f, "\ts%u[label=\"t%d : INTERMEDIATE\"];\n", i, (**slotIt)->tag);
+        fprintf(f, "\ts%u[label=\"t%d : INTERMEDIATE\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->tag, color, color);
       } break;
 
       case slot::slot_type::INT_CONSTANT:
       {
-        fprintf(f, "\ts%u[label=\"%d : INT(%d)\"];\n", i, (**slotIt)->payload.i, (**slotIt)->tag);
+        fprintf(f, "\ts%u[label=\"%d : INT\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.i, color, color);
       } break;
 
       case slot::slot_type::FLOAT_CONSTANT:
       {
-        fprintf(f, "\ts%u[label=\"%f : FLOAT(%d)\"];\n", i, (**slotIt)->payload.f, (**slotIt)->tag);
+        fprintf(f, "\ts%u[label=\"%f : FLOAT\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.f, color, color);
       } break;
     }
 

@@ -241,6 +241,14 @@ static x64_register registerSet[16u] =
   x64_register{15u},  // R15
 };
 
+/*
+ * NOTE(Isaac): this includes registers that *may* contain parameters
+ */
+unsigned int GetNumGeneralRegisters()
+{
+  return 14u;
+}
+
 enum class i : uint8_t
 {
   PUSH_REG        = 0x50,       // +r
