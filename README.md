@@ -18,24 +18,30 @@ It looks something like this:
 ``` roo
 type Color
 {
-  r : Float
-  g : Float
-  b : Float
-  a : Float
+  r : float
+  g : float
+  b : float
+  a : float
 }
 
-fn PrintColor(color : Color&)
+fn PrintColor(color : color&)
 {
   PrintFmt("Color: (%f, %f, %f, %f)", color.r, color.g, color.b, color.a)
 }
 
-fn Main() -> Int
+fn Main() -> int
 {
   Print("Hello, World!")
 
   // Make and print a color
 
-  myColor : Color(1.0f, 0.0f, 1.0f, 1.0f)
+  myColor : color(1.0f, 0.0f, 1.0f, 1.0f)
   PrintColor(myColor)
 }
 ```
+
+### Using the compiler
+At the moment, the compiler only produces executables usable with 64-bit, System-V, ELF-compatible systems.
+Running `./roo` in a directory of `.roo` files will compile and link them, producing an executable in the
+current directory. It will also produce various DOT files, which may be converted to images with:
+`dot -Tpng -o {someName}.png {someName}.dot`
