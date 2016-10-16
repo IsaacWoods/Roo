@@ -1,10 +1,10 @@
 # Roo
 [![Build Status](https://travis-ci.org/IsaacWoods/Roo.svg?branch=master)](https://travis-ci.org/IsaacWoods/Roo)
 
-Roo is a predominantly procedural programming language built both the experiment with a new language, and to
-show the construction of a non-trivial compiler. Its construction is detailed in a (currently non-existant) series
-of blog posts. Its central goal is to design a language with good programmers in mind, instead of protecting against
-bad programmers.
+Roo is a predominantly procedural programming language built to experiment with a new language.
+Its central goal is to design a language with good programmers in mind, instead of protecting against
+bad ones. It aims to avoid the kitchen-sink like hodgepodge of languages like C++ but also not to become
+obsessed with a theoretical ideal like functional program tends to.
 
 ### Aims
 Roo is based upon C, but tries to find better solutions to some of C's problems:
@@ -18,7 +18,7 @@ It looks something like this:
 ``` roo
 import roo.io
 
-type Color
+type color
 {
   r : float
   g : float
