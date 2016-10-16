@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstdarg>
+#include <common.hpp>
 #include <ast.hpp>
 
 slot* CreateSlot(air_function* function, slot::slot_type type, ...)
@@ -51,27 +52,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
     } break;
   }
 
-  // Add the slot to the function's definition
-  slot_link* link = static_cast<slot_link*>(malloc(sizeof(slot_link)));
-  link->s = s;
-  link->next = nullptr;
-
-  if (function->firstSlot)
-  {
-    slot_link* tail = function->firstSlot;
-
-    while (tail->next)
-    {
-      tail = tail->next;
-    }
-
-    tail->next = link;
-  }
-  else
-  {
-    function->firstSlot = link;
-  }
-
+  AddToLinkedList<slot*>(function->slots, s);
   va_end(args);
   return nullptr;
 }
@@ -379,7 +360,7 @@ void GenNodeAIR<void>(air_function* function, air_instruction* tail, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(air_function* function, air_instruction* tail, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(air_function* /*function*/, air_instruction* tail, node* n)
 {
   assert(tail);
   assert(n);
@@ -409,7 +390,6 @@ void GenFunctionAIR(function_def* function)
 {
   assert(function->air == nullptr);
   function->air = static_cast<air_function*>(malloc(sizeof(air_function)));
-  function->air->firstSlot = nullptr;
 
   function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
   air_instruction* tail = function->air->code;
@@ -424,16 +404,7 @@ void GenFunctionAIR(function_def* function)
   PushInstruction(I_LEAVE_STACK_FRAME);
 
 #if 1
-  unsigned int numSlots;
-
-  for (slot_link* slot = function->air->firstSlot;
-       slot;
-       slot = slot->next)
-  {
-    numSlots++;
-  }
-
-  printf("Num slots in function: %u\n", numSlots);
+  printf("Num slots in function: %u\n", GetSizeOfLinkedList<slot*>(function->air->slots));
 
   // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", function->name);
@@ -449,16 +420,7 @@ void GenFunctionAIR(function_def* function)
 
 void FreeAIRFunction(air_function* function)
 {
-  while (function->firstSlot)
-  {
-    slot_link* temp = function->firstSlot;
-    function->firstSlot = function->firstSlot->next;
-    
-    free(temp->s);
-    free(temp);
-  }
-
-  function->firstSlot = nullptr;
+  FreeLinkedList<slot*>(function->slots);
 
   while (function->code)
   {

@@ -54,12 +54,6 @@ struct slot
   signed int tag;
 };
 
-struct slot_link
-{
-  slot*       s;
-  slot_link*  next;
-};
-
 struct jump_instruction
 {
   enum condition
@@ -119,8 +113,8 @@ struct air_instruction
 
 struct air_function
 {
-  air_instruction*  code;
-  slot_link*        firstSlot;
+  air_instruction*    code;
+  linked_list<slot*>  slots;
 };
 
 void GenFunctionAIR(function_def* function);

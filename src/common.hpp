@@ -66,6 +66,22 @@ void AddToLinkedList(linked_list<T>& list, T thing)
   }
 }
 
+// O(n)
+template<typename T>
+unsigned int GetSizeOfLinkedList(linked_list<T>& list)
+{
+  unsigned int size = 0u;
+
+  for (auto* i = list.first;
+       i;
+       i = i->next)
+  {
+    ++size;
+  }
+
+  return size;
+}
+
 // --- Common functions ---
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);

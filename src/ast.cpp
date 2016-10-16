@@ -190,9 +190,6 @@ void FreeNode(node* n)
       free(n->payload.variableAssignment.variableName);
       FreeNode(n->payload.variableAssignment.newValue);
     } break;
-
-    default:
-      fprintf(stderr, "Unhandled node type in FreeNode!\n");
   }
 
   free(n);
@@ -224,13 +221,9 @@ const char* GetNodeName(node_type type)
       return "FUNCTION_CALL_NODE";
     case VARIABLE_ASSIGN_NODE:
       return "VARIABLE_ASSIGN_NODE";
-
-    default:
-    {
-      fprintf(stderr, "Unhandled AST node type in GetNodeName!\n");
-      exit(1);
-    }
   }
+
+  return nullptr;
 }
 
 #include <cstring>
