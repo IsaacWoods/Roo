@@ -57,6 +57,13 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   return nullptr;
 }
 
+slot* CreateTemporary(air_function* function)
+{
+  static unsigned int numTemporaries = 0u;
+
+  slot* s = static_cast<slot*>(malloc(sizeof(slot)));
+}
+
 /*
  * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
  * Always supply an AIR instruction type as the first vararg!
