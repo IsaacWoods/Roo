@@ -557,7 +557,14 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
   fprintf(f, "digraph G\n{\n");
   unsigned int i = 0u;
-  
+
+  const char* snazzyColors[] =
+  {
+    "cyan2", "deeppink", "gainsboro", "dodgerblue4", "slategray", "goldenrod", "darkorchid1", "firebrick2",
+    "green3", "lightblue2", "mediumspringgreeen", "orange1", "mistyrose3", "maroon2", "mediumpurple2",
+    "steelblue2", "plum", "lightseagreen"
+  };
+
   // Emit nodes
   for (auto* slotIt = function->slots.first;
        slotIt;
@@ -568,6 +575,18 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
     if (!(**slotIt)->shouldBeColored)
     {
       color = "gray";
+    }
+    else
+    {
+      if ((**slotIt)->color < 0)
+      {
+        fprintf(stderr, "WARNING: found uncolored node! Using red!\n");
+        color = "red";
+      }
+      else
+      {
+        color = snazzyColors[(**slotIt)->color];
+      }
     }
 
     switch ((**slotIt)->type)
