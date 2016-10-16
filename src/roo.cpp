@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <tinydir.hpp>
+#include <common.hpp>
 #include <ast.hpp>
 #include <air.hpp>
 

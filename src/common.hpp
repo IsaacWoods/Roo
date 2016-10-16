@@ -4,11 +4,73 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <cstdint>
+#include <cstdio>
 
+// --- Linked list ---
+template<typename T>
+struct linked_list
+{
+  linked_list()
+    :first(nullptr)
+    ,tail(nullptr)
+  { }
+
+  struct link
+  {
+    T payload;
+    link* next;
+
+    T& operator*()
+    {
+      return payload;
+    }
+  } *first;
+
+  link* tail;
+};
+
+// O(n)
+template<typename T>
+void FreeLinkedList(linked_list<T>& list)
+{
+  list.tail = nullptr;
+
+  while (list.first)
+  {
+    typename linked_list<T>::link* temp = list.first;
+    list.first = list.first->next;
+
+    // TODO: how should we free the payload? Callback sounds grim
+    free(temp);
+  }
+}
+
+// O(1)
+template<typename T>
+void AddToLinkedList(linked_list<T>& list, T thing)
+{
+  typename linked_list<T>::link* link = static_cast<typename linked_list<T>::link*>(malloc(sizeof(typename linked_list<T>::link)));
+  link->next = nullptr;
+  link->payload = thing;
+
+  if (list.tail)
+  {
+    list.tail->next = link;
+    list.tail = link;
+  }
+  else
+  {
+    list.first = list.tail = link;
+  }
+}
+
+// --- Common functions ---
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
 
+// --- IR stuff ---
 struct dependency_def;
 struct function_def;
 struct type_def;

@@ -36,8 +36,9 @@ struct slot
   {
     PARAM,
     LOCAL,
+    INTERMEDIATE,
     INT_CONSTANT,
-    FLOAT_CONSTANT
+    FLOAT_CONSTANT,
   } type;
 
   union

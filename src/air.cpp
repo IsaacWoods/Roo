@@ -9,7 +9,7 @@
 #include <cstdarg>
 #include <ast.hpp>
 
-slot* CreateSlot(slot::slot_type type, ...)
+slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 {
   va_list args;
   va_start(args, type);
@@ -31,6 +31,12 @@ slot* CreateSlot(slot::slot_type type, ...)
       // TODO: set the tag
     } break;
 
+    case slot::slot_type::INTERMEDIATE:
+    {
+      s->payload.variableDef = va_arg(args, variable_def*);
+      // TODO: set the tag
+    } break;
+
     case slot::slot_type::INT_CONSTANT:
     {
       s->payload.i = va_arg(args, int);
@@ -39,10 +45,31 @@ slot* CreateSlot(slot::slot_type type, ...)
 
     case slot::slot_type::FLOAT_CONSTANT:
     {
-      // NOTE(Isaac): `float` is helpfully promoted to `double`...
+      // NOTE(Isaac): `float` is helpfully promoted to `double` all on its own...
       s->payload.f = static_cast<float>(va_arg(args, double));
       s->tag = -1;
     } break;
+  }
+
+  // Add the slot to the function's definition
+  slot_link* link = static_cast<slot_link*>(malloc(sizeof(slot_link)));
+  link->s = s;
+  link->next = nullptr;
+
+  if (function->firstSlot)
+  {
+    slot_link* tail = function->firstSlot;
+
+    while (tail->next)
+    {
+      tail = tail->next;
+    }
+
+    tail->next = link;
+  }
+  else
+  {
+    function->firstSlot = link;
   }
 
   va_end(args);
@@ -137,10 +164,10 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
  */
 
 template<typename T = void>
-T GenNodeAIR(air_instruction* tail, node* n);
+T GenNodeAIR(air_function* function, air_instruction* tail, node* n);
 
 template<>
-slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
+slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
 {
   assert(tail);
   assert(n);
@@ -150,8 +177,8 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
     case BINARY_OP_NODE:
     {
       printf("AIR: BINARY_OP\n");
-      slot* left = GenNodeAIR<slot*>(tail, n->payload.binaryOp.left);
-      slot* right = GenNodeAIR<slot*>(tail, n->payload.binaryOp.right);
+      slot* left = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.left);
+      slot* right = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
 
       switch (n->payload.binaryOp.op)
@@ -189,7 +216,7 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
     case PREFIX_OP_NODE:
     {
       printf("AIR: PREFIX_OP\n");
-      slot* right = GenNodeAIR<slot*>(tail, n->payload.prefixOp.right);
+      slot* right = GenNodeAIR<slot*>(function, tail, n->payload.prefixOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
 
       switch (n->payload.prefixOp.op)
@@ -237,12 +264,12 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          return CreateSlot(slot::slot_type::INT_CONSTANT, n->payload.numberConstant.constant.i);
+          return CreateSlot(function, slot::slot_type::INT_CONSTANT, n->payload.numberConstant.constant.i);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          return CreateSlot(slot::slot_type::FLOAT_CONSTANT, n->payload.numberConstant.constant.f);
+          return CreateSlot(function, slot::slot_type::FLOAT_CONSTANT, n->payload.numberConstant.constant.f);
         } break;
       }
     };
@@ -256,7 +283,7 @@ slot* GenNodeAIR<slot*>(air_instruction* tail, node* n)
 }
 
 template<>
-jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruction* tail, node* n)
+jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function* function, air_instruction* tail, node* n)
 {
   assert(tail);
   assert(n);
@@ -266,8 +293,8 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruct
     case CONDITION_NODE:
     {
       printf("AIR: CONDITION\n");
-      slot* a = GenNodeAIR<slot*>(tail, n->payload.condition.left);
-      slot* b = GenNodeAIR<slot*>(tail, n->payload.condition.right);
+      slot* a = GenNodeAIR<slot*>(function, tail, n->payload.condition.left);
+      slot* b = GenNodeAIR<slot*>(function, tail, n->payload.condition.right);
       PushInstruction(I_CMP, a, b);
 
       switch (n->payload.condition.condition)
@@ -319,7 +346,7 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_instruct
 }
 
 template<>
-void GenNodeAIR<void>(air_instruction* tail, node* n)
+void GenNodeAIR<void>(air_function* function, air_instruction* tail, node* n)
 {
   assert(tail);
   assert(n);
@@ -339,7 +366,7 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
       //slot* variableSlot = GetVariableSlot(n->payload.variableAssignment.variable);
       // TODO
       slot* variableSlot = nullptr;
-      slot* newValueSlot = GenNodeAIR<slot*>(tail, n->payload.variableAssignment.newValue);
+      slot* newValueSlot = GenNodeAIR<slot*>(function, tail, n->payload.variableAssignment.newValue);
       PushInstruction(I_MOV, variableSlot, newValueSlot);
     } break;
 
@@ -352,7 +379,7 @@ void GenNodeAIR<void>(air_instruction* tail, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(air_instruction* tail, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(air_function* function, air_instruction* tail, node* n)
 {
   assert(tail);
   assert(n);
@@ -391,13 +418,24 @@ void GenFunctionAIR(function_def* function)
        n;
        n = n->next)
   {
-    GenNodeAIR(tail, n);
+    GenNodeAIR(function->air, tail, n);
   }
 
   PushInstruction(I_LEAVE_STACK_FRAME);
 
-  // Print all the instructions
 #if 1
+  unsigned int numSlots;
+
+  for (slot_link* slot = function->air->firstSlot;
+       slot;
+       slot = slot->next)
+  {
+    numSlots++;
+  }
+
+  printf("Num slots in function: %u\n", numSlots);
+
+  // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", function->name);
 
   for (air_instruction* i = function->air->code;
