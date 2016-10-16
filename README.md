@@ -16,6 +16,8 @@ Roo is based upon C, but tries to find better solutions to some of C's problems:
 It looks something like this:
 
 ``` roo
+import roo.io
+
 type Color
 {
   r : float
@@ -29,12 +31,13 @@ fn PrintColor(color : color&)
   PrintFmt("Color: (%f, %f, %f, %f)", color.r, color.g, color.b, color.a)
 }
 
+#[Entry]
 fn Main() -> int
 {
+  #[Debug]
   Print("Hello, World!")
 
   // Make and print a color
-
   myColor : color(1.0f, 0.0f, 1.0f, 1.0f)
   PrintColor(myColor)
 }
