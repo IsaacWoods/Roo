@@ -43,7 +43,7 @@ struct slot
 
   union
   {
-    const variable_def* variableDef;
+    const variable_def* variable;
     int                 i;
     float               f;
   } payload;
@@ -120,3 +120,4 @@ struct air_function
 void GenFunctionAIR(function_def* function);
 void FreeAIRFunction(air_function* function);
 void PrintInstruction(air_instruction* instruction);
+void CreateInterferenceDOT(air_function* function, const char* functionName);

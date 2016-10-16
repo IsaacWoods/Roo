@@ -4,6 +4,7 @@
 
 #include <air.hpp>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <cassert>
 #include <cstdarg>
@@ -22,19 +23,19 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   {
     case slot::slot_type::PARAM:
     {
-      s->payload.variableDef = va_arg(args, variable_def*);
+      s->payload.variable = va_arg(args, variable_def*);
       // TODO: set the tag
     } break;
 
     case slot::slot_type::LOCAL:
     {
-      s->payload.variableDef = va_arg(args, variable_def*);
+      s->payload.variable = va_arg(args, variable_def*);
       // TODO: set the tag
     } break;
 
     case slot::slot_type::INTERMEDIATE:
     {
-      s->payload.variableDef = va_arg(args, variable_def*);
+      s->payload.variable = va_arg(args, variable_def*);
       // TODO: set the tag
     } break;
 
@@ -59,9 +60,14 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 
 slot* CreateTemporary(air_function* function)
 {
-  static unsigned int numTemporaries = 0u;
+  static int numTemporaries = 0;
 
   slot* s = static_cast<slot*>(malloc(sizeof(slot)));
+  s->type = slot::slot_type::INTERMEDIATE;
+  s->payload.variable = nullptr;
+  s->tag = numTemporaries++;
+
+  return s;
 }
 
 /*
@@ -397,7 +403,7 @@ void GenFunctionAIR(function_def* function)
 {
   assert(function->air == nullptr);
   function->air = static_cast<air_function*>(malloc(sizeof(air_function)));
-
+  CreateLinkedList<slot*>(function->air->slots);
   function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
   air_instruction* tail = function->air->code;
 
@@ -409,6 +415,8 @@ void GenFunctionAIR(function_def* function)
   }
 
   PushInstruction(I_LEAVE_STACK_FRAME);
+
+  CreateInterferenceDOT(function->air, function->name);
 
 #if 1
   printf("Num slots in function: %u\n", GetSizeOfLinkedList<slot*>(function->air->slots));
@@ -486,4 +494,67 @@ const char* GetInstructionName(instruction_type type)
       exit(1);
     }
   }
+}
+
+void CreateInterferenceDOT(air_function* function, const char* functionName)
+{
+  // Check if the function's empty
+  if (function->code == nullptr)
+  {
+    return;
+  }
+
+  printf("--- Outputting DOT of interference graph for: %s ---\n", functionName);
+
+  char fileName[128u] = {0};
+  strcpy(fileName, functionName);
+  strcat(fileName, "_interference.dot");
+  FILE* f = fopen(fileName, "w");
+
+  if (!f)
+  {
+    fprintf(stderr, "Failed to open DOT file: %s!\n", fileName);
+    exit(1);
+  }
+
+  fprintf(f, "digraph G\n{\n");
+  unsigned int i = 0u;
+  
+  for (auto* slotIt = function->slots.first;
+       slotIt;
+       slotIt = slotIt->next)
+  {
+    switch ((**slotIt)->type)
+    {
+      case slot::slot_type::PARAM:
+      {
+        fprintf(f, "\ts%u[label=\"%s : PARAM(%d)\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag);
+      } break;
+
+      case slot::slot_type::LOCAL:
+      {
+        fprintf(f, "\ts%u[label=\"%s : LOCAL(%d)\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag);
+      } break;
+
+      case slot::slot_type::INTERMEDIATE:
+      {
+        fprintf(f, "\ts%u[label=\"%s : INTERMEDIATE(%d)\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag);
+      } break;
+
+      case slot::slot_type::INT_CONSTANT:
+      {
+        fprintf(f, "\ts%u[label=\"%d : INT(%d)\"];\n", i, (**slotIt)->payload.i, (**slotIt)->tag);
+      } break;
+
+      case slot::slot_type::FLOAT_CONSTANT:
+      {
+        fprintf(f, "\ts%u[label=\"%f : FLOAT(%d)\"];\n", i, (**slotIt)->payload.f, (**slotIt)->tag);
+      } break;
+    }
+
+    i++;
+  }
+
+  fprintf(f, "}\n");
+  fclose(f);
 }

@@ -12,11 +12,6 @@
 template<typename T>
 struct linked_list
 {
-  linked_list()
-    :first(nullptr)
-    ,tail(nullptr)
-  { }
-
   struct link
   {
     T payload;
@@ -30,6 +25,13 @@ struct linked_list
 
   link* tail;
 };
+
+template<typename T>
+void CreateLinkedList(linked_list<T>& list)
+{
+  list.first = nullptr;
+  list.tail  = nullptr;
+}
 
 // O(n)
 template<typename T>
