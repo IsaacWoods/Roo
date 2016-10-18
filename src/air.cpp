@@ -451,32 +451,37 @@ instruction_label* GenNodeAIR<instruction_label*>(air_function* function, node* 
   return nullptr;
 }
 
-void GenFunctionAIR(function_def* function)
+void GenFunctionAIR(function_def* functionDef)
 {
-  assert(function->air == nullptr);
-  function->air = static_cast<air_function*>(malloc(sizeof(air_function)));
-  CreateLinkedList<slot*>(function->air->slots);
-  function->air->numIntermediates = 0;
+  assert(functionDef->air == nullptr);
 
-  function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
-  function->air->tail = function->air->code;
+  air_function* function = functionDef->air = static_cast<air_function*>(malloc(sizeof(air_function)));
+  CreateLinkedList<slot*>(function->slots);
+  function->numIntermediates = 0;
 
-  for (node* n = function->ast;
+  function->code = CreateInstruction(I_ENTER_STACK_FRAME);
+  function->tail = function->code;
+
+  for (node* n = functionDef->ast;
        n;
        n = n->next)
   {
-    GenNodeAIR(function->air, n);
+    GenNodeAIR(function, n);
   }
 
-  function->air->tail->next = CreateInstruction(I_LEAVE_STACK_FRAME);
+  if (functionDef->shouldAutoReturn)
+  {
+    PushInstruction(I_LEAVE_STACK_FRAME);
+    PushInstruction(I_RETURN);
+  }
 
-  CreateInterferenceDOT(function->air, function->name);
+  CreateInterferenceDOT(function, functionDef->name);
 
 #if 1
   // Print all the instructions
-  printf("--- AIR instruction listing for function: %s\n", function->name);
+  printf("--- AIR instruction listing for function: %s\n", functionDef->name);
 
-  for (air_instruction* i = function->air->code;
+  for (air_instruction* i = function->code;
        i;
        i = i->next)
   {
