@@ -124,14 +124,6 @@ static void AddInterference(slot* a, slot* b)
   b->interferences[b->numInterferences++] = a;
 }
 
-/*
- * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
- * Always supply an AIR instruction type as the first vararg!
- */
-#define PushInstruction(...) \
-  tail->next = CreateInstruction(__VA_ARGS__); \
-  tail = tail->next; \
-
 static air_instruction* CreateInstruction(instruction_type type, ...)
 {
   air_instruction* i = static_cast<air_instruction*>(malloc(sizeof(air_instruction)));
@@ -198,6 +190,14 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 }
 
 /*
+ * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
+ * Always supply an AIR instruction type as the first vararg!
+ */
+#define PushInstruction(...) \
+  function->tail->next = CreateInstruction(__VA_ARGS__); \
+  function->tail = function->tail->next; \
+
+/*
  * BREAK_NODE:              `
  * RETURN_NODE:             `Nothing
  * BINARY_OP_NODE:          `slot*
@@ -212,21 +212,20 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
  */
 
 template<typename T = void>
-T GenNodeAIR(air_function* function, air_instruction* tail, node* n);
+T GenNodeAIR(air_function* function, node* n);
 
 template<>
-slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
+slot* GenNodeAIR<slot*>(air_function* function, node* n)
 {
-  assert(tail);
+  assert(function->tail);
   assert(n);
 
   switch (n->type)
   {
     case BINARY_OP_NODE:
     {
-      printf("AIR: BINARY_OP\n");
-      slot* left = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.left);
-      slot* right = GenNodeAIR<slot*>(function, tail, n->payload.binaryOp.right);
+      slot* left = GenNodeAIR<slot*>(function, n->payload.binaryOp.left);
+      slot* right = GenNodeAIR<slot*>(function, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
 
       AddInterference(left, right);
@@ -267,8 +266,7 @@ slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
 
     case PREFIX_OP_NODE:
     {
-      printf("AIR: PREFIX_OP\n");
-      slot* right = GenNodeAIR<slot*>(function, tail, n->payload.prefixOp.right);
+      slot* right = GenNodeAIR<slot*>(function, n->payload.prefixOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
 
       switch (n->payload.prefixOp.op)
@@ -305,7 +303,6 @@ slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
 
     case VARIABLE_NODE:
     {
-      printf("AIR: VARIABLE\n");
       // TODO: resolve the slot of the variable we need
       return nullptr;
     } break;
@@ -335,18 +332,17 @@ slot* GenNodeAIR<slot*>(air_function* function, air_instruction* tail, node* n)
 }
 
 template<>
-jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function* function, air_instruction* tail, node* n)
+jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function* function, node* n)
 {
-  assert(tail);
+  assert(function->tail);
   assert(n);
 
   switch (n->type)
   {
     case CONDITION_NODE:
     {
-      printf("AIR: CONDITION\n");
-      slot* a = GenNodeAIR<slot*>(function, tail, n->payload.condition.left);
-      slot* b = GenNodeAIR<slot*>(function, tail, n->payload.condition.right);
+      slot* a = GenNodeAIR<slot*>(function, n->payload.condition.left);
+      slot* b = GenNodeAIR<slot*>(function, n->payload.condition.right);
       PushInstruction(I_CMP, a, b);
 
       switch (n->payload.condition.condition)
@@ -398,26 +394,24 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function
 }
 
 template<>
-void GenNodeAIR<void>(air_function* function, air_instruction* tail, node* n)
+void GenNodeAIR<void>(air_function* function, node* n)
 {
-  assert(tail);
+  assert(function->tail);
   assert(n);
 
   switch (n->type)
   {
     case RETURN_NODE:
     {
-      printf("AIR: RETURN\n");
       PushInstruction(I_LEAVE_STACK_FRAME);
       PushInstruction(I_RETURN);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      printf("AIR: VARIABLE_ASSIGN\n");
       // TODO: don't assume it's a local (could be a param?)
       slot* variableSlot = CreateSlot(function, slot::slot_type::LOCAL, n->payload.variableAssignment.variable);
-      slot* newValueSlot = GenNodeAIR<slot*>(function, tail, n->payload.variableAssignment.newValue);
+      slot* newValueSlot = GenNodeAIR<slot*>(function, n->payload.variableAssignment.newValue);
       AddInterference(variableSlot, newValueSlot);
 
       PushInstruction(I_MOV, variableSlot, newValueSlot);
@@ -432,16 +426,15 @@ void GenNodeAIR<void>(air_function* function, air_instruction* tail, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(air_function* /*function*/, air_instruction* tail, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(air_function* function, node* n)
 {
-  assert(tail);
+  assert(function->tail);
   assert(n);
 
   switch (n->type)
   {
     case BREAK_NODE:
     {
-      printf("AIR: BREAK\n");
       instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
       PushInstruction(I_JUMP, jump_instruction::condition::UNCONDITIONAL, label);
 
@@ -466,16 +459,16 @@ void GenFunctionAIR(function_def* function)
   function->air->numIntermediates = 0;
 
   function->air->code = CreateInstruction(I_ENTER_STACK_FRAME);
-  air_instruction* tail = function->air->code;
+  function->air->tail = function->air->code;
 
   for (node* n = function->ast;
        n;
        n = n->next)
   {
-    GenNodeAIR(function->air, tail, n);
+    GenNodeAIR(function->air, n);
   }
 
-  PushInstruction(I_LEAVE_STACK_FRAME);
+  function->air->tail->next = CreateInstruction(I_LEAVE_STACK_FRAME);
 
   CreateInterferenceDOT(function->air, function->name);
 

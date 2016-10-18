@@ -129,9 +129,10 @@ struct air_instruction
 
 struct air_function
 {
-  air_instruction*                code;
-  linked_list<slot*>              slots;
-  int                             numIntermediates;
+  air_instruction*    code;
+  air_instruction*    tail;
+  linked_list<slot*>  slots;
+  int                 numIntermediates;
 };
 
 void GenFunctionAIR(function_def* function);
