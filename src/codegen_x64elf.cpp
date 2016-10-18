@@ -242,11 +242,19 @@ static x64_register registerSet[16u] =
 };
 
 /*
- * NOTE(Isaac): this includes registers that *may* contain parameters
+ * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-unsigned int GetNumGeneralRegisters()
+void ColorSlots(air_function* function)
 {
-  return 14u;
+  const unsigned int numGeneralRegisters = 14u;
+
+  unsigned int numSlots;
+  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
+  bool isColorUsed[numGeneralRegisters] = {0};
+
+  // Color params
+
+  // Color all colorable slots
 }
 
 enum class i : uint8_t

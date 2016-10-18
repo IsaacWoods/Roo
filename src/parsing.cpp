@@ -862,9 +862,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
 
         // Assign the initial value to the variable
         result = CreateNode(VARIABLE_ASSIGN_NODE, variable->name, variable->initValue);
-//        result->payload.variableAssignment.variable = variable;
-        printf("Node to assign init value to variable: %s\n", result->payload.variableAssignment.variableName);
-        printf("Initial value node name: %s\n", GetNodeName(result->payload.variableAssignment.newValue->type));
+        result->payload.variableAssignment.variable = variable;
 
         // Find somewhere to put it
         if (parser.currentFunction->firstLocal)

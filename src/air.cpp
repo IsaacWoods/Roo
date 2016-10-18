@@ -12,7 +12,7 @@
 #include <ast.hpp>
 
 // NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
-unsigned int GetNumGeneralRegisters();
+void ColorSlots(air_function* function);
 
 slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 {
@@ -30,15 +30,65 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
     case slot::slot_type::PARAM:
     {
       s->payload.variable = va_arg(args, variable_def*);
-      // TODO: set the tag
       s->shouldBeColored = true;
+
+      // Find the most recent use of this variable in the function
+      signed int mostRecentTag = -1;
+
+      for (auto* slotIt = function->slots.first;
+           slotIt;
+           slotIt = slotIt->next)
+      {
+        if ((**slotIt)->type != slot::slot_type::PARAM)
+        {
+          continue;
+        }
+
+        if ((**slotIt)->payload.variable != s->payload.variable)
+        {
+          continue;
+        }
+
+        if ((**slotIt)->tag > mostRecentTag)
+        {
+          mostRecentTag = (**slotIt)->tag;
+        }
+      }
+
+      // Set the tag of this slot as one greater
+      s->tag = mostRecentTag + 1;
     } break;
 
     case slot::slot_type::LOCAL:
     {
       s->payload.variable = va_arg(args, variable_def*);
-      // TODO: set the tag
       s->shouldBeColored = true;
+
+      // Find the most recent use of this variable in the function
+      signed int mostRecentTag = -1;
+
+      for (auto* slotIt = function->slots.first;
+           slotIt;
+           slotIt = slotIt->next)
+      {
+        if ((**slotIt)->type != slot::slot_type::LOCAL)
+        {
+          continue;
+        }
+
+        if ((**slotIt)->payload.variable != s->payload.variable)
+        {
+          continue;
+        }
+
+        if ((**slotIt)->tag > mostRecentTag)
+        {
+          mostRecentTag = (**slotIt)->tag;
+        }
+      }
+
+      // Set the tag of this slot as one greater
+      s->tag = mostRecentTag + 1;
     } break;
 
     case slot::slot_type::INTERMEDIATE:
@@ -365,10 +415,11 @@ void GenNodeAIR<void>(air_function* function, air_instruction* tail, node* n)
     case VARIABLE_ASSIGN_NODE:
     {
       printf("AIR: VARIABLE_ASSIGN\n");
-      //slot* variableSlot = GetVariableSlot(n->payload.variableAssignment.variable);
-      // TODO
-      slot* variableSlot = nullptr;
+      // TODO: don't assume it's a local (could be a param?)
+      slot* variableSlot = CreateSlot(function, slot::slot_type::LOCAL, n->payload.variableAssignment.variable);
       slot* newValueSlot = GenNodeAIR<slot*>(function, tail, n->payload.variableAssignment.newValue);
+      AddInterference(variableSlot, newValueSlot);
+
       PushInstruction(I_MOV, variableSlot, newValueSlot);
     } break;
 
@@ -405,36 +456,6 @@ instruction_label* GenNodeAIR<instruction_label*>(air_function* /*function*/, ai
   }
 
   return nullptr;
-}
-
-static void ColorSlots(air_function* function)
-{
-  assert(GetNumGeneralRegisters() > 1u);
-
-  // Turn the linked list of slots into a nice array
-  unsigned int numSlots;
-  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
-
-  // TODO: color the params the correct colors
-
-  // Assign the first color to the first slot (that is colorable)
-  for (unsigned int i = 0;
-       i < numSlots;
-       i++)
-  {
-    if (slots[i]->shouldBeColored)
-    {
-      slots[i] = 0u;
-      goto ColoredFirst;
-    }
-  }
-
-  fprintf(stderr, "No nodes needed coloring... this stinks more than Lenin probably does by now...\n");
-  exit(1);
-
-ColoredFirst:
-  // TODO: color the rest
-  return;
 }
 
 void GenFunctionAIR(function_def* function)
