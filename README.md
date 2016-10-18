@@ -3,14 +3,14 @@
 
 Roo is a predominantly procedural programming language built to experiment with a new language.
 Its central goal is to design a language with good programmers in mind, instead of protecting against
-bad ones. It aims to avoid the kitchen-sink like hodgepodge of languages like C++ but also not to become
-obsessed with a theoretical ideal like functional program tends to.
+bad ones. It aims to avoid the kitchen-sink-esque hodgepodge of languages like C++ but also not to become
+obsessed with a theoretical ideal like functional programming languages have tended to.
 
 ### Aims
 Roo is based upon C, but tries to find better solutions to some of C's problems:
-* No headers or separation of definition and implementation
+* No separation of definition and implementation (no headers)
 * Easier build process - nice dependency management and source management
-* Terse yet expressive syntax - no extranious semi-colons or extra punctionation
+* Terse, expressive syntax - no extranious semi-colons or extra punctionation
 * Access to the 'sharp tools' - doesn't shy away from raw pointers or manual memory management
 
 It looks something like this:
