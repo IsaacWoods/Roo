@@ -125,10 +125,10 @@ struct codegen_target
 
 struct parse_result
 {
-  dependency_def*   firstDependency;
-  function_def*     firstFunction;
-  type_def*         firstType;
-  string_constant*  firstString;
+  linked_list<dependency_def*>  dependencies;
+  linked_list<function_def*>    functions;
+  linked_list<type_def*>        types;
+  linked_list<string_constant*> strings;
 };
 
 void CreateParseResult(parse_result& result);
@@ -143,8 +143,6 @@ struct dependency_def
   } type;
 
   char* path;
-
-  dependency_def* next;
 };
 
 void FreeDependencyDef(dependency_def* dependency);
@@ -160,8 +158,6 @@ struct string_constant
 {
   unsigned int      handle;
   char*             string;
-
-  string_constant*  next;
 };
 
 string_constant* CreateStringConstant(parse_result* result, char* string);
@@ -180,8 +176,6 @@ struct variable_def
   char*         name;
   type_ref*     type;
   node*         initValue;
-
-  variable_def* next;
 };
 
 void FreeVariableDef(variable_def* variable);
@@ -190,28 +184,24 @@ struct air_function;
 
 struct function_def
 {
-  char*             name;
-  variable_def*     firstParam;
-  variable_def*     firstLocal;
-  type_ref*         returnType;
-  bool              shouldAutoReturn;
-  uint32_t          attribMask;
+  char*                       name;
+  linked_list<variable_def*>  params;
+  linked_list<variable_def*>  locals;
+  type_ref*                   returnType;
+  bool                        shouldAutoReturn;
+  uint32_t                    attribMask;
 
-  node*             ast;
-  air_function*     air;
-
-  function_def*     next;
+  node*                       ast;
+  air_function*               air;
 };
 
 void FreeFunctionDef(function_def* function);
 
 struct type_def
 {
-  char*         name;
-  variable_def* firstMember;
-  uint32_t      attribMask;
-
-  type_def*     next;
+  char*                       name;
+  linked_list<variable_def*>  members;
+  uint32_t                    attribMask;
 };
 
 void FreeTypeDef(type_def* type);

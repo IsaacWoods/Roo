@@ -625,16 +625,15 @@ prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
 unsigned int    g_precedenceTable[NUM_TOKENS];
 
-static variable_def* ParameterList(roo_parser& parser)
+static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
-  variable_def* paramList = nullptr;
 
   // Check for an empty parameter list
   if (Match(parser, TOKEN_RIGHT_PAREN))
   {
     Consume(parser, TOKEN_RIGHT_PAREN);
-    return nullptr;
+    return;
   }
 
   do
@@ -643,29 +642,12 @@ static variable_def* ParameterList(roo_parser& parser)
     param->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
     param->type = CreateTypeRef(GetTextFromToken(PeekToken(parser)));
-    param->next = nullptr;
 
     printf("Param: %s of type %s\n", param->name, param->type->typeName);
-
-    if (paramList)
-    {
-      variable_def* tail = paramList;
-
-      while (tail->next)
-      {
-        tail = tail->next;
-      }
-
-      tail->next = param;
-    }
-    else
-    {
-      paramList = param;
-    }
+    AddToLinkedList<variable_def*>(params, param);
   } while (MatchNext(parser, TOKEN_COMMA));
 
   ConsumeNext(parser, TOKEN_RIGHT_PAREN);
-  return paramList;
 }
 
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
@@ -711,7 +693,6 @@ static variable_def* VariableDef(roo_parser& parser)
 {
   variable_def* definition = static_cast<variable_def*>(malloc(sizeof(variable_def)));
   definition->name = GetTextFromToken(PeekToken(parser));
-  definition->next = nullptr;
 
   ConsumeNext(parser, TOKEN_COLON);
   definition->type = TypeRef(parser);
@@ -864,23 +845,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         result = CreateNode(VARIABLE_ASSIGN_NODE, variable->name, variable->initValue);
         result->payload.variableAssignment.variable = variable;
 
-        // Find somewhere to put it
-        if (parser.currentFunction->firstLocal)
-        {
-          variable_def* tail = parser.currentFunction->firstLocal;
-
-          while (tail->next)
-          {
-            tail = tail->next;
-          }
-
-          tail->next = variable;
-        }
-        else
-        {
-          parser.currentFunction->firstLocal = variable;
-        }
-
+        AddToLinkedList<variable_def*>(parser.currentFunction->locals, variable);
         break;
       }
     } // NOTE(Isaac): no break
@@ -901,54 +866,22 @@ static void TypeDef(roo_parser& parser, uint32_t attribMask)
   printf("--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
+  CreateLinkedList<variable_def*>(type->members);
   type->attribMask = attribMask;
-  type->next = nullptr;
-
-  // NOTE(Isaac): find a place for the type def
-  if (parser.result->firstType)
-  {
-    type_def* tail = parser.result->firstType;
-
-    while (tail->next)
-    {
-      tail = tail->next;
-    }
-
-    tail->next = type;
-  }
-  else
-  {
-    parser.result->firstType = type;
-  }
 
   type->name = GetTextFromToken(PeekToken(parser));
   printf("%s)\n", type->name);
-  type->firstMember = nullptr;
   
   ConsumeNext(parser, TOKEN_LEFT_BRACE);
 
   while (PeekToken(parser).type != TOKEN_RIGHT_BRACE)
   {
     variable_def* member = VariableDef(parser);
-
-    if (type->firstMember)
-    {
-      variable_def* tail = type->firstMember;
-
-      while (tail->next)
-      {
-        tail = tail->next;
-      }
-
-      tail->next = member;
-    }
-    else
-    {
-      type->firstMember = member;
-    }
+    AddToLinkedList<variable_def*>(type->members, member);
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);
+  AddToLinkedList<type_def*>(parser.result->types, type);
   printf("<-- TypeDef\n");
 }
 
@@ -958,7 +891,6 @@ static void Import(roo_parser& parser)
   Consume(parser, TOKEN_IMPORT);
 
   dependency_def* dependency = static_cast<dependency_def*>(malloc(sizeof(dependency_def)));
-  dependency->next = nullptr;
 
   switch (PeekToken(parser).type)
   {
@@ -986,22 +918,7 @@ static void Import(roo_parser& parser)
     }
   }
 
-  if (parser.result->firstDependency)
-  {
-    dependency_def* tail = parser.result->firstDependency;
-
-    while (tail->next)
-    {
-      tail = tail->next;
-    }
-
-    tail->next = dependency;
-  }
-  else
-  {
-    parser.result->firstDependency = dependency;
-  }
-
+  AddToLinkedList<dependency_def*>(parser.result->dependencies, dependency);
   NextToken(parser);
   printf("<-- Import\n");
 }
@@ -1011,32 +928,18 @@ static void Function(roo_parser& parser, uint32_t attribMask)
   printf("--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
+  CreateLinkedList<variable_def*>(definition->params);
+  CreateLinkedList<variable_def*>(definition->locals);
   definition->shouldAutoReturn = true;
   definition->air = nullptr;
   definition->attribMask = attribMask;
-  definition->next = nullptr;
 
-  // Find a place for the function
-  if (parser.result->firstFunction)
-  {
-    function_def* tail = parser.result->firstFunction;
-
-    while (tail->next)
-    {
-      tail = tail->next;
-    }
-
-    tail->next = definition;
-  }
-  else
-  {
-    parser.result->firstFunction = definition;
-  }
+  AddToLinkedList<function_def*>(parser.result->functions, definition);
 
   definition->name = GetTextFromToken(NextToken(parser));
   printf("%s)\n", definition->name);
-  definition->firstParam = ParameterList(parser);
-  definition->firstLocal = nullptr;
+
+  ParameterList(parser, definition->params);
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
@@ -1055,7 +958,6 @@ static void Function(roo_parser& parser, uint32_t attribMask)
   }
 
   definition->ast = Block(parser);
-
   printf("<-- Function\n");
 }
 

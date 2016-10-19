@@ -48,20 +48,20 @@ int main()
   }
 
   // Emit DOT files for function ASTs
-  for (function_def* function = result.firstFunction;
-       function;
-       function = function->next)
+  for (auto* functionIt = result.functions.first;
+       functionIt;
+       functionIt = functionIt->next)
   {
-    OutputDOTOfAST(function);
+    OutputDOTOfAST(**functionIt);
   }
 
   // Generate AIR instructions from the AST
   // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-  for (function_def* function = result.firstFunction;
-       function;
-       function = function->next)
+  for (auto* functionIt = result.functions.first;
+       functionIt;
+       functionIt = functionIt->next)
   {
-    GenFunctionAIR(function);
+    GenFunctionAIR(**functionIt);
   }
 
   // Generate code

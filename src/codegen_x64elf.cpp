@@ -343,22 +343,22 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
   section.entrySize = 0x00;
 
   // Generate code for each function
-  for (function_def* function = result.firstFunction;
-       function;
-       function = function->next)
+  for (auto* functionIt = result.functions.first;
+       functionIt;
+       functionIt = functionIt->next)
   {
-    printf("Generating object code for function: %s\n", function->name);
-    assert(function->air);
-    assert(function->air->code);
+    printf("Generating object code for function: %s\n", (**functionIt)->name);
+    assert((**functionIt)->air);
+    assert((**functionIt)->air->code);
 
     // NOTE(Isaac): Check if this is the program's entry point
-    if (function->attribMask & function_attribs::ENTRY)
+    if ((**functionIt)->attribMask & function_attribs::ENTRY)
     {
-      printf("Found program entry point: %s!\n", function->name);
+      printf("Found program entry point: %s!\n", (**functionIt)->name);
       header.entryPoint = virtualAddress + (ftell(file) - section.offset);
     }
 
-    for (air_instruction* instruction = function->air->code;
+    for (air_instruction* instruction = (**functionIt)->air->code;
          instruction;
          instruction = instruction->next)
     {

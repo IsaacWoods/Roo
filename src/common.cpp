@@ -92,46 +92,18 @@ char* ReadFile(const char* path)
 
 void CreateParseResult(parse_result& result)
 {
-  result.firstDependency  = nullptr;
-  result.firstFunction    = nullptr;
-  result.firstType        = nullptr;
-  result.firstString      = nullptr;
+  CreateLinkedList<dependency_def*>(result.dependencies);
+  CreateLinkedList<function_def*>(result.functions);
+  CreateLinkedList<type_def*>(result.types);
+  CreateLinkedList<string_constant*>(result.strings);
 }
 
 void FreeParseResult(parse_result& result)
 {
-  while (result.firstDependency)
-  {
-    dependency_def* temp = result.firstDependency;
-    result.firstDependency = result.firstDependency->next;
-    FreeDependencyDef(temp);
-  }
-
-  while (result.firstFunction)
-  {
-    function_def* temp = result.firstFunction;
-    result.firstFunction = result.firstFunction->next;
-    FreeFunctionDef(temp);
-  }
-
-  while (result.firstType)
-  {
-    type_def* temp = result.firstType;
-    result.firstType = result.firstType->next;
-    FreeTypeDef(temp);
-  }
-
-  while (result.firstString)
-  {
-    string_constant* temp = result.firstString;
-    result.firstString = result.firstString->next;
-    FreeStringConstant(temp);
-  }
-
-  result.firstDependency  = nullptr;
-  result.firstFunction    = nullptr;
-  result.firstType        = nullptr;
-  result.firstString      = nullptr;
+  FreeLinkedList<dependency_def*>(result.dependencies);
+  FreeLinkedList<function_def*>(result.functions);
+  FreeLinkedList<type_def*>(result.types);
+  FreeLinkedList<string_constant*>(result.strings);
 }
 
 void FreeDependencyDef(dependency_def* dependency)
@@ -161,18 +133,12 @@ void PrintFunctionAttribs(uint32_t attribMask)
 string_constant* CreateStringConstant(parse_result* result, char* string)
 {
   string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
-  string_constant* tail = result->firstString;
 
-  while (tail->next)
-  {
-    tail = tail->next;
-  }
-
-  constant->handle = tail->handle + 1u;
+  // NOTE(Isaac): get the current tail's handle before adding to the list
+  constant->handle = (**result->strings.tail)->handle + 1u;
   constant->string = string;
-  constant->next = nullptr;
 
-  tail->next = constant;
+  AddToLinkedList<string_constant*>(result->strings, constant);
   return constant;
 }
 
@@ -206,20 +172,8 @@ void FreeFunctionDef(function_def* function)
 {
   free(function->name);
   FreeTypeRef(function->returnType);
-
-  while (function->firstParam)
-  {
-    variable_def* temp = function->firstParam;
-    function->firstParam = function->firstParam->next;
-    FreeVariableDef(temp);
-  }
-
-  while (function->firstLocal)
-  {
-    variable_def* temp = function->firstLocal;
-    function->firstLocal = function->firstLocal->next;
-    FreeVariableDef(temp);
-  }
+  FreeLinkedList<variable_def*>(function->params);
+  FreeLinkedList<variable_def*>(function->locals);
 
   if (function->ast)
   {
@@ -232,15 +186,7 @@ void FreeFunctionDef(function_def* function)
 void FreeTypeDef(type_def* type)
 {
   free(type->name);
-  
-  while (type->firstMember)
-  {
-    variable_def* temp = type->firstMember;
-    type->firstMember = type->firstMember->next;
-    FreeVariableDef(temp);
-  }
-
-  type->firstMember = nullptr;
+  FreeLinkedList<variable_def*>(type->members);
   free(type);
 }
 
