@@ -11,6 +11,60 @@
 #include <common.hpp>
 #include <air.hpp>
 
+enum reg
+{
+  RAX,
+  RBX,
+  RCX,
+  RDX,
+  RSP,
+  RBP,
+  RSI,
+  RDI,
+  R8,
+  R9,
+  R10,
+  R11,
+  R12,
+  R13,
+  R14,
+  R15
+};
+
+struct register_pimpl
+{
+  uint8_t opcodeOffset;
+};
+
+void InitCodegenTarget(codegen_target& target)
+{
+  target.name = "x64_elf";
+  target.numRegisters = 16u;
+  target.registerSet = static_cast<register_def*>(malloc(sizeof(register_def) * target.numRegisters));
+
+  #define REGISTER(index, name, usage, modRMOffset) \
+    target.registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))}; \
+    target.registerSet[index].pimpl->opcodeOffset = modRMOffset;
+
+  REGISTER(0u , "RAX", register_def::reg_usage::GENERAL, 0u);
+  REGISTER(1u , "RBX", register_def::reg_usage::GENERAL, 3u);
+  REGISTER(2u , "RCX", register_def::reg_usage::GENERAL, 1u);
+  REGISTER(3u , "RDX", register_def::reg_usage::GENERAL, 2u);
+  REGISTER(4u , "RSP", register_def::reg_usage::SPECIAL, 4u);
+  REGISTER(5u , "RBP", register_def::reg_usage::SPECIAL, 5u);
+  REGISTER(6u , "RSI", register_def::reg_usage::GENERAL, 6u);
+  REGISTER(7u , "RDI", register_def::reg_usage::GENERAL, 7u);
+  REGISTER(8u , "R8" , register_def::reg_usage::GENERAL, 8u);
+  REGISTER(9u , "R9" , register_def::reg_usage::GENERAL, 9u);
+  REGISTER(10u, "R10", register_def::reg_usage::GENERAL, 10u);
+  REGISTER(11u, "R11", register_def::reg_usage::GENERAL, 11u);
+  REGISTER(12u, "R12", register_def::reg_usage::GENERAL, 12u);
+  REGISTER(13u, "R13", register_def::reg_usage::GENERAL, 13u);
+  REGISTER(14u, "R14", register_def::reg_usage::GENERAL, 14u);
+  REGISTER(15u, "R15", register_def::reg_usage::GENERAL, 15u);
+}
+
+// --- ELF stuff and things ---
 struct elf_header
 {
   uint16_t fileType;
@@ -196,71 +250,15 @@ static uint32_t EmitStringTableEntry(FILE* f, elf_section& section, const char* 
   return stringIndex++;
 }
 
-enum reg
-{
-  RAX,
-  RBX,
-  RCX,
-  RDX,
-  RSP,
-  RBP,
-  RSI,
-  RDI,
-  R8,
-  R9,
-  R10,
-  R11,
-  R12,
-  R13,
-  R14,
-  R15
-};
-
-struct x64_register
-{
-  uint8_t opcodeOffset;
-};
-
-static x64_register registerSet[16u] =
-{
-  x64_register{0u},   // RAX
-  x64_register{3u},   // RBX
-  x64_register{1u},   // RCX
-  x64_register{2u},   // RDX
-  x64_register{4u},   // RSP
-  x64_register{5u},   // RBP
-  x64_register{6u},   // RSI
-  x64_register{7u},   // RDI
-  x64_register{8u},   // R8
-  x64_register{9u},   // R9
-  x64_register{10u},  // R10
-  x64_register{11u},  // R11
-  x64_register{12u},  // R12
-  x64_register{13u},  // R13
-  x64_register{14u},  // R14
-  x64_register{15u},  // R15
-};
-
 /*
- * Used by the AIR generator to color the interference graph to allocate slots to registers.
+ * +r - add an register opcode offset to the primary opcode
+ * [...] - denotes a prefix byte
+ * (...) - denotes bytes that follow the opcode
  */
-void ColorSlots(air_function* function)
-{
-  const unsigned int numGeneralRegisters = 14u;
-
-  unsigned int numSlots;
-  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
-  bool isColorUsed[numGeneralRegisters] = {0};
-
-  // Color params
-
-  // Color all colorable slots
-}
-
 enum class i : uint8_t
 {
   PUSH_REG        = 0x50,       // +r
-  MOV_REG_REG     = 0x89,
+  MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
   RET             = 0xC3,
   LEAVE           = 0xC9,
 };
@@ -274,20 +272,22 @@ enum class i : uint8_t
  * |  mod  |    dest   |    src    |
  * +---+---+---+---+---+---+---+---+
  *
- * `mod`: register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
+ * `mod`  : register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
+ * `dest` : opcode offset of the destination register
+ * `src`  : opcode offset of the source register
  */
-static inline uint8_t CreateModRM(reg dest, reg src)
+static inline uint8_t CreateModRM(codegen_target& target, reg dest, reg src)
 {
   uint8_t result = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-  result |= registerSet[dest].opcodeOffset << 3;
-  result |= registerSet[src].opcodeOffset;
+  result |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
+  result |= target.registerSet[src].pimpl->opcodeOffset;
   return result;
 }
 
 /*
  * NOTE(Isaac): returns the number of bytes emitted
  */
-static uint64_t Emit(FILE* f, i instruction, ...)
+static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -302,7 +302,7 @@ static uint64_t Emit(FILE* f, i instruction, ...)
     case i::PUSH_REG:
     {
       reg r = static_cast<reg>(va_arg(args, int));
-      EMIT(static_cast<uint8_t>(i::PUSH_REG) + registerSet[r].opcodeOffset);
+      EMIT(static_cast<uint8_t>(i::PUSH_REG) + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::MOV_REG_REG:
@@ -313,7 +313,7 @@ static uint64_t Emit(FILE* f, i instruction, ...)
       // TODO: `48` as a prefix is used to signify we are moving a 64-bit value into a 64-bit register. We should probably check this is the case.
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
-      EMIT(CreateModRM(dest, src));
+      EMIT(CreateModRM(target, dest, src));
     } break;
 
     // NOTE(Isaac): these are the single-opcode instructions with no extra crap
@@ -329,8 +329,8 @@ static uint64_t Emit(FILE* f, i instruction, ...)
   #undef EMIT
 }
 
-void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, parse_result& result,
-                         uint64_t virtualAddress)
+void GenerateTextSection(FILE* file, codegen_target& target, elf_section& section, elf_header& header,
+                         parse_result& result, uint64_t virtualAddress)
 {
   section.type = elf_section::section_type::SHT_PROGBITS;
   section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
@@ -366,14 +366,14 @@ void GenerateTextSection(FILE* file, elf_section& section, elf_header& header, p
       {
         case I_ENTER_STACK_FRAME:
         {
-          section.size += Emit(file, i::PUSH_REG, RBP);
-          section.size += Emit(file, i::MOV_REG_REG, RBP, RSP);
+          section.size += Emit(file, target, i::PUSH_REG, RBP);
+          section.size += Emit(file, target, i::MOV_REG_REG, RBP, RSP);
         } break;
 
         case I_LEAVE_STACK_FRAME:
         {
-          section.size += Emit(file, i::LEAVE);
-          section.size += Emit(file, i::RET);
+          section.size += Emit(file, target, i::LEAVE);
+          section.size += Emit(file, target, i::RET);
         } break;
 
         case I_RETURN:
@@ -458,7 +458,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   // [0x78] Generate the object code that will be in the .text section
   fseek(f, 0x78, SEEK_SET);
   elf_section textSection;
-  GenerateTextSection(f, textSection, header, result, textSegment.virtualAddress);
+  GenerateTextSection(f, target, textSection, header, result, textSegment.virtualAddress);
 
   // [???] Create the string table
   elf_section stringTableSection;

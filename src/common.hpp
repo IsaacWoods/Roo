@@ -118,9 +118,28 @@ struct string_constant;
 struct node;
 struct air_instruction;
 
+/*
+ * NOTE(Isaac): This allows the codegen module to store platform-dependent
+ * information about each register.
+ */
+struct register_pimpl;
+
+struct register_def
+{
+  enum reg_usage
+  {
+    GENERAL,
+    SPECIAL
+  }               usage;
+  const char*     name;
+  register_pimpl* pimpl;
+};
+
 struct codegen_target
 {
-  const char* name;
+  const char*   name;
+  unsigned int  numRegisters;
+  register_def* registerSet;
 };
 
 struct parse_result
@@ -142,6 +161,10 @@ struct dependency_def
     REMOTE
   } type;
 
+  /*
+   * LOCAL:   a symbolic path from an arbitrary library source
+   * REMOTE:  a URL to a Git repository containing a Roo project
+   */
   char* path;
 };
 

@@ -11,9 +11,6 @@
 #include <common.hpp>
 #include <ast.hpp>
 
-// NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
-void ColorSlots(air_function* function);
-
 slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 {
   va_list args;
@@ -449,6 +446,22 @@ instruction_label* GenNodeAIR<instruction_label*>(air_function* function, node* 
   }
 
   return nullptr;
+}
+
+/*
+ * Used by the AIR generator to color the interference graph to allocate slots to registers.
+ */
+void ColorSlots(air_function* function)
+{
+  const unsigned int numGeneralRegisters = 14u;
+
+  unsigned int numSlots;
+  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
+  bool isColorUsed[numGeneralRegisters] = {0};
+
+  // Color params
+
+  // Color all colorable slots
 }
 
 void GenFunctionAIR(function_def* functionDef)
