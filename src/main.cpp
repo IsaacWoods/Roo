@@ -17,7 +17,7 @@ void Parse(parse_result* result, const char* sourcePath);
 void Generate(const char* outputPath, codegen_target& target, parse_result& result);
 void InitCodegenTarget(codegen_target& target);
 
-int main()
+compile_result Compile(parse_result result, const char* directory)
 {
   InitParseletMaps();
 
@@ -25,13 +25,10 @@ int main()
   codegen_target target;
   InitCodegenTarget(target);
 
-  parse_result result;
-  CreateParseResult(result);
-
-  // Parse .roo files in the current directory
+  // Find and parse all .roo files in the specified directory
   {
     tinydir_dir dir;
-    tinydir_open(&dir, ".");
+    tinydir_open(&dir, directory);
   
     while (dir.has_next)
     {
@@ -74,7 +71,49 @@ int main()
   printf("--- Generating a %s executable ---\n", target.name);  
   Generate("test", target, result);
 
-  // Free everything
-  FreeParseResult(result);
-  return 0;
+  return compile_result::SUCCESS;
+}
+
+int main()
+{
+  parse_result result;
+  CreateParseResult(result);
+
+  // Compile the current directory
+  if (Compile(result, ".") != compile_result::SUCCESS)
+  {
+    fprintf(stderr, "FATAL: Failed to compile a thing!\n");
+    exit(1);
+  }
+
+  // Compile the dependencies
+  for (auto* dependencyIt = result.dependencies.first;
+       dependencyIt;
+       dependencyIt = dependencyIt->next)
+  {
+    char* dependencyDirectory = nullptr;
+
+    switch ((**dependencyIt)->type)
+    {
+      case dependency_def::dependency_type::LOCAL:
+      {
+        // TODO: resolve the path
+        fprintf(stderr, "Failed to find local dependency!\n");
+        continue;
+      } break;
+
+      case dependency_def::dependency_type::REMOTE:
+      {
+        // TODO: clone the repo and pass it's path
+      } break;
+    }
+
+    if (dependencyDirectory != nullptr && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
+    {
+      fprintf(stderr, "FATAL: failed to compile dependency: %s\n", dependencyDirectory);
+      exit(1);
+    }
+
+    free(dependencyDirectory);
+  }
 }

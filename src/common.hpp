@@ -110,6 +110,13 @@ T* LinearizeLinkedList(linked_list<T>& list, unsigned int* size)
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
 
+enum compile_result
+{
+  SUCCESS,
+  SYNTAX_ERROR,
+  LINKING_ERROR
+};
+
 // --- IR stuff ---
 struct dependency_def;
 struct function_def;

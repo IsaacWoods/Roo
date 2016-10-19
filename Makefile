@@ -6,7 +6,7 @@ CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++14 -g -Isrc
 LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++14 -g -Isrc
 
 OBJS = \
-  src/roo.o \
+  src/main.o \
 	src/common.o \
   src/parsing.o \
 	src/ast.o \
