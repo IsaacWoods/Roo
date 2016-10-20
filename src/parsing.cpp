@@ -1169,35 +1169,17 @@ void InitParseletMaps()
       strcpy(functionName, left->payload.variable.name);
       FreeNode(left);
 
-      function_call_part::param_def* firstParam = nullptr;
+      node* result = CreateNode(FUNCTION_CALL_NODE, functionName);
       Consume(parser, TOKEN_LEFT_PAREN);
 
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        function_call_part::param_def* param = static_cast<function_call_part::param_def*>(malloc(sizeof(function_call_part::param_def)));
-        param->expression = Expression(parser);
-        param->next = nullptr;
-
-        if (firstParam)
-        {
-          function_call_part::param_def* tail = firstParam;
-
-          while (tail->next)
-          {
-            tail = tail->next;
-          }
-
-          tail->next = param;
-        }
-        else
-        {
-          firstParam = param;
-        }
+        AddToLinkedList<node*>(result->payload.functionCall.params, Expression(parser));
       }
 
       Consume(parser, TOKEN_RIGHT_PAREN);
       printf("<-- [PARSELET] Function call\n");
-      return CreateNode(FUNCTION_CALL_NODE, functionName, firstParam);
+      return result;
     };
 
   // Parses a variable assignment

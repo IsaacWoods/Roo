@@ -98,12 +98,7 @@ struct number_constant_part
 struct function_call_part
 {
   char* name;
-  
-  struct param_def
-  {
-    node*       expression;
-    param_def*  next;
-  } *firstParam;
+  linked_list<node*> params;
 };
 
 struct variable_assign_part

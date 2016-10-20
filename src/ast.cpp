@@ -94,7 +94,7 @@ node* CreateNode(node_type type, ...)
     case FUNCTION_CALL_NODE:
     {
       payload.functionCall.name           = va_arg(args, char*);
-      payload.functionCall.firstParam     = va_arg(args, function_call_part::param_def*);
+      CreateLinkedList<node*>(payload.functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -174,15 +174,7 @@ void FreeNode(node* n)
     case FUNCTION_CALL_NODE:
     {
       free(n->payload.functionCall.name);
-
-      while (n->payload.functionCall.firstParam)
-      {
-        function_call_part::param_def* temp = n->payload.functionCall.firstParam;
-        n->payload.functionCall.firstParam = n->payload.functionCall.firstParam->next;
-        FreeNode(temp->expression);
-      }
-
-      n->payload.functionCall.firstParam = nullptr;
+      FreeLinkedList<node*>(n->payload.functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
