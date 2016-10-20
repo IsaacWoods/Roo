@@ -101,6 +101,14 @@ node* CreateNode(node_type type, ...)
     {
       payload.variableAssignment.variableName = va_arg(args, char*);
       payload.variableAssignment.newValue     = va_arg(args, node*);
+      payload.variableAssignment.variable     = nullptr;
+    } break;
+
+    case MEMBER_ACCESS_NODE:
+    {
+      payload.memberAccess.parent             = va_arg(args, node*);
+      payload.memberAccess.memberName         = va_arg(args, char*);
+      payload.memberAccess.variable           = nullptr;
     } break;
 
     default:
@@ -182,6 +190,13 @@ void FreeNode(node* n)
       free(n->payload.variableAssignment.variableName);
       FreeNode(n->payload.variableAssignment.newValue);
     } break;
+
+    case MEMBER_ACCESS_NODE:
+    {
+      FreeNode(n->payload.memberAccess.parent);
+      free(n->payload.memberAccess.memberName);
+      FreeVariableDef(n->payload.memberAccess.variable);
+    } break;
   }
 
   free(n);
@@ -213,6 +228,8 @@ const char* GetNodeName(node_type type)
       return "FUNCTION_CALL_NODE";
     case VARIABLE_ASSIGN_NODE:
       return "VARIABLE_ASSIGN_NODE";
+    case MEMBER_ACCESS_NODE:
+      return "MEMBER_ACCESS_NODE";
   }
 
   return nullptr;
@@ -396,6 +413,11 @@ void OutputDOTOfAST(function_def* function)
           char* newValueName = EmitNode(n->payload.variableAssignment.newValue);
           fprintf(f, "\t%s -> %s;\n", name, newValueName);
           free(newValueName);
+        } break;
+
+        case MEMBER_ACCESS_NODE:
+        {
+          // TODO
         } break;
       }
 

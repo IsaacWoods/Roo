@@ -1063,14 +1063,16 @@ void InitParseletMaps()
     P_MULTIPLICATIVE,           // *, / and %
     P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *, x(...)
     P_SUFFIX,                   // x++, x--
+    P_MEMBER_ACCESS,            // x.y
   };
   
-  g_precedenceTable[TOKEN_EQUALS]        = P_ASSIGNMENT;
-  g_precedenceTable[TOKEN_PLUS]          = P_ADDITIVE;
-  g_precedenceTable[TOKEN_MINUS]         = P_ADDITIVE;
-  g_precedenceTable[TOKEN_ASTERIX]       = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_SLASH]         = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_LEFT_PAREN]    = P_PREFIX;
+  g_precedenceTable[TOKEN_EQUALS]     = P_ASSIGNMENT;
+  g_precedenceTable[TOKEN_PLUS]       = P_ADDITIVE;
+  g_precedenceTable[TOKEN_MINUS]      = P_ADDITIVE;
+  g_precedenceTable[TOKEN_ASTERIX]    = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_SLASH]      = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_LEFT_PAREN] = P_PREFIX;
+  g_precedenceTable[TOKEN_DOT]        = P_MEMBER_ACCESS;
 
   // --- Parselets ---
   memset(g_prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
@@ -1180,6 +1182,25 @@ void InitParseletMaps()
       Consume(parser, TOKEN_RIGHT_PAREN);
       printf("<-- [PARSELET] Function call\n");
       return result;
+    };
+
+  // Parses a member access
+  g_infixMap[TOKEN_DOT] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      printf("--> [PARSELET] Member access\n");
+
+      if (left->type != VARIABLE_NODE &&
+          left->type != MEMBER_ACCESS_NODE)
+      {
+        SyntaxError(parser, "Can only access members of existing variables or their members!");
+      }
+
+      char* memberName = GetTextFromToken(PeekToken(parser));
+      NextToken(parser);
+
+      printf("<-- [PARSELET] Member access\n");
+      return CreateNode(MEMBER_ACCESS_NODE, left, memberName);
     };
 
   // Parses a variable assignment

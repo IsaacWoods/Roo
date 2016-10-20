@@ -1,8 +1,12 @@
-import system
+type vec
+{
+  x : float
+  y : float
+}
 
 #[Entry]
 fn Main() -> int
 {
-  x : int = 4 + 5 * 2
-  return x
+  myVec : vec = 4
+  return myVec.x
 }

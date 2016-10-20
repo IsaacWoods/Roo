@@ -19,6 +19,7 @@ enum node_type
   STRING_CONSTANT_NODE,
   FUNCTION_CALL_NODE,
   VARIABLE_ASSIGN_NODE,
+  MEMBER_ACCESS_NODE,
 };
 
 const char* GetNodeName(node_type type);
@@ -112,6 +113,20 @@ struct variable_assign_part
   variable_def* variable;
 };
 
+struct member_access_part
+{
+  /*
+   * NOTE(Isaac): Parent may either be another MEMBER_ACCESS_NODE, or a VARIABLE_NODE
+   */
+  node* parent;
+  char* memberName;
+
+  /*
+   * NOTE(Isaac): this starts as `nullptr`, and should be filled in after we finish parsing and know everything
+   */
+  variable_def* variable;
+};
+
 struct node
 {
   node_type type;
@@ -129,6 +144,7 @@ struct node
     string_constant*        stringConstant;
     function_call_part      functionCall;
     variable_assign_part    variableAssignment;
+    member_access_part      memberAccess;
   } payload;
 };
 
