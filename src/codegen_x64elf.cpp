@@ -46,22 +46,22 @@ void InitCodegenTarget(codegen_target& target)
     target.registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))}; \
     target.registerSet[index].pimpl->opcodeOffset = modRMOffset;
 
-  REGISTER(0u , "RAX", register_def::reg_usage::GENERAL, 0u);
-  REGISTER(1u , "RBX", register_def::reg_usage::GENERAL, 3u);
-  REGISTER(2u , "RCX", register_def::reg_usage::GENERAL, 1u);
-  REGISTER(3u , "RDX", register_def::reg_usage::GENERAL, 2u);
-  REGISTER(4u , "RSP", register_def::reg_usage::SPECIAL, 4u);
-  REGISTER(5u , "RBP", register_def::reg_usage::SPECIAL, 5u);
-  REGISTER(6u , "RSI", register_def::reg_usage::GENERAL, 6u);
-  REGISTER(7u , "RDI", register_def::reg_usage::GENERAL, 7u);
-  REGISTER(8u , "R8" , register_def::reg_usage::GENERAL, 8u);
-  REGISTER(9u , "R9" , register_def::reg_usage::GENERAL, 9u);
-  REGISTER(10u, "R10", register_def::reg_usage::GENERAL, 10u);
-  REGISTER(11u, "R11", register_def::reg_usage::GENERAL, 11u);
-  REGISTER(12u, "R12", register_def::reg_usage::GENERAL, 12u);
-  REGISTER(13u, "R13", register_def::reg_usage::GENERAL, 13u);
-  REGISTER(14u, "R14", register_def::reg_usage::GENERAL, 14u);
-  REGISTER(15u, "R15", register_def::reg_usage::GENERAL, 15u);
+  REGISTER(RAX, "RAX", register_def::reg_usage::GENERAL, 0u);
+  REGISTER(RBX, "RBX", register_def::reg_usage::GENERAL, 3u);
+  REGISTER(RCX, "RCX", register_def::reg_usage::GENERAL, 1u);
+  REGISTER(RDX, "RDX", register_def::reg_usage::GENERAL, 2u);
+  REGISTER(RSP, "RSP", register_def::reg_usage::SPECIAL, 4u);
+  REGISTER(RBP, "RBP", register_def::reg_usage::SPECIAL, 5u);
+  REGISTER(RSI, "RSI", register_def::reg_usage::GENERAL, 6u);
+  REGISTER(RDI, "RDI", register_def::reg_usage::GENERAL, 7u);
+  REGISTER(R8 , "R8" , register_def::reg_usage::GENERAL, 8u);
+  REGISTER(R9 , "R9" , register_def::reg_usage::GENERAL, 9u);
+  REGISTER(R10, "R10", register_def::reg_usage::GENERAL, 10u);
+  REGISTER(R11, "R11", register_def::reg_usage::GENERAL, 11u);
+  REGISTER(R12, "R12", register_def::reg_usage::GENERAL, 12u);
+  REGISTER(R13, "R13", register_def::reg_usage::GENERAL, 13u);
+  REGISTER(R14, "R14", register_def::reg_usage::GENERAL, 14u);
+  REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
 }
 
 // --- ELF stuff and things ---
