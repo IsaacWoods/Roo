@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdarg>
+#include <climits>
 #include <cassert>
 #include <common.hpp>
 #include <ast.hpp>
@@ -868,6 +869,7 @@ static void TypeDef(roo_parser& parser, uint32_t attribMask)
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
   CreateLinkedList<variable_def*>(type->members);
   type->attribMask = attribMask;
+  type->size = UINT_MAX;
 
   type->name = GetTextFromToken(PeekToken(parser));
   printf("%s)\n", type->name);

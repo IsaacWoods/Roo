@@ -232,6 +232,7 @@ struct type_def
   char*                       name;
   linked_list<variable_def*>  members;
   uint32_t                    attribMask;
+  unsigned int                size;
 };
 
 void FreeTypeDef(type_def* type);
