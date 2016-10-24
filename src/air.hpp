@@ -5,6 +5,7 @@
 #pragma once
 
 #include <common.hpp>
+#include <ir.hpp>
 
 // NOTE(Isaac): Could be considered bad practice, but stops us needing a gazillion dynamic arrays everywhere??
 #define MAX_INTERFERENCES 32u

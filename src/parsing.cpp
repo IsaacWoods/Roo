@@ -10,7 +10,7 @@
 #include <cstdarg>
 #include <climits>
 #include <cassert>
-#include <common.hpp>
+#include <ir.hpp>
 #include <ast.hpp>
 
 struct token

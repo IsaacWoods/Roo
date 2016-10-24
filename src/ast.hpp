@@ -5,6 +5,7 @@
 #pragma once
 
 #include <common.hpp>
+#include <ir.hpp>
 
 enum node_type
 {
