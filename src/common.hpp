@@ -232,6 +232,11 @@ struct type_def
   char*                       name;
   linked_list<variable_def*>  members;
   uint32_t                    attribMask;
+
+  /*
+   * Size of this structure in bytes.
+   * NOTE(Isaac): provided for inbuilt types, calculated for composite types by `CalculateTypeSizes`.
+   */
   unsigned int                size;
 };
 

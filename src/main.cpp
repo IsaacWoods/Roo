@@ -15,16 +15,10 @@ void Parse(parse_result* result, const char* sourcePath);
 
 // NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
 void Generate(const char* outputPath, codegen_target& target, parse_result& result);
-void InitCodegenTarget(codegen_target& target);
+void InitCodegenTarget(parse_result& result, codegen_target& target);
 
-compile_result Compile(parse_result result, const char* directory)
+compile_result Compile(parse_result result, codegen_target target, const char* directory)
 {
-  InitParseletMaps();
-
-  // Create the target for the codegen
-  codegen_target target;
-  InitCodegenTarget(target);
-
   // Find and parse all .roo files in the specified directory
   {
     tinydir_dir dir;
@@ -66,21 +60,22 @@ compile_result Compile(parse_result result, const char* directory)
     GenFunctionAIR(**functionIt);
   }
 
-  // Generate code
-  // TODO(Isaac): find a better way to create a filename for the executable
-  printf("--- Generating a %s executable ---\n", target.name);  
-  Generate("test", target, result);
-
   return compile_result::SUCCESS;
 }
 
 int main()
 {
+  InitParseletMaps();
+
   parse_result result;
   CreateParseResult(result);
 
+  // Create the target for the codegen
+  codegen_target target;
+  InitCodegenTarget(result, target);
+
   // Compile the current directory
-  if (Compile(result, ".") != compile_result::SUCCESS)
+  if (Compile(result, target, ".") != compile_result::SUCCESS)
   {
     fprintf(stderr, "FATAL: Failed to compile a thing!\n");
     exit(1);
@@ -108,7 +103,7 @@ int main()
       } break;
     }
 
-    if (dependencyDirectory != nullptr && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
+    if (dependencyDirectory != nullptr && Compile(result, target, dependencyDirectory) != compile_result::SUCCESS)
     {
       fprintf(stderr, "FATAL: failed to compile dependency: %s\n", dependencyDirectory);
       exit(1);
@@ -116,4 +111,9 @@ int main()
 
     free(dependencyDirectory);
   }
+
+  // Generate the code into a final executable!
+  // TODO(Isaac): find a better way to create a filename for the executable
+  printf("--- Generating a %s executable ---\n", target.name);  
+  Generate("test", target, result);
 }

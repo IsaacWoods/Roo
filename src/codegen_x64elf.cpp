@@ -36,7 +36,17 @@ struct register_pimpl
   uint8_t opcodeOffset;
 };
 
-void InitCodegenTarget(codegen_target& target)
+static type_def* CreateInbuiltType(const char* name, unsigned int size)
+{
+  type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
+  type->name = static_cast<char*>(malloc(sizeof(char) * strlen(name)));
+  strcpy(type->name, name);
+  type->size = size;
+
+  return type;
+}
+
+void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
 {
   target.name = "x64_elf";
   target.numRegisters = 16u;
@@ -62,6 +72,19 @@ void InitCodegenTarget(codegen_target& target)
   REGISTER(R13, "R13", register_def::reg_usage::GENERAL, 13u);
   REGISTER(R14, "R14", register_def::reg_usage::GENERAL, 14u);
   REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
+
+  // Add inbuilt types
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("int",    4u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("uint",   4u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("float",  4u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u8",     1u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s8",     1u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u16",    2u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s16",    2u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u32",    4u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s32",    4u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u64",    8u));
+  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
 }
 
 // --- ELF stuff and things ---
