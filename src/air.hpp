@@ -95,8 +95,8 @@ struct jump_instruction
 
 struct mov_instruction
 {
-  slot* destination;
-  slot* source;
+  slot* dest;
+  slot* src;
 };
 
 struct slot_pair

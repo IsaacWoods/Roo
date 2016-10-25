@@ -149,19 +149,19 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
     case I_RETURN:
     {
-      payload.s                             = va_arg(args, slot*);
+      payload.s                     = va_arg(args, slot*);
     } break;
 
     case I_JUMP:
     {
-      payload.jump.cond                     = static_cast<jump_instruction::condition>(va_arg(args, int));
-      payload.jump.label                    = va_arg(args, instruction_label*);
+      payload.jump.cond             = static_cast<jump_instruction::condition>(va_arg(args, int));
+      payload.jump.label            = va_arg(args, instruction_label*);
     } break;
 
     case I_MOV:
     {
-      payload.mov.destination               = va_arg(args, slot*);
-      payload.mov.source                    = va_arg(args, slot*);
+      payload.mov.dest              = va_arg(args, slot*);
+      payload.mov.src               =va_arg(args, slot*);
     } break;
 
     case I_CMP:
@@ -170,15 +170,15 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
     case I_MUL:
     case I_DIV:
     {
-      payload.slotTriple.left               = va_arg(args, slot*);
-      payload.slotTriple.right              = va_arg(args, slot*);
-      payload.slotTriple.result             = va_arg(args, slot*);
+      payload.slotTriple.left       = va_arg(args, slot*);
+      payload.slotTriple.right      = va_arg(args, slot*);
+      payload.slotTriple.result     = va_arg(args, slot*);
     } break;
 
     case I_NEGATE:
     {
-      payload.slotPair.left                = va_arg(args, slot*);
-      payload.slotPair.right               = va_arg(args, slot*);
+      payload.slotPair.left         = va_arg(args, slot*);
+      payload.slotPair.right        = va_arg(args, slot*);
     } break;
 
     default:
@@ -306,7 +306,7 @@ slot* GenNodeAIR<slot*>(air_function* function, node* n)
 
     case VARIABLE_NODE:
     {
-      // TODO: resolve the slot of the variable we need
+      // TODO: find the correct variable slot
       return nullptr;
     } break;
 
@@ -406,8 +406,12 @@ void GenNodeAIR<void>(air_function* function, node* n)
   {
     case RETURN_NODE:
     {
-      // TODO: return something
       slot* returnValue = nullptr;
+
+      if (n->payload.expression)
+      {
+        returnValue = GenNodeAIR<slot*>(function, n->payload.expression);
+      }
 
       PushInstruction(I_LEAVE_STACK_FRAME);
       PushInstruction(I_RETURN, returnValue);
@@ -607,11 +611,11 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_MOV:
     {
-      char* destinationSlot = GetSlotString(instruction->payload.mov.destination);
-      char* sourceSlot = GetSlotString(instruction->payload.mov.source);
-      printf("%s -> %s\n", sourceSlot, destinationSlot);
-      free(destinationSlot);
-      free(sourceSlot);
+      char* srcSlot = GetSlotString(instruction->payload.mov.src);
+      char* destSlot = GetSlotString(instruction->payload.mov.dest);
+      printf("%s -> %s\n", srcSlot, destSlot);
+      free(srcSlot);
+      free(destSlot);
     } break;
 
     case I_CMP:

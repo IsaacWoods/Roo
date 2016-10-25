@@ -282,6 +282,7 @@ enum class i : uint8_t
 {
   PUSH_REG        = 0x50,       // +r
   MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
+  MOV_REG_IMM32   = 0xB8,       // +r (4-byte immediate)
   RET             = 0xC3,
   LEAVE           = 0xC9,
 };
@@ -290,7 +291,7 @@ enum class i : uint8_t
  * ModR/M bytes are used to encode an instruction's operands, when there are only two and they are direct
  * registers or effective memory addresses.
  *
- *   7                           0
+ * 7                               0
  * +---+---+---+---+---+---+---+---+
  * |  mod  |    dest   |    src    |
  * +---+---+---+---+---+---+---+---+
@@ -337,6 +338,16 @@ static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
       EMIT(CreateModRM(target, dest, src));
+    } break;
+
+    case i::MOV_REG_IMM32:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      uint32_t imm = va_arg(args, uint32_t);
+
+      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      fwrite(&imm, sizeof(uint32_t), 1, f);
+      numBytesEmitted += 4u;
     } break;
 
     // NOTE(Isaac): these are the single-opcode instructions with no extra crap
@@ -411,7 +422,16 @@ void GenerateTextSection(FILE* file, codegen_target& target, elf_section& sectio
 
         case I_MOV:
         {
+          mov_instruction& mov = instruction->payload.mov;
 
+          if (mov.src->type == slot::slot_type::INT_CONSTANT)
+          {
+            section.size += Emit(file, target, i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
+          }
+          else
+          {
+            section.size += Emit(file, target, i::MOV_REG_REG, mov.dest->color, mov.src->color);
+          }
         } break;
 
         case I_CMP:
