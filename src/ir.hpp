@@ -37,8 +37,6 @@ struct dependency_def
   char* path;
 };
 
-void FreeDependencyDef(dependency_def* dependency);
-
 enum function_attribs : uint32_t
 {
   ENTRY       = (1<<0),
@@ -53,7 +51,6 @@ struct string_constant
 };
 
 string_constant* CreateStringConstant(parse_result* result, char* string);
-void FreeStringConstant(string_constant* string);
 
 struct type_ref
 {
@@ -72,8 +69,6 @@ struct variable_def
   node*         initValue;
 };
 
-void FreeVariableDef(variable_def* variable);
-
 struct air_function;
 
 struct function_def
@@ -89,8 +84,6 @@ struct function_def
   air_function*               air;
 };
 
-void FreeFunctionDef(function_def* function);
-
 struct type_def
 {
   char*                       name;
@@ -103,8 +96,6 @@ struct type_def
    */
   unsigned int                size;
 };
-
-void FreeTypeDef(type_def* type);
 
 /*
  * This fills in all the stuff that couldn't be completed during parsing.

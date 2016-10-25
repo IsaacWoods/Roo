@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
+#include <common.hpp>
 
 node* CreateNode(node_type type, ...)
 {
@@ -122,7 +123,8 @@ node* CreateNode(node_type type, ...)
   return result;
 }
 
-void FreeNode(node* n)
+template<>
+void Free<node*>(node*& n)
 {
   // NOTE(Isaac): allows for easier handling of child nodes
   if (!n)
@@ -138,18 +140,18 @@ void FreeNode(node* n)
 
     case RETURN_NODE:
     {
-      FreeNode(n->payload.expression);
+      Free<node*>(n->payload.expression);
     } break;
 
     case BINARY_OP_NODE:
     {
-      FreeNode(n->payload.binaryOp.left);
-      FreeNode(n->payload.binaryOp.right);
+      Free<node*>(n->payload.binaryOp.left);
+      Free<node*>(n->payload.binaryOp.right);
     } break;
 
     case PREFIX_OP_NODE:
     {
-      FreeNode(n->payload.prefixOp.right);
+      Free<node*>(n->payload.prefixOp.right);
     } break;
 
     case VARIABLE_NODE:
@@ -159,15 +161,15 @@ void FreeNode(node* n)
 
     case CONDITION_NODE:
     {
-      FreeNode(n->payload.condition.left);
-      FreeNode(n->payload.condition.right);
+      Free<node*>(n->payload.condition.left);
+      Free<node*>(n->payload.condition.right);
     } break;
 
     case IF_NODE:
     {
-      FreeNode(n->payload.ifThing.condition);
-      FreeNode(n->payload.ifThing.thenCode);
-      FreeNode(n->payload.ifThing.elseCode);
+      Free<node*>(n->payload.ifThing.condition);
+      Free<node*>(n->payload.ifThing.thenCode);
+      Free<node*>(n->payload.ifThing.elseCode);
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -188,14 +190,14 @@ void FreeNode(node* n)
     case VARIABLE_ASSIGN_NODE:
     {
       free(n->payload.variableAssignment.variableName);
-      FreeNode(n->payload.variableAssignment.newValue);
+      Free<node*>(n->payload.variableAssignment.newValue);
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
-      FreeNode(n->payload.memberAccess.parent);
+      Free<node*>(n->payload.memberAccess.parent);
       free(n->payload.memberAccess.memberName);
-      FreeVariableDef(n->payload.memberAccess.variable);
+      Free<variable_def*>(n->payload.memberAccess.variable);
     } break;
   }
 

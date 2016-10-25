@@ -115,6 +115,11 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   return s;
 }
 
+template<>
+void Free<slot*>(slot*& /*slot*/)
+{
+}
+
 static void AddInterference(slot* a, slot* b)
 {
   a->interferences[a->numInterferences++] = b;
@@ -503,7 +508,8 @@ void GenFunctionAIR(function_def* functionDef)
 #endif
 }
 
-void FreeAIRFunction(air_function* function)
+template<>
+void Free<air_function*>(air_function*& function)
 {
   FreeLinkedList<slot*>(function->slots);
 

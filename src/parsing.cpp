@@ -1175,7 +1175,7 @@ void InitParseletMaps()
 
       char* functionName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
       strcpy(functionName, left->payload.variable.name);
-      FreeNode(left);
+      Free<node*>(left);
 
       node* result = CreateNode(FUNCTION_CALL_NODE, functionName);
       Consume(parser, TOKEN_LEFT_PAREN);
@@ -1222,7 +1222,7 @@ void InitParseletMaps()
 
       char* variableName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
       strcpy(variableName, left->payload.variable.name);
-      FreeNode(left);
+      Free<node*>(left);
 
       NextToken(parser);
       // NOTE(Isaac): minus one from the precedence because assignment is right-associative

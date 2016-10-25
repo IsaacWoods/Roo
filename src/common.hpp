@@ -8,6 +8,10 @@
 #include <cstdint>
 #include <cstdio>
 
+// --- Global template for freeing stuff that needs to be freed ---
+template<typename T>
+void Free(T& thing);
+
 // --- Linked list ---
 template<typename T>
 struct linked_list
@@ -44,7 +48,7 @@ void FreeLinkedList(linked_list<T>& list)
     typename linked_list<T>::link* temp = list.first;
     list.first = list.first->next;
 
-    // TODO: how should we free the payload? Callback sounds grim
+    Free<T>(**temp);
     free(temp);
   }
 }

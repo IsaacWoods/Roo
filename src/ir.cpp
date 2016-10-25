@@ -5,6 +5,7 @@
 #include <ir.hpp>
 #include <cassert>
 #include <climits>
+#include <common.hpp>
 #include <ast.hpp>
 #include <air.hpp>
 
@@ -16,7 +17,8 @@ void CreateParseResult(parse_result& result)
   CreateLinkedList<string_constant*>(result.strings);
 }
 
-void FreeParseResult(parse_result& result)
+template<>
+void Free<parse_result>(parse_result& result)
 {
   FreeLinkedList<dependency_def*>(result.dependencies);
   FreeLinkedList<function_def*>(result.functions);
@@ -24,7 +26,8 @@ void FreeParseResult(parse_result& result)
   FreeLinkedList<string_constant*>(result.strings);
 }
 
-void FreeDependencyDef(dependency_def* dependency)
+template<>
+void Free<dependency_def*>(dependency_def*& dependency)
 {
   free(dependency->path);
   free(dependency);
@@ -60,13 +63,22 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
   return constant;
 }
 
-void FreeStringConstant(string_constant* string)
+template<>
+void Free<string_constant*>(string_constant*& string)
 {
   free(string->string);
   free(string);
 }
 
-/*
+template<>
+void Free<type_def*>(type_def*& type)
+{
+  free(type->name);
+  FreeLinkedList<variable_def*>(type->members);
+  free(type);
+}
+
+template<>
 void Free<type_ref>(type_ref& ref)
 {
   if (ref.isResolved)
@@ -78,35 +90,30 @@ void Free<type_ref>(type_ref& ref)
     free(ref.type.name);
   }
 }
-*/
 
-void FreeVariableDef(variable_def* variable)
+template<>
+void Free<variable_def*>(variable_def*& variable)
 {
   free(variable->name);
-  //Free<type_ref>(variable.type);
-  FreeNode(variable->initValue);
+  Free<type_ref>(variable->type);
+  Free<node*>(variable->initValue);
 }
 
-void FreeFunctionDef(function_def* function)
+template<>
+void Free<function_def*>(function_def*& function)
 {
   free(function->name);
-//  Free<type_ref>(function->returnType);
+  Free<type_ref>(*(function->returnType));
+  free(function->returnType);
   FreeLinkedList<variable_def*>(function->params);
   FreeLinkedList<variable_def*>(function->locals);
 
   if (function->ast)
   {
-    FreeNode(function->ast);
+    Free<node*>(function->ast);
   }
 
-  FreeAIRFunction(function->air);
-}
-
-void FreeTypeDef(type_def* type)
-{
-  free(type->name);
-  FreeLinkedList<variable_def*>(type->members);
-  free(type);
+  Free<air_function*>(function->air);
 }
 
 static void ResolveTypeRef(type_ref& ref, parse_result& parse)
