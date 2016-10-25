@@ -57,16 +57,18 @@ void FreeStringConstant(string_constant* string);
 
 struct type_ref
 {
-  char* typeName;
+  union
+  {
+    char*     name;
+    type_def* def;
+  }     type;
+  bool  isResolved;
 };
-
-type_ref* CreateTypeRef(char* typeName);
-void FreeTypeRef(type_ref* typeRef);
 
 struct variable_def
 {
   char*         name;
-  type_ref*     type;
+  type_ref      type;
   node*         initValue;
 };
 
@@ -79,7 +81,7 @@ struct function_def
   char*                       name;
   linked_list<variable_def*>  params;
   linked_list<variable_def*>  locals;
-  type_ref*                   returnType;
+  type_ref*                   returnType; // NOTE(Isaac): `nullptr` when function returns nothing
   bool                        shouldAutoReturn;
   uint32_t                    attribMask;
 
@@ -104,4 +106,8 @@ struct type_def
 
 void FreeTypeDef(type_def* type);
 
-void CalculateTypeSizes(parse_result& parse);
+/*
+ * This fills in all the stuff that couldn't be completed during parsing.
+ * NOTE(Isaac): After this is called, the AST should be completely valid.
+ */
+void CompleteAST(parse_result& parse);

@@ -642,9 +642,10 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
     variable_def* param = static_cast<variable_def*>(malloc(sizeof(variable_def)));
     param->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    param->type = CreateTypeRef(GetTextFromToken(PeekToken(parser)));
+    param->type.type.name = GetTextFromToken(PeekToken(parser));
+    param->type.isResolved = false;
 
-    printf("Param: %s of type %s\n", param->name, param->type->typeName);
+    printf("Param: %s of type %s\n", param->name, param->type.type.name);
     AddToLinkedList<variable_def*>(params, param);
   } while (MatchNext(parser, TOKEN_COMMA));
 
@@ -682,11 +683,13 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
   return expression;
 }
 
-static type_ref* TypeRef(roo_parser& parser)
+static type_ref TypeRef(roo_parser& parser)
 {
-  type_ref* result = CreateTypeRef(GetTextFromToken(PeekToken(parser)));
-  NextToken(parser);
+  type_ref result;
+  result.type.name = GetTextFromToken(PeekToken(parser));
+  result.isResolved = false;
 
+  NextToken(parser);
   return result;
 }
 
@@ -708,7 +711,7 @@ static variable_def* VariableDef(roo_parser& parser)
     definition->initValue = nullptr;
   }
 
-  printf("Defined variable: %s of type: %s\n", definition->name, definition->type->typeName);
+  printf("Defined variable: %s of type: %s\n", definition->name, definition->type.type.name);
   return definition;
 }
 
@@ -948,10 +951,11 @@ static void Function(roo_parser& parser, uint32_t attribMask)
   {
     Consume(parser, TOKEN_YIELDS);
     definition->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    definition->returnType->typeName = GetTextFromToken(PeekToken(parser));
+    definition->returnType->type.name = GetTextFromToken(PeekToken(parser));
+    definition->returnType->isResolved = false;
     NextToken(parser);
 
-    printf("Return type: %s\n", definition->returnType->typeName);
+    printf("Return type: %s\n", definition->returnType->type.name);
   }
   else
   {
