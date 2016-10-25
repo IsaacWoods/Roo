@@ -18,7 +18,7 @@ void Parse(parse_result* result, const char* sourcePath);
 void Generate(const char* outputPath, codegen_target& target, parse_result& result);
 void InitCodegenTarget(parse_result& result, codegen_target& target);
 
-compile_result Compile(parse_result result, codegen_target target, const char* directory)
+static compile_result Compile(parse_result& result, codegen_target target, const char* directory)
 {
   // Find and parse all .roo files in the specified directory
   {

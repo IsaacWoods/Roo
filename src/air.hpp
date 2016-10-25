@@ -101,8 +101,8 @@ struct mov_instruction
 
 struct slot_pair
 {
+  slot* left;
   slot* right;
-  slot* result;
 };
 
 struct slot_triple
@@ -123,6 +123,7 @@ struct air_instruction
   {
     jump_instruction      jump;
     mov_instruction       mov;
+    slot*                 s;
     slot_pair             slotPair;
     slot_triple           slotTriple;
   } payload;

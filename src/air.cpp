@@ -149,6 +149,7 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
     case I_RETURN:
     {
+      payload.s                             = va_arg(args, slot*);
     } break;
 
     case I_JUMP:
@@ -176,8 +177,8 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
     case I_NEGATE:
     {
-      payload.slotPair.right                = va_arg(args, slot*);
-      payload.slotPair.result               = va_arg(args, slot*);
+      payload.slotPair.left                = va_arg(args, slot*);
+      payload.slotPair.right               = va_arg(args, slot*);
     } break;
 
     default:
@@ -405,8 +406,11 @@ void GenNodeAIR<void>(air_function* function, node* n)
   {
     case RETURN_NODE:
     {
+      // TODO: return something
+      slot* returnValue = nullptr;
+
       PushInstruction(I_LEAVE_STACK_FRAME);
-      PushInstruction(I_RETURN);
+      PushInstruction(I_RETURN, returnValue);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -490,7 +494,7 @@ void GenFunctionAIR(function_def* functionDef)
   if (functionDef->shouldAutoReturn)
   {
     PushInstruction(I_LEAVE_STACK_FRAME);
-    PushInstruction(I_RETURN);
+    PushInstruction(I_RETURN, nullptr);
   }
 
   CreateInterferenceDOT(function, functionDef->name);
@@ -526,6 +530,46 @@ void Free<air_function*>(air_function*& function)
   free(function);
 }
 
+static char* GetSlotString(slot* s)
+{
+  char* result;
+
+  switch (s->type)
+  {
+    case slot::slot_type::PARAM:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(P)", s->payload.variable->name)));
+      sprintf(result, "%s(P)", s->payload.variable->name);
+    } break;
+
+    case slot::slot_type::LOCAL:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(L)", s->payload.variable->name)));
+      sprintf(result, "%s(L)", s->payload.variable->name);
+    } break;
+
+    case slot::slot_type::INTERMEDIATE:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag)));
+      sprintf(result, "i%u", s->tag);
+    } break;
+
+    case slot::slot_type::INT_CONSTANT:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%d", s->payload.i)));
+      sprintf(result, "#%d", s->payload.i);
+    } break;
+
+    case slot::slot_type::FLOAT_CONSTANT:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f)));
+      sprintf(result, "#%f", s->payload.f);
+    } break;
+  }
+
+  return result;
+}
+
 void PrintInstruction(air_instruction* instruction)
 {
   if (instruction->label)
@@ -534,7 +578,100 @@ void PrintInstruction(air_instruction* instruction)
     printf("[LABEL]: ");
   }
 
-  printf("%s\n", GetInstructionName(instruction->type));
+  switch (instruction->type)
+  {
+    case I_ENTER_STACK_FRAME:
+    case I_LEAVE_STACK_FRAME:
+    case I_NUM_INSTRUCTIONS:
+    {
+      printf("%s\n", GetInstructionName(instruction->type));
+    } break;
+
+    case I_RETURN:
+    {
+      char* returnValue = nullptr;
+
+      if (instruction->payload.s)
+      {
+        returnValue = GetSlotString(instruction->payload.s);
+      }
+
+      printf("RETURN %s\n", returnValue);
+      free(returnValue);
+    } break;
+
+    case I_JUMP:
+    {
+
+    } break;
+
+    case I_MOV:
+    {
+      char* destinationSlot = GetSlotString(instruction->payload.mov.destination);
+      char* sourceSlot = GetSlotString(instruction->payload.mov.source);
+      printf("%s -> %s\n", sourceSlot, destinationSlot);
+      free(destinationSlot);
+      free(sourceSlot);
+    } break;
+
+    case I_CMP:
+    {
+      char* leftSlot = GetSlotString(instruction->payload.slotPair.left);
+      char* rightSlot = GetSlotString(instruction->payload.slotPair.right);
+      printf("CMP %s, %s\n", leftSlot, rightSlot);
+      free(leftSlot);
+      free(rightSlot);
+    } break;
+
+    case I_ADD:
+    {
+      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
+      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
+      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
+      printf("%s := %s + %s\n", resultSlot, leftSlot, rightSlot);
+      free(leftSlot);
+      free(rightSlot);
+      free(resultSlot);
+    } break;
+
+    case I_SUB:
+    {
+      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
+      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
+      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
+      printf("%s := %s - %s\n", resultSlot, leftSlot, rightSlot);
+      free(leftSlot);
+      free(rightSlot);
+      free(resultSlot);
+    } break;
+
+    case I_MUL:
+    {
+      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
+      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
+      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
+      printf("%s := %s * %s\n", resultSlot, leftSlot, rightSlot);
+      free(leftSlot);
+      free(rightSlot);
+      free(resultSlot);
+    } break;
+
+    case I_DIV:
+    {
+      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
+      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
+      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
+      printf("%s := %s / %s\n", resultSlot, leftSlot, rightSlot);
+      free(leftSlot);
+      free(rightSlot);
+      free(resultSlot);
+    } break;
+
+    case I_NEGATE:
+    {
+
+    } break;
+  }
 }
 
 const char* GetInstructionName(instruction_type type)
