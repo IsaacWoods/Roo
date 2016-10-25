@@ -44,23 +44,6 @@ compile_result Compile(parse_result result, codegen_target target, const char* d
     tinydir_close(&dir);
   }
 
-  // Emit DOT files for function ASTs
-  for (auto* functionIt = result.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
-  {
-    OutputDOTOfAST(**functionIt);
-  }
-
-  // Generate AIR instructions from the AST
-  // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-  for (auto* functionIt = result.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
-  {
-    GenFunctionAIR(**functionIt);
-  }
-
   return compile_result::SUCCESS;
 }
 
@@ -114,6 +97,23 @@ int main()
   }
 
   CompleteAST(result);
+
+  // Emit DOT files for function ASTs
+  for (auto* functionIt = result.functions.first;
+       functionIt;
+       functionIt = functionIt->next)
+  {
+    OutputDOTOfAST(**functionIt);
+  }
+
+  // Generate AIR instructions from the AST
+  // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
+  for (auto* functionIt = result.functions.first;
+       functionIt;
+       functionIt = functionIt->next)
+  {
+    GenFunctionAIR(**functionIt);
+  }
 
   // Generate the code into a final executable!
   // TODO(Isaac): find a better way to create a filename for the executable

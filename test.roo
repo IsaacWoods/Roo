@@ -1,12 +1,7 @@
-type vec
-{
-  x : float
-  y : float
-}
-
 #[Entry]
 fn Main() -> int
 {
-  myVec : vec = 4
-  return myVec.x
+  x : int = 4
+  y : int = x * 2
+  return x + 4
 }
