@@ -99,9 +99,8 @@ int main()
     free(dependencyDirectory);
   }*/
 
+  // Complete the AST and apply all the passes
   CompleteAST(result);
-
-  // Apply AST Passes
   ApplyASTPass(result, PASS_resolveVars);
 
   // Emit DOT files for function ASTs

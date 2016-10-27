@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdio>
+#include <cstring>
 #include <cassert>
 #include <ast.hpp>
 
@@ -25,9 +26,8 @@ void InitResolveVarsPass()
            localIt;
            localIt = localIt->next)
       {
-        if ((**localIt)->name == n->payload.variable.var.name)
+        if (strcmp((**localIt)->name, n->payload.variable.var.name) == 0)
         {
-          printf("Resolved %s\n", n->payload.variable.var.name);
           n->payload.variable.isResolved = true;
           n->payload.variable.var.def = (**localIt);
           return;
@@ -38,9 +38,8 @@ void InitResolveVarsPass()
            paramIt;
            paramIt = paramIt->next)
       {
-        if ((**paramIt)->name == n->payload.variable.var.name)
+        if (strcmp((**paramIt)->name, n->payload.variable.var.name) == 0)
         {
-          printf("Resolved %s\n", n->payload.variable.var.name);
           n->payload.variable.isResolved = true;
           n->payload.variable.var.def = (**paramIt);
           return;
