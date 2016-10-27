@@ -213,12 +213,12 @@ void Free<node*>(node*& n)
   free(n);
 }
 
-static void ApplyPassToNode(node* n, ast_passlet pass[NUM_AST_NODES], parse_result& parse)
+static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NUM_AST_NODES], parse_result& parse)
 {
   // Apply the pass to the node
   if (pass[n->type])
   {
-    (*pass[n->type])(parse, n);
+    (*pass[n->type])(parse, function, n);
   }
 
   // Apply the pass to the children, recursively
@@ -232,19 +232,19 @@ static void ApplyPassToNode(node* n, ast_passlet pass[NUM_AST_NODES], parse_resu
     {
       if (n->payload.expression)
       {
-        ApplyPassToNode(n->payload.expression, pass, parse);
+        ApplyPassToNode(n->payload.expression, function, pass, parse);
       }
     } break;
 
     case BINARY_OP_NODE:
     {
-      ApplyPassToNode(n->payload.binaryOp.left, pass, parse);
-      ApplyPassToNode(n->payload.binaryOp.right, pass, parse);
+      ApplyPassToNode(n->payload.binaryOp.left, function, pass, parse);
+      ApplyPassToNode(n->payload.binaryOp.right, function, pass, parse);
     } break;
 
     case PREFIX_OP_NODE:
     {
-      ApplyPassToNode(n->payload.prefixOp.right, pass, parse);
+      ApplyPassToNode(n->payload.prefixOp.right, function, pass, parse);
     } break;
 
     case VARIABLE_NODE:
@@ -253,18 +253,18 @@ static void ApplyPassToNode(node* n, ast_passlet pass[NUM_AST_NODES], parse_resu
 
     case CONDITION_NODE:
     {
-      ApplyPassToNode(n->payload.condition.left, pass, parse);
-      ApplyPassToNode(n->payload.condition.right, pass, parse);
+      ApplyPassToNode(n->payload.condition.left, function, pass, parse);
+      ApplyPassToNode(n->payload.condition.right, function, pass, parse);
     } break;
 
     case IF_NODE:
     {
-      ApplyPassToNode(n->payload.ifThing.condition, pass, parse);
-      ApplyPassToNode(n->payload.ifThing.thenCode, pass, parse);
+      ApplyPassToNode(n->payload.ifThing.condition, function, pass, parse);
+      ApplyPassToNode(n->payload.ifThing.thenCode, function, pass, parse);
 
       if (n->payload.ifThing.elseCode)
       {
-        ApplyPassToNode(n->payload.ifThing.elseCode, pass, parse);
+        ApplyPassToNode(n->payload.ifThing.elseCode, function, pass, parse);
       }
     } break;
 
@@ -282,7 +282,7 @@ static void ApplyPassToNode(node* n, ast_passlet pass[NUM_AST_NODES], parse_resu
            paramIt;
            paramIt = paramIt->next)
       {
-        ApplyPassToNode(**paramIt, pass, parse);
+        ApplyPassToNode(**paramIt, function, pass, parse);
       }
     } break;
 
@@ -304,7 +304,7 @@ static void ApplyPassToNode(node* n, ast_passlet pass[NUM_AST_NODES], parse_resu
   // Apply to next node
   if (n->next)
   {
-    ApplyPassToNode(n->next, pass, parse);
+    ApplyPassToNode(n->next, function, pass, parse);
   }
 }
 
@@ -314,7 +314,7 @@ void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
        functionIt;
        functionIt = functionIt->next)
   {
-    ApplyPassToNode((**functionIt)->ast, pass, parse);
+    ApplyPassToNode((**functionIt)->ast, **functionIt, pass, parse);
   }
 }
 

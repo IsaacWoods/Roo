@@ -28,7 +28,7 @@ enum node_type
 const char* GetNodeName(node_type type);
 
 struct node;
-typedef void(*ast_passlet)(parse_result&, node*);
+typedef void(*ast_passlet)(parse_result&, function_def*, node*);
 
 /*
  * Binary operations:

@@ -14,11 +14,13 @@ OBJS = \
 	src/air.o \
 	src/codegen_x64elf.o \
 
-.PHONY: graphAST
+AST_PASSES = \
+	src/pass_resolveVars.hpp \
+
 .PHONY: clean
 
-roo: $(OBJS)
-	$(CXX) -o $@ $^ $(LFLAGS)
+roo: $(OBJS) $(AST_PASSES)
+	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 %.o: %.cpp
 	$(CXX) -o $@ -c $< $(CFLAGS)
