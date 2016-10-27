@@ -20,6 +20,7 @@ void Parse(parse_result* result, const char* sourcePath);
 // NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
 void Generate(const char* outputPath, codegen_target& target, parse_result& result);
 void InitCodegenTarget(parse_result& result, codegen_target& target);
+void FreeCodegenTarget(codegen_target& target);
 
 static compile_result Compile(parse_result& result, codegen_target target, const char* directory)
 {

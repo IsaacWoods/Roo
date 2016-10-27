@@ -96,6 +96,11 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
 }
 
+void FreeCodegenTarget(codegen_target& target)
+{
+  free(target.registerSet);
+}
+
 // --- ELF stuff and things ---
 struct elf_header
 {
