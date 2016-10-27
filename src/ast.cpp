@@ -203,9 +203,110 @@ void Free<node*>(node*& n)
       free(n->payload.memberAccess.memberName);
       Free<variable_def*>(n->payload.memberAccess.variable);
     } break;
+
+    case NUM_AST_NODES:
+    {
+      fprintf(stderr, "Node of type NUM_AST_NODES found in actual AST!\n");
+    } break;
   }
 
   free(n);
+}
+
+static void ApplyPassToNode(node* n, ast_pass& pass)
+{
+  // Apply the pass to the node
+  (*pass[n->type])(n);
+
+  // Apply the pass to the children, recursively
+  switch (n->type)
+  {
+    case BREAK_NODE:
+    {
+    } break;
+
+    case RETURN_NODE:
+    {
+      if (n->payload.expression)
+      {
+        ApplyPassToNode(n->payload.expression, pass);
+      }
+    } break;
+
+    case BINARY_OP_NODE:
+    {
+      ApplyPassToNode(n->payload.binaryOp.left, pass);
+      ApplyPassToNode(n->payload.binaryOp.right, pass);
+    } break;
+
+    case PREFIX_OP_NODE:
+    {
+      ApplyPassToNode(n->payload.prefixOp.right, pass);
+    } break;
+
+    case VARIABLE_NODE:
+    {
+    } break;
+
+    case CONDITION_NODE:
+    {
+      ApplyPassToNode(n->payload.condition.left, pass);
+      ApplyPassToNode(n->payload.condition.right, pass);
+    } break;
+
+    case IF_NODE:
+    {
+      ApplyPassToNode(n->payload.ifThing.condition, pass);
+      ApplyPassToNode(n->payload.ifThing.thenCode, pass);
+
+      if (n->payload.ifThing.elseCode)
+      {
+        ApplyPassToNode(n->payload.ifThing.elseCode, pass);
+      }
+    } break;
+
+    case NUMBER_CONSTANT_NODE:
+    {
+    } break;
+
+    case STRING_CONSTANT_NODE:
+    {
+    } break;
+
+    case FUNCTION_CALL_NODE:
+    {
+      for (auto* paramIt = n->payload.functionCall.params.first;
+           paramIt;
+           paramIt = paramIt->next)
+      {
+        ApplyPassToNode(**paramIt, pass);
+      }
+    } break;
+
+    case VARIABLE_ASSIGN_NODE:
+    {
+    } break;
+
+    case MEMBER_ACCESS_NODE:
+    {
+    } break;
+
+    case NUM_AST_NODES:
+    {
+      fprintf(stderr, "Node of type NUM_AST_NODES actually in the AST!\n");
+      exit(1);
+    } break;
+  }
+}
+
+void ApplyASTPass(parse_result& parse, ast_pass& pass)
+{
+  for (auto* functionIt = parse.functions.first;
+       functionIt;
+       functionIt = functionIt->next)
+  {
+    ApplyPassToNode((**functionIt)->ast, pass);
+  }
 }
 
 const char* GetNodeName(node_type type)
@@ -236,6 +337,8 @@ const char* GetNodeName(node_type type)
       return "VARIABLE_ASSIGN_NODE";
     case MEMBER_ACCESS_NODE:
       return "MEMBER_ACCESS_NODE";
+    case NUM_AST_NODES:
+      return "!!!NUM_AST_NODES!!!";
   }
 
   return nullptr;
@@ -424,6 +527,12 @@ void OutputDOTOfAST(function_def* function)
         case MEMBER_ACCESS_NODE:
         {
           // TODO
+        } break;
+
+        case NUM_AST_NODES:
+        {
+          fprintf(stderr, "Node of type NUM_AST_NODES found in actual AST!\n");
+          exit(1);
         } break;
       }
 

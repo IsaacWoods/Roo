@@ -9,23 +9,26 @@
 
 enum node_type
 {
-  BREAK_NODE,
-  RETURN_NODE,
-  BINARY_OP_NODE,
-  PREFIX_OP_NODE,
-  VARIABLE_NODE,
-  CONDITION_NODE,
-  IF_NODE,
-  NUMBER_CONSTANT_NODE,
-  STRING_CONSTANT_NODE,
-  FUNCTION_CALL_NODE,
-  VARIABLE_ASSIGN_NODE,
-  MEMBER_ACCESS_NODE,
+  BREAK_NODE,             // Nothing
+  RETURN_NODE,            // Nothing or `expression` (can be nullptr)
+  BINARY_OP_NODE,         // `binary_op_node_part`
+  PREFIX_OP_NODE,         // `prefix_op_node_part`
+  VARIABLE_NODE,          // `variable`
+  CONDITION_NODE,         // `condition_node_part`
+  IF_NODE,                // `if_node_part`
+  NUMBER_CONSTANT_NODE,   // `number_constant_part`
+  STRING_CONSTANT_NODE,   // `string_constant*`
+  FUNCTION_CALL_NODE,     // `function_call_node_part`
+  VARIABLE_ASSIGN_NODE,   // `variable_assign_part`
+  MEMBER_ACCESS_NODE,     // `member_access_part`
+
+  NUM_AST_NODES
 };
 
 const char* GetNodeName(node_type type);
 
 struct node;
+typedef void(*ast_pass[NUM_AST_NODES])(node*);
 
 /*
  * Binary operations:
@@ -156,4 +159,5 @@ struct node
 
 node* CreateNode(node_type type, ...);
 void FreeNode(node* n);
+void ApplyASTPass(parse_result& parse, ast_pass& pass);
 void OutputDOTOfAST(function_def* function);

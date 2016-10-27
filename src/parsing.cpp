@@ -522,7 +522,6 @@ static token PeekToken(roo_parser& parser, bool ignoreLines = true)
   return parser.currentToken;
 }
 
-// TODO(Isaac): should we remove this? It can be useful but because reasons (see below), it's a pain in the ass
 static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
 {
   if (!ignoreLines)
