@@ -28,7 +28,7 @@ enum node_type
 const char* GetNodeName(node_type type);
 
 struct node;
-typedef void(*ast_pass[NUM_AST_NODES])(node*);
+typedef void(*ast_passlet)(parse_result&, node*);
 
 /*
  * Binary operations:
@@ -159,5 +159,5 @@ struct node
 
 node* CreateNode(node_type type, ...);
 void FreeNode(node* n);
-void ApplyASTPass(parse_result& parse, ast_pass& pass);
+void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES]);
 void OutputDOTOfAST(function_def* function);

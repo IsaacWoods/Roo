@@ -10,6 +10,9 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+// AST Passes
+#include <pass_resolveVars.hpp>
+
 // NOTE(Isaac): defined in `parsing.cpp`
 void InitParseletMaps();
 void Parse(parse_result* result, const char* sourcePath);
@@ -97,6 +100,9 @@ int main()
   }*/
 
   CompleteAST(result);
+
+  // Apply AST Passes
+  ApplyASTPass(result, PASS_resolveVars);
 
   // Emit DOT files for function ASTs
   for (auto* functionIt = result.functions.first;
