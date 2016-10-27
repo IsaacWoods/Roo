@@ -288,6 +288,7 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case VARIABLE_ASSIGN_NODE:
     {
+      ApplyPassToNode(n->payload.variableAssignment.newValue, function, pass, parse);
     } break;
 
     case MEMBER_ACCESS_NODE:
@@ -462,7 +463,14 @@ void OutputDOTOfAST(function_def* function)
 
         case VARIABLE_NODE:
         {
-          fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.var.name);
+          if (n->payload.variable.isResolved)
+          {
+            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.var.def->name);
+          }
+          else
+          {
+            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.var.name);
+          }
         } break;
 
         case CONDITION_NODE:
