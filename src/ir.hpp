@@ -11,6 +11,9 @@ struct function_def;
 struct type_def;
 struct string_constant;
 
+struct air_function;
+struct slot;
+
 struct parse_result
 {
   linked_list<dependency_def*>  dependencies;
@@ -67,9 +70,8 @@ struct variable_def
   char*         name;
   type_ref      type;
   node*         initValue;
+  slot*         mostRecentSlot;
 };
-
-struct air_function;
 
 struct function_def
 {

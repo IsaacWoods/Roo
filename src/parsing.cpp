@@ -1173,8 +1173,8 @@ void InitParseletMaps()
         SyntaxError(parser, "Unrecognised function name!");
       }
 
-      char* functionName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
-      strcpy(functionName, left->payload.variable.name);
+      char* functionName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.var.name)));
+      strcpy(functionName, left->payload.variable.var.name);
       Free<node*>(left);
 
       node* result = CreateNode(FUNCTION_CALL_NODE, functionName);
@@ -1220,8 +1220,8 @@ void InitParseletMaps()
         SyntaxError(parser, "Expected variable name before '=' token!");
       }
 
-      char* variableName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.name)));
-      strcpy(variableName, left->payload.variable.name);
+      char* variableName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.var.name)));
+      strcpy(variableName, left->payload.variable.var.name);
       Free<node*>(left);
 
       NextToken(parser);

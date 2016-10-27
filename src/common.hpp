@@ -147,6 +147,9 @@ struct codegen_target
   const char*   name;
   unsigned int  numRegisters;
   register_def* registerSet;
+
+  unsigned int  numIntParamColors;
+  unsigned int* intParamColors;
 };
 
 enum token_type

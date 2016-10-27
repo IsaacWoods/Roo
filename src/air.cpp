@@ -25,67 +25,19 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   switch (type)
   {
     case slot::slot_type::PARAM:
-    {
-      s->payload.variable = va_arg(args, variable_def*);
-      s->shouldBeColored = true;
-
-      // Find the most recent use of this variable in the function
-      signed int mostRecentTag = -1;
-
-      for (auto* slotIt = function->slots.first;
-           slotIt;
-           slotIt = slotIt->next)
-      {
-        if ((**slotIt)->type != slot::slot_type::PARAM)
-        {
-          continue;
-        }
-
-        if ((**slotIt)->payload.variable != s->payload.variable)
-        {
-          continue;
-        }
-
-        if ((**slotIt)->tag > mostRecentTag)
-        {
-          mostRecentTag = (**slotIt)->tag;
-        }
-      }
-
-      // Set the tag of this slot as one greater
-      s->tag = mostRecentTag + 1;
-    } break;
-
     case slot::slot_type::LOCAL:
     {
       s->payload.variable = va_arg(args, variable_def*);
       s->shouldBeColored = true;
+      s->tag = 0;
 
-      // Find the most recent use of this variable in the function
-      signed int mostRecentTag = -1;
-
-      for (auto* slotIt = function->slots.first;
-           slotIt;
-           slotIt = slotIt->next)
+      // Set this slot to be more recent that the most recent (so it's the newest)
+      if (s->payload.variable->mostRecentSlot)
       {
-        if ((**slotIt)->type != slot::slot_type::LOCAL)
-        {
-          continue;
-        }
-
-        if ((**slotIt)->payload.variable != s->payload.variable)
-        {
-          continue;
-        }
-
-        if ((**slotIt)->tag > mostRecentTag)
-        {
-          mostRecentTag = (**slotIt)->tag;
-        }
+        s->tag = s->payload.variable->mostRecentSlot->tag + 1;
       }
 
-      // Set the tag of this slot as one greater
-      s->tag = mostRecentTag + 1;
+      s->payload.variable->mostRecentSlot = s;
     } break;
 
     case slot::slot_type::INTERMEDIATE:
@@ -304,10 +256,20 @@ slot* GenNodeAIR<slot*>(air_function* function, node* n)
       return result;
     } break;
 
+    /*
+     * NOTE(Isaac): at the moment, this always returns the most recent slot
+     * At some point, we have to create new slots for the variable
+     */
     case VARIABLE_NODE:
     {
-      // TODO: find the correct variable slot
-      return nullptr;
+      // If no slot exists yet, create one
+      if (!n->payload.variable.var.def->mostRecentSlot)
+      {
+        n->payload.variable.var.def->mostRecentSlot = CreateSlot(function, slot::slot_type::PARAM, n->payload.variable.var.def);
+      }
+
+      assert(n->payload.variable.isResolved);
+      return n->payload.variable.var.def->mostRecentSlot;
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -464,7 +426,7 @@ instruction_label* GenNodeAIR<instruction_label*>(air_function* function, node* 
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-void ColorSlots(air_function* function)
+void ColorSlots(codegen_target& target, air_function* function)
 {
   const unsigned int numGeneralRegisters = 14u;
 
@@ -473,6 +435,19 @@ void ColorSlots(air_function* function)
   bool isColorUsed[numGeneralRegisters] = {0};
 
   // Color params
+  unsigned int intParamCounter = 0u;
+
+  for (unsigned int i = 0u;
+       i < numSlots;
+       i++)
+  {
+    slot* s = slots[i];
+
+    if (s->type == slot::slot_type::PARAM)
+    {
+      s->color = target.intParamColors[intParamCounter++];
+    }
+  }
 
   // Color all colorable slots
 }

@@ -66,7 +66,7 @@ int main()
   }
 
   // Compile the dependencies
-  for (auto* dependencyIt = result.dependencies.first;
+/*  for (auto* dependencyIt = result.dependencies.first;
        dependencyIt;
        dependencyIt = dependencyIt->next)
   {
@@ -94,7 +94,7 @@ int main()
     }
 
     free(dependencyDirectory);
-  }
+  }*/
 
   CompleteAST(result);
 

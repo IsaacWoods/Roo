@@ -52,6 +52,15 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   target.numRegisters = 16u;
   target.registerSet = static_cast<register_def*>(malloc(sizeof(register_def) * target.numRegisters));
 
+  target.numIntParamColors = 6u;
+  target.intParamColors = static_cast<unsigned int*>(malloc(sizeof(unsigned int) * target.numIntParamColors));
+  target.intParamColors[0] = RDI;
+  target.intParamColors[1] = RSI;
+  target.intParamColors[2] = RDX;
+  target.intParamColors[3] = RCX;
+  target.intParamColors[4] = R8;
+  target.intParamColors[5] = R9;
+
   #define REGISTER(index, name, usage, modRMOffset) \
     target.registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))}; \
     target.registerSet[index].pimpl->opcodeOffset = modRMOffset;

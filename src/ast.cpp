@@ -46,7 +46,8 @@ node* CreateNode(node_type type, ...)
 
     case VARIABLE_NODE:
     {
-      payload.variable.name               = va_arg(args, char*);
+      payload.variable.var.name           = va_arg(args, char*);
+      payload.variable.isResolved         = false;
     } break;
 
     case CONDITION_NODE:
@@ -156,7 +157,10 @@ void Free<node*>(node*& n)
 
     case VARIABLE_NODE:
     {
-      free(n->payload.variable.name);
+      if (!n->payload.variable.isResolved)
+      {
+        free(n->payload.variable.var.name);
+      }
     } break;
 
     case CONDITION_NODE:
@@ -346,7 +350,7 @@ void OutputDOTOfAST(function_def* function)
 
         case VARIABLE_NODE:
         {
-          fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.name);
+          fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.var.name);
         } break;
 
         case CONDITION_NODE:

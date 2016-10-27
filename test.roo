@@ -1,6 +1,6 @@
 #[Entry]
-fn Main() -> int
+fn Main(y : int) -> int
 {
-  x : int = 4
+  x : int = 4 + y
   return x
 }

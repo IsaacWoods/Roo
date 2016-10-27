@@ -47,9 +47,9 @@ struct slot
 
   union
   {
-    const variable_def* variable;
-    int                 i;
-    float               f;
+    variable_def* variable;
+    int           i;
+    float         f;
   } payload;
 
   /*

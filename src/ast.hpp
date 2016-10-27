@@ -56,7 +56,12 @@ struct prefix_op_node_part
 
 struct variable_node_part
 {
-  char* name;
+  union
+  {
+    char*         name;
+    variable_def* def;
+  }    var;
+  bool isResolved;
 };
 
 /*
