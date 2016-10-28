@@ -118,7 +118,7 @@ int main()
        functionIt;
        functionIt = functionIt->next)
   {
-    GenFunctionAIR(**functionIt);
+    GenFunctionAIR(target, **functionIt);
   }
 
   // Generate the code into a final executable!

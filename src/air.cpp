@@ -445,6 +445,7 @@ void ColorSlots(codegen_target& target, air_function* function)
 
     if (s->type == slot::slot_type::PARAM)
     {
+      printf("Coloring param slot: %s\n", s->payload.variable->name);
       s->color = target.intParamColors[intParamCounter++];
     }
   }
@@ -452,7 +453,7 @@ void ColorSlots(codegen_target& target, air_function* function)
   // Color all colorable slots
 }
 
-void GenFunctionAIR(function_def* functionDef)
+void GenFunctionAIR(codegen_target& target, function_def* functionDef)
 {
   assert(functionDef->air == nullptr);
 
@@ -476,9 +477,12 @@ void GenFunctionAIR(function_def* functionDef)
     PushInstruction(I_RETURN, nullptr);
   }
 
-  CreateInterferenceDOT(function, functionDef->name);
+  // Color the interference graph
+  ColorSlots(target, functionDef->air);
 
 #if 1
+  CreateInterferenceDOT(function, functionDef->name);
+
   // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", functionDef->name);
 
@@ -714,7 +718,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
   const char* snazzyColors[] =
   {
-    "cyan2", "deeppink", "gainsboro", "dodgerblue4", "slategray", "goldenrod", "darkorchid1", "firebrick2",
+    "cyan2", "deeppink", "gainsboro", "dodgerblue4", "slategray", "goldenrod", "darkorchid1", "blue",
     "green3", "lightblue2", "mediumspringgreeen", "orange1", "mistyrose3", "maroon2", "mediumpurple2",
     "steelblue2", "plum", "lightseagreen"
   };

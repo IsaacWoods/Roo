@@ -137,6 +137,6 @@ struct air_function
   int                 numIntermediates;
 };
 
-void GenFunctionAIR(function_def* function);
+void GenFunctionAIR(codegen_target& target, function_def* function);
 void PrintInstruction(air_instruction* instruction);
 void CreateInterferenceDOT(air_function* function, const char* functionName);
