@@ -366,12 +366,11 @@ static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
     case i::ADD_REG_IMM32:
     {
       reg result    = static_cast<reg>(va_arg(args, int));
-      reg left      = static_cast<reg>(va_arg(args, int));
       uint32_t imm  = va_arg(args, uint32_t);
 
       EMIT(0x48);   // Specify we are moving 64-bit values around
       EMIT(static_cast<uint8_t>(i::ADD_REG_IMM32));
-      EMIT(CreateExtensionModRM(target, 0u, left));
+      EMIT(CreateExtensionModRM(target, 0u, result));
       fwrite(&imm, sizeof(uint32_t), 1, f);
       numBytesEmitted += 4u;
     } break;
@@ -407,12 +406,47 @@ static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
 
   va_end(args);
   return numBytesEmitted;
-  #undef EMIT
 }
 
-void GenerateTextSection(FILE* file, codegen_target& target, elf_section& section, elf_header& header,
-                         parse_result& result, uint64_t virtualAddress)
+void GenerateBootstrap(FILE* f, elf_section& textSection, elf_header& header, uint64_t entryFunctionOffset)
 {
+  header.entryPoint = ftell(f);
+  unsigned numBytesEmitted = 0u;
+
+  // xor ebp, ebp
+  EMIT(0x31);
+  EMIT(0xED);
+
+  // call {the entry function}
+  EMIT(0xE8);
+  uint32_t relativeAddressToEntryFunction = (uint32_t)(entryFunctionOffset - (ftell(f) + 4u));
+  fwrite(&relativeAddressToEntryFunction, sizeof(uint32_t), 1, f);
+  numBytesEmitted += 4u;
+
+  // mov rax, 1
+  EMIT(0xB8);
+  EMIT(0x01);
+  EMIT(0x00);
+  EMIT(0x00);
+  EMIT(0x00);
+
+  // xor ebx, ebx
+  EMIT(0x31);
+  EMIT(0xDB);
+
+  // int 0x80
+  EMIT(0xCD);
+  EMIT(0x80);
+
+  textSection.size += numBytesEmitted;
+}
+
+// NOTE(Isaac): returns the file offset of the entry point
+uint64_t GenerateTextSection(FILE* file, codegen_target& target, elf_section& section, parse_result& result,
+                             uint64_t virtualAddress)
+{
+  uint64_t entryPointOffset;
+
   section.type = elf_section::section_type::SHT_PROGBITS;
   section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
   section.address = virtualAddress;
@@ -436,7 +470,7 @@ void GenerateTextSection(FILE* file, codegen_target& target, elf_section& sectio
     if ((**functionIt)->attribMask & function_attribs::ENTRY)
     {
       printf("Found program entry point: %s!\n", (**functionIt)->name);
-      header.entryPoint = virtualAddress + (ftell(file) - section.offset);
+      entryPointOffset = ftell(file);
     }
 
     for (air_instruction* instruction = (**functionIt)->air->code;
@@ -537,6 +571,8 @@ void GenerateTextSection(FILE* file, codegen_target& target, elf_section& sectio
       }
     }
   }
+
+  return entryPointOffset;
 }
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
@@ -566,7 +602,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   // [0x78] Generate the object code that will be in the .text section
   fseek(f, 0x78, SEEK_SET);
   elf_section textSection;
-  GenerateTextSection(f, target, textSection, header, result, textSegment.virtualAddress);
+  uint64_t entryOffset = GenerateTextSection(f, target, textSection, result, textSegment.virtualAddress);
+  GenerateBootstrap(f, textSection, header, entryOffset);
 
   // [???] Create the string table
   elf_section stringTableSection;
