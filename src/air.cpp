@@ -429,28 +429,69 @@ instruction_label* GenNodeAIR<instruction_label*>(air_function* function, node* 
 void ColorSlots(codegen_target& target, air_function* function)
 {
   const unsigned int numGeneralRegisters = 14u;
-
-  unsigned int numSlots;
-  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
-  bool isColorUsed[numGeneralRegisters] = {0};
+//  unsigned int numSlots;
+//  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
 
   // Color params
   unsigned int intParamCounter = 0u;
 
-  for (unsigned int i = 0u;
-       i < numSlots;
-       i++)
+  for (auto* slotIt = function->slots.first;
+       slotIt;
+       slotIt = slotIt->next)
   {
-    slot* s = slots[i];
-
-    if (s->type == slot::slot_type::PARAM)
+    if ((**slotIt)->type == slot::slot_type::PARAM)
     {
-      printf("Coloring param slot: %s\n", s->payload.variable->name);
-      s->color = target.intParamColors[intParamCounter++];
+      printf("Coloring param slot: %s\n", (**slotIt)->payload.variable->name);
+      (**slotIt)->color = target.intParamColors[intParamCounter++];
     }
   }
 
   // Color all colorable slots
+  bool isColorUsed[numGeneralRegisters] = {0};
+
+  for (auto* slotIt = function->slots.first;
+       slotIt;
+       slotIt = slotIt->next)
+  {
+    // Skip if uncolorable or already colored
+    if ((!(**slotIt)->shouldBeColored) || (**slotIt)->color != -1)
+    {
+      continue;
+    }
+
+    // Find colors already used by interferring nodes
+    bool usedColors[numGeneralRegisters] = {0};
+    for (unsigned int i = 0u;
+         i < (**slotIt)->numInterferences;
+         i++)
+    {
+      signed int interference = (**slotIt)->interferences[i]->color;
+
+      if (interference != -1)
+      {
+        usedColors[interference] = true;
+      }
+    }
+
+    // Choose a free color
+    for (unsigned int i = 0u;
+         i < numGeneralRegisters;
+         i++)
+    {
+      if (!usedColors[i])
+      {
+        (**slotIt)->color = static_cast<signed int>(i);
+        break;
+      }
+    }
+
+    if ((**slotIt)->color == -1)
+    {
+      // TODO: spill something instead of crashing
+      fprintf(stderr, "FATAL: failed to find valid k-coloring of interference graph!\n");
+      exit(1);
+    }
+  }
 }
 
 void GenFunctionAIR(codegen_target& target, function_def* functionDef)
