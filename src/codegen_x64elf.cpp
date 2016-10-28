@@ -290,11 +290,13 @@ static uint32_t EmitStringTableEntry(FILE* f, elf_section& section, const char* 
 /*
  * +r - add an register opcode offset to the primary opcode
  * [...] - denotes a prefix byte
- * (...) - denotes bytes that follow the opcode
+ * (...) - denotes bytes that follow the opcode, in order
  */
 enum class i : uint8_t
 {
+  ADD_REG_REG     = 0x01,       // [opcodeSize] (ModR/M)
   PUSH_REG        = 0x50,       // +r
+  ADD_REG_IMM32   = 0x81,       // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
   MOV_REG_IMM32   = 0xB8,       // +r (4-byte immediate)
   RET             = 0xC3,
@@ -307,18 +309,26 @@ enum class i : uint8_t
  *
  * 7                               0
  * +---+---+---+---+---+---+---+---+
- * |  mod  |    dest   |    src    |
+ * |  mod  |    reg    |    r/m    |
  * +---+---+---+---+---+---+---+---+
  *
- * `mod`  : register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
- * `dest` : opcode offset of the destination register
- * `src`  : opcode offset of the source register
+ * `mod` : register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
+ * `reg` : opcode offset of the destination register
+ * `r/m` : opcode offset of the source register, optionally with a displacement (as specified by `mod`)
  */
-static inline uint8_t CreateModRM(codegen_target& target, reg dest, reg src)
+static inline uint8_t CreateRegisterModRM(codegen_target& target, reg dest, reg src)
 {
   uint8_t result = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
   result |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
   result |= target.registerSet[src].pimpl->opcodeOffset;
+  return result;
+}
+
+static inline uint8_t CreateExtensionModRM(codegen_target& target, uint8_t extension, reg r)
+{
+  uint8_t result = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
+  result |= extension << 3u;
+  result |= target.registerSet[r].pimpl->opcodeOffset;
   return result;
 }
 
@@ -337,10 +347,33 @@ static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
 
   switch (instruction)
   {
+    case i::ADD_REG_REG:
+    {
+      reg dest  = static_cast<reg>(va_arg(args, int));
+      reg src   = static_cast<reg>(va_arg(args, int));
+      
+      EMIT(0x48);
+      EMIT(static_cast<uint8_t>(i::ADD_REG_REG));
+      EMIT(CreateRegisterModRM(target, dest, src));
+    } break;
+
     case i::PUSH_REG:
     {
       reg r = static_cast<reg>(va_arg(args, int));
       EMIT(static_cast<uint8_t>(i::PUSH_REG) + target.registerSet[r].pimpl->opcodeOffset);
+    } break;
+
+    case i::ADD_REG_IMM32:
+    {
+      reg result    = static_cast<reg>(va_arg(args, int));
+      reg left      = static_cast<reg>(va_arg(args, int));
+      uint32_t imm  = va_arg(args, uint32_t);
+
+      EMIT(0x48);   // Specify we are moving 64-bit values around
+      EMIT(static_cast<uint8_t>(i::ADD_REG_IMM32));
+      EMIT(CreateExtensionModRM(target, 0u, left));
+      fwrite(&imm, sizeof(uint32_t), 1, f);
+      numBytesEmitted += 4u;
     } break;
 
     case i::MOV_REG_REG:
@@ -348,10 +381,9 @@ static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       reg src  = static_cast<reg>(va_arg(args, int));
 
-      // TODO: `48` as a prefix is used to signify we are moving a 64-bit value into a 64-bit register. We should probably check this is the case.
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
-      EMIT(CreateModRM(target, dest, src));
+      EMIT(CreateRegisterModRM(target, dest, src));
     } break;
 
     case i::MOV_REG_IMM32:
@@ -359,6 +391,7 @@ static uint64_t Emit(FILE* f, codegen_target& target, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
+//      EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
       fwrite(&imm, sizeof(uint32_t), 1, f);
       numBytesEmitted += 4u;
@@ -455,7 +488,25 @@ void GenerateTextSection(FILE* file, codegen_target& target, elf_section& sectio
 
         case I_ADD:
         {
+          slot_triple& triple = instruction->payload.slotTriple;
 
+          if (triple.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
+          {
+            section.size += Emit(file, target, i::MOV_REG_REG, triple.result->color, triple.left->color);
+          }
+          else
+          {
+            section.size += Emit(file, target, i::MOV_REG_IMM32, triple.result->color, triple.left->payload.i);
+          }
+
+          if (triple.right->shouldBeColored)
+          {
+            section.size += Emit(file, target, i::ADD_REG_REG, triple.result->color, triple.right->color);
+          }
+          else
+          {
+            section.size += Emit(file, target, i::ADD_REG_IMM32, triple.result->color, triple.right->payload.i);
+          }
         } break;
 
         case I_SUB:
