@@ -106,43 +106,9 @@ struct elf_header
 {
   uint16_t fileType;
   uint64_t entryPoint;
-  uint64_t programHeaderOffset;
   uint64_t sectionHeaderOffset;
-  uint16_t numProgramHeaderEntries;
   uint16_t numSectionHeaderEntries;
   uint16_t sectionWithSectionNames;
-};
-
-#define SEGMENT_ATTRIB_X        0x1         // NOTE(Isaac): marks the segment as executable
-#define SEGMENT_ATTRIB_W        0x2         // NOTE(Isaac): marks the segment as writable
-#define SEGMENT_ATTRIB_R        0x4         // NOTE(Isaac): marks the segment as readable
-#define SEGMENT_ATTRIB_MASKOS   0x00FF0000  // NOTE(Isaac): environment-specific (nobody really knows :P)
-#define SEGMENT_ATTRIB_MASKPROC 0xFF000000  // NOTE(Isaac): processor-specific (even fewer people know)
-
-struct elf_segment
-{
-  enum segment_type : uint32_t
-  {
-    PT_NULL     = 0u,
-    PT_LOAD     = 1u,
-    PT_DYNAMIC  = 2u,
-    PT_INTERP   = 3u,
-    PT_NOTE     = 4u,
-    PT_SHLIB    = 5u,
-    PT_PHDR     = 6u,
-    PT_TLS      = 7u,
-    PT_LOOS     = 0x60000000,
-    PT_HIOS     = 0x6FFFFFFF,
-    PT_LOPROC   = 0x70000000,
-    PT_HIPROC   = 0x7FFFFFFF
-  } type;
-  uint32_t flags;
-  uint64_t offset;          // Offset of the first byte of the segment from the image
-  uint64_t virtualAddress;
-  uint64_t physicalAddress;
-  uint64_t fileSize;        // Number of bytes in the file image of the segment (may be zero)
-  uint64_t memorySize;      // Number of bytes in the memory image of the segment (may be zero)
-  uint64_t alignment;       // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this `alignment`
 };
 
 #define SECTION_ATTRIB_W        0x1         // NOTE(Isaac): marks the section as writable
@@ -192,7 +158,6 @@ struct elf_section
 
 static void GenerateHeader(FILE* f, elf_header& header)
 {
-  const uint16_t programHeaderEntrySize = 0x38;
   const uint16_t sectionHeaderEntrySize = 0x40;
 
 /*0x00*/fputc(0x7F,     f); // Emit the 4 byte magic value
@@ -217,7 +182,14 @@ static void GenerateHeader(FILE* f, elf_header& header)
         fputc(0x00,     f);
         fputc(0x00,     f);
 /*0x18*/fwrite(&(header.entryPoint), sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(header.programHeaderOffset), sizeof(uint64_t), 1, f);
+/*0x20*/fputc(0x00,     f); // Offset to the program header - there isn't one
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
+        fputc(0x00,     f);
 /*0x28*/fwrite(&(header.sectionHeaderOffset), sizeof(uint64_t), 1, f);
 /*0x30*/fputc(0x00,     f); // Specify some flags (undefined for x86_64)
         fputc(0x00,     f);
@@ -225,28 +197,14 @@ static void GenerateHeader(FILE* f, elf_header& header)
         fputc(0x00,     f);
 /*0x34*/fputc(64u,      f); // Specify the size of the header (64 bytes)
         fputc(0x00,     f);
-/*0x36*/fwrite(&programHeaderEntrySize,           sizeof(uint16_t), 1, f);
-/*0x38*/fwrite(&(header.numProgramHeaderEntries), sizeof(uint16_t), 1, f);
+/*0x36*/fputc(0x00,     f); // Specify the size of a program header entry as 0
+        fputc(0x00,     f);
+/*0x38*/fputc(0x00,     f); // Specify that there are 0 program header entries
+        fputc(0x00,     f);
 /*0x3A*/fwrite(&sectionHeaderEntrySize,           sizeof(uint16_t), 1, f);
 /*0x3C*/fwrite(&(header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
 /*0x3E*/fwrite(&(header.sectionWithSectionNames), sizeof(uint16_t), 1, f);
 /*0x40*/
-}
-
-static void GenerateSegmentHeaderEntry(FILE* f, elf_header& header, elf_segment& segment)
-{
-  header.numProgramHeaderEntries++;
-
-/*n + */
-/*0x00*/fwrite(&(segment.type),             sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(segment.flags),            sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(segment.offset),           sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(segment.virtualAddress),   sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(segment.physicalAddress),  sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(segment.fileSize),         sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(segment.memorySize),       sizeof(uint64_t), 1, f);
-/*0x30*/fwrite(&(segment.alignment),        sizeof(uint64_t), 1, f);
-/*0x38*/
 }
 
 static void GenerateSectionHeaderEntry(FILE* f, elf_header& header, elf_section& section)
@@ -440,16 +398,13 @@ void GenerateBootstrap(FILE* f, elf_section& textSection, elf_header& header, ui
 
   textSection.size += numBytesEmitted;
 }
+#undef EMIT
 
-// NOTE(Isaac): returns the file offset of the entry point
-uint64_t GenerateTextSection(FILE* file, codegen_target& target, elf_section& section, parse_result& result,
-                             uint64_t virtualAddress)
+void GenerateTextSection(FILE* file, codegen_target& target, elf_section& section, parse_result& result)
 {
-  uint64_t entryPointOffset;
-
   section.type = elf_section::section_type::SHT_PROGBITS;
   section.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  section.address = virtualAddress;
+  section.address = 0u;
   section.offset = ftell(file);
   section.size = 0u;
   section.link = 0u;
@@ -470,7 +425,7 @@ uint64_t GenerateTextSection(FILE* file, codegen_target& target, elf_section& se
     if ((**functionIt)->attribMask & function_attribs::ENTRY)
     {
       printf("Found program entry point: %s!\n", (**functionIt)->name);
-      entryPointOffset = ftell(file);
+      // TODO: yeah this doesn't actually do anything yet
     }
 
     for (air_instruction* instruction = (**functionIt)->air->code;
@@ -571,8 +526,6 @@ uint64_t GenerateTextSection(FILE* file, codegen_target& target, elf_section& se
       }
     }
   }
-
-  return entryPointOffset;
 }
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
@@ -586,24 +539,13 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   }
 
   elf_header header;
-  header.fileType = 0x02;
-  header.programHeaderOffset = 0x40;
-  header.numProgramHeaderEntries = 0u;
+  header.fileType = 0x01;
   header.numSectionHeaderEntries = 0u;
 
-  // Segment for .text
-  elf_segment textSegment;
-  textSegment.type = elf_segment::segment_type::PT_LOAD;
-  textSegment.flags = SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R;
-  textSegment.virtualAddress = 0x08048000;
-  textSegment.physicalAddress = 0x08048000;
-  textSegment.alignment = 0x1000;
-
-  // [0x78] Generate the object code that will be in the .text section
-  fseek(f, 0x78, SEEK_SET);
+  // [0x40] Generate the object code that will be in the .text section
+  fseek(f, 0x40, SEEK_SET);
   elf_section textSection;
-  uint64_t entryOffset = GenerateTextSection(f, target, textSection, result, textSegment.virtualAddress);
-  GenerateBootstrap(f, textSection, header, entryOffset);
+  GenerateTextSection(f, target, textSection, result);
 
   // [???] Create the string table
   elf_section stringTableSection;
@@ -642,15 +584,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   GenerateSectionHeaderEntry(f, header, textSection);
   GenerateSectionHeaderEntry(f, header, stringTableSection);
-
-  // [0x40] Generate the program header
-  fseek(f, 0x40, SEEK_SET);
-
-  // Finish off the .text segment definition and emit it
-  textSegment.offset = textSection.offset;
-  textSegment.fileSize = textSection.size;
-  textSegment.memorySize = textSection.size;
-  GenerateSegmentHeaderEntry(f, header, textSegment);
 
   // [0x00] Generate the ELF header
   fseek(f, 0x00, SEEK_SET);

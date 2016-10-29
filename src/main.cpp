@@ -124,5 +124,5 @@ int main()
   // Generate the code into a final executable!
   // TODO(Isaac): find a better way to create a filename for the executable
   printf("--- Generating a %s executable ---\n", target.name);  
-  Generate("test", target, result);
+  Generate("test.o", target, result);
 }
