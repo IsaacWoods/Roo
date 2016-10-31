@@ -292,7 +292,7 @@ static void EmitHeader(code_generator& generator)
         fputc(0x00,     f);
         fputc(0x00,     f);
 /*0x18*/fwrite(&(generator.header.entryPoint), sizeof(uint64_t), 1, f);
-/*0x20*/fputc(0x00,     f); // Offset to the program generator.header - there isn't one
+/*0x20*/fputc(0x00,     f); // Offset to the program header - there isn't one
         fputc(0x00,     f);
         fputc(0x00,     f);
         fputc(0x00,     f);
@@ -305,11 +305,11 @@ static void EmitHeader(code_generator& generator)
         fputc(0x00,     f);
         fputc(0x00,     f);
         fputc(0x00,     f);
-/*0x34*/fputc(64u,      f); // Specify the size of the generator.header (64 bytes)
+/*0x34*/fputc(64u,      f); // Specify the size of the header (64 bytes)
         fputc(0x00,     f);
-/*0x36*/fputc(0x00,     f); // Specify the size of a program generator.header entry as 0
+/*0x36*/fputc(0x00,     f); // Specify the size of a program header entry as 0
         fputc(0x00,     f);
-/*0x38*/fputc(0x00,     f); // Specify that there are 0 program generator.header entries
+/*0x38*/fputc(0x00,     f); // Specify that there are 0 program header entries
         fputc(0x00,     f);
 /*0x3A*/fwrite(&sectionHeaderEntrySize,           sizeof(uint16_t), 1, f);
 /*0x3C*/fwrite(&(generator.header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
