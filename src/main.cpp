@@ -121,13 +121,25 @@ int main()
     GenFunctionAIR(target, **functionIt);
   }
 
-  printf("Name of program: %s\n", GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name);
+  // Check the `Name` attribute has been given
+  if (!GetAttrib(result, program_attrib::attrib_type::NAME))
+  {
+    fprintf(stderr, "FATAL: A program name must be given using the #[Name(...)] attribute!\n");
+    exit(1);
+  }
+
+  const char* extension = ".o";
+  const char* programName = GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name;
+  char* objectName = static_cast<char*>(malloc(sizeof(char) * (strlen(extension) + strlen(programName))));
+  strcpy(objectName, programName);
+  strcat(objectName, extension);
 
   // Generate the code into a final executable!
   // TODO(Isaac): find a better way to create a filename for the executable
   printf("--- Generating a %s executable ---\n", target.name);  
-  Generate("test.o", target, result);
+  Generate(objectName, target, result);
 
   // TODO: fix
 //  Free<parse_result>(result);
+  free(objectName);
 }
