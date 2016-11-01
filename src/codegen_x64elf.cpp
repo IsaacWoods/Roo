@@ -371,14 +371,14 @@ enum class i : uint8_t
  * +---+---+---+---+---+---+---+---+
  *
  * `mod` : register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
- * `reg` : opcode offset of the destination register
- * `r/m` : opcode offset of the source register, optionally with a displacement (as specified by `mod`)
+ * `reg` : opcode offset of the destination or source register (depending on instruction)
+ * `r/m` : opcode offset of the other register, optionally with a displacement (as specified by `mod`)
  */
-static inline uint8_t CreateRegisterModRM(codegen_target* target, reg dest, reg src)
+static inline uint8_t CreateRegisterModRM(codegen_target* target, reg regOne, reg regTwo)
 {
   uint8_t result = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-  result |= target->registerSet[dest].pimpl->opcodeOffset << 3u;
-  result |= target->registerSet[src].pimpl->opcodeOffset;
+  result |= target->registerSet[regOne].pimpl->opcodeOffset << 3u;
+  result |= target->registerSet[regTwo].pimpl->opcodeOffset;
   return result;
 }
 
@@ -440,7 +440,7 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
 
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
-      EMIT(CreateRegisterModRM(generator.target, dest, src));
+      EMIT(CreateRegisterModRM(generator.target, src, dest));
     } break;
 
     case i::MOV_REG_IMM32:
