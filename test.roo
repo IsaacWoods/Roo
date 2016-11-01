@@ -1,3 +1,5 @@
+#[Name(MyProgram)]
+
 #[Entry]
 fn Main(y : int) -> int
 {

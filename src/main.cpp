@@ -121,8 +121,13 @@ int main()
     GenFunctionAIR(target, **functionIt);
   }
 
+  printf("Name of program: %s\n", GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name);
+
   // Generate the code into a final executable!
   // TODO(Isaac): find a better way to create a filename for the executable
   printf("--- Generating a %s executable ---\n", target.name);  
   Generate("test.o", target, result);
+
+  // TODO: fix
+//  Free<parse_result>(result);
 }

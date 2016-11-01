@@ -14,13 +14,29 @@ struct string_constant;
 struct air_function;
 struct slot;
 
+struct program_attrib
+{
+  enum attrib_type
+  {
+    NAME,
+  } type;
+
+  union
+  {
+    char* name;
+  } payload;
+};
+
 struct parse_result
 {
   linked_list<dependency_def*>  dependencies;
   linked_list<function_def*>    functions;
   linked_list<type_def*>        types;
   linked_list<string_constant*> strings;
+  linked_list<program_attrib>   attribs;
 };
+
+program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type);
 
 void CreateParseResult(parse_result& result);
 void FreeParseResult(parse_result& result);

@@ -9,12 +9,28 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type)
+{
+  for (auto* attribIt = result.attribs.first;
+       attribIt;
+       attribIt = attribIt->next)
+  {
+    if ((**attribIt).type == type)
+    {
+      return &(**attribIt);
+    }
+  }
+
+  return nullptr;
+}
+
 void CreateParseResult(parse_result& result)
 {
   CreateLinkedList<dependency_def*>(result.dependencies);
   CreateLinkedList<function_def*>(result.functions);
   CreateLinkedList<type_def*>(result.types);
   CreateLinkedList<string_constant*>(result.strings);
+  CreateLinkedList<program_attrib>(result.attribs);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)
@@ -60,12 +76,25 @@ type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type)
 }
 
 template<>
+void Free<program_attrib>(program_attrib& attrib)
+{
+  switch (attrib.type)
+  {
+    case program_attrib::attrib_type::NAME:
+    {
+      free(attrib.payload.name);
+    } break;
+  }
+}
+
+template<>
 void Free<parse_result>(parse_result& result)
 {
   FreeLinkedList<dependency_def*>(result.dependencies);
   FreeLinkedList<function_def*>(result.functions);
   FreeLinkedList<type_def*>(result.types);
   FreeLinkedList<string_constant*>(result.strings);
+  FreeLinkedList<program_attrib>(result.attribs);
 }
 
 template<>

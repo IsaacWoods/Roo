@@ -982,24 +982,46 @@ enum class attrib_type
 /*
  * NOTE(Isaac): this will parse all types of attribute, and then return the type of the attrib parsed
  */
-static attrib_type Attribute(roo_parser& parser, linked_list<function_attrib>& functionAttribs,
-                             linked_list<type_attrib>& typeAttribs)
+static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& programAttribs,
+                                                 linked_list<function_attrib>& functionAttribs,
+                                                 linked_list<type_attrib>& typeAttribs)
 {
   attrib_type type = attrib_type::NONE;
   char* attribName = GetTextFromToken(NextToken(parser));
 
   if (strcmp(attribName, "Entry") == 0)
   {
-    function_attrib attrib{function_attrib::attrib_type::ENTRY};
+    function_attrib attrib;
+    attrib.type = function_attrib::attrib_type::ENTRY;
+
     AddToLinkedList<function_attrib>(functionAttribs, attrib);
     type = attrib_type::FUNCTION;
+    NextToken(parser);
+  }
+  else if (strcmp(attribName, "Name") == 0)
+  {
+    ConsumeNext(parser, TOKEN_LEFT_PAREN);
+
+    if (!Match(parser, TOKEN_IDENTIFIER))
+    {
+      SyntaxError(parser, "Expected identifier as program name!");
+    }
+
+    program_attrib attrib;
+    attrib.type = program_attrib::attrib_type::NAME;
+    attrib.payload.name = GetTextFromToken(PeekToken(parser));
+
+    ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+
+    AddToLinkedList<program_attrib>(programAttribs, attrib);
+    type = attrib_type::PROGRAM;
   }
   else
   {
     SyntaxError(parser, "Unrecognised attribute: '%s'!", attribName);
   }
 
-  ConsumeNext(parser, TOKEN_RIGHT_BLOCK);
+  Consume(parser, TOKEN_RIGHT_BLOCK);
   free(attribName);
   return type;
 }
@@ -1058,7 +1080,7 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
-      Attribute(parser, functionAttribs, typeAttribs);
+      Attribute(parser, result->attribs, functionAttribs, typeAttribs);
     }
     else
     {
