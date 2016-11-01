@@ -1,4 +1,4 @@
-#[Name(MyProgram)]
+#[Name(test)]
 
 #[Entry]
 fn Main(y : int) -> int

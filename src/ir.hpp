@@ -107,6 +107,7 @@ struct function_def
  * NOTE(Isaac): returns `nullptr` if the function doesn't have the specified attribute
  */
 function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type);
+char* MangleFunctionName(function_def* function);
 
 struct type_attrib
 {

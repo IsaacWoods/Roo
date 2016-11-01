@@ -232,6 +232,8 @@ struct code_generator
   elf_section             stringTable;
   elf_section             sectionNameTable;
   elf_section             text;
+
+  unsigned int numSymbols;
 };
 
 static void InitSection(code_generator& generator, elf_section& section, const char* name, section_type type, uint64_t alignment)
@@ -253,10 +255,18 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
   elf_symbol symbol;
   symbol.name = CreateString(generator.strings, name);
   symbol.info = type;
-  symbol.info |= binding;
+  symbol.info |= binding << 4u;
   symbol.sectionIndex = sectionIndex;
   symbol.definitionOffset = defOffset;
   symbol.size = size;
+
+  generator.numSymbols++;
+
+  // Set the `info` field of the symbol-table section to the index of the first non-local symbol
+  if (generator.symbolTable.info == UINT_MAX && binding == SYM_BIND_GLOBAL)
+  {
+    generator.symbolTable.info = generator.numSymbols;
+  }
 
   AddToLinkedList<elf_symbol>(generator.symbols, symbol);
 }
@@ -481,6 +491,11 @@ void EmitText(code_generator& generator, parse_result& result)
       // TODO: yeah this doesn't actually do anything yet
     }
 
+    // Create the symbol for the function
+    // TODO: decide whether each should have a local or global binding
+    unsigned int offset = ftell(generator.f) - generator.text.offset;
+    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, 1u, offset, 0u);
+
     for (air_instruction* instruction = (**functionIt)->air->code;
          instruction;
          instruction = instruction->next)
@@ -602,9 +617,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   generator.header.entryPoint = 0x00;
   generator.header.sectionWithSectionNames = 3u; // NOTE(Isaac): this is hardcoded
 
-  // Test symbol
-  CreateSymbol(generator, "testThang", SYM_BIND_LOCAL, SYM_TYPE_NONE, 1u, 42u, 0u);
-
   // --- The symbol table ---
   InitSection(generator, generator.symbolTable, ".symtab", SHT_SYMTAB, 0x04);
   generator.symbolTable.link = 4u;    // NOTE(Isaac): hardcoded to be the section index of the string table used
@@ -626,6 +638,15 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // [???] Emit the symbol table
   generator.symbolTable.offset = ftell(generator.f);
+
+  // Emit a first, STN_UNDEF symbol
+  generator.symbolTable.size += 0x18;
+  for (unsigned int i = 0u;
+       i < 0x18;
+       i++)
+  {
+    fputc(0x00, generator.f);
+  }
 
   for (auto* symbolIt = generator.symbols.first;
        symbolIt;

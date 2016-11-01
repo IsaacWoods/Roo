@@ -5,6 +5,7 @@
 #include <ir.hpp>
 #include <cassert>
 #include <climits>
+#include <cstring>
 #include <common.hpp>
 #include <ast.hpp>
 #include <air.hpp>
@@ -58,6 +59,17 @@ function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type 
   }
 
   return nullptr;
+}
+
+char* MangleFunctionName(function_def* function)
+{
+  const char* base = "_R_";
+
+  char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(function->name))));
+  strcpy(mangled, base);
+  strcat(mangled, function->name);
+
+  return mangled;
 }
 
 type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type)
