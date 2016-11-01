@@ -864,14 +864,16 @@ static node* Statement(roo_parser& parser, bool isInLoop)
   return result;
 }
 
-static void TypeDef(roo_parser& parser, uint32_t attribMask)
+static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
 {
   printf("--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
   CreateLinkedList<variable_def*>(type->members);
-  type->attribMask = attribMask;
   type->size = UINT_MAX;
+
+  CreateLinkedList<type_attrib>(type->attribs);
+  CopyLinkedList<type_attrib>(type->attribs, attribs);
 
   type->name = GetTextFromToken(PeekToken(parser));
   printf("%s)\n", type->name);
@@ -927,7 +929,7 @@ static void Import(roo_parser& parser)
   printf("<-- Import\n");
 }
 
-static void Function(roo_parser& parser, uint32_t attribMask)
+static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
 {
   printf("--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
@@ -936,7 +938,9 @@ static void Function(roo_parser& parser, uint32_t attribMask)
   CreateLinkedList<variable_def*>(definition->locals);
   definition->shouldAutoReturn = true;
   definition->air = nullptr;
-  definition->attribMask = attribMask;
+
+  CreateLinkedList<function_attrib>(definition->attribs);
+  CopyLinkedList<function_attrib>(definition->attribs, attribs);
 
   AddToLinkedList<function_def*>(parser.result->functions, definition);
 
@@ -966,17 +970,29 @@ static void Function(roo_parser& parser, uint32_t attribMask)
   printf("<-- Function\n");
 }
 
-/*
- * NOTE(Isaac): the result of this can be added to an existing set of attribs to concatenate them
- */
-static uint32_t Attribute(roo_parser& parser)
+enum class attrib_type
 {
-  uint32_t result;
+  NONE,
+  FUNCTION,
+  TYPE,
+  STATEMENT,
+  PROGRAM
+};
+
+/*
+ * NOTE(Isaac): this will parse all types of attribute, and then return the type of the attrib parsed
+ */
+static attrib_type Attribute(roo_parser& parser, linked_list<function_attrib>& functionAttribs,
+                             linked_list<type_attrib>& typeAttribs)
+{
+  attrib_type type = attrib_type::NONE;
   char* attribName = GetTextFromToken(NextToken(parser));
 
   if (strcmp(attribName, "Entry") == 0)
   {
-    result = function_attribs::ENTRY;
+    function_attrib attrib{function_attrib::attrib_type::ENTRY};
+    AddToLinkedList<function_attrib>(functionAttribs, attrib);
+    type = attrib_type::FUNCTION;
   }
   else
   {
@@ -985,7 +1001,7 @@ static uint32_t Attribute(roo_parser& parser)
 
   ConsumeNext(parser, TOKEN_RIGHT_BLOCK);
   free(attribName);
-  return result;
+  return type;
 }
 
 void Parse(parse_result* result, const char* sourcePath)
@@ -1002,7 +1018,13 @@ void Parse(parse_result* result, const char* sourcePath)
 
   printf("--- Starting parse ---\n");
 
-  uint32_t attribMask = 0u;
+  linked_list<function_attrib> functionAttribs;
+  linked_list<type_attrib> typeAttribs;
+
+  CreateLinkedList<function_attrib>(functionAttribs);
+  CreateLinkedList<type_attrib>(typeAttribs);
+
+  attrib_type parsedAttribType = attrib_type::NONE;
 
   while (!Match(parser, TOKEN_INVALID))
   {
@@ -1012,17 +1034,31 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else if (Match(parser, TOKEN_FN))
     {
-      Function(parser, attribMask);
-      attribMask = 0u;
+      if (parsedAttribType != attrib_type::NONE &&
+          parsedAttribType != attrib_type::FUNCTION)
+      {
+        SyntaxError(parser, "Unexpected attribute to be applied to a function!");
+      }
+
+      Function(parser, functionAttribs);
+      UnlinkLinkedList<function_attrib>(functionAttribs);
+      parsedAttribType = attrib_type::NONE;
     }
     else if (Match(parser, TOKEN_TYPE))
     {
-      TypeDef(parser, attribMask);
-      attribMask = 0u;
+      if (parsedAttribType != attrib_type::NONE &&
+          parsedAttribType != attrib_type::TYPE)
+      {
+        SyntaxError(parser, "Unexpected attibute to be applied to a type!");
+      }
+
+      TypeDef(parser, typeAttribs);
+      UnlinkLinkedList<type_attrib>(typeAttribs);
+      parsedAttribType = attrib_type::NONE;
     }
     else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
-      attribMask += Attribute(parser);
+      Attribute(parser, functionAttribs, typeAttribs);
     }
     else
     {
@@ -1030,7 +1066,7 @@ void Parse(parse_result* result, const char* sourcePath)
     }
   }
 
-  if (attribMask != 0u)
+  if (parsedAttribType != attrib_type::NONE)
   {
     SyntaxError(parser, "Trailing attribute not applied to anything!");
   }

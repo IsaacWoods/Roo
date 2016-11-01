@@ -17,6 +17,48 @@ void CreateParseResult(parse_result& result)
   CreateLinkedList<string_constant*>(result.strings);
 }
 
+string_constant* CreateStringConstant(parse_result* result, char* string)
+{
+  string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
+
+  // NOTE(Isaac): get the current tail's handle before adding to the list
+  constant->handle = (**result->strings.tail)->handle + 1u;
+  constant->string = string;
+
+  AddToLinkedList<string_constant*>(result->strings, constant);
+  return constant;
+}
+
+function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
+{
+  for (auto* attribIt = function->attribs.first;
+       attribIt;
+       attribIt = attribIt->next)
+  {
+    if ((**attribIt).type == type)
+    {
+      return &(**attribIt);
+    }
+  }
+
+  return nullptr;
+}
+
+type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type)
+{
+  for (auto* attribIt = typeDef->attribs.first;
+       attribIt;
+       attribIt = attribIt->next)
+  {
+    if ((**attribIt).type == type)
+    {
+      return &(**attribIt);
+    }
+  }
+
+  return nullptr; 
+}
+
 template<>
 void Free<parse_result>(parse_result& result)
 {
@@ -33,36 +75,6 @@ void Free<dependency_def*>(dependency_def*& dependency)
   free(dependency);
 }
 
-void PrintFunctionAttribs(uint32_t attribMask)
-{
-  if (attribMask == 0u)
-  {
-    printf("--- Emptry attribute set ---\n");
-    return;
-  }
-
-  printf("--- Function Attrib Set ---\n");
-
-  if (attribMask & function_attribs::ENTRY)
-  {
-    printf("| ENTRY |");
-  }
-
-  printf("---------------------------\n");
-}
-
-string_constant* CreateStringConstant(parse_result* result, char* string)
-{
-  string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
-
-  // NOTE(Isaac): get the current tail's handle before adding to the list
-  constant->handle = (**result->strings.tail)->handle + 1u;
-  constant->string = string;
-
-  AddToLinkedList<string_constant*>(result->strings, constant);
-  return constant;
-}
-
 template<>
 void Free<string_constant*>(string_constant*& string)
 {
@@ -71,10 +83,16 @@ void Free<string_constant*>(string_constant*& string)
 }
 
 template<>
+void Free<type_attrib>(type_attrib& /*attrib*/)
+{
+}
+
+template<>
 void Free<type_def*>(type_def*& type)
 {
   free(type->name);
   FreeLinkedList<variable_def*>(type->members);
+  FreeLinkedList<type_attrib>(type->attribs);
   free(type);
 }
 
@@ -100,6 +118,11 @@ void Free<variable_def*>(variable_def*& variable)
 }
 
 template<>
+void Free<function_attrib>(function_attrib& /*attrib*/)
+{
+}
+
+template<>
 void Free<function_def*>(function_def*& function)
 {
   free(function->name);
@@ -107,6 +130,7 @@ void Free<function_def*>(function_def*& function)
   free(function->returnType);
   FreeLinkedList<variable_def*>(function->params);
   FreeLinkedList<variable_def*>(function->locals);
+  FreeLinkedList<function_attrib>(function->attribs);
 
   if (function->ast)
   {

@@ -40,13 +40,6 @@ struct dependency_def
   char* path;
 };
 
-enum function_attribs : uint32_t
-{
-  ENTRY       = (1<<0),
-};
-
-void PrintFunctionAttribs(uint32_t attribMask);
-
 struct string_constant
 {
   unsigned int      handle;
@@ -73,24 +66,45 @@ struct variable_def
   slot*         mostRecentSlot;
 };
 
+struct function_attrib
+{
+  enum attrib_type
+  {
+    ENTRY
+  } type;
+};
+
 struct function_def
 {
-  char*                       name;
-  linked_list<variable_def*>  params;
-  linked_list<variable_def*>  locals;
-  type_ref*                   returnType; // NOTE(Isaac): `nullptr` when function returns nothing
-  bool                        shouldAutoReturn;
-  uint32_t                    attribMask;
+  char*                         name;
+  linked_list<variable_def*>    params;
+  linked_list<variable_def*>    locals;
+  type_ref*                     returnType; // NOTE(Isaac): `nullptr` when function returns nothing
+  bool                          shouldAutoReturn;
+  linked_list<function_attrib>  attribs;
 
-  node*                       ast;
-  air_function*               air;
+  node*                         ast;
+  air_function*                 air;
+};
+
+/*
+ * NOTE(Isaac): returns `nullptr` if the function doesn't have the specified attribute
+ */
+function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type);
+
+struct type_attrib
+{
+  enum attrib_type
+  {
+
+  } type;
 };
 
 struct type_def
 {
   char*                       name;
   linked_list<variable_def*>  members;
-  uint32_t                    attribMask;
+  linked_list<type_attrib>    attribs;
 
   /*
    * Size of this structure in bytes.
@@ -98,6 +112,8 @@ struct type_def
    */
   unsigned int                size;
 };
+
+type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
 
 /*
  * This fills in all the stuff that couldn't be completed during parsing.

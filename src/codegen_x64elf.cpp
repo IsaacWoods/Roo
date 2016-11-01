@@ -475,8 +475,7 @@ void EmitText(code_generator& generator, parse_result& result)
     assert((**functionIt)->air);
     assert((**functionIt)->air->code);
 
-    // NOTE(Isaac): Check if this is the program's entry point
-    if ((**functionIt)->attribMask & function_attribs::ENTRY)
+    if (GetAttrib(**functionIt, function_attrib::attrib_type::ENTRY))
     {
       printf("Found program entry point: %s!\n", (**functionIt)->name);
       // TODO: yeah this doesn't actually do anything yet

@@ -37,6 +37,24 @@ void CreateLinkedList(linked_list<T>& list)
   list.tail  = nullptr;
 }
 
+/*
+ * Clears the list and deletes the links, without freeing the contents.
+ * NOTE(Isaac): obviously this makes it very easy to leak everywhere; use with caution
+ */
+template<typename T>
+void UnlinkLinkedList(linked_list<T>& list)
+{
+  while (list.first)
+  {
+    typename linked_list<T>::link* temp = list.first;
+    list.first = list.first->next;
+    free(temp);
+  }
+
+  list.first = nullptr;
+  list.tail = nullptr;
+}
+
 // O(n)
 template<typename T>
 void FreeLinkedList(linked_list<T>& list)
@@ -86,6 +104,18 @@ unsigned int GetSizeOfLinkedList(linked_list<T>& list)
   }
 
   return size;
+}
+
+// O(n)
+template<typename T>
+void CopyLinkedList(linked_list<T>& dest, linked_list<T>& src)
+{
+  for (auto* it = src.first;
+       it;
+       it = it->next)
+  {
+    AddToLinkedList<T>(dest, **it);
+  }
 }
 
 /*
