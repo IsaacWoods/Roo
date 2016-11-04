@@ -220,18 +220,27 @@ struct elf_symbol
   uint64_t  size;
 };
 
+struct elf_relocation
+{
+  uint64_t  offset;
+  uint64_t  info;
+  int64_t   addend;
+};
+
 struct code_generator
 {
-  FILE*                   f;
-  codegen_target*         target;
-  linked_list<elf_string> strings;
-  linked_list<elf_string> sectionNames;
-  linked_list<elf_symbol> symbols;
-  elf_header              header;
-  elf_section             symbolTable;
-  elf_section             stringTable;
-  elf_section             sectionNameTable;
-  elf_section             text;
+  FILE*                         f;
+  codegen_target*               target;
+  linked_list<elf_string>       strings;
+  linked_list<elf_string>       sectionNames;
+  linked_list<elf_symbol>       symbols;
+  linked_list<elf_relocation>   textRelocations;
+  elf_header                    header;
+  elf_section                   symbolTable;
+  elf_section                   stringTable;
+  elf_section                   sectionNameTable;
+  elf_section                   text;
+  elf_section                   relaText;
 
   unsigned int numSymbols;
 };
@@ -269,6 +278,21 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
   }
 
   AddToLinkedList<elf_symbol>(generator.symbols, symbol);
+}
+
+#define R_X64_PC32      2
+#define R_X64_GLOB_DAT  6
+#define R_X64_JUMP_SLOT 7
+
+void CreateTextRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex)
+{
+  elf_relocation relocation;
+  relocation.offset = offset;
+  relocation.info = static_cast<uint64_t>(symbolTableIndex) << 32u;
+  relocation.info |= type;
+  relocation.addend = 0;
+
+  AddToLinkedList<elf_relocation>(generator.textRelocations, relocation);
 }
 
 static void EmitHeader(code_generator& generator)
@@ -610,6 +634,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   CreateLinkedList<elf_string>(generator.strings);
   CreateLinkedList<elf_string>(generator.sectionNames);
   CreateLinkedList<elf_symbol>(generator.symbols);
+  CreateLinkedList<elf_relocation>(generator.textRelocations);
 
   if (!generator.f)
   {
@@ -636,10 +661,32 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   InitSection(generator, generator.sectionNameTable, ".shstrtab", SHT_STRTAB, 0x01);
   generator.sectionNameTable.size = 1u;
 
+  // --- The relocation section for .text ---
+  InitSection(generator, generator.relaText, ".rela.text", SHT_RELA, 0x04);
+  generator.relaText.link = 2u; // Section index of the symbol table used
+  generator.relaText.info = 1;  // Section index of .text
+  generator.relaText.entrySize = 0x18;
+
   // [0x40] Generate the object code that will be in the .text section
   fseek(generator.f, 0x40, SEEK_SET);
   EmitText(generator, result);
   generator.text.name = CreateString(generator.sectionNames, ".text");
+
+  // [???] Emit .rela.text
+  generator.relaText.offset = ftell(generator.f);
+  
+  for (auto* relocationIt = generator.textRelocations.first;
+       relocationIt;
+       relocationIt = relocationIt->next)
+  {
+/*n + */
+/*0x00*/fwrite(&((**relocationIt).offset), sizeof(uint64_t), 1, generator.f);
+/*0x08*/fwrite(&((**relocationIt).info), sizeof(uint64_t), 1, generator.f);
+/*0x10*/fwrite(&((**relocationIt).addend), sizeof(int64_t), 1, generator.f);
+/*0x18*/
+
+    generator.relaText.size += 0x18;
+  }
 
   // [???] Emit the symbol table
   generator.symbolTable.offset = ftell(generator.f);
@@ -657,7 +704,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        symbolIt;
        symbolIt = symbolIt->next)
   {
-
 /*n + */
 /*0x00*/fwrite(&((**symbolIt).name), sizeof(uint32_t), 1, generator.f);
 /*0x04*/fwrite(&((**symbolIt).info), sizeof(uint8_t), 1, generator.f);
@@ -728,6 +774,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   EmitSectionEntry(generator, generator.symbolTable);       // [2]
   EmitSectionEntry(generator, generator.sectionNameTable);  // [3]
   EmitSectionEntry(generator, generator.stringTable);       // [4]
+  EmitSectionEntry(generator, generator.relaText);          // [5]
 
   // [0x00] Generate the ELF header
   fseek(generator.f, 0x00, SEEK_SET);
