@@ -396,6 +396,7 @@ void GenNodeAIR<void>(air_function* function, node* n)
 
     case FUNCTION_CALL_NODE:
     {
+      printf("Function call node\n");
       for (auto* paramIt = n->payload.functionCall.params.first;
            paramIt;
            paramIt = paramIt->next)
@@ -712,6 +713,11 @@ void PrintInstruction(air_instruction* instruction)
     case I_NEGATE:
     {
 
+    } break;
+
+    case I_CALL:
+    {
+      printf("CALL %s\n", instruction->payload.function->name);
     } break;
   }
 }

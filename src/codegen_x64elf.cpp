@@ -284,7 +284,7 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
 #define R_X64_GLOB_DAT  6
 #define R_X64_JUMP_SLOT 7
 
-void CreateTextRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex)
+void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex)
 {
   elf_relocation relocation;
   relocation.offset = offset;
@@ -383,6 +383,7 @@ enum class i : uint8_t
   MOV_REG_IMM32   = 0xB8,       // +r (4-byte immediate)
   RET             = 0xC3,
   LEAVE           = 0xC9,
+  CALL32          = 0xE8,       // (4-byte offset to RIP)
 };
 
 /*
@@ -475,6 +476,15 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
 //      EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
       fwrite(&imm, sizeof(uint32_t), 1, generator.f);
+      numBytesEmitted += 4u;
+    } break;
+
+    case i::CALL32:
+    {
+      uint32_t offset = va_arg(args, uint32_t);
+
+      EMIT(static_cast<uint8_t>(i::CALL32));
+      fwrite(&offset, sizeof(uint32_t), 1, generator.f);
       numBytesEmitted += 4u;
     } break;
 
@@ -613,6 +623,13 @@ void EmitText(code_generator& generator, parse_result& result)
         case I_NEGATE:
         {
 
+        } break;
+
+        case I_CALL:
+        {
+          EMIT(i::CALL32, 0x0);
+          // TODO: find the correct symbol for the function symbol in the table
+          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X64_PC32, 1u);
         } break;
 
         case I_NUM_INSTRUCTIONS:
