@@ -238,6 +238,11 @@ void CompleteAST(parse_result& parse)
        functionIt;
        functionIt = functionIt->next)
   {
+    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    {
+      continue;
+    }
+
     ResolveTypeRef(*((**functionIt)->returnType), parse);
   }
 

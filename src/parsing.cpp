@@ -966,7 +966,17 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
     printf("Return type: NONE\n");
   }
 
-  definition->ast = Block(parser);
+  if (GetAttrib(definition, function_attrib::attrib_type::PROTOTYPE))
+  {
+    definition->isPrototype = true;
+    definition->ast = nullptr;
+  }
+  else
+  {
+    definition->isPrototype = false;
+    definition->ast = Block(parser);
+  }
+
   printf("<-- Function\n");
 }
 
@@ -1015,6 +1025,15 @@ static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& pr
 
     AddToLinkedList<program_attrib>(programAttribs, attrib);
     type = attrib_type::PROGRAM;
+  }
+  else if (strcmp(attribName, "Prototype") == 0)
+  {
+    function_attrib attrib;
+    attrib.type = function_attrib::attrib_type::PROTOTYPE;
+
+    AddToLinkedList<function_attrib>(functionAttribs, attrib);
+    type = attrib_type::FUNCTION;
+    NextToken(parser);
   }
   else
   {

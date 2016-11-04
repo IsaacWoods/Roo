@@ -29,9 +29,11 @@ void InitFunctionCallsPass()
         // TODO: be cleverer here - compare mangled names or something (functions can have the same name)
         if (strcmp((**functionIt)->name, n->payload.functionCall.function.name) == 0)
         {
+          printf("Resolved function call to: %s!\n", n->payload.functionCall.function.name);
           free(n->payload.functionCall.function.name);
           n->payload.functionCall.isResolved = true;
           n->payload.functionCall.function.def = **functionIt;
+          return;
         }
       }
 

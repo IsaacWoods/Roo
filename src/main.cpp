@@ -120,6 +120,11 @@ int main()
        functionIt;
        functionIt = functionIt->next)
   {
+    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    {
+      continue;
+    }
+
     GenFunctionAIR(target, **functionIt);
   }
 

@@ -86,13 +86,15 @@ struct function_attrib
 {
   enum attrib_type
   {
-    ENTRY
+    ENTRY,
+    PROTOTYPE,
   } type;
 };
 
 struct function_def
 {
   char*                         name;
+  bool                          isPrototype;
   linked_list<variable_def*>    params;
   linked_list<variable_def*>    locals;
   type_ref*                     returnType; // NOTE(Isaac): `nullptr` when function returns nothing

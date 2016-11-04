@@ -481,6 +481,11 @@ void EmitText(code_generator& generator, parse_result& result)
        functionIt;
        functionIt = functionIt->next)
   {
+    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    {
+      continue;
+    }
+
     printf("Generating object code for function: %s\n", (**functionIt)->name);
     assert((**functionIt)->air);
     assert((**functionIt)->air->code);
