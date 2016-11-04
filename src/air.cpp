@@ -133,6 +133,11 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
       payload.slotPair.right        = va_arg(args, slot*);
     } break;
 
+    case I_CALL:
+    {
+      payload.function              = va_arg(args, function_def*);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled AIR instruction type in CreateInstruction!\n");
@@ -387,6 +392,19 @@ void GenNodeAIR<void>(air_function* function, node* n)
       AddInterference(variableSlot, newValueSlot);
 
       PushInstruction(I_MOV, variableSlot, newValueSlot);
+    } break;
+
+    case FUNCTION_CALL_NODE:
+    {
+      for (auto* paramIt = n->payload.functionCall.params.first;
+           paramIt;
+           paramIt = paramIt->next)
+      {
+
+      }
+
+      assert(n->payload.functionCall.isResolved);
+      PushInstruction(I_CALL, n->payload.functionCall.function.def);
     } break;
 
     default:

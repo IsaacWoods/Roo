@@ -95,7 +95,8 @@ node* CreateNode(node_type type, ...)
 
     case FUNCTION_CALL_NODE:
     {
-      payload.functionCall.name           = va_arg(args, char*);
+      payload.functionCall.isResolved     = false;
+      payload.functionCall.function.name  = va_arg(args, char*);
       CreateLinkedList<node*>(payload.functionCall.params);
     } break;
 
@@ -187,7 +188,15 @@ void Free<node*>(node*& n)
 
     case FUNCTION_CALL_NODE:
     {
-      free(n->payload.functionCall.name);
+      if (n->payload.functionCall.isResolved)
+      {
+        // NOTE(Isaac): Don't free the function_def*; it belongs to someone else
+      }
+      else
+      {
+        free(n->payload.functionCall.function.name);
+      }
+
       FreeLinkedList<node*>(n->payload.functionCall.params);
     } break;
 

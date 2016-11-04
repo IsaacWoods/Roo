@@ -107,8 +107,13 @@ struct number_constant_part
 
 struct function_call_part
 {
-  char* name;
-  linked_list<node*> params;
+  union
+  {
+    char*         name;
+    function_def* def;
+  }                   function;
+  bool                isResolved;
+  linked_list<node*>  params;
 };
 
 struct variable_assign_part

@@ -23,6 +23,7 @@ enum instruction_type
   I_MUL,
   I_DIV,
   I_NEGATE,
+  I_CALL,
 
   I_NUM_INSTRUCTIONS
 };
@@ -126,6 +127,7 @@ struct air_instruction
     slot*                 s;
     slot_pair             slotPair;
     slot_triple           slotTriple;
+    function_def*         function;
   } payload;
 };
 

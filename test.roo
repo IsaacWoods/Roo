@@ -3,6 +3,7 @@
 #[Entry]
 fn Main(y : int) -> int
 {
-  x : int = 4 + y
-  return x
+  Print("Hello, World!\n")
+
+  return 0
 }

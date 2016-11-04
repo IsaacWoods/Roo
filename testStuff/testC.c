@@ -1,14 +1,9 @@
-#include <cstdio>
-
-void PrintInt(unsigned int i)
-{
-  printf("%u\n", i);
-}
+#include <stdio.h>
 
 int main()
 {
-  unsigned int x = 4;
-  PrintInt(x);
+  const char* myString = "Hello, World!\n";
+  puts(myString);
 
   return 0;
 }

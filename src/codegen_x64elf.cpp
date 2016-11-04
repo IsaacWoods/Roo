@@ -223,7 +223,7 @@ struct elf_symbol
 struct code_generator
 {
   FILE*                   f;
-  codegen_target*         target;           // NOTE(Isaac): pointer because storing references is a PITA
+  codegen_target*         target;
   linked_list<elf_string> strings;
   linked_list<elf_string> sectionNames;
   linked_list<elf_symbol> symbols;

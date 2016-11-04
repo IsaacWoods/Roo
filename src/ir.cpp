@@ -37,10 +37,17 @@ void CreateParseResult(parse_result& result)
 string_constant* CreateStringConstant(parse_result* result, char* string)
 {
   string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
-
-  // NOTE(Isaac): get the current tail's handle before adding to the list
-  constant->handle = (**result->strings.tail)->handle + 1u;
   constant->string = string;
+
+  if (result->strings.tail)
+  {
+    // NOTE(Isaac): get the current tail's handle before adding to the list
+    constant->handle = (**result->strings.tail)->handle + 1u;
+  }
+  else
+  {
+    constant->handle = 0u;
+  }
 
   AddToLinkedList<string_constant*>(result->strings, constant);
   return constant;
