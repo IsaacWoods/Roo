@@ -381,6 +381,7 @@ enum class i : uint8_t
   ADD_REG_IMM32   = 0x81,       // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
   MOV_REG_IMM32   = 0xB8,       // +r (4-byte immediate)
+  MOV_REG_IMM64         ,       // NOTE(Isaac): same opcode as MOV_REG_IMM32      [immSize] +r (8-byte immedite)
   RET             = 0xC3,
   LEAVE           = 0xC9,
   CALL32          = 0xE8,       // (4-byte offset to RIP)
@@ -473,10 +474,21 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-//      EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
       fwrite(&imm, sizeof(uint32_t), 1, generator.f);
       numBytesEmitted += 4u;
+    } break;
+
+    case i::MOV_REG_IMM64:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      uint64_t imm = va_arg(args, uint64_t);
+
+      EMIT(0x48);
+      // NOTE(Isaac): use the opcode from `MOV_REG_IMM32` because they wouldn't all fit in the enum
+      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
+      fwrite(&imm, sizeof(uint64_t), 1, generator.f);
+      numBytesEmitted += 8u;
     } break;
 
     case i::CALL32:
@@ -571,8 +583,16 @@ void EmitText(code_generator& generator, parse_result& result)
           {
             EMIT(i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
           }
+          else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
+          {
+            EMIT(i::MOV_REG_IMM64, mov.dest->color, 0x0);
+            // TODO: emit a relocation here
+          }
           else
           {
+            // NOTE(Isaac): if we're here, `src` should be colored
+            assert(mov.src->color != -1);
+
             EMIT(i::MOV_REG_REG, mov.dest->color, mov.src->color);
           }
         } break;

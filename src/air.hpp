@@ -42,15 +42,24 @@ struct slot
     PARAM,            // NOTE(Isaac): `variable` field of `payload` is valid
     LOCAL,            // NOTE(Isaac): `variable` field of `payload` is valid
     INTERMEDIATE,     // NOTE(Isaac): `payload` is undefined
+
+    /*
+     * Used to store the parameters of function calls in the correct registers according to the ABI
+     * NOTE(Isaac): comes precolored
+     */
+    IN_PARAM,
+
     INT_CONSTANT,     // NOTE(Isaac): `i` field of `payload` is valid
     FLOAT_CONSTANT,   // NOTE(Isaac): `f` field of `payload` is valid
+    STRING_CONSTANT,  // NOTE(Isaac): `string` field of `payload` is valid
   } type;
 
   union
   {
-    variable_def* variable;
-    int           i;
-    float         f;
+    variable_def*     variable;
+    int               i;
+    float             f;
+    string_constant*  string;
   } payload;
 
   /*

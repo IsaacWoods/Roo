@@ -7,6 +7,5 @@ fn Print(str : string)
 fn Main(y : int) -> int
 {
   Print("Hello, World!\n")
-
   return 0
 }

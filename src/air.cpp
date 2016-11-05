@@ -46,6 +46,13 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
       s->shouldBeColored = true;
     } break;
 
+    case slot::slot_type::IN_PARAM:
+    {
+      s->color = va_arg(args, signed int);
+      s->shouldBeColored = true; // TODO: uhhh it's precolored, so yes or no?
+      s->tag = -1; // TODO: do we need a nicer tag here?
+    } break;
+
     case slot::slot_type::INT_CONSTANT:
     {
       s->payload.i = va_arg(args, int);
@@ -57,6 +64,13 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
     {
       // NOTE(Isaac): `float` is helpfully promoted to `double` all on its own...
       s->payload.f = static_cast<float>(va_arg(args, double));
+      s->tag = -1;
+      s->shouldBeColored = false;
+    } break;
+
+    case slot::slot_type::STRING_CONSTANT:
+    {
+      s->payload.string = va_arg(args, string_constant*);
       s->tag = -1;
       s->shouldBeColored = false;
     } break;
@@ -172,10 +186,10 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
  */
 
 template<typename T = void>
-T GenNodeAIR(air_function* function, node* n);
+T GenNodeAIR(codegen_target& target, air_function* function, node* n);
 
 template<>
-slot* GenNodeAIR<slot*>(air_function* function, node* n)
+slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
 {
   assert(function->tail);
   assert(n);
@@ -184,8 +198,8 @@ slot* GenNodeAIR<slot*>(air_function* function, node* n)
   {
     case BINARY_OP_NODE:
     {
-      slot* left = GenNodeAIR<slot*>(function, n->payload.binaryOp.left);
-      slot* right = GenNodeAIR<slot*>(function, n->payload.binaryOp.right);
+      slot* left = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.left);
+      slot* right = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
 
       AddInterference(left, right);
@@ -226,7 +240,7 @@ slot* GenNodeAIR<slot*>(air_function* function, node* n)
 
     case PREFIX_OP_NODE:
     {
-      slot* right = GenNodeAIR<slot*>(function, n->payload.prefixOp.right);
+      slot* right = GenNodeAIR<slot*>(target, function, n->payload.prefixOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
 
       switch (n->payload.prefixOp.op)
@@ -293,6 +307,11 @@ slot* GenNodeAIR<slot*>(air_function* function, node* n)
       }
     };
 
+    case STRING_CONSTANT_NODE:
+    {
+      return CreateSlot(function, slot::slot_type::STRING_CONSTANT, n->payload.stringConstant);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR: %s\n", GetNodeName(n->type));
@@ -302,7 +321,8 @@ slot* GenNodeAIR<slot*>(air_function* function, node* n)
 }
 
 template<>
-jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function* function, node* n)
+jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_target& target, air_function* function,
+                                                                    node* n)
 {
   assert(function->tail);
   assert(n);
@@ -311,8 +331,8 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function
   {
     case CONDITION_NODE:
     {
-      slot* a = GenNodeAIR<slot*>(function, n->payload.condition.left);
-      slot* b = GenNodeAIR<slot*>(function, n->payload.condition.right);
+      slot* a = GenNodeAIR<slot*>(target, function, n->payload.condition.left);
+      slot* b = GenNodeAIR<slot*>(target, function, n->payload.condition.right);
       PushInstruction(I_CMP, a, b);
 
       switch (n->payload.condition.condition)
@@ -364,7 +384,7 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(air_function
 }
 
 template<>
-void GenNodeAIR<void>(air_function* function, node* n)
+void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 {
   assert(function->tail);
   assert(n);
@@ -377,7 +397,7 @@ void GenNodeAIR<void>(air_function* function, node* n)
 
       if (n->payload.expression)
       {
-        returnValue = GenNodeAIR<slot*>(function, n->payload.expression);
+        returnValue = GenNodeAIR<slot*>(target, function, n->payload.expression);
       }
 
       PushInstruction(I_LEAVE_STACK_FRAME);
@@ -388,7 +408,7 @@ void GenNodeAIR<void>(air_function* function, node* n)
     {
       // TODO: don't assume it's a local (could be a param?)
       slot* variableSlot = CreateSlot(function, slot::slot_type::LOCAL, n->payload.variableAssignment.variable);
-      slot* newValueSlot = GenNodeAIR<slot*>(function, n->payload.variableAssignment.newValue);
+      slot* newValueSlot = GenNodeAIR<slot*>(target, function, n->payload.variableAssignment.newValue);
       AddInterference(variableSlot, newValueSlot);
 
       PushInstruction(I_MOV, variableSlot, newValueSlot);
@@ -396,12 +416,16 @@ void GenNodeAIR<void>(air_function* function, node* n)
 
     case FUNCTION_CALL_NODE:
     {
-      printf("Function call node\n");
+      // TODO: don't assume everything will fit in a general register
+      unsigned int numGeneralParams = 0u;
       for (auto* paramIt = n->payload.functionCall.params.first;
            paramIt;
            paramIt = paramIt->next)
       {
-
+        slot* paramSlot = CreateSlot(function, slot::slot_type::IN_PARAM, target.intParamColors[numGeneralParams++]);
+        slot* valueSlot = GenNodeAIR<slot*>(target, function, **paramIt);
+        AddInterference(paramSlot, valueSlot);
+        PushInstruction(I_MOV, paramSlot, valueSlot);
       }
 
       assert(n->payload.functionCall.isResolved);
@@ -417,7 +441,7 @@ void GenNodeAIR<void>(air_function* function, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(air_function* function, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_function* function, node* n)
 {
   assert(function->tail);
   assert(n);
@@ -528,7 +552,7 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
        n;
        n = n->next)
   {
-    GenNodeAIR(function, n);
+    GenNodeAIR(target, function, n);
   }
 
   if (functionDef->shouldAutoReturn)
@@ -591,6 +615,12 @@ static char* GetSlotString(slot* s)
       sprintf(result, "%s(L)", s->payload.variable->name);
     } break;
 
+    case slot::slot_type::IN_PARAM:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%d(IN)", s->color)));
+      sprintf(result, "%d(IN)", s->color);
+    } break;
+
     case slot::slot_type::INTERMEDIATE:
     {
       result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag)));
@@ -607,6 +637,12 @@ static char* GetSlotString(slot* s)
     {
       result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f)));
       sprintf(result, "#%f", s->payload.f);
+    } break;
+
+    case slot::slot_type::STRING_CONSTANT:
+    {
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "\"%s\"", s->payload.string->string)));
+      sprintf(result, "\"%s\"", s->payload.string->string);
     } break;
   }
 
@@ -829,6 +865,11 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
         fprintf(f, "\ts%u[label=\"t%d : INTERMEDIATE\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->tag, color, color);
       } break;
 
+      case slot::slot_type::IN_PARAM:
+      {
+        fprintf(f, "\ts%u[label=\"IN\" color=\"%s\" fontcolor=\"%s\"];\n", i, color, color);
+      } break;
+
       case slot::slot_type::INT_CONSTANT:
       {
         fprintf(f, "\ts%u[label=\"%d : INT\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.i, color, color);
@@ -837,6 +878,11 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
       case slot::slot_type::FLOAT_CONSTANT:
       {
         fprintf(f, "\ts%u[label=\"%f : FLOAT\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.f, color, color);
+      } break;
+
+      case slot::slot_type::STRING_CONSTANT:
+      {
+        fprintf(f, "\ts%u[label=\"\"%s\" : STRING\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.string->string, color, color);
       } break;
     }
 
