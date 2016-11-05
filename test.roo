@@ -3,6 +3,11 @@
 #[Prototype]
 fn Print(str : string)
 
+fn Potato(x : int) -> int
+{
+  return x + 7
+}
+
 #[Entry]
 fn Main(y : int) -> int
 {

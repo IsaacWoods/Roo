@@ -87,6 +87,8 @@ struct variable_def
   slot*         mostRecentSlot;
 };
 
+variable_def* CreateVariableDef(char* name, char* typeName, node* initValue);
+
 struct function_attrib
 {
   enum attrib_type

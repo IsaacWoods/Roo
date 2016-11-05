@@ -250,6 +250,7 @@ struct code_generator
   elf_section                   relaText;
 
   unsigned int numSymbols;
+  unsigned int rodataSymbol;
 };
 
 static void InitSection(code_generator& generator, elf_section& section, const char* name, section_type type, uint64_t alignment)
@@ -269,7 +270,8 @@ static void InitSection(code_generator& generator, elf_section& section, const c
 /*
  * NOTE(Isaac): if name is `nullptr`, no name is created
  */
-void CreateSymbol(code_generator& generator, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t defOffset, uint64_t size)
+unsigned int CreateSymbol(code_generator& generator, const char* name, symbol_binding binding, symbol_type type,
+                          uint16_t sectionIndex, uint64_t defOffset, uint64_t size)
 {
   elf_symbol symbol;
   symbol.name = (name ? CreateString(generator.strings, name) : 0u);
@@ -279,8 +281,6 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
   symbol.definitionOffset = defOffset;
   symbol.size = size;
 
-  generator.numSymbols++;
-
   // Set the `info` field of the symbol-table section to the index of the first non-local symbol
   if (generator.symbolTable.info == UINT_MAX && binding == SYM_BIND_GLOBAL)
   {
@@ -288,6 +288,7 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
   }
 
   AddToLinkedList<elf_symbol>(generator.symbols, symbol);
+  return generator.numSymbols++;
 }
 
 #define R_X86_64_64        1u
@@ -295,13 +296,14 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
 #define R_X86_64_GLOB_DAT  6u
 #define R_X86_64_JUMP_SLOT 7u
 
-void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex)
+void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex,
+                      int64_t addend = 0)
 {
   elf_relocation relocation;
   relocation.offset = offset;
   relocation.info = static_cast<uint64_t>(symbolTableIndex) << 32u;
   relocation.info |= type;
-  relocation.addend = 0;
+  relocation.addend = addend;
 
   AddToLinkedList<elf_relocation>(generator.textRelocations, relocation);
 }
@@ -597,7 +599,7 @@ void EmitText(code_generator& generator, parse_result& result)
           else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
           {
             EMIT(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-            // TODO: emit a relocation here
+            CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
           }
           else
           {
@@ -660,7 +662,8 @@ void EmitText(code_generator& generator, parse_result& result)
         {
           EMIT(i::CALL32, 0x0);
           // TODO: find the correct symbol for the function symbol in the table
-          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 1u);
+          // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
+          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
         } break;
 
         case I_NUM_INSTRUCTIONS:
@@ -676,10 +679,10 @@ void EmitText(code_generator& generator, parse_result& result)
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
-
   code_generator generator;
   generator.f = fopen(outputPath, "wb");
   generator.target = &target;
+  generator.numSymbols = 1u;  // NOTE(Isaac): symbol number 0 is a NULL placeholder
   CreateLinkedList<elf_string>(generator.strings);
   CreateLinkedList<elf_string>(generator.sectionNames);
   CreateLinkedList<elf_symbol>(generator.symbols);
@@ -701,7 +704,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   generator.rodata.flags = SECTION_ATTRIB_A;
 
   // Add a symbol to the .rodata section so we can add relocations relative to it
-  CreateSymbol(generator, nullptr, SYM_BIND_LOCAL, SYM_TYPE_SECTION, RODATA_INDEX, 0x0, 0x0);
+  generator.rodataSymbol = CreateSymbol(generator, nullptr, SYM_BIND_LOCAL, SYM_TYPE_SECTION, RODATA_INDEX, 0, 0);
 
   // --- The symbol table ---
   InitSection(generator, generator.symbolTable, ".symtab", SHT_SYMTAB, 0x04);

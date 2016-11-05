@@ -625,6 +625,7 @@ prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
 unsigned int    g_precedenceTable[NUM_TOKENS];
 
+// TODO: doesn't appear to work for multiple parameters
 static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
@@ -638,11 +639,11 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
 
   do
   {
-    variable_def* param = static_cast<variable_def*>(malloc(sizeof(variable_def)));
-    param->name = GetTextFromToken(PeekToken(parser));
+    char* varName = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    param->type.type.name = GetTextFromToken(PeekToken(parser));
-    param->type.isResolved = false;
+    char* typeName = GetTextFromToken(PeekToken(parser));
+
+    variable_def* param = CreateVariableDef(varName, typeName, nullptr);
 
     printf("Param: %s of type %s\n", param->name, param->type.type.name);
     AddToLinkedList<variable_def*>(params, param);
@@ -682,36 +683,27 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
   return expression;
 }
 
-static type_ref TypeRef(roo_parser& parser)
-{
-  type_ref result;
-  result.type.name = GetTextFromToken(PeekToken(parser));
-  result.isResolved = false;
-
-  NextToken(parser);
-  return result;
-}
-
 static variable_def* VariableDef(roo_parser& parser)
 {
-  variable_def* definition = static_cast<variable_def*>(malloc(sizeof(variable_def)));
-  definition->name = GetTextFromToken(PeekToken(parser));
-
+  char* name = GetTextFromToken(PeekToken(parser));
   ConsumeNext(parser, TOKEN_COLON);
-  definition->type = TypeRef(parser);
-  
-  if (Match(parser, TOKEN_EQUALS))
+  char* typeName = GetTextFromToken(PeekToken(parser));
+  node* initValue;
+
+  if (MatchNext(parser, TOKEN_EQUALS))
   {
-    Consume(parser, TOKEN_EQUALS);
-    definition->initValue = Expression(parser);
+    ConsumeNext(parser, TOKEN_EQUALS);
+    initValue = Expression(parser);
   }
   else
   {
-    definition->initValue = nullptr;
+    initValue = nullptr;
+    NextToken(parser);
   }
 
-  printf("Defined variable: %s of type: %s\n", definition->name, definition->type.type.name);
-  return definition;
+  variable_def* variable = CreateVariableDef(name, typeName, initValue);
+  printf("Defined variable: %s of type: %s\n", variable->name, variable->type.type.name);
+  return variable;
 }
 
 static node* Statement(roo_parser& parser, bool isInLoop = false);

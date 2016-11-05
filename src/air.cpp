@@ -882,7 +882,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
       case slot::slot_type::STRING_CONSTANT:
       {
-        fprintf(f, "\ts%u[label=\"\"%s\" : STRING\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.string->string, color, color);
+        fprintf(f, "\ts%u[label=\"\\\"%s\\\" : STRING\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.string->string, color, color);
       } break;
     }
 
