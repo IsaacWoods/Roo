@@ -239,6 +239,7 @@ struct code_generator
   elf_section                   symbolTable;
   elf_section                   stringTable;
   elf_section                   sectionNameTable;
+  elf_section                   rodata;
   elf_section                   text;
   elf_section                   relaText;
 
@@ -682,11 +683,15 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   generator.header.fileType = 0x01;
   generator.header.numSectionHeaderEntries = 0u;
   generator.header.entryPoint = 0x00;
-  generator.header.sectionWithSectionNames = 3u; // NOTE(Isaac): this is hardcoded
+  generator.header.sectionWithSectionNames = 4u; // NOTE(Isaac): this is hardcoded
+
+  // --- The .rodata section ---
+  InitSection(generator, generator.rodata, ".rodata", SHT_PROGBITS, 0x4);
+  generator.rodata.flags = SECTION_ATTRIB_A;
 
   // --- The symbol table ---
   InitSection(generator, generator.symbolTable, ".symtab", SHT_SYMTAB, 0x04);
-  generator.symbolTable.link = 4u;    // NOTE(Isaac): hardcoded to be the section index of the string table used
+  generator.symbolTable.link = 5u;    // NOTE(Isaac): hardcoded to be the section index of the string table used
   generator.symbolTable.info = UINT_MAX;
   generator.symbolTable.entrySize = 0x18;
 
@@ -700,12 +705,37 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // --- The relocation section for .text ---
   InitSection(generator, generator.relaText, ".rela.text", SHT_RELA, 0x04);
-  generator.relaText.link = 2u; // Section index of the symbol table used
-  generator.relaText.info = 1;  // Section index of .text
+  generator.relaText.link = 3u; // Section index of the symbol table used
+  generator.relaText.info = 2u;  // Section index of .text
   generator.relaText.entrySize = 0x18;
 
-  // [0x40] Generate the object code that will be in the .text section
+  // NOTE(Isaac): leave space for the ELF header
   fseek(generator.f, 0x40, SEEK_SET);
+
+  // [0x40] Generate .rodata
+  generator.rodata.offset = ftell(generator.f);
+
+  for (auto* stringIt = result.strings.first;
+       stringIt;
+       stringIt = stringIt->next)
+  {
+    (**stringIt)->offset = ftell(generator.f) - generator.rodata.offset;
+    printf("Emitting string constant \"%s\" into .rodata at: %u\n", (**stringIt)->string, (**stringIt)->offset);
+
+    for (const char* c = (**stringIt)->string;
+         *c;
+         c++)
+    {
+      printf("Emitting char: '%c'\n", *c);
+      fputc(*c, generator.f);
+      generator.rodata.size++;
+    }
+
+    fputc('\0', generator.f);
+    generator.rodata.size++;
+  }
+
+  // [???] Generate the object code that will be in the .text section
   EmitText(generator, result);
   generator.text.name = CreateString(generator.sectionNames, ".text");
 
@@ -807,11 +837,12 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     fputc(0x00, generator.f);
   }
 
-  EmitSectionEntry(generator, generator.text);              // [1]
-  EmitSectionEntry(generator, generator.symbolTable);       // [2]
-  EmitSectionEntry(generator, generator.sectionNameTable);  // [3]
-  EmitSectionEntry(generator, generator.stringTable);       // [4]
-  EmitSectionEntry(generator, generator.relaText);          // [5]
+  EmitSectionEntry(generator, generator.rodata);            // [1]
+  EmitSectionEntry(generator, generator.text);              // [2]
+  EmitSectionEntry(generator, generator.symbolTable);       // [3]
+  EmitSectionEntry(generator, generator.sectionNameTable);  // [4]
+  EmitSectionEntry(generator, generator.stringTable);       // [5]
+  EmitSectionEntry(generator, generator.relaText);          // [6]
 
   // [0x00] Generate the ELF header
   fseek(generator.f, 0x00, SEEK_SET);

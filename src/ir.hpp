@@ -60,6 +60,11 @@ struct string_constant
 {
   unsigned int      handle;
   char*             string;
+
+  /*
+   * NOTE(Isaac): this is set by the code generator when it's emitted into the executable. `UINT_MAX` beforehand.
+   */
+  uint64_t offset;
 };
 
 string_constant* CreateStringConstant(parse_result* result, char* string);
