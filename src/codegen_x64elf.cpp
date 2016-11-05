@@ -13,6 +13,12 @@
 #include <air.hpp>
 
 #define SECTION_HEADER_ENTRY_SIZE 0x40
+#define RODATA_INDEX              1u
+#define TEXT_INDEX                2u
+#define SYMBOL_TABLE_INDEX        3u
+#define SECTION_NAME_TABLE_INDEX  4u
+#define STRING_TABLE_INDEX        5u
+#define RELA_TEXT_INDEX           6u
 
 enum reg
 {
@@ -260,10 +266,13 @@ static void InitSection(code_generator& generator, elf_section& section, const c
   section.entrySize         = 0u;
 }
 
+/*
+ * NOTE(Isaac): if name is `nullptr`, no name is created
+ */
 void CreateSymbol(code_generator& generator, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t defOffset, uint64_t size)
 {
   elf_symbol symbol;
-  symbol.name = CreateString(generator.strings, name);
+  symbol.name = (name ? CreateString(generator.strings, name) : 0u);
   symbol.info = type;
   symbol.info |= binding << 4u;
   symbol.sectionIndex = sectionIndex;
@@ -281,9 +290,10 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
   AddToLinkedList<elf_symbol>(generator.symbols, symbol);
 }
 
-#define R_X64_PC32      2
-#define R_X64_GLOB_DAT  6
-#define R_X64_JUMP_SLOT 7
+#define R_X86_64_64        1u
+#define R_X86_64_PC32      2u
+#define R_X86_64_GLOB_DAT  6u
+#define R_X86_64_JUMP_SLOT 7u
 
 void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex)
 {
@@ -546,7 +556,7 @@ void EmitText(code_generator& generator, parse_result& result)
     // Create the symbol for the function
     // TODO: decide whether each should have a local or global binding
     unsigned int offset = ftell(generator.f) - generator.text.offset;
-    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, 1u, offset, 0u);
+    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, TEXT_INDEX, offset, 0u);
 
     for (air_instruction* instruction = (**functionIt)->air->code;
          instruction;
@@ -650,7 +660,7 @@ void EmitText(code_generator& generator, parse_result& result)
         {
           EMIT(i::CALL32, 0x0);
           // TODO: find the correct symbol for the function symbol in the table
-          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X64_PC32, 1u);
+          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 1u);
         } break;
 
         case I_NUM_INSTRUCTIONS:
@@ -666,6 +676,7 @@ void EmitText(code_generator& generator, parse_result& result)
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
+
   code_generator generator;
   generator.f = fopen(outputPath, "wb");
   generator.target = &target;
@@ -683,15 +694,18 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   generator.header.fileType = 0x01;
   generator.header.numSectionHeaderEntries = 0u;
   generator.header.entryPoint = 0x00;
-  generator.header.sectionWithSectionNames = 4u; // NOTE(Isaac): this is hardcoded
+  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;
 
   // --- The .rodata section ---
   InitSection(generator, generator.rodata, ".rodata", SHT_PROGBITS, 0x4);
   generator.rodata.flags = SECTION_ATTRIB_A;
 
+  // Add a symbol to the .rodata section so we can add relocations relative to it
+  CreateSymbol(generator, nullptr, SYM_BIND_LOCAL, SYM_TYPE_SECTION, RODATA_INDEX, 0x0, 0x0);
+
   // --- The symbol table ---
   InitSection(generator, generator.symbolTable, ".symtab", SHT_SYMTAB, 0x04);
-  generator.symbolTable.link = 5u;    // NOTE(Isaac): hardcoded to be the section index of the string table used
+  generator.symbolTable.link = STRING_TABLE_INDEX;
   generator.symbolTable.info = UINT_MAX;
   generator.symbolTable.entrySize = 0x18;
 
@@ -705,8 +719,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // --- The relocation section for .text ---
   InitSection(generator, generator.relaText, ".rela.text", SHT_RELA, 0x04);
-  generator.relaText.link = 3u; // Section index of the symbol table used
-  generator.relaText.info = 2u;  // Section index of .text
+  generator.relaText.link = SYMBOL_TABLE_INDEX;
+  generator.relaText.info = TEXT_INDEX;
   generator.relaText.entrySize = 0x18;
 
   // NOTE(Isaac): leave space for the ELF header
@@ -720,13 +734,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        stringIt = stringIt->next)
   {
     (**stringIt)->offset = ftell(generator.f) - generator.rodata.offset;
-    printf("Emitting string constant \"%s\" into .rodata at: %u\n", (**stringIt)->string, (**stringIt)->offset);
 
     for (const char* c = (**stringIt)->string;
          *c;
          c++)
     {
-      printf("Emitting char: '%c'\n", *c);
       fputc(*c, generator.f);
       generator.rodata.size++;
     }
