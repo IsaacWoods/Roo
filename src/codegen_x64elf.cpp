@@ -13,6 +13,12 @@
 #include <air.hpp>
 
 #define SECTION_HEADER_ENTRY_SIZE 0x40
+#define RODATA_INDEX              1u
+#define TEXT_INDEX                2u
+#define SYMBOL_TABLE_INDEX        3u
+#define SECTION_NAME_TABLE_INDEX  4u
+#define STRING_TABLE_INDEX        5u
+#define RELA_TEXT_INDEX           6u
 
 enum reg
 {
@@ -220,20 +226,31 @@ struct elf_symbol
   uint64_t  size;
 };
 
+struct elf_relocation
+{
+  uint64_t  offset;
+  uint64_t  info;
+  int64_t   addend;
+};
+
 struct code_generator
 {
-  FILE*                   f;
-  codegen_target*         target;
-  linked_list<elf_string> strings;
-  linked_list<elf_string> sectionNames;
-  linked_list<elf_symbol> symbols;
-  elf_header              header;
-  elf_section             symbolTable;
-  elf_section             stringTable;
-  elf_section             sectionNameTable;
-  elf_section             text;
+  FILE*                         f;
+  codegen_target*               target;
+  linked_list<elf_string>       strings;
+  linked_list<elf_string>       sectionNames;
+  linked_list<elf_symbol>       symbols;
+  linked_list<elf_relocation>   textRelocations;
+  elf_header                    header;
+  elf_section                   symbolTable;
+  elf_section                   stringTable;
+  elf_section                   sectionNameTable;
+  elf_section                   rodata;
+  elf_section                   text;
+  elf_section                   relaText;
 
   unsigned int numSymbols;
+  unsigned int rodataSymbol;
 };
 
 static void InitSection(code_generator& generator, elf_section& section, const char* name, section_type type, uint64_t alignment)
@@ -250,17 +267,19 @@ static void InitSection(code_generator& generator, elf_section& section, const c
   section.entrySize         = 0u;
 }
 
-void CreateSymbol(code_generator& generator, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t defOffset, uint64_t size)
+/*
+ * NOTE(Isaac): if name is `nullptr`, no name is created
+ */
+unsigned int CreateSymbol(code_generator& generator, const char* name, symbol_binding binding, symbol_type type,
+                          uint16_t sectionIndex, uint64_t defOffset, uint64_t size)
 {
   elf_symbol symbol;
-  symbol.name = CreateString(generator.strings, name);
+  symbol.name = (name ? CreateString(generator.strings, name) : 0u);
   symbol.info = type;
   symbol.info |= binding << 4u;
   symbol.sectionIndex = sectionIndex;
   symbol.definitionOffset = defOffset;
   symbol.size = size;
-
-  generator.numSymbols++;
 
   // Set the `info` field of the symbol-table section to the index of the first non-local symbol
   if (generator.symbolTable.info == UINT_MAX && binding == SYM_BIND_GLOBAL)
@@ -269,6 +288,24 @@ void CreateSymbol(code_generator& generator, const char* name, symbol_binding bi
   }
 
   AddToLinkedList<elf_symbol>(generator.symbols, symbol);
+  return generator.numSymbols++;
+}
+
+#define R_X86_64_64        1u
+#define R_X86_64_PC32      2u
+#define R_X86_64_GLOB_DAT  6u
+#define R_X86_64_JUMP_SLOT 7u
+
+void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex,
+                      int64_t addend = 0)
+{
+  elf_relocation relocation;
+  relocation.offset = offset;
+  relocation.info = static_cast<uint64_t>(symbolTableIndex) << 32u;
+  relocation.info |= type;
+  relocation.addend = addend;
+
+  AddToLinkedList<elf_relocation>(generator.textRelocations, relocation);
 }
 
 static void EmitHeader(code_generator& generator)
@@ -357,8 +394,10 @@ enum class i : uint8_t
   ADD_REG_IMM32   = 0x81,       // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
   MOV_REG_IMM32   = 0xB8,       // +r (4-byte immediate)
+  MOV_REG_IMM64         ,       // NOTE(Isaac): same opcode as MOV_REG_IMM32      [immSize] +r (8-byte immedite)
   RET             = 0xC3,
   LEAVE           = 0xC9,
+  CALL32          = 0xE8,       // (4-byte offset to RIP)
 };
 
 /*
@@ -448,9 +487,29 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-//      EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
       fwrite(&imm, sizeof(uint32_t), 1, generator.f);
+      numBytesEmitted += 4u;
+    } break;
+
+    case i::MOV_REG_IMM64:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      uint64_t imm = va_arg(args, uint64_t);
+
+      EMIT(0x48);
+      // NOTE(Isaac): use the opcode from `MOV_REG_IMM32` because they wouldn't all fit in the enum
+      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
+      fwrite(&imm, sizeof(uint64_t), 1, generator.f);
+      numBytesEmitted += 8u;
+    } break;
+
+    case i::CALL32:
+    {
+      uint32_t offset = va_arg(args, uint32_t);
+
+      EMIT(static_cast<uint8_t>(i::CALL32));
+      fwrite(&offset, sizeof(uint32_t), 1, generator.f);
       numBytesEmitted += 4u;
     } break;
 
@@ -481,6 +540,11 @@ void EmitText(code_generator& generator, parse_result& result)
        functionIt;
        functionIt = functionIt->next)
   {
+    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    {
+      continue;
+    }
+
     printf("Generating object code for function: %s\n", (**functionIt)->name);
     assert((**functionIt)->air);
     assert((**functionIt)->air->code);
@@ -494,7 +558,7 @@ void EmitText(code_generator& generator, parse_result& result)
     // Create the symbol for the function
     // TODO: decide whether each should have a local or global binding
     unsigned int offset = ftell(generator.f) - generator.text.offset;
-    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, 1u, offset, 0u);
+    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, TEXT_INDEX, offset, 0u);
 
     for (air_instruction* instruction = (**functionIt)->air->code;
          instruction;
@@ -532,8 +596,16 @@ void EmitText(code_generator& generator, parse_result& result)
           {
             EMIT(i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
           }
+          else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
+          {
+            EMIT(i::MOV_REG_IMM64, mov.dest->color, 0x0);
+            CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
+          }
           else
           {
+            // NOTE(Isaac): if we're here, `src` should be colored
+            assert(mov.src->color != -1);
+
             EMIT(i::MOV_REG_REG, mov.dest->color, mov.src->color);
           }
         } break;
@@ -586,6 +658,14 @@ void EmitText(code_generator& generator, parse_result& result)
 
         } break;
 
+        case I_CALL:
+        {
+          EMIT(i::CALL32, 0x0);
+          // TODO: find the correct symbol for the function symbol in the table
+          // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
+          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
+        } break;
+
         case I_NUM_INSTRUCTIONS:
         {
           fprintf(stderr, "Tried to generate code for AIR instruction of type `I_NUM_INSTRUCTIONS`!\n");
@@ -602,9 +682,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   code_generator generator;
   generator.f = fopen(outputPath, "wb");
   generator.target = &target;
+  generator.numSymbols = 1u;  // NOTE(Isaac): symbol number 0 is a NULL placeholder
   CreateLinkedList<elf_string>(generator.strings);
   CreateLinkedList<elf_string>(generator.sectionNames);
   CreateLinkedList<elf_symbol>(generator.symbols);
+  CreateLinkedList<elf_relocation>(generator.textRelocations);
 
   if (!generator.f)
   {
@@ -615,11 +697,18 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   generator.header.fileType = 0x01;
   generator.header.numSectionHeaderEntries = 0u;
   generator.header.entryPoint = 0x00;
-  generator.header.sectionWithSectionNames = 3u; // NOTE(Isaac): this is hardcoded
+  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;
+
+  // --- The .rodata section ---
+  InitSection(generator, generator.rodata, ".rodata", SHT_PROGBITS, 0x4);
+  generator.rodata.flags = SECTION_ATTRIB_A;
+
+  // Add a symbol to the .rodata section so we can add relocations relative to it
+  generator.rodataSymbol = CreateSymbol(generator, nullptr, SYM_BIND_LOCAL, SYM_TYPE_SECTION, RODATA_INDEX, 0, 0);
 
   // --- The symbol table ---
   InitSection(generator, generator.symbolTable, ".symtab", SHT_SYMTAB, 0x04);
-  generator.symbolTable.link = 4u;    // NOTE(Isaac): hardcoded to be the section index of the string table used
+  generator.symbolTable.link = STRING_TABLE_INDEX;
   generator.symbolTable.info = UINT_MAX;
   generator.symbolTable.entrySize = 0x18;
 
@@ -631,10 +720,55 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   InitSection(generator, generator.sectionNameTable, ".shstrtab", SHT_STRTAB, 0x01);
   generator.sectionNameTable.size = 1u;
 
-  // [0x40] Generate the object code that will be in the .text section
+  // --- The relocation section for .text ---
+  InitSection(generator, generator.relaText, ".rela.text", SHT_RELA, 0x04);
+  generator.relaText.link = SYMBOL_TABLE_INDEX;
+  generator.relaText.info = TEXT_INDEX;
+  generator.relaText.entrySize = 0x18;
+
+  // NOTE(Isaac): leave space for the ELF header
   fseek(generator.f, 0x40, SEEK_SET);
+
+  // [0x40] Generate .rodata
+  generator.rodata.offset = ftell(generator.f);
+
+  for (auto* stringIt = result.strings.first;
+       stringIt;
+       stringIt = stringIt->next)
+  {
+    (**stringIt)->offset = ftell(generator.f) - generator.rodata.offset;
+
+    for (const char* c = (**stringIt)->string;
+         *c;
+         c++)
+    {
+      fputc(*c, generator.f);
+      generator.rodata.size++;
+    }
+
+    fputc('\0', generator.f);
+    generator.rodata.size++;
+  }
+
+  // [???] Generate the object code that will be in the .text section
   EmitText(generator, result);
   generator.text.name = CreateString(generator.sectionNames, ".text");
+
+  // [???] Emit .rela.text
+  generator.relaText.offset = ftell(generator.f);
+  
+  for (auto* relocationIt = generator.textRelocations.first;
+       relocationIt;
+       relocationIt = relocationIt->next)
+  {
+/*n + */
+/*0x00*/fwrite(&((**relocationIt).offset), sizeof(uint64_t), 1, generator.f);
+/*0x08*/fwrite(&((**relocationIt).info), sizeof(uint64_t), 1, generator.f);
+/*0x10*/fwrite(&((**relocationIt).addend), sizeof(int64_t), 1, generator.f);
+/*0x18*/
+
+    generator.relaText.size += 0x18;
+  }
 
   // [???] Emit the symbol table
   generator.symbolTable.offset = ftell(generator.f);
@@ -652,7 +786,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        symbolIt;
        symbolIt = symbolIt->next)
   {
-
 /*n + */
 /*0x00*/fwrite(&((**symbolIt).name), sizeof(uint32_t), 1, generator.f);
 /*0x04*/fwrite(&((**symbolIt).info), sizeof(uint8_t), 1, generator.f);
@@ -719,10 +852,12 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     fputc(0x00, generator.f);
   }
 
-  EmitSectionEntry(generator, generator.text);              // [1]
-  EmitSectionEntry(generator, generator.symbolTable);       // [2]
-  EmitSectionEntry(generator, generator.sectionNameTable);  // [3]
-  EmitSectionEntry(generator, generator.stringTable);       // [4]
+  EmitSectionEntry(generator, generator.rodata);            // [1]
+  EmitSectionEntry(generator, generator.text);              // [2]
+  EmitSectionEntry(generator, generator.symbolTable);       // [3]
+  EmitSectionEntry(generator, generator.sectionNameTable);  // [4]
+  EmitSectionEntry(generator, generator.stringTable);       // [5]
+  EmitSectionEntry(generator, generator.relaText);          // [6]
 
   // [0x00] Generate the ELF header
   fseek(generator.f, 0x00, SEEK_SET);

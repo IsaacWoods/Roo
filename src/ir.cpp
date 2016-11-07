@@ -53,6 +53,16 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
   return constant;
 }
 
+variable_def* CreateVariableDef(char* name, char* typeName, node* initValue)
+{
+  variable_def* var = static_cast<variable_def*>(malloc(sizeof(variable_def)));
+  var->name = name;
+  var->type.type.name = typeName;
+  var->type.isResolved = false;
+  var->initValue = initValue;
+  var->mostRecentSlot = nullptr;
+}
+
 function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
 {
   for (auto* attribIt = function->attribs.first;
@@ -238,6 +248,11 @@ void CompleteAST(parse_result& parse)
        functionIt;
        functionIt = functionIt->next)
   {
+    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    {
+      continue;
+    }
+
     ResolveTypeRef(*((**functionIt)->returnType), parse);
   }
 

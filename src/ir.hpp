@@ -60,6 +60,11 @@ struct string_constant
 {
   unsigned int      handle;
   char*             string;
+
+  /*
+   * NOTE(Isaac): this is set by the code generator when it's emitted into the executable. `UINT_MAX` beforehand.
+   */
+  uint64_t offset;
 };
 
 string_constant* CreateStringConstant(parse_result* result, char* string);
@@ -82,17 +87,21 @@ struct variable_def
   slot*         mostRecentSlot;
 };
 
+variable_def* CreateVariableDef(char* name, char* typeName, node* initValue);
+
 struct function_attrib
 {
   enum attrib_type
   {
-    ENTRY
+    ENTRY,
+    PROTOTYPE,
   } type;
 };
 
 struct function_def
 {
   char*                         name;
+  bool                          isPrototype;
   linked_list<variable_def*>    params;
   linked_list<variable_def*>    locals;
   type_ref*                     returnType; // NOTE(Isaac): `nullptr` when function returns nothing
