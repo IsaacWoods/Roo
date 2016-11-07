@@ -7,6 +7,16 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+template<>
+void Free<const char*>(const char*& str)
+{}
+
+template<>
+void Free<char*>(char*& str)
+{
+  free(str);
+}
+
 char* itoa(int num, char* str, int base)
 {
   int i = 0;

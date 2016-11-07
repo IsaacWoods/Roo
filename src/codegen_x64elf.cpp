@@ -12,13 +12,13 @@
 #include <common.hpp>
 #include <air.hpp>
 
-#define SECTION_HEADER_ENTRY_SIZE 0x40
+/*#define SECTION_HEADER_ENTRY_SIZE 0x40
 #define RODATA_INDEX              1u
 #define TEXT_INDEX                2u
 #define SYMBOL_TABLE_INDEX        3u
 #define SECTION_NAME_TABLE_INDEX  4u
 #define STRING_TABLE_INDEX        5u
-#define RELA_TEXT_INDEX           6u
+#define RELA_TEXT_INDEX           6u*/
 
 enum reg
 {
@@ -110,134 +110,11 @@ void FreeCodegenTarget(codegen_target& target)
   free(target.registerSet);
 }
 
-// --- ELF stuff and things ---
-struct elf_header
-{
-  uint16_t fileType;
-  uint64_t entryPoint;
-  uint64_t sectionHeaderOffset;
-  uint16_t numSectionHeaderEntries;
-  uint16_t sectionWithSectionNames;
-};
-
-#define SECTION_ATTRIB_W        0x1         // NOTE(Isaac): marks the section as writable
-#define SECTION_ATTRIB_A        0x2         // NOTE(Isaac): marks the section to be allocated in the memory image
-#define SECTION_ATTRIB_E        0x4         // NOTE(Isaac): marks the section as executable
-#define SECTION_ATTRIB_MASKOS   0x0F000000  // NOTE(Isaac): environment-specific
-#define SECTION_ATTRIB_MASKPROC 0xF0000000  // NOTE(Isaac): processor-specific
-
-enum section_type : uint32_t
-{
-  SHT_NULL            = 0u,
-  SHT_PROGBITS        = 1u,
-  SHT_SYMTAB          = 2u,
-  SHT_STRTAB          = 3u,
-  SHT_RELA            = 4u,
-  SHT_HASH            = 5u,
-  SHT_DYNAMIC         = 6u,
-  SHT_NOTE            = 7u,
-  SHT_NOBITS          = 8u,
-  SHT_REL             = 9u,
-  SHT_SHLIB           = 10u,
-  SHT_DYNSYM          = 11u,
-  SHT_INIT_ARRAY      = 14u,
-  SHT_FINI_ARRAY      = 15u,
-  SHT_PREINIT_ARRAY   = 16u,
-  SHT_GROUP           = 17u,
-  SHT_SYMTAB_SHNDX    = 18u,
-  SHT_LOOS            = 0x60000000,
-  SHT_HIOS            = 0x6FFFFFFF,
-  SHT_LOPROC          = 0x70000000,
-  SHT_HIPROC          = 0x7FFFFFFF,
-  SHT_LOUSER          = 0x80000000,
-  SHT_HIUSER          = 0x8FFFFFFF
-};
-
-struct elf_section
-{
-  uint32_t      name;               // Offset in the string table to the section name
-  section_type  type;
-  uint64_t      flags;
-  uint64_t      address;            // Virtual address of the beginning of the section in memory
-  uint64_t      offset;             // Offset of the beginning of the section in the file
-  uint64_t      size;               // NOTE(Isaac): for SHT_NOBITS, this is NOT the size in the file!
-  uint32_t      link;               // Index of an associated section
-  uint32_t      info;
-  uint64_t      addressAlignment;   // Required alignment of this section
-  uint64_t      entrySize;          // Size of each section entry (if fixed, zero otherwise)
-};
-
-struct elf_string
-{
-  const char* str;
-  unsigned int offset;  // Offset in bytes from the beginning of the string table
-};
-
-/*
- * NOTE(Isaac): returns the offset of the string in the respective string table
- */
-static uint32_t CreateString(linked_list<elf_string>& table, const char* str)
-{
-  elf_string string;
-  string.str = str;
-  
-  if (table.tail == nullptr)
-  {
-    string.offset = 1u;  // NOTE(Isaac): there's already a leading null-terminator there
-  }
-  else
-  {
-    string.offset = (**table.tail).offset + strlen((**table.tail).str) + 1u;
-  }
-
-  AddToLinkedList<elf_string>(table, string); 
-  return string.offset;
-}
-
-template<>
-void Free<elf_string>(elf_string& /*str*/)
-{ }
-
-enum symbol_binding : uint8_t
-{
-  SYM_BIND_LOCAL      = 0x0,
-  SYM_BIND_GLOBAL     = 0x1,
-  SYM_BIND_WEAK       = 0x2,
-  SYM_BIND_LOOS       = 0xA,
-  SYM_BIND_HIOS       = 0xC,
-  SYM_BIND_LOPROC     = 0xD,
-  SYM_BIND_HIGHPROC   = 0xF,
-};
-
-enum symbol_type : uint8_t
-{
-  SYM_TYPE_NONE,
-  SYM_TYPE_OBJECT,
-  SYM_TYPE_FUNCTION,
-  SYM_TYPE_SECTION,
-};
-
-struct elf_symbol
-{
-  uint32_t  name;
-  uint8_t   info;
-  uint16_t  sectionIndex;
-  uint64_t  definitionOffset;
-  uint64_t  size;
-};
-
-struct elf_relocation
-{
-  uint64_t  offset;
-  uint64_t  info;
-  int64_t   addend;
-};
-
 struct code_generator
 {
-  FILE*                         f;
+//  FILE*                         f;
   codegen_target*               target;
-  linked_list<elf_string>       strings;
+/*  linked_list<elf_string>       strings;
   linked_list<elf_string>       sectionNames;
   linked_list<elf_symbol>       symbols;
   linked_list<elf_relocation>   textRelocations;
@@ -250,10 +127,10 @@ struct code_generator
   elf_section                   relaText;
 
   unsigned int numSymbols;
-  unsigned int rodataSymbol;
+  unsigned int rodataSymbol;*/
 };
 
-static void InitSection(code_generator& generator, elf_section& section, const char* name, section_type type, uint64_t alignment)
+/*static void InitSection(code_generator& generator, elf_section& section, const char* name, section_type type, uint64_t alignment)
 {
   section.name              = CreateString(generator.sectionNames, name);
   section.type              = type;
@@ -265,33 +142,9 @@ static void InitSection(code_generator& generator, elf_section& section, const c
   section.info              = 0u;
   section.addressAlignment  = alignment;
   section.entrySize         = 0u;
-}
+}*/
 
-/*
- * NOTE(Isaac): if name is `nullptr`, no name is created
- */
-unsigned int CreateSymbol(code_generator& generator, const char* name, symbol_binding binding, symbol_type type,
-                          uint16_t sectionIndex, uint64_t defOffset, uint64_t size)
-{
-  elf_symbol symbol;
-  symbol.name = (name ? CreateString(generator.strings, name) : 0u);
-  symbol.info = type;
-  symbol.info |= binding << 4u;
-  symbol.sectionIndex = sectionIndex;
-  symbol.definitionOffset = defOffset;
-  symbol.size = size;
-
-  // Set the `info` field of the symbol-table section to the index of the first non-local symbol
-  if (generator.symbolTable.info == UINT_MAX && binding == SYM_BIND_GLOBAL)
-  {
-    generator.symbolTable.info = generator.numSymbols;
-  }
-
-  AddToLinkedList<elf_symbol>(generator.symbols, symbol);
-  return generator.numSymbols++;
-}
-
-#define R_X86_64_64        1u
+/*#define R_X86_64_64        1u
 #define R_X86_64_PC32      2u
 #define R_X86_64_GLOB_DAT  6u
 #define R_X86_64_JUMP_SLOT 7u
@@ -306,81 +159,7 @@ void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type,
   relocation.addend = addend;
 
   AddToLinkedList<elf_relocation>(generator.textRelocations, relocation);
-}
-
-static void EmitHeader(code_generator& generator)
-{
-  FILE* f = generator.f;
-
-  /*
-   * NOTE(Isaac): this is already a define, but `fwrite` is stupid, so it has to be a lvalue too
-   */
-  const uint16_t sectionHeaderEntrySize = SECTION_HEADER_ENTRY_SIZE;
-
-/*0x00*/fputc(0x7F,     f); // Emit the 4 byte magic value
-        fputc('E',      f);
-        fputc('L',      f);
-        fputc('F',      f);
-/*0x04*/fputc(2,        f); // Specify we are targetting a 64-bit system
-/*0x05*/fputc(1,        f); // Specify we are targetting a little-endian system
-/*0x06*/fputc(1,        f); // Specify that we are targetting the first version of ELF
-/*0x07*/fputc(0x00,     f); // Specify that we are targetting the System-V ABI
-/*0x08*/for (unsigned int i = 0x08;
-             i < 0x10;
-             i++)
-        {
-          fputc(0x00,   f); // Pad out EI_ABIVERSION and EI_PAD
-        }
-/*0x10*/fwrite(&(generator.header.fileType), sizeof(uint16_t), 1, f);
-/*0x12*/fputc(0x3E,     f); // Specify we are targetting the x86_64 ISA
-        fputc(0x00,     f);
-/*0x14*/fputc(0x01,     f); // Specify we are targetting the first version of ELF
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-/*0x18*/fwrite(&(generator.header.entryPoint), sizeof(uint64_t), 1, f);
-/*0x20*/fputc(0x00,     f); // Offset to the program header - there isn't one
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-/*0x28*/fwrite(&(generator.header.sectionHeaderOffset), sizeof(uint64_t), 1, f);
-/*0x30*/fputc(0x00,     f); // Specify some flags (undefined for x86_64)
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-/*0x34*/fputc(64u,      f); // Specify the size of the header (64 bytes)
-        fputc(0x00,     f);
-/*0x36*/fputc(0x00,     f); // Specify the size of a program header entry as 0
-        fputc(0x00,     f);
-/*0x38*/fputc(0x00,     f); // Specify that there are 0 program header entries
-        fputc(0x00,     f);
-/*0x3A*/fwrite(&sectionHeaderEntrySize,           sizeof(uint16_t), 1, f);
-/*0x3C*/fwrite(&(generator.header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
-/*0x3E*/fwrite(&(generator.header.sectionWithSectionNames), sizeof(uint16_t), 1, f);
-/*0x40*/
-}
-
-static void EmitSectionEntry(code_generator& generator, elf_section& section)
-{
-  generator.header.numSectionHeaderEntries++;
-
-/*n + */
-/*0x00*/fwrite(&(section.name),             sizeof(uint32_t), 1, generator.f);
-/*0x04*/fwrite(&(section.type),             sizeof(uint32_t), 1, generator.f);
-/*0x08*/fwrite(&(section.flags),            sizeof(uint64_t), 1, generator.f);
-/*0x10*/fwrite(&(section.address),          sizeof(uint64_t), 1, generator.f);
-/*0x18*/fwrite(&(section.offset),           sizeof(uint64_t), 1, generator.f);
-/*0x20*/fwrite(&(section.size),             sizeof(uint64_t), 1, generator.f);
-/*0x28*/fwrite(&(section.link),             sizeof(uint32_t), 1, generator.f);
-/*0x2C*/fwrite(&(section.info),             sizeof(uint32_t), 1, generator.f);
-/*0x30*/fwrite(&(section.addressAlignment), sizeof(uint64_t), 1, generator.f);
-/*0x38*/fwrite(&(section.entrySize),        sizeof(uint64_t), 1, generator.f);
-/*0x40*/
-}
+}*/
 
 /*
  * +r - add an register opcode offset to the primary opcode
@@ -680,9 +459,9 @@ void EmitText(code_generator& generator, parse_result& result)
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
   code_generator generator;
-  generator.f = fopen(outputPath, "wb");
+//  generator.f = fopen(outputPath, "wb");
   generator.target = &target;
-  generator.numSymbols = 1u;  // NOTE(Isaac): symbol number 0 is a NULL placeholder
+/*  generator.numSymbols = 1u;  // NOTE(Isaac): symbol number 0 is a NULL placeholder
   CreateLinkedList<elf_string>(generator.strings);
   CreateLinkedList<elf_string>(generator.sectionNames);
   CreateLinkedList<elf_symbol>(generator.symbols);
@@ -697,7 +476,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   generator.header.fileType = 0x01;
   generator.header.numSectionHeaderEntries = 0u;
   generator.header.entryPoint = 0x00;
-  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;
+  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;*/
 
   // --- The .rodata section ---
   InitSection(generator, generator.rodata, ".rodata", SHT_PROGBITS, 0x4);
