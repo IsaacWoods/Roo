@@ -7,14 +7,24 @@
 
 enum elf_file_type : uint16_t
 {
-  
+  ET_NONE   = 0x0,
+  ET_REL    = 0x1,
+  ET_EXEC   = 0x2,
+  ET_DYN    = 0x3,
+  ET_CORE   = 0x4,
+  ET_LOOS   = 0xFE00,
+  ET_HIOS   = 0xFEFF,
+  ET_LOPROC = 0xFF00,
+  ET_HIPROC = 0xFFFF
 };
 
 struct elf_header
 {
   elf_file_type fileType;
   uint64_t      entryPoint;
+  uint64_t      programHeaderOffset;
   uint64_t      sectionHeaderOffset;
+  uint16_t      numProgramHeaderEntries;
   uint16_t      numSectionHeaderEntries;
   uint16_t      sectionWithSectionNames;
 };
@@ -54,16 +64,16 @@ enum section_type : uint32_t
 
 struct elf_section
 {
-  uint32_t      name;               // Offset in the string table to the section name
+  uint32_t      name;       // Offset in the string table to the section name
   section_type  type;
   uint64_t      flags;
-  uint64_t      address;            // Virtual address of the beginning of the section in memory
-  uint64_t      offset;             // Offset of the beginning of the section in the file
-  uint64_t      size;               // NOTE(Isaac): for SHT_NOBITS, this is NOT the size in the file!
-  uint32_t      link;               // Depends on section type
-  uint32_t      info;               // Also depends on section type
-  uint64_t      addressAlignment;   // Required alignment of this section
-  uint64_t      entrySize;          // Size of each section entry (if fixed, zero otherwise)
+  uint64_t      address;    // Virtual address of the beginning of the section in memory
+  uint64_t      offset;     // Offset of the beginning of the section in the file
+  uint64_t      size;       // NOTE(Isaac): for SHT_NOBITS, this is NOT the size in the file!
+  uint32_t      link;       // Depends on section type
+  uint32_t      info;       // Also depends on section type
+  uint64_t      alignment;  // Required alignment of this section
+  uint64_t      entrySize;  // Size of each section entry (if fixed, zero otherwise)
 };
 
 struct elf_relocation
@@ -102,6 +112,7 @@ struct elf_symbol;
 struct elf_file
 {
   elf_header header;
+  linked_list<elf_section*> sections;
   linked_list<elf_thing*> things;
   linked_list<elf_symbol*> symbols;
   linked_list<const char*> strings;
@@ -110,5 +121,5 @@ struct elf_file
 };
 
 void CreateElf(elf_file& elf);
-void LinkElf(elf_file& elf);
-void FreeElf(elf_file& elf);
+elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
+void WriteElf(elf_file& elf, const char* path);

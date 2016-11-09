@@ -13,6 +13,7 @@ OBJS = \
 	src/ast.o \
 	src/air.o \
 	src/codegen_x64elf.o \
+	src/elf.o \
 
 AST_PASSES = \
 	src/pass_resolveVars.hpp \

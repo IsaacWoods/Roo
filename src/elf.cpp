@@ -2,6 +2,15 @@
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
  */
 
+#include <elf.hpp>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+
+// TODO: make these real values
+#define PROGRAM_HEADER_ENTRY_SIZE 0x52
+#define SECTION_HEADER_ENTRY_SIZE 0x38
+
 enum symbol_type : uint8_t
 {
   SYM_TYPE_NONE,
@@ -52,24 +61,31 @@ static elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding 
   return symbol;
 }
 
-void CreateElf(elf_file& elf)
+elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment)
 {
-  CreateLinkedList<elf_thing*>(elf.things);
-  CreateLinkedList<elf_symbol*>(elf.symbols);
-  CreateLinkedList<const char*>(elf.strings);
-  elf.stringTableTail = 1u;
-}
+  elf_section* section = static_cast<elf_section*>(malloc(sizeof(elf_section)));
+  section->name = CreateString(elf, name);
+  section->type = type;
+  section->flags = 0u;
+  section->address = 0u;
+  section->offset = 0u;
+  section->size = 0u;
+  section->link = 0u;
+  section->info = 0u;
+  section->alignment = alignment;
+  section->entrySize = 0u;
 
-static elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment)
-{
-
+  elf.header.numSectionHeaderEntries++;
+  AddToLinkedList<elf_section*>(elf.sections, section);
+  return section;
 }
 
 static void EmitHeader(FILE* f, elf_header& header)
 {
   /*
-   * NOTE(Isaac): this is already a define, but `fwrite` is stupid, so it has to be a lvalue too
+   * NOTE(Isaac): these are already defines, but `fwrite` is stupid, so it has to be a lvalue too
    */
+  const uint16_t programHeaderEntrySize = PROGRAM_HEADER_ENTRY_SIZE;
   const uint16_t sectionHeaderEntrySize = SECTION_HEADER_ENTRY_SIZE;
 
 /*0x00*/fputc(0x7F,     f); // Emit the 4 byte magic value
@@ -94,14 +110,7 @@ static void EmitHeader(FILE* f, elf_header& header)
         fputc(0x00,     f);
         fputc(0x00,     f);
 /*0x18*/fwrite(&(header.entryPoint), sizeof(uint64_t), 1, f);
-/*0x20*/fputc(0x00,     f); // Offset to the program header - there isn't one
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
-        fputc(0x00,     f);
+/*0x20*/fwrite(&(header.programHeaderOffset), sizeof(uint64_t), 1, f);
 /*0x28*/fwrite(&(header.sectionHeaderOffset), sizeof(uint64_t), 1, f);
 /*0x30*/fputc(0x00,     f); // Specify some flags (undefined for x86_64)
         fputc(0x00,     f);
@@ -109,10 +118,8 @@ static void EmitHeader(FILE* f, elf_header& header)
         fputc(0x00,     f);
 /*0x34*/fputc(64u,      f); // Specify the size of the header (64 bytes)
         fputc(0x00,     f);
-/*0x36*/fputc(0x00,     f); // Specify the size of a program header entry as 0
-        fputc(0x00,     f);
-/*0x38*/fputc(0x00,     f); // Specify that there are 0 program header entries
-        fputc(0x00,     f);
+/*0x36*/fwrite(&programHeaderEntrySize,           sizeof(uint16_t), 1, f);
+/*0x38*/fwrite(&(header.numProgramHeaderEntries), sizeof(uint16_t), 1, f);
 /*0x3A*/fwrite(&sectionHeaderEntrySize,           sizeof(uint16_t), 1, f);
 /*0x3C*/fwrite(&(header.numSectionHeaderEntries), sizeof(uint16_t), 1, f);
 /*0x3E*/fwrite(&(header.sectionWithSectionNames), sizeof(uint16_t), 1, f);
@@ -121,19 +128,17 @@ static void EmitHeader(FILE* f, elf_header& header)
 
 static void EmitSectionEntry(FILE* f, elf_file& elf, elf_section& section)
 {
-  elf.header.numSectionHeaderEntries++;
-
 /*n + */
-/*0x00*/fwrite(&(section.name),             sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(section.type),             sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(section.flags),            sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(section.address),          sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(section.offset),           sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(section.size),             sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(section.link),             sizeof(uint32_t), 1, f);
-/*0x2C*/fwrite(&(section.info),             sizeof(uint32_t), 1, f);
-/*0x30*/fwrite(&(section.addressAlignment), sizeof(uint64_t), 1, f);
-/*0x38*/fwrite(&(section.entrySize),        sizeof(uint64_t), 1, f);
+/*0x00*/fwrite(&(section.name),       sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(section.type),       sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(section.flags),      sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(section.address),    sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(section.offset),     sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(section.size),       sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(section.link),       sizeof(uint32_t), 1, f);
+/*0x2C*/fwrite(&(section.info),       sizeof(uint32_t), 1, f);
+/*0x30*/fwrite(&(section.alignment),  sizeof(uint64_t), 1, f);
+/*0x38*/fwrite(&(section.entrySize),  sizeof(uint64_t), 1, f);
 /*0x40*/
 }
 
@@ -143,7 +148,7 @@ static void EmitStringTable(FILE* f, linked_list<const char*>& strings)
        it;
        it = it->next)
   {
-    fprint("Emitting string: %s\n", **it);
+    printf("Emitting string: %s\n", **it);
 
     for (const char* c = **it;
          *c;
@@ -158,8 +163,6 @@ static void EmitStringTable(FILE* f, linked_list<const char*>& strings)
 
 static void EmitThing(FILE* f, elf_thing* thing)
 {
-  // TODO: emit a symbol for the thing
-  
   for (unsigned int i = 0u;
        i < thing->length;
        i++)
@@ -168,7 +171,24 @@ static void EmitThing(FILE* f, elf_thing* thing)
   }
 }
 
-void LinkElf(elf_file& elf, const char* path)
+void CreateElf(elf_file& elf)
+{
+  CreateLinkedList<elf_thing*>(elf.things);
+  CreateLinkedList<elf_symbol*>(elf.symbols);
+  CreateLinkedList<elf_section*>(elf.sections);
+  CreateLinkedList<const char*>(elf.strings);
+  elf.stringTableTail = 1u;
+
+  elf.header.fileType = ET_EXEC;
+  elf.header.entryPoint = 0x0;
+  elf.header.programHeaderOffset = 0x0;
+  elf.header.sectionHeaderOffset = 0x0;
+  elf.header.numProgramHeaderEntries = 0u;
+  elf.header.numSectionHeaderEntries = 0u;
+  elf.header.sectionWithSectionNames = 0u;
+}
+
+void WriteElf(elf_file& elf, const char* path)
 {
   FILE* f = fopen(path, "wb");
 
@@ -195,10 +215,17 @@ void LinkElf(elf_file& elf, const char* path)
   fclose(f);
 }
 
-void FreeElf(elf_file& elf)
+template<>
+void Free<elf_file>(elf_file& elf)
 {
   FreeLinkedList<elf_section*>(elf.sections);
   FreeLinkedList<elf_thing*>(elf.things);
+}
+
+template<>
+void Free<elf_section*>(elf_section*& section)
+{
+  free(section);
 }
 
 template<>

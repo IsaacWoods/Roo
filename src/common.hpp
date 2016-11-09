@@ -151,37 +151,6 @@ enum compile_result
   LINKING_ERROR
 };
 
-// --- IR stuff ---
-struct node;
-struct air_instruction;
-
-/*
- * NOTE(Isaac): This allows the codegen module to store platform-dependent
- * information about each register.
- */
-struct register_pimpl;
-
-struct register_def
-{
-  enum reg_usage
-  {
-    GENERAL,
-    SPECIAL
-  }               usage;
-  const char*     name;
-  register_pimpl* pimpl;
-};
-
-struct codegen_target
-{
-  const char*   name;
-  unsigned int  numRegisters;
-  register_def* registerSet;
-
-  unsigned int  numIntParamColors;
-  unsigned int* intParamColors;
-};
-
 enum token_type
 {
   // Keywords

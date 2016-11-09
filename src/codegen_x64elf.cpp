@@ -10,15 +10,9 @@
 #include <cstdarg>
 #include <climits>
 #include <common.hpp>
+#include <ir.hpp>
 #include <air.hpp>
-
-/*#define SECTION_HEADER_ENTRY_SIZE 0x40
-#define RODATA_INDEX              1u
-#define TEXT_INDEX                2u
-#define SYMBOL_TABLE_INDEX        3u
-#define SECTION_NAME_TABLE_INDEX  4u
-#define STRING_TABLE_INDEX        5u
-#define RELA_TEXT_INDEX           6u*/
+#include <elf.hpp>
 
 enum reg
 {
@@ -105,61 +99,12 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
 }
 
-void FreeCodegenTarget(codegen_target& target)
+template<>
+void Free<codegen_target>(codegen_target& target)
 {
   free(target.registerSet);
+  free(target.intParamColors);
 }
-
-struct code_generator
-{
-//  FILE*                         f;
-  codegen_target*               target;
-/*  linked_list<elf_string>       strings;
-  linked_list<elf_string>       sectionNames;
-  linked_list<elf_symbol>       symbols;
-  linked_list<elf_relocation>   textRelocations;
-  elf_header                    header;
-  elf_section                   symbolTable;
-  elf_section                   stringTable;
-  elf_section                   sectionNameTable;
-  elf_section                   rodata;
-  elf_section                   text;
-  elf_section                   relaText;
-
-  unsigned int numSymbols;
-  unsigned int rodataSymbol;*/
-};
-
-/*static void InitSection(code_generator& generator, elf_section& section, const char* name, section_type type, uint64_t alignment)
-{
-  section.name              = CreateString(generator.sectionNames, name);
-  section.type              = type;
-  section.flags             = 0u;
-  section.address           = 0u;
-  section.offset            = 0u;
-  section.size              = 0u;
-  section.link              = 0u;
-  section.info              = 0u;
-  section.addressAlignment  = alignment;
-  section.entrySize         = 0u;
-}*/
-
-/*#define R_X86_64_64        1u
-#define R_X86_64_PC32      2u
-#define R_X86_64_GLOB_DAT  6u
-#define R_X86_64_JUMP_SLOT 7u
-
-void CreateRelocation(code_generator& generator, uint64_t offset, uint32_t type, uint32_t symbolTableIndex,
-                      int64_t addend = 0)
-{
-  elf_relocation relocation;
-  relocation.offset = offset;
-  relocation.info = static_cast<uint64_t>(symbolTableIndex) << 32u;
-  relocation.info |= type;
-  relocation.addend = addend;
-
-  AddToLinkedList<elf_relocation>(generator.textRelocations, relocation);
-}*/
 
 /*
  * +r - add an register opcode offset to the primary opcode
@@ -192,33 +137,34 @@ enum class i : uint8_t
  * `reg` : opcode offset of the destination or source register (depending on instruction)
  * `r/m` : opcode offset of the other register, optionally with a displacement (as specified by `mod`)
  */
-static inline uint8_t CreateRegisterModRM(codegen_target* target, reg regOne, reg regTwo)
+static inline uint8_t CreateRegisterModRM(codegen_target& target, reg regOne, reg regTwo)
 {
   uint8_t result = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-  result |= target->registerSet[regOne].pimpl->opcodeOffset << 3u;
-  result |= target->registerSet[regTwo].pimpl->opcodeOffset;
+  result |= target.registerSet[regOne].pimpl->opcodeOffset << 3u;
+  result |= target.registerSet[regTwo].pimpl->opcodeOffset;
   return result;
 }
 
-static inline uint8_t CreateExtensionModRM(codegen_target* target, uint8_t extension, reg r)
+static inline uint8_t CreateExtensionModRM(codegen_target& target, uint8_t extension, reg r)
 {
   uint8_t result = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   result |= extension << 3u;
-  result |= target->registerSet[r].pimpl->opcodeOffset;
+  result |= target.registerSet[r].pimpl->opcodeOffset;
   return result;
 }
 
 /*
  * NOTE(Isaac): returns the number of bytes emitted
  */
-static uint64_t Emit(code_generator& generator, i instruction, ...)
+static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
   uint64_t numBytesEmitted = 0u;
 
+  // TODO: uhhhh
   #define EMIT(thing) \
-    fputc(thing, generator.f); \
+    fputc(thing, stdout); \
     numBytesEmitted++;
 
   switch (instruction)
@@ -230,13 +176,13 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
       
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::ADD_REG_REG));
-      EMIT(CreateRegisterModRM(generator.target, dest, src));
+      EMIT(CreateRegisterModRM(target, dest, src));
     } break;
 
     case i::PUSH_REG:
     {
       reg r = static_cast<reg>(va_arg(args, int));
-      EMIT(static_cast<uint8_t>(i::PUSH_REG) + generator.target->registerSet[r].pimpl->opcodeOffset);
+      EMIT(static_cast<uint8_t>(i::PUSH_REG) + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::ADD_REG_IMM32:
@@ -246,8 +192,9 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
 
       EMIT(0x48);   // Specify we are moving 64-bit values around
       EMIT(static_cast<uint8_t>(i::ADD_REG_IMM32));
-      EMIT(CreateExtensionModRM(generator.target, 0u, result));
-      fwrite(&imm, sizeof(uint32_t), 1, generator.f);
+      EMIT(CreateExtensionModRM(target, 0u, result));
+      // TODO
+//      fwrite(&imm, sizeof(uint32_t), 1, generator.f);
       numBytesEmitted += 4u;
     } break;
 
@@ -258,7 +205,7 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
 
       EMIT(0x48);
       EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
-      EMIT(CreateRegisterModRM(generator.target, src, dest));
+      EMIT(CreateRegisterModRM(target, src, dest));
     } break;
 
     case i::MOV_REG_IMM32:
@@ -266,8 +213,9 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
-      fwrite(&imm, sizeof(uint32_t), 1, generator.f);
+      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      // TODO
+//      fwrite(&imm, sizeof(uint32_t), 1, generator.f);
       numBytesEmitted += 4u;
     } break;
 
@@ -278,8 +226,9 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
 
       EMIT(0x48);
       // NOTE(Isaac): use the opcode from `MOV_REG_IMM32` because they wouldn't all fit in the enum
-      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + generator.target->registerSet[dest].pimpl->opcodeOffset);
-      fwrite(&imm, sizeof(uint64_t), 1, generator.f);
+      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      // TODO
+//      fwrite(&imm, sizeof(uint64_t), 1, generator.f);
       numBytesEmitted += 8u;
     } break;
 
@@ -288,7 +237,8 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
       uint32_t offset = va_arg(args, uint32_t);
 
       EMIT(static_cast<uint8_t>(i::CALL32));
-      fwrite(&offset, sizeof(uint32_t), 1, generator.f);
+      // TODO
+//      fwrite(&offset, sizeof(uint32_t), 1, generator.f);
       numBytesEmitted += 4u;
     } break;
 
@@ -305,14 +255,14 @@ static uint64_t Emit(code_generator& generator, i instruction, ...)
 #undef EMIT
 }
 
-void EmitText(code_generator& generator, parse_result& result)
+void EmitText(elf_file& elf, codegen_target& target, parse_result& result)
 {
-  InitSection(generator, generator.text, ".text", SHT_PROGBITS, 0x10);
+/*  InitSection(generator, generator.text, ".text", SHT_PROGBITS, 0x10);
   generator.text.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  generator.text.offset = ftell(generator.f);
+  generator.text.offset = ftell(generator.f);*/
 
   #define EMIT(...) \
-    generator.text.size += Emit(generator, __VA_ARGS__);
+    /*generator.text.size += */Emit(elf, target, __VA_ARGS__);
 
   // Generate code for each function
   for (auto* functionIt = result.functions.first;
@@ -336,8 +286,8 @@ void EmitText(code_generator& generator, parse_result& result)
 
     // Create the symbol for the function
     // TODO: decide whether each should have a local or global binding
-    unsigned int offset = ftell(generator.f) - generator.text.offset;
-    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, TEXT_INDEX, offset, 0u);
+/*    unsigned int offset = ftell(generator.f) - generator.text.offset;
+    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, TEXT_INDEX, offset, 0u);*/
 
     for (air_instruction* instruction = (**functionIt)->air->code;
          instruction;
@@ -378,7 +328,7 @@ void EmitText(code_generator& generator, parse_result& result)
           else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
           {
             EMIT(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-            CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
+//            CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
           }
           else
           {
@@ -442,7 +392,7 @@ void EmitText(code_generator& generator, parse_result& result)
           EMIT(i::CALL32, 0x0);
           // TODO: find the correct symbol for the function symbol in the table
           // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
-          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
+//          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
         } break;
 
         case I_NUM_INSTRUCTIONS:
@@ -458,25 +408,17 @@ void EmitText(code_generator& generator, parse_result& result)
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
-  code_generator generator;
-//  generator.f = fopen(outputPath, "wb");
-  generator.target = &target;
-/*  generator.numSymbols = 1u;  // NOTE(Isaac): symbol number 0 is a NULL placeholder
-  CreateLinkedList<elf_string>(generator.strings);
-  CreateLinkedList<elf_string>(generator.sectionNames);
-  CreateLinkedList<elf_symbol>(generator.symbols);
-  CreateLinkedList<elf_relocation>(generator.textRelocations);
+  elf_file elf;
+  CreateElf(elf);
 
-  if (!generator.f)
-  {
-    fprintf(stderr, "Failed to open output file: %s\n", outputPath);
-    exit(1);
-  }
+  WriteElf(elf, outputPath);
+  Free<elf_file>(elf);
 
+/*
   generator.header.fileType = 0x01;
   generator.header.numSectionHeaderEntries = 0u;
   generator.header.entryPoint = 0x00;
-  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;*/
+  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;
 
   // --- The .rodata section ---
   InitSection(generator, generator.rodata, ".rodata", SHT_PROGBITS, 0x4);
@@ -539,13 +481,13 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   for (auto* relocationIt = generator.textRelocations.first;
        relocationIt;
        relocationIt = relocationIt->next)
-  {
-/*n + */
-/*0x00*/fwrite(&((**relocationIt).offset), sizeof(uint64_t), 1, generator.f);
-/*0x08*/fwrite(&((**relocationIt).info), sizeof(uint64_t), 1, generator.f);
-/*0x10*/fwrite(&((**relocationIt).addend), sizeof(int64_t), 1, generator.f);
-/*0x18*/
-
+  {*/
+///*n + */
+///*0x00*/fwrite(&((**relocationIt).offset), sizeof(uint64_t), 1, generator.f);
+///*0x08*/fwrite(&((**relocationIt).info), sizeof(uint64_t), 1, generator.f);
+///*0x10*/fwrite(&((**relocationIt).addend), sizeof(int64_t), 1, generator.f);
+///*0x18*/
+/*
     generator.relaText.size += 0x18;
   }
 
@@ -564,19 +506,19 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   for (auto* symbolIt = generator.symbols.first;
        symbolIt;
        symbolIt = symbolIt->next)
-  {
-/*n + */
-/*0x00*/fwrite(&((**symbolIt).name), sizeof(uint32_t), 1, generator.f);
-/*0x04*/fwrite(&((**symbolIt).info), sizeof(uint8_t), 1, generator.f);
-/*0x05*/fputc(0x00, generator.f);
-/*0x06*/fwrite(&((**symbolIt).sectionIndex), sizeof(uint16_t), 1, generator.f);
-/*0x08*/fwrite(&((**symbolIt).definitionOffset), sizeof(uint64_t), 1, generator.f);
-/*0x10*/fwrite(&((**symbolIt).size), sizeof(uint64_t), 1, generator.f);
-/*0x18*/
-
+  {*/
+///*n + */
+///*0x00*/fwrite(&((**symbolIt).name), sizeof(uint32_t), 1, generator.f);
+///*0x04*/fwrite(&((**symbolIt).info), sizeof(uint8_t), 1, generator.f);
+///*0x05*/fputc(0x00, generator.f);
+///*0x06*/fwrite(&((**symbolIt).sectionIndex), sizeof(uint16_t), 1, generator.f);
+///*0x08*/fwrite(&((**symbolIt).definitionOffset), sizeof(uint64_t), 1, generator.f);
+///*0x10*/fwrite(&((**symbolIt).size), sizeof(uint64_t), 1, generator.f);
+///*0x18*/
+/*
     generator.symbolTable.size += 0x18;
-  }
-
+  }*/
+/*
   // [???] Emit the string table of section names
   generator.sectionNameTable.offset = ftell(generator.f);
   fputc('\0', generator.f);   // NOTE(Isaac): start with a leading null-terminator
@@ -636,13 +578,5 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   EmitSectionEntry(generator, generator.symbolTable);       // [3]
   EmitSectionEntry(generator, generator.sectionNameTable);  // [4]
   EmitSectionEntry(generator, generator.stringTable);       // [5]
-  EmitSectionEntry(generator, generator.relaText);          // [6]
-
-  // [0x00] Generate the ELF header
-  fseek(generator.f, 0x00, SEEK_SET);
-  EmitHeader(generator);
-
-  FreeLinkedList<elf_string>(generator.strings);
-  FreeLinkedList<elf_string>(generator.sectionNames);
-  fclose(generator.f);
+  EmitSectionEntry(generator, generator.relaText);          // [6]*/
 }
