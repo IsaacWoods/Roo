@@ -229,7 +229,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     case i::RET:
     case i::LEAVE:
     {
-      Emit<uint8_t>(thing, instruction);
+      Emit<uint8_t>(thing, static_cast<uint8_t>(instruction));
     } break;
   }
 
@@ -394,6 +394,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 {
   elf_file elf;
   CreateElf(elf);
+
+  CreateSection(elf, ".text", SHT_PROGBITS, 0x04);
 
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);

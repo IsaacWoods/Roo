@@ -9,7 +9,7 @@
 
 // TODO: make these real values
 #define PROGRAM_HEADER_ENTRY_SIZE 0x52
-#define SECTION_HEADER_ENTRY_SIZE 0x38
+#define SECTION_HEADER_ENTRY_SIZE 0x40
 
 static elf_string* CreateString(elf_file& elf, const char* str)
 {
@@ -114,6 +114,19 @@ void Emit_<uint32_t>(elf_thing* thing, uint32_t i)
   thing->data[thing->length++] = (i >> 24u) & 0xff;
 }
 
+template<>
+void Emit_<uint64_t>(elf_thing* thing, uint64_t i)
+{
+  thing->data[thing->length++] = (i >> 0u)  & 0xff;
+  thing->data[thing->length++] = (i >> 8u)  & 0xff;
+  thing->data[thing->length++] = (i >> 16u) & 0xff;
+  thing->data[thing->length++] = (i >> 24u) & 0xff;
+  thing->data[thing->length++] = (i >> 32u) & 0xff;
+  thing->data[thing->length++] = (i >> 40u) & 0xff;
+  thing->data[thing->length++] = (i >> 48u) & 0xff;
+  thing->data[thing->length++] = (i >> 56u) & 0xff;
+}
+
 static void EmitHeader(FILE* f, elf_header& header)
 {
   /*
@@ -160,19 +173,19 @@ static void EmitHeader(FILE* f, elf_header& header)
 /*0x40*/
 }
 
-static void EmitSectionEntry(FILE* f, elf_file& elf, elf_section& section)
+static void EmitSectionEntry(FILE* f, elf_file& elf, elf_section* section)
 {
 /*n + */
-/*0x00*/fwrite(&(section.name),       sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(section.type),       sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(section.flags),      sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(section.address),    sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(section.offset),     sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(section.size),       sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(section.link),       sizeof(uint32_t), 1, f);
-/*0x2C*/fwrite(&(section.info),       sizeof(uint32_t), 1, f);
-/*0x30*/fwrite(&(section.alignment),  sizeof(uint64_t), 1, f);
-/*0x38*/fwrite(&(section.entrySize),  sizeof(uint64_t), 1, f);
+/*0x00*/fwrite(&(section->name),       sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(section->type),       sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(section->flags),      sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(section->address),    sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(section->offset),     sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(section->size),       sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(section->link),       sizeof(uint32_t), 1, f);
+/*0x2C*/fwrite(&(section->info),       sizeof(uint32_t), 1, f);
+/*0x30*/fwrite(&(section->alignment),  sizeof(uint64_t), 1, f);
+/*0x38*/fwrite(&(section->entrySize),  sizeof(uint64_t), 1, f);
 /*0x40*/
 }
 
@@ -182,7 +195,7 @@ static void EmitStringTable(FILE* f, linked_list<elf_string*>& strings)
        it;
        it = it->next)
   {
-    printf("Emitting string: %s\n", **it);
+    printf("Emitting string: %s\n", (**it)->str);
 
     for (const char* c = (**it)->str;
          *c;
@@ -231,9 +244,25 @@ void WriteElf(elf_file& elf, const char* path)
     fprintf(stderr, "FATAL: unable to create executable at path: %s\n", path);
     exit(1);
   }
-
-  // Emit all the things, leave space for the header
+  
+  // Emit the section header, leaving space for the ELF header
   fseek(f, 0x40, SEEK_SET);
+  elf.header.sectionHeaderOffset = ftell(f);
+
+  for (auto* sectionIt = elf.sections.first;
+       sectionIt;
+       sectionIt = sectionIt->next)
+  {
+    EmitSectionEntry(f, elf, **sectionIt);
+  }
+
+  // Emit the program header
+//  elf.header.programHeaderOffset = ftell(f);
+
+  // TODO: emit segments
+
+  // Emit all the things
+  GetSection(elf, ".text")->offset = ftell(f);
 
   for (auto* thingIt = elf.things.first;
        thingIt;
@@ -242,7 +271,7 @@ void WriteElf(elf_file& elf, const char* path)
     EmitThing(f, **thingIt);
   }
 
-  // Emit the header
+  // Emit the ELF header
   fseek(f, 0x0, SEEK_SET);
   EmitHeader(f, elf.header);
 
