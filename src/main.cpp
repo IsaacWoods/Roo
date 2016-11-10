@@ -23,7 +23,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 void InitCodegenTarget(parse_result& result, codegen_target& target);
 void FreeCodegenTarget(codegen_target& target);
 
-static compile_result Compile(parse_result& result, codegen_target target, const char* directory)
+static compile_result Compile(parse_result& result, const char* directory)
 {
   // Find and parse all .roo files in the specified directory
   {
@@ -64,7 +64,7 @@ int main()
   InitCodegenTarget(result, target);
 
   // Compile the current directory
-  if (Compile(result, target, ".") != compile_result::SUCCESS)
+  if (Compile(result, ".") != compile_result::SUCCESS)
   {
     fprintf(stderr, "FATAL: Failed to compile a thing!\n");
     exit(1);
@@ -92,7 +92,7 @@ int main()
       } break;
     }
 
-    if (dependencyDirectory != nullptr && Compile(result, target, dependencyDirectory) != compile_result::SUCCESS)
+    if (dependencyDirectory != nullptr && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
     {
       fprintf(stderr, "FATAL: failed to compile dependency: %s\n", dependencyDirectory);
       exit(1);
@@ -135,18 +135,10 @@ int main()
     exit(1);
   }
 
-  const char* extension = ".o";
-  const char* programName = GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name;
-  char* objectName = static_cast<char*>(malloc(sizeof(char) * (strlen(extension) + strlen(programName))));
-  strcpy(objectName, programName);
-  strcat(objectName, extension);
-
   // Generate the code into a final executable!
-  // TODO(Isaac): find a better way to create a filename for the executable
   printf("--- Generating a %s executable ---\n", target.name);  
-  Generate(objectName, target, result);
+  Generate(GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name, target, result);
 
   // TODO: fix
 //  Free<parse_result>(result);
-  free(objectName);
 }

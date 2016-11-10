@@ -75,7 +75,8 @@ elf_section* CreateSection(elf_file& elf, const char* name, section_type type, u
   section->alignment = alignment;
   section->entrySize = 0u;
 
-  section->index = (elf.sections.tail ? (**elf.sections.tail)->index + 1u : 0u);
+  // NOTE(Isaac): section indices begin at 1
+  section->index = (elf.sections.tail ? (**elf.sections.tail)->index + 1u : 1u);
 
   elf.header.numSectionHeaderEntries++;
   AddToLinkedList<elf_section*>(elf.sections, section);
@@ -173,29 +174,32 @@ static void EmitHeader(FILE* f, elf_header& header)
 /*0x40*/
 }
 
-static void EmitSectionEntry(FILE* f, elf_file& elf, elf_section* section)
+static void EmitSectionEntry(FILE* f, elf_section* section)
 {
 /*n + */
-/*0x00*/fwrite(&(section->name),       sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(section->type),       sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(section->flags),      sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(section->address),    sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(section->offset),     sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(section->size),       sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(section->link),       sizeof(uint32_t), 1, f);
-/*0x2C*/fwrite(&(section->info),       sizeof(uint32_t), 1, f);
-/*0x30*/fwrite(&(section->alignment),  sizeof(uint64_t), 1, f);
-/*0x38*/fwrite(&(section->entrySize),  sizeof(uint64_t), 1, f);
+/*0x00*/fwrite(&(section->name->offset),  sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(section->type),          sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(section->flags),         sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(section->address),       sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(section->offset),        sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(section->size),          sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(section->link),          sizeof(uint32_t), 1, f);
+/*0x2C*/fwrite(&(section->info),          sizeof(uint32_t), 1, f);
+/*0x30*/fwrite(&(section->alignment),     sizeof(uint64_t), 1, f);
+/*0x38*/fwrite(&(section->entrySize),     sizeof(uint64_t), 1, f);
 /*0x40*/
 }
 
-static void EmitStringTable(FILE* f, linked_list<elf_string*>& strings)
+static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& strings)
 {
+  // Lead with a null terminator to mark the null-string
+  fputc('\0', f);
+
   for (auto* it = strings.first;
        it;
        it = it->next)
   {
-    printf("Emitting string: %s\n", (**it)->str);
+    GetSection(elf, ".strtab")->size += strlen((**it)->str) + 1u;
 
     for (const char* c = (**it)->str;
          *c;
@@ -244,24 +248,40 @@ void WriteElf(elf_file& elf, const char* path)
     fprintf(stderr, "FATAL: unable to create executable at path: %s\n", path);
     exit(1);
   }
-  
-  // Emit the section header, leaving space for the ELF header
+
+  // Leave space for the ELF header
   fseek(f, 0x40, SEEK_SET);
+
+  // --- Emit the string table ---
+  GetSection(elf, ".strtab")->offset = ftell(f);
+  elf.header.sectionWithSectionNames = GetSection(elf, ".strtab")->index;
+  EmitStringTable(f, elf, elf.strings);
+ 
+  // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
+
+  // Emit an empty section header entry for reasons
+  elf.header.numSectionHeaderEntries++;
+  for (unsigned int i = 0u;
+       i < SECTION_HEADER_ENTRY_SIZE;
+       i++)
+  {
+    fputc(0x00, f);
+  }
 
   for (auto* sectionIt = elf.sections.first;
        sectionIt;
        sectionIt = sectionIt->next)
   {
-    EmitSectionEntry(f, elf, **sectionIt);
+    EmitSectionEntry(f, **sectionIt);
   }
 
-  // Emit the program header
+  // --- Emit the program header ---
 //  elf.header.programHeaderOffset = ftell(f);
 
   // TODO: emit segments
 
-  // Emit all the things
+  // --- Emit all the things ---
   GetSection(elf, ".text")->offset = ftell(f);
 
   for (auto* thingIt = elf.things.first;
@@ -271,7 +291,7 @@ void WriteElf(elf_file& elf, const char* path)
     EmitThing(f, **thingIt);
   }
 
-  // Emit the ELF header
+  // --- Emit the ELF header ---
   fseek(f, 0x0, SEEK_SET);
   EmitHeader(f, elf.header);
 
@@ -290,6 +310,7 @@ elf_section* GetSection(elf_file& elf, const char* name)
     }
   }
 
+  fprintf(stderr, "FATAL (PROBABLY): Couldn't find section of name '%s'!\n", name);
   return nullptr;
 }
 

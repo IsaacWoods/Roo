@@ -395,7 +395,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf_file elf;
   CreateElf(elf);
 
-  CreateSection(elf, ".text", SHT_PROGBITS, 0x04);
+  CreateSection(elf, ".text", SHT_PROGBITS, 0x10);
+  CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
 
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);
