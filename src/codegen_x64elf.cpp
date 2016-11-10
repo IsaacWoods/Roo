@@ -153,19 +153,10 @@ static inline uint8_t CreateExtensionModRM(codegen_target& target, uint8_t exten
   return result;
 }
 
-/*
- * NOTE(Isaac): returns the number of bytes emitted
- */
-static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
+static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
-  uint64_t numBytesEmitted = 0u;
-
-  // TODO: uhhhh
-  #define EMIT(thing) \
-    fputc(thing, stdout); \
-    numBytesEmitted++;
 
   switch (instruction)
   {
@@ -173,16 +164,16 @@ static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
     {
       reg dest  = static_cast<reg>(va_arg(args, int));
       reg src   = static_cast<reg>(va_arg(args, int));
-      
-      EMIT(0x48);
-      EMIT(static_cast<uint8_t>(i::ADD_REG_REG));
-      EMIT(CreateRegisterModRM(target, dest, src));
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::ADD_REG_REG));
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, dest, src));
     } break;
 
     case i::PUSH_REG:
     {
       reg r = static_cast<reg>(va_arg(args, int));
-      EMIT(static_cast<uint8_t>(i::PUSH_REG) + target.registerSet[r].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::PUSH_REG) + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::ADD_REG_IMM32:
@@ -190,12 +181,10 @@ static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
       reg result    = static_cast<reg>(va_arg(args, int));
       uint32_t imm  = va_arg(args, uint32_t);
 
-      EMIT(0x48);   // Specify we are moving 64-bit values around
-      EMIT(static_cast<uint8_t>(i::ADD_REG_IMM32));
-      EMIT(CreateExtensionModRM(target, 0u, result));
-      // TODO
-//      fwrite(&imm, sizeof(uint32_t), 1, generator.f);
-      numBytesEmitted += 4u;
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::ADD_REG_IMM32));
+      Emit<uint8_t>(thing, CreateExtensionModRM(target, 0u, result));
+      Emit<uint32_t>(thing, imm);
     } break;
 
     case i::MOV_REG_REG:
@@ -203,9 +192,9 @@ static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       reg src  = static_cast<reg>(va_arg(args, int));
 
-      EMIT(0x48);
-      EMIT(static_cast<uint8_t>(i::MOV_REG_REG));
-      EMIT(CreateRegisterModRM(target, src, dest));
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::MOV_REG_REG));
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
     } break;
 
     case i::MOV_REG_IMM32:
@@ -213,10 +202,8 @@ static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
-      // TODO
-//      fwrite(&imm, sizeof(uint32_t), 1, generator.f);
-      numBytesEmitted += 4u;
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint32_t>(thing, imm);
     } break;
 
     case i::MOV_REG_IMM64:
@@ -224,35 +211,29 @@ static uint64_t Emit(elf_file& elf, codegen_target& target, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint64_t imm = va_arg(args, uint64_t);
 
-      EMIT(0x48);
+      Emit<uint8_t>(thing, 0x48);
       // NOTE(Isaac): use the opcode from `MOV_REG_IMM32` because they wouldn't all fit in the enum
-      EMIT(static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
-      // TODO
-//      fwrite(&imm, sizeof(uint64_t), 1, generator.f);
-      numBytesEmitted += 8u;
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint64_t>(thing, imm);
     } break;
 
     case i::CALL32:
     {
       uint32_t offset = va_arg(args, uint32_t);
 
-      EMIT(static_cast<uint8_t>(i::CALL32));
-      // TODO
-//      fwrite(&offset, sizeof(uint32_t), 1, generator.f);
-      numBytesEmitted += 4u;
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::CALL32));
+      Emit<uint32_t>(thing, offset);
     } break;
 
     // NOTE(Isaac): these are the single-opcode instructions with no extra crap
     case i::RET:
     case i::LEAVE:
     {
-      EMIT(static_cast<uint8_t>(instruction));
+      Emit<uint8_t>(thing, instruction);
     } break;
   }
 
   va_end(args);
-  return numBytesEmitted;
-#undef EMIT
 }
 
 void EmitText(elf_file& elf, codegen_target& target, parse_result& result)
@@ -262,7 +243,7 @@ void EmitText(elf_file& elf, codegen_target& target, parse_result& result)
   generator.text.offset = ftell(generator.f);*/
 
   #define EMIT(...) \
-    /*generator.text.size += */Emit(elf, target, __VA_ARGS__);
+    /*generator.text.size += */Emit(thing, target, __VA_ARGS__);
 
   // Generate code for each function
   for (auto* functionIt = result.functions.first;
@@ -288,6 +269,9 @@ void EmitText(elf_file& elf, codegen_target& target, parse_result& result)
     // TODO: decide whether each should have a local or global binding
 /*    unsigned int offset = ftell(generator.f) - generator.text.offset;
     CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, TEXT_INDEX, offset, 0u);*/
+
+    // Create a `elf_thing` for the function
+    elf_thing* thing = CreateThing(elf, MangleFunctionName((**functionIt)));
 
     for (air_instruction* instruction = (**functionIt)->air->code;
          instruction;

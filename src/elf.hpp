@@ -29,6 +29,12 @@ struct elf_header
   uint16_t      sectionWithSectionNames;
 };
 
+struct elf_string
+{
+  unsigned int  offset;
+  const char*   str;
+};
+
 #define SECTION_ATTRIB_W        0x1         // Marks the section as writable
 #define SECTION_ATTRIB_A        0x2         // Marks the section to be allocated in the memory image
 #define SECTION_ATTRIB_E        0x4         // Marks the section as executable
@@ -64,7 +70,7 @@ enum section_type : uint32_t
 
 struct elf_section
 {
-  uint32_t      name;       // Offset in the string table to the section name
+  elf_string*   name;       // Offset in the string table to the section name
   section_type  type;
   uint64_t      flags;
   uint64_t      address;    // Virtual address of the beginning of the section in memory
@@ -74,6 +80,8 @@ struct elf_section
   uint32_t      info;       // Also depends on section type
   uint64_t      alignment;  // Required alignment of this section
   uint64_t      entrySize;  // Size of each section entry (if fixed, zero otherwise)
+
+  unsigned int index;       // Index in the section header
 };
 
 struct elf_relocation
@@ -83,15 +91,13 @@ struct elf_relocation
   int64_t   addend;
 };
 
-enum symbol_binding : uint8_t
+struct elf_symbol
 {
-  SYM_BIND_LOCAL      = 0x0,
-  SYM_BIND_GLOBAL     = 0x1,
-  SYM_BIND_WEAK       = 0x2,
-  SYM_BIND_LOOS       = 0xA,
-  SYM_BIND_HIOS       = 0xC,
-  SYM_BIND_LOPROC     = 0xD,
-  SYM_BIND_HIGHPROC   = 0xF,
+  elf_string* name;
+  uint8_t     info;
+  uint16_t    sectionIndex;
+  uint64_t    value;
+  uint64_t    size;
 };
 
 /*
@@ -99,6 +105,7 @@ enum symbol_binding : uint8_t
  */
 struct elf_thing
 {
+  elf_symbol* symbol;
   unsigned int length;
   unsigned int capacity;
   uint8_t* data;  // NOTE(Isaac): this should be `capacity` elements long
@@ -106,6 +113,24 @@ struct elf_thing
   unsigned int fileOffset;
   unsigned int address;
 };
+
+// NOTE(Isaac): do not call this directly!
+template<typename T>
+void Emit_(elf_thing* thing, T);
+
+template<typename T>
+void Emit(elf_thing* thing, T t)
+{
+  const unsigned int THING_EXPAND_CONSTANT = 2u;
+
+  if ((thing->length + sizeof(T)) >= thing->capacity)
+  {
+    thing->capacity *= THING_EXPAND_CONSTANT;
+    thing->data = static_cast<uint8_t*>(realloc(thing->data, thing->capacity));
+  }
+
+  Emit_(thing, t);
+}
 
 struct elf_symbol;
 
@@ -115,11 +140,13 @@ struct elf_file
   linked_list<elf_section*> sections;
   linked_list<elf_thing*> things;
   linked_list<elf_symbol*> symbols;
-  linked_list<const char*> strings;
+  linked_list<elf_string*> strings;
 
   unsigned int stringTableTail; // Tail of the string table, relative to the start of the table
 };
 
 void CreateElf(elf_file& elf);
+elf_thing* CreateThing(elf_file& elf, const char* name);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
+elf_section* GetSection(elf_file& elf, const char* name);
 void WriteElf(elf_file& elf, const char* path);
