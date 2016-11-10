@@ -236,16 +236,151 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
   va_end(args);
 }
 
-void EmitText(elf_file& elf, codegen_target& target, parse_result& result)
+elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def* function)
 {
-/*  InitSection(generator, generator.text, ".text", SHT_PROGBITS, 0x10);
-  generator.text.flags = SECTION_ATTRIB_E | SECTION_ATTRIB_A;
-  generator.text.offset = ftell(generator.f);*/
+  printf("Generating object code for function: %s\n", function->name);
+  assert(function->air);
+  assert(function->air->code);
 
-  #define EMIT(...) \
-    /*generator.text.size += */Emit(thing, target, __VA_ARGS__);
+  #define E(...) \
+    Emit(thing, target, __VA_ARGS__);
 
-  // Generate code for each function
+  elf_thing* thing = CreateThing(elf, MangleFunctionName(function));
+
+  if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
+  {
+    printf("Found program entry point: %s!\n", function->name);
+    // TODO: yeah this doesn't actually do anything yet
+  }
+
+  for (air_instruction* instruction = function->air->code;
+       instruction;
+       instruction = instruction->next)
+  {
+    switch (instruction->type)
+    {
+      case I_ENTER_STACK_FRAME:
+      {
+        E(i::PUSH_REG, RBP);
+        E(i::MOV_REG_REG, RBP, RSP);
+      } break;
+
+      case I_LEAVE_STACK_FRAME:
+      {
+        E(i::LEAVE);
+        E(i::RET);
+      } break;
+
+      case I_RETURN:
+      {
+
+      } break;
+
+      case I_JUMP:
+      {
+
+      } break;
+
+      case I_MOV:
+      {
+        mov_instruction& mov = instruction->payload.mov;
+
+        if (mov.src->type == slot::slot_type::INT_CONSTANT)
+        {
+          E(i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
+        }
+        else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
+        {
+          E(i::MOV_REG_IMM64, mov.dest->color, 0x0);
+//          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
+        }
+        else
+        {
+          // NOTE(Isaac): if we're here, `src` should be colored
+          assert(mov.src->color != -1);
+
+          E(i::MOV_REG_REG, mov.dest->color, mov.src->color);
+        }
+      } break;
+
+      case I_CMP:
+      {
+
+      } break;
+
+      case I_ADD:
+      {
+        slot_triple& triple = instruction->payload.slotTriple;
+
+        if (triple.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
+        {
+          E(i::MOV_REG_REG, triple.result->color, triple.left->color);
+        }
+        else
+        {
+          E(i::MOV_REG_IMM32, triple.result->color, triple.left->payload.i);
+        }
+
+        if (triple.right->shouldBeColored)
+        {
+          E(i::ADD_REG_REG, triple.result->color, triple.right->color);
+        }
+        else
+        {
+          E(i::ADD_REG_IMM32, triple.result->color, triple.right->payload.i);
+        }
+      } break;
+
+      case I_SUB:
+      {
+
+      } break;
+
+      case I_MUL:
+      {
+
+      } break;
+
+      case I_DIV:
+      {
+
+      } break;
+
+      case I_NEGATE:
+      {
+
+      } break;
+
+      case I_CALL:
+      {
+        E(i::CALL32, 0x0);
+        // TODO: find the correct symbol for the function symbol in the table
+        // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
+//        CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
+      } break;
+
+      case I_NUM_INSTRUCTIONS:
+      {
+        fprintf(stderr, "Tried to generate code for AIR instruction of type `I_NUM_INSTRUCTIONS`!\n");
+        exit(1);
+      }
+    }
+  }
+
+  return thing;
+}
+
+void Generate(const char* outputPath, codegen_target& target, parse_result& result)
+{
+  elf_file elf;
+  CreateElf(elf, target);
+
+  CreateSection(elf, ".text", SHT_PROGBITS, 0x10);
+  CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
+
+  GetSection(elf, ".text")->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
+
+  // Generate an `elf_thing` for each function
   for (auto* functionIt = result.functions.first;
        functionIt;
        functionIt = functionIt->next)
@@ -255,216 +390,13 @@ void EmitText(elf_file& elf, codegen_target& target, parse_result& result)
       continue;
     }
 
-    printf("Generating object code for function: %s\n", (**functionIt)->name);
-    assert((**functionIt)->air);
-    assert((**functionIt)->air->code);
-
-    if (GetAttrib(**functionIt, function_attrib::attrib_type::ENTRY))
-    {
-      printf("Found program entry point: %s!\n", (**functionIt)->name);
-      // TODO: yeah this doesn't actually do anything yet
-    }
-
-    // Create the symbol for the function
-    // TODO: decide whether each should have a local or global binding
-/*    unsigned int offset = ftell(generator.f) - generator.text.offset;
-    CreateSymbol(generator, MangleFunctionName(**functionIt), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, TEXT_INDEX, offset, 0u);*/
-
-    // Create a `elf_thing` for the function
-    elf_thing* thing = CreateThing(elf, MangleFunctionName((**functionIt)));
-
-    for (air_instruction* instruction = (**functionIt)->air->code;
-         instruction;
-         instruction = instruction->next)
-    {
-      switch (instruction->type)
-      {
-        case I_ENTER_STACK_FRAME:
-        {
-          EMIT(i::PUSH_REG, RBP);
-          EMIT(i::MOV_REG_REG, RBP, RSP);
-        } break;
-
-        case I_LEAVE_STACK_FRAME:
-        {
-          EMIT(i::LEAVE);
-          EMIT(i::RET);
-        } break;
-
-        case I_RETURN:
-        {
-
-        } break;
-
-        case I_JUMP:
-        {
-
-        } break;
-
-        case I_MOV:
-        {
-          mov_instruction& mov = instruction->payload.mov;
-
-          if (mov.src->type == slot::slot_type::INT_CONSTANT)
-          {
-            EMIT(i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
-          }
-          else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
-          {
-            EMIT(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-//            CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
-          }
-          else
-          {
-            // NOTE(Isaac): if we're here, `src` should be colored
-            assert(mov.src->color != -1);
-
-            EMIT(i::MOV_REG_REG, mov.dest->color, mov.src->color);
-          }
-        } break;
-
-        case I_CMP:
-        {
-
-        } break;
-
-        case I_ADD:
-        {
-          slot_triple& triple = instruction->payload.slotTriple;
-
-          if (triple.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
-          {
-            EMIT(i::MOV_REG_REG, triple.result->color, triple.left->color);
-          }
-          else
-          {
-            EMIT(i::MOV_REG_IMM32, triple.result->color, triple.left->payload.i);
-          }
-
-          if (triple.right->shouldBeColored)
-          {
-            EMIT(i::ADD_REG_REG, triple.result->color, triple.right->color);
-          }
-          else
-          {
-            EMIT(i::ADD_REG_IMM32, triple.result->color, triple.right->payload.i);
-          }
-        } break;
-
-        case I_SUB:
-        {
-
-        } break;
-
-        case I_MUL:
-        {
-
-        } break;
-
-        case I_DIV:
-        {
-
-        } break;
-
-        case I_NEGATE:
-        {
-
-        } break;
-
-        case I_CALL:
-        {
-          EMIT(i::CALL32, 0x0);
-          // TODO: find the correct symbol for the function symbol in the table
-          // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
-//          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
-        } break;
-
-        case I_NUM_INSTRUCTIONS:
-        {
-          fprintf(stderr, "Tried to generate code for AIR instruction of type `I_NUM_INSTRUCTIONS`!\n");
-          exit(1);
-        }
-      }
-    }
+    GenerateFunction(elf, target, **functionIt);
   }
-#undef EMIT
-}
-
-void Generate(const char* outputPath, codegen_target& target, parse_result& result)
-{
-  elf_file elf;
-  CreateElf(elf);
-
-  CreateSection(elf, ".text", SHT_PROGBITS, 0x10);
-  CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
 
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);
 
-/*
-  generator.header.fileType = 0x01;
-  generator.header.numSectionHeaderEntries = 0u;
-  generator.header.entryPoint = 0x00;
-  generator.header.sectionWithSectionNames = SECTION_NAME_TABLE_INDEX;
-
-  // --- The .rodata section ---
-  InitSection(generator, generator.rodata, ".rodata", SHT_PROGBITS, 0x4);
-  generator.rodata.flags = SECTION_ATTRIB_A;
-
-  // Add a symbol to the .rodata section so we can add relocations relative to it
-  generator.rodataSymbol = CreateSymbol(generator, nullptr, SYM_BIND_LOCAL, SYM_TYPE_SECTION, RODATA_INDEX, 0, 0);
-
-  // --- The symbol table ---
-  InitSection(generator, generator.symbolTable, ".symtab", SHT_SYMTAB, 0x04);
-  generator.symbolTable.link = STRING_TABLE_INDEX;
-  generator.symbolTable.info = UINT_MAX;
-  generator.symbolTable.entrySize = 0x18;
-
-  // --- The string table of symbols ---
-  InitSection(generator, generator.stringTable, ".strtab", SHT_STRTAB, 0x01);
-  generator.stringTable.size = 1u; // NOTE(Isaac): 1 because of the leading null-terminator
-
-  // --- The string table of section names ---
-  InitSection(generator, generator.sectionNameTable, ".shstrtab", SHT_STRTAB, 0x01);
-  generator.sectionNameTable.size = 1u;
-
-  // --- The relocation section for .text ---
-  InitSection(generator, generator.relaText, ".rela.text", SHT_RELA, 0x04);
-  generator.relaText.link = SYMBOL_TABLE_INDEX;
-  generator.relaText.info = TEXT_INDEX;
-  generator.relaText.entrySize = 0x18;
-
-  // NOTE(Isaac): leave space for the ELF header
-  fseek(generator.f, 0x40, SEEK_SET);
-
-  // [0x40] Generate .rodata
-  generator.rodata.offset = ftell(generator.f);
-
-  for (auto* stringIt = result.strings.first;
-       stringIt;
-       stringIt = stringIt->next)
-  {
-    (**stringIt)->offset = ftell(generator.f) - generator.rodata.offset;
-
-    for (const char* c = (**stringIt)->string;
-         *c;
-         c++)
-    {
-      fputc(*c, generator.f);
-      generator.rodata.size++;
-    }
-
-    fputc('\0', generator.f);
-    generator.rodata.size++;
-  }
-
-  // [???] Generate the object code that will be in the .text section
-  EmitText(generator, result);
-  generator.text.name = CreateString(generator.sectionNames, ".text");
-
-  // [???] Emit .rela.text
-  generator.relaText.offset = ftell(generator.f);
-  
+/* 
   for (auto* relocationIt = generator.textRelocations.first;
        relocationIt;
        relocationIt = relocationIt->next)
@@ -476,18 +408,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 ///*0x18*/
 /*
     generator.relaText.size += 0x18;
-  }
-
-  // [???] Emit the symbol table
-  generator.symbolTable.offset = ftell(generator.f);
-
-  // Emit a first, STN_UNDEF symbol
-  generator.symbolTable.size += 0x18;
-  for (unsigned int i = 0u;
-       i < 0x18;
-       i++)
-  {
-    fputc(0x00, generator.f);
   }
 
   for (auto* symbolIt = generator.symbols.first;
@@ -505,65 +425,4 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 /*
     generator.symbolTable.size += 0x18;
   }*/
-/*
-  // [???] Emit the string table of section names
-  generator.sectionNameTable.offset = ftell(generator.f);
-  fputc('\0', generator.f);   // NOTE(Isaac): start with a leading null-terminator
-
-  for (auto* stringIt = generator.sectionNames.first;
-       stringIt;
-       stringIt = stringIt->next)
-  {
-    for (unsigned int i = 0u;
-         i < strlen((**stringIt).str);
-         i++)
-    {
-      fputc((**stringIt).str[i], generator.f);
-      generator.sectionNameTable.size++;
-    }
-
-    // Add a null-terminator
-    fputc('\0', generator.f);
-    generator.sectionNameTable.size++;
-  }
-
-  // [???] Emit the string table
-  generator.stringTable.offset = ftell(generator.f);
-  fputc('\0', generator.f);   // NOTE(Isaac): start with a leading null-terminator
-
-  for (auto* stringIt = generator.strings.first;
-       stringIt;
-       stringIt = stringIt->next)
-  {
-    for (unsigned int i = 0u;
-         i < strlen((**stringIt).str);
-         i++)
-    {
-      fputc((**stringIt).str[i], generator.f);
-      generator.stringTable.size++;
-    }
-
-    // Add a null-terminator
-    fputc('\0', generator.f);
-    generator.stringTable.size++;
-  }
-
-  // [???] Create the section header
-  generator.header.sectionHeaderOffset = ftell(generator.f);
-  
-  // Create a sentinel null section at index 0
-  generator.header.numSectionHeaderEntries = 1u;
-  for (unsigned int i = 0u;
-       i < SECTION_HEADER_ENTRY_SIZE;
-       i++)
-  {
-    fputc(0x00, generator.f);
-  }
-
-  EmitSectionEntry(generator, generator.rodata);            // [1]
-  EmitSectionEntry(generator, generator.text);              // [2]
-  EmitSectionEntry(generator, generator.symbolTable);       // [3]
-  EmitSectionEntry(generator, generator.sectionNameTable);  // [4]
-  EmitSectionEntry(generator, generator.stringTable);       // [5]
-  EmitSectionEntry(generator, generator.relaText);          // [6]*/
 }

@@ -222,8 +222,9 @@ static void EmitThing(FILE* f, elf_thing* thing)
   }
 }
 
-void CreateElf(elf_file& elf)
+void CreateElf(elf_file& elf, codegen_target& target)
 {
+  elf.target = &target;
   CreateLinkedList<elf_thing*>(elf.things);
   CreateLinkedList<elf_symbol*>(elf.symbols);
   CreateLinkedList<elf_section*>(elf.sections);

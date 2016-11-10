@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <common.hpp>
+#include <ir.hpp>
 
 enum elf_file_type : uint16_t
 {
@@ -136,16 +137,16 @@ struct elf_symbol;
 
 struct elf_file
 {
-  elf_header header;
+  codegen_target*           target;
+  elf_header                header;
   linked_list<elf_section*> sections;
-  linked_list<elf_thing*> things;
-  linked_list<elf_symbol*> symbols;
-  linked_list<elf_string*> strings;
-
-  unsigned int stringTableTail; // Tail of the string table, relative to the start of the table
+  linked_list<elf_thing*>   things;
+  linked_list<elf_symbol*>  symbols;
+  linked_list<elf_string*>  strings;
+  unsigned int              stringTableTail; // Tail of the string table, relative to the start of the table
 };
 
-void CreateElf(elf_file& elf);
+void CreateElf(elf_file& elf, codegen_target& target);
 elf_thing* CreateThing(elf_file& elf, const char* name);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);
