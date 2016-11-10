@@ -212,8 +212,10 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
   }
 }
 
-static void EmitThing(FILE* f, elf_thing* thing)
+static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
 {
+  GetSection(elf, ".text")->size += thing->length;
+
   for (unsigned int i = 0u;
        i < thing->length;
        i++)
@@ -253,11 +255,21 @@ void WriteElf(elf_file& elf, const char* path)
   // Leave space for the ELF header
   fseek(f, 0x40, SEEK_SET);
 
+  // --- Emit all the things ---
+  GetSection(elf, ".text")->offset = ftell(f);
+
+  for (auto* thingIt = elf.things.first;
+       thingIt;
+       thingIt = thingIt->next)
+  {
+    EmitThing(f, elf, **thingIt);
+  }
+
   // --- Emit the string table ---
   GetSection(elf, ".strtab")->offset = ftell(f);
   elf.header.sectionWithSectionNames = GetSection(elf, ".strtab")->index;
   EmitStringTable(f, elf, elf.strings);
- 
+
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
 
@@ -282,15 +294,6 @@ void WriteElf(elf_file& elf, const char* path)
 
   // TODO: emit segments
 
-  // --- Emit all the things ---
-  GetSection(elf, ".text")->offset = ftell(f);
-
-  for (auto* thingIt = elf.things.first;
-       thingIt;
-       thingIt = thingIt->next)
-  {
-    EmitThing(f, **thingIt);
-  }
 
   // --- Emit the ELF header ---
   fseek(f, 0x0, SEEK_SET);

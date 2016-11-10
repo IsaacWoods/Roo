@@ -390,7 +390,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
       continue;
     }
 
-    GenerateFunction(elf, target, **functionIt);
+    AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, **functionIt));
   }
 
   WriteElf(elf, outputPath);
