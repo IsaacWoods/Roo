@@ -385,7 +385,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   GetSection(elf, ".symtab")->entrySize = 0x18;
 
   MapSection(elf, textSegment, GetSection(elf, ".text"));
-  CreateSymbol(elf, "testSymbol", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x10);
 
   // Generate an `elf_thing` for each function
   for (auto* functionIt = result.functions.first;

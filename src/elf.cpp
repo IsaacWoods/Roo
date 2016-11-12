@@ -38,10 +38,13 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   symbol->value = value;
   symbol->size = 0u;
 
-  printf("Name for symbol '%s' at offset of: %u\n", name, symbol->name->offset);
+  // Set the `info` field of the symbol table to the index of the first GLOBAL symbol
+  if (GetSection(elf, ".symtab")->info == 0u && binding == SYM_BIND_GLOBAL)
+  {
+    GetSection(elf, ".symtab")->info = elf.numSymbols;
+  }
 
-  // TODO: set the `info` field of the symbol table to the index of the first GLOBAL symbol
-
+  elf.numSymbols++;
   GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
   AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
   return symbol;
@@ -284,6 +287,7 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
 static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
 {
   GetSection(elf, ".text")->size += thing->length;
+  thing->symbol->value = GetSection(elf, ".text")->address + ftell(f) - GetSection(elf, ".text")->offset;
 
   for (unsigned int i = 0u;
        i < thing->length;

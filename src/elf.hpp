@@ -205,6 +205,7 @@ struct elf_file
   linked_list<elf_string*>  strings;
   linked_list<elf_mapping>  mappings;
   unsigned int              stringTableTail; // Tail of the string table, relative to the start of the table
+  unsigned int              numSymbols;
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);
