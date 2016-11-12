@@ -47,11 +47,11 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
-elf_segment* CreateSegment(elf_file& elf, segment_type type, uint64_t address, uint64_t alignment)
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment)
 {
   elf_segment* segment = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
   segment->type = type;
-  segment->flags = 0u;
+  segment->flags = flags;
   segment->offset = 0u;
   segment->virtualAddress = address;
   segment->physicalAddress = address;
@@ -101,6 +101,31 @@ elf_thing* CreateThing(elf_file& elf, const char* name)
   thing->address = 0x0;
 
   return thing;
+}
+
+elf_section* GetSection(elf_file& elf, const char* name)
+{
+  for (auto* sectionIt = elf.sections.first;
+       sectionIt;
+       sectionIt = sectionIt->next)
+  {
+    if (strcmp((**sectionIt)->name->str, name) == 0)
+    {
+      return **sectionIt;
+    }
+  }
+
+  fprintf(stderr, "FATAL: Couldn't find section of name '%s'!\n", name);
+  return nullptr;
+}
+
+void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
+{
+  elf_mapping mapping;
+  mapping.segment = segment;
+  mapping.section = section;
+
+  AddToLinkedList<elf_mapping>(elf.mappings, mapping);
 }
 
 template<>
@@ -225,7 +250,7 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
 /*n + */
 /*0x00*/fwrite(&((**symbolIt)->name->offset), sizeof(uint32_t), 1, f);
 /*0x04*/fwrite(&((**symbolIt)->info), sizeof(uint8_t), 1, f);
-/*0x05*/fputc(0x00, f);   // NOTE(Isaac): `st_other` field
+/*0x05*/fputc(0x00, f);   // NOTE(Isaac): the `st_other` field, which is marked as reserved
 /*0x06*/fwrite(&((**symbolIt)->sectionIndex), sizeof(uint16_t), 1, f);
 /*0x08*/fwrite(&((**symbolIt)->value), sizeof(uint64_t), 1, f);
 /*0x10*/fwrite(&((**symbolIt)->size), sizeof(uint64_t), 1, f);
@@ -268,6 +293,28 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
   }
 }
 
+static void MapSectionsToSegments(elf_file& elf)
+{
+  for (auto* mappingIt = elf.mappings.first;
+       mappingIt;
+       mappingIt = mappingIt->next)
+  {
+    elf_segment* segment = (**mappingIt).segment;
+    elf_section* section = (**mappingIt).section;
+
+    if (segment->offset == 0u || section->offset < segment->offset)
+    {
+      segment->offset = section->offset;
+    }
+
+    if ((section->offset + section->size) > (segment->offset + segment->fileSize))
+    {
+      segment->fileSize = section->offset + section->size - segment->offset;
+      segment->memorySize = section->offset + section->size - segment->offset;
+    }
+  }
+}
+
 void CreateElf(elf_file& elf, codegen_target& target)
 {
   elf.target = &target;
@@ -276,6 +323,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   CreateLinkedList<elf_segment*>(elf.segments);
   CreateLinkedList<elf_section*>(elf.sections);
   CreateLinkedList<elf_string*>(elf.strings);
+  CreateLinkedList<elf_mapping>(elf.mappings);
   elf.stringTableTail = 1u;
 
   elf.header.fileType = ET_EXEC;
@@ -338,6 +386,9 @@ void WriteElf(elf_file& elf, const char* path)
     EmitSectionEntry(f, **sectionIt);
   }
 
+  // --- Map sections to segments ---
+  MapSectionsToSegments(elf);
+
   // --- Emit the program header ---
   elf.header.programHeaderOffset = ftell(f);
 
@@ -364,22 +415,6 @@ void WriteElf(elf_file& elf, const char* path)
   fclose(f);
 }
 
-elf_section* GetSection(elf_file& elf, const char* name)
-{
-  for (auto* sectionIt = elf.sections.first;
-       sectionIt;
-       sectionIt = sectionIt->next)
-  {
-    if (strcmp((**sectionIt)->name->str, name) == 0)
-    {
-      return **sectionIt;
-    }
-  }
-
-  fprintf(stderr, "FATAL: Couldn't find section of name '%s'!\n", name);
-  return nullptr;
-}
-
 template<>
 void Free<elf_file>(elf_file& elf)
 {
@@ -388,6 +423,12 @@ void Free<elf_file>(elf_file& elf)
   FreeLinkedList<elf_thing*>(elf.things);
   FreeLinkedList<elf_symbol*>(elf.symbols);
   FreeLinkedList<elf_string*>(elf.strings);
+  FreeLinkedList<elf_mapping>(elf.mappings);
+}
+
+template<>
+void Free<elf_mapping>(elf_mapping& /*mapping*/)
+{
 }
 
 template<>

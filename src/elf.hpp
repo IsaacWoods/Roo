@@ -119,6 +119,12 @@ struct elf_section
   unsigned int index;       // Index in the section header
 };
 
+struct elf_mapping
+{
+  elf_segment* segment;
+  elf_section* section;
+};
+
 struct elf_relocation
 {
   uint64_t  offset;
@@ -197,13 +203,15 @@ struct elf_file
   linked_list<elf_thing*>   things;
   linked_list<elf_symbol*>  symbols;
   linked_list<elf_string*>  strings;
+  linked_list<elf_mapping>  mappings;
   unsigned int              stringTableTail; // Tail of the string table, relative to the start of the table
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
 elf_thing* CreateThing(elf_file& elf, const char* name);
-elf_segment* CreateSegment(elf_file& elf, segment_type type, uint64_t address, uint64_t alignment);
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);
+void MapSection(elf_file& elf, elf_segment* segment, elf_section* section);
 void WriteElf(elf_file& elf, const char* path);

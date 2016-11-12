@@ -375,12 +375,16 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf_file elf;
   CreateElf(elf, target);
 
-  CreateSegment(elf, PT_LOAD, 0x08048000, 0x1000);
+  elf_segment* textSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R, 0x08048000, 0x1000);
 
   CreateSection(elf, ".text", SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
   CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
   CreateSection(elf, ".symtab", SHT_SYMTAB, 0x04)->link = GetSection(elf, ".strtab")->index;
 
+  GetSection(elf, ".text")->address = 0x08048000;
+  GetSection(elf, ".symtab")->entrySize = 0x18;
+
+  MapSection(elf, textSegment, GetSection(elf, ".text"));
   CreateSymbol(elf, "testSymbol", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x10);
 
   // Generate an `elf_thing` for each function
