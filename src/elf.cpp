@@ -8,8 +8,9 @@
 #include <cstdlib>
 
 // TODO: make these real values
-#define PROGRAM_HEADER_ENTRY_SIZE 0x52
+#define PROGRAM_HEADER_ENTRY_SIZE 0x38
 #define SECTION_HEADER_ENTRY_SIZE 0x40
+#define SYMBOL_TABLE_ENTRY_SIZE 0x18
 
 static elf_string* CreateString(elf_file& elf, const char* str)
 {
@@ -23,29 +24,10 @@ static elf_string* CreateString(elf_file& elf, const char* str)
   return string;
 }
 
-enum symbol_binding : uint8_t
-{
-  SYM_BIND_LOCAL      = 0x0,
-  SYM_BIND_GLOBAL     = 0x1,
-  SYM_BIND_WEAK       = 0x2,
-  SYM_BIND_LOOS       = 0xA,
-  SYM_BIND_HIOS       = 0xC,
-  SYM_BIND_LOPROC     = 0xD,
-  SYM_BIND_HIGHPROC   = 0xF,
-};
-
-enum symbol_type : uint8_t
-{
-  SYM_TYPE_NONE,
-  SYM_TYPE_OBJECT,
-  SYM_TYPE_FUNCTION,
-  SYM_TYPE_SECTION,
-};
-
 /*
  * If `name == nullptr`, the symbol points towards the nulled entry of the string table.
  */
-static elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type,
+elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type,
                                 uint16_t sectionIndex, uint64_t value)
 {
   elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
@@ -56,9 +38,30 @@ static elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding 
   symbol->value = value;
   symbol->size = 0u;
 
+  printf("Name for symbol '%s' at offset of: %u\n", name, symbol->name->offset);
+
   // TODO: set the `info` field of the symbol table to the index of the first GLOBAL symbol
+
+  GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
   AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
   return symbol;
+}
+
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint64_t address, uint64_t alignment)
+{
+  elf_segment* segment = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
+  segment->type = type;
+  segment->flags = 0u;
+  segment->offset = 0u;
+  segment->virtualAddress = address;
+  segment->physicalAddress = address;
+  segment->fileSize = 0u;
+  segment->memorySize = 0u;
+  segment->alignment = alignment;
+
+  elf.header.numProgramHeaderEntries++;
+  AddToLinkedList<elf_segment*>(elf.segments, segment);
+  return segment;
 }
 
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment)
@@ -174,6 +177,20 @@ static void EmitHeader(FILE* f, elf_header& header)
 /*0x40*/
 }
 
+static void EmitProgramEntry(FILE* f, elf_segment* segment)
+{
+/*n + */
+/*0x00*/fwrite(&(segment->type),             sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(segment->flags),            sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(segment->offset),           sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(segment->virtualAddress),   sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(segment->physicalAddress),  sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(segment->fileSize),         sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(segment->memorySize),       sizeof(uint64_t), 1, f);
+/*0x30*/fwrite(&(segment->alignment),        sizeof(uint64_t), 1, f);
+/*0x38*/
+}
+
 static void EmitSectionEntry(FILE* f, elf_section* section)
 {
 /*n + */
@@ -190,10 +207,36 @@ static void EmitSectionEntry(FILE* f, elf_section* section)
 /*0x40*/
 }
 
+static void EmitSymbolTable(FILE* f, linked_list<elf_symbol*>& symbols)
+{
+  // Emit an empty symbol table entry, because the standard says so
+  for (unsigned int i = 0u;
+       i < SYMBOL_TABLE_ENTRY_SIZE;
+       i++)
+  {
+    fputc(0x0, f);
+  }
+
+  for (auto* symbolIt = symbols.first;
+       symbolIt;
+       symbolIt = symbolIt->next)
+  {
+/*n + */
+/*0x00*/fwrite(&((**symbolIt)->name->offset), sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&((**symbolIt)->info), sizeof(uint8_t), 1, f);
+/*0x05*/fputc(0x00, f);   // NOTE(Isaac): `st_other` field
+/*0x06*/fwrite(&((**symbolIt)->sectionIndex), sizeof(uint16_t), 1, f);
+/*0x08*/fwrite(&((**symbolIt)->value), sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&((**symbolIt)->size), sizeof(uint64_t), 1, f);
+/*0x18*/
+  }
+}
+
 static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& strings)
 {
   // Lead with a null terminator to mark the null-string
   fputc('\0', f);
+  GetSection(elf, ".strtab")->size = 1u;
 
   for (auto* it = strings.first;
        it;
@@ -229,6 +272,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   elf.target = &target;
   CreateLinkedList<elf_thing*>(elf.things);
   CreateLinkedList<elf_symbol*>(elf.symbols);
+  CreateLinkedList<elf_segment*>(elf.segments);
   CreateLinkedList<elf_section*>(elf.sections);
   CreateLinkedList<elf_string*>(elf.strings);
   elf.stringTableTail = 1u;
@@ -270,6 +314,10 @@ void WriteElf(elf_file& elf, const char* path)
   elf.header.sectionWithSectionNames = GetSection(elf, ".strtab")->index;
   EmitStringTable(f, elf, elf.strings);
 
+  // --- Emit the symbol table ---
+  GetSection(elf, ".symtab")->offset = ftell(f);
+  EmitSymbolTable(f, elf.symbols);
+
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
 
@@ -290,10 +338,23 @@ void WriteElf(elf_file& elf, const char* path)
   }
 
   // --- Emit the program header ---
-//  elf.header.programHeaderOffset = ftell(f);
+  elf.header.programHeaderOffset = ftell(f);
 
-  // TODO: emit segments
+  // Emit an empty program header entry
+  elf.header.numProgramHeaderEntries++;
+  for (unsigned int i = 0u;
+       i < PROGRAM_HEADER_ENTRY_SIZE;
+       i++)
+  {
+    fputc(0x00, f);
+  }
 
+  for (auto* segmentIt = elf.segments.first;
+       segmentIt;
+       segmentIt = segmentIt->next)
+  {
+    EmitProgramEntry(f, **segmentIt);
+  }
 
   // --- Emit the ELF header ---
   fseek(f, 0x0, SEEK_SET);
@@ -314,15 +375,18 @@ elf_section* GetSection(elf_file& elf, const char* name)
     }
   }
 
-  fprintf(stderr, "FATAL (PROBABLY): Couldn't find section of name '%s'!\n", name);
+  fprintf(stderr, "FATAL: Couldn't find section of name '%s'!\n", name);
   return nullptr;
 }
 
 template<>
 void Free<elf_file>(elf_file& elf)
 {
+  FreeLinkedList<elf_segment*>(elf.segments);
   FreeLinkedList<elf_section*>(elf.sections);
   FreeLinkedList<elf_thing*>(elf.things);
+  FreeLinkedList<elf_symbol*>(elf.symbols);
+  FreeLinkedList<elf_string*>(elf.strings);
 }
 
 template<>
@@ -336,6 +400,12 @@ void Free<elf_symbol*>(elf_symbol*& symbol)
 {
   Free<elf_string*>(symbol->name);
   free(symbol);
+}
+
+template<>
+void Free<elf_segment*>(elf_segment*& segment)
+{
+  free(segment);
 }
 
 template<>

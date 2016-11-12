@@ -36,6 +36,40 @@ struct elf_string
   const char*   str;
 };
 
+#define SEGMENT_ATTRIB_X        0x1         // Marks the segment as executable
+#define SEGMENT_ATTRIB_W        0x2         // Marks the segment as writable
+#define SEGMENT_ATTRIB_R        0x4         // Marks the segment as readable
+#define SEGMENT_ATTRIB_MASKOS   0x00FF0000
+#define SEGMENT_ATTRIB_MASKPROC 0xFF000000
+
+enum segment_type : uint32_t
+{
+  PT_NULL,
+  PT_LOAD,
+  PT_DYNAMIC,
+  PT_INTERP,
+  PT_NOTE,
+  PT_SHLIB,
+  PT_PHDR,
+  PT_TLS,
+  PT_LOOS     = 0x60000000,
+  PT_HIOS     = 0x6FFFFFFF,
+  PT_LOPROC   = 0x70000000,
+  PT_HIPROC   = 0x7FFFFFFF
+};
+
+struct elf_segment
+{
+  segment_type  type;
+  uint32_t      flags;
+  uint64_t      offset;
+  uint64_t      virtualAddress;
+  uint64_t      physicalAddress;
+  uint64_t      fileSize;         // Number of bytes in the *file* allocated to this segment
+  uint64_t      memorySize;       // Number of bytes in the *image* allocated to this segment
+  uint64_t      alignment;        // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this alignment
+};
+
 #define SECTION_ATTRIB_W        0x1         // Marks the section as writable
 #define SECTION_ATTRIB_A        0x2         // Marks the section to be allocated in the memory image
 #define SECTION_ATTRIB_E        0x4         // Marks the section as executable
@@ -92,6 +126,25 @@ struct elf_relocation
   int64_t   addend;
 };
 
+enum symbol_binding : uint8_t
+{
+  SYM_BIND_LOCAL      = 0x0,
+  SYM_BIND_GLOBAL     = 0x1,
+  SYM_BIND_WEAK       = 0x2,
+  SYM_BIND_LOOS       = 0xA,
+  SYM_BIND_HIOS       = 0xC,
+  SYM_BIND_LOPROC     = 0xD,
+  SYM_BIND_HIGHPROC   = 0xF,
+};
+
+enum symbol_type : uint8_t
+{
+  SYM_TYPE_NONE,
+  SYM_TYPE_OBJECT,
+  SYM_TYPE_FUNCTION,
+  SYM_TYPE_SECTION,
+};
+
 struct elf_symbol
 {
   elf_string* name;
@@ -139,6 +192,7 @@ struct elf_file
 {
   codegen_target*           target;
   elf_header                header;
+  linked_list<elf_segment*> segments;
   linked_list<elf_section*> sections;
   linked_list<elf_thing*>   things;
   linked_list<elf_symbol*>  symbols;
@@ -147,7 +201,9 @@ struct elf_file
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);
+elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
 elf_thing* CreateThing(elf_file& elf, const char* name);
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint64_t address, uint64_t alignment);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);
 void WriteElf(elf_file& elf, const char* path);

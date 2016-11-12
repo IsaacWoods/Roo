@@ -375,10 +375,13 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf_file elf;
   CreateElf(elf, target);
 
-  CreateSection(elf, ".text", SHT_PROGBITS, 0x10);
-  CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
+  CreateSegment(elf, PT_LOAD, 0x08048000, 0x1000);
 
-  GetSection(elf, ".text")->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
+  CreateSection(elf, ".text", SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
+  CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
+  CreateSection(elf, ".symtab", SHT_SYMTAB, 0x04)->link = GetSection(elf, ".strtab")->index;
+
+  CreateSymbol(elf, "testSymbol", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x10);
 
   // Generate an `elf_thing` for each function
   for (auto* functionIt = result.functions.first;
@@ -408,21 +411,5 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 ///*0x18*/
 /*
     generator.relaText.size += 0x18;
-  }
-
-  for (auto* symbolIt = generator.symbols.first;
-       symbolIt;
-       symbolIt = symbolIt->next)
-  {*/
-///*n + */
-///*0x00*/fwrite(&((**symbolIt).name), sizeof(uint32_t), 1, generator.f);
-///*0x04*/fwrite(&((**symbolIt).info), sizeof(uint8_t), 1, generator.f);
-///*0x05*/fputc(0x00, generator.f);
-///*0x06*/fwrite(&((**symbolIt).sectionIndex), sizeof(uint16_t), 1, generator.f);
-///*0x08*/fwrite(&((**symbolIt).definitionOffset), sizeof(uint64_t), 1, generator.f);
-///*0x10*/fwrite(&((**symbolIt).size), sizeof(uint64_t), 1, generator.f);
-///*0x18*/
-/*
-    generator.symbolTable.size += 0x18;
   }*/
 }
