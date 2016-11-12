@@ -207,9 +207,10 @@ static void EmitSectionEntry(FILE* f, elf_section* section)
 /*0x40*/
 }
 
-static void EmitSymbolTable(FILE* f, linked_list<elf_symbol*>& symbols)
+static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& symbols)
 {
   // Emit an empty symbol table entry, because the standard says so
+  GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
   for (unsigned int i = 0u;
        i < SYMBOL_TABLE_ENTRY_SIZE;
        i++)
@@ -316,7 +317,7 @@ void WriteElf(elf_file& elf, const char* path)
 
   // --- Emit the symbol table ---
   GetSection(elf, ".symtab")->offset = ftell(f);
-  EmitSymbolTable(f, elf.symbols);
+  EmitSymbolTable(f, elf, elf.symbols);
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
