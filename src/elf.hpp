@@ -215,6 +215,7 @@ struct elf_file
   linked_list<elf_relocation> relocations;
   unsigned int                stringTableTail; // Tail of the string table, relative to the start of the table
   unsigned int                numSymbols;
+  elf_thing*                  rodataThing;
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);

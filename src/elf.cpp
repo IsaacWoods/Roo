@@ -7,7 +7,6 @@
 #include <cstring>
 #include <cstdlib>
 
-// TODO: make these real values
 #define PROGRAM_HEADER_ENTRY_SIZE 0x38
 #define SECTION_HEADER_ENTRY_SIZE 0x40
 #define SYMBOL_TABLE_ENTRY_SIZE 0x18
@@ -25,7 +24,7 @@ static elf_string* CreateString(elf_file& elf, const char* str)
 }
 
 /*
- * If `name == nullptr`, the symbol points towards the nulled entry of the string table.
+ * NOTE(Isaac): If `name == nullptr`, the symbol points towards the nulled entry of the string table.
  */
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type,
                                 uint16_t sectionIndex, uint64_t value)
@@ -262,13 +261,24 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
        symbolIt;
        symbolIt = symbolIt->next)
   {
+    elf_symbol* symbol = **symbolIt;
 /*n + */
-/*0x00*/fwrite(&((**symbolIt)->name->offset), sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&((**symbolIt)->info), sizeof(uint8_t), 1, f);
+    if (symbol->name)
+    {
+/*0x00*/fwrite(&(symbol->name->offset), sizeof(uint32_t), 1, f);
+    }
+    else
+    {
+/*0x00*/fputc(0x00, f);
+        fputc(0x00, f);
+        fputc(0x00, f);
+        fputc(0x00, f);
+    }
+/*0x04*/fwrite(&(symbol->info), sizeof(uint8_t), 1, f);
 /*0x05*/fputc(0x00, f);   // NOTE(Isaac): the `st_other` field, which is marked as reserved
-/*0x06*/fwrite(&((**symbolIt)->sectionIndex), sizeof(uint16_t), 1, f);
-/*0x08*/fwrite(&((**symbolIt)->value), sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&((**symbolIt)->size), sizeof(uint64_t), 1, f);
+/*0x06*/fwrite(&(symbol->sectionIndex), sizeof(uint16_t), 1, f);
+/*0x08*/fwrite(&(symbol->value), sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(symbol->size), sizeof(uint64_t), 1, f);
 /*0x18*/
   }
 }
@@ -409,6 +419,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   CreateLinkedList<elf_mapping>(elf.mappings);
   CreateLinkedList<elf_relocation>(elf.relocations);
   elf.stringTableTail = 1u;
+  elf.rodataThing = nullptr;
 
   elf.header.fileType = ET_EXEC;
   elf.header.entryPoint = 0x0;
@@ -503,15 +514,9 @@ void WriteElf(elf_file& elf, const char* path)
 }
 
 template<>
-void Free<elf_file>(elf_file& elf)
+void Free<elf_thing*>(elf_thing*& thing)
 {
-  FreeLinkedList<elf_segment*>(elf.segments);
-  FreeLinkedList<elf_section*>(elf.sections);
-  FreeLinkedList<elf_thing*>(elf.things);
-  FreeLinkedList<elf_symbol*>(elf.symbols);
-  FreeLinkedList<elf_string*>(elf.strings);
-  FreeLinkedList<elf_mapping>(elf.mappings);
-  FreeLinkedList<elf_relocation>(elf.relocations);
+  free(thing->data);
 }
 
 template<>
@@ -551,7 +556,15 @@ void Free<elf_section*>(elf_section*& section)
 }
 
 template<>
-void Free<elf_thing*>(elf_thing*& thing)
+void Free<elf_file>(elf_file& elf)
 {
-  free(thing->data);
+  FreeLinkedList<elf_segment*>(elf.segments);
+  FreeLinkedList<elf_section*>(elf.sections);
+  FreeLinkedList<elf_thing*>(elf.things);
+  FreeLinkedList<elf_symbol*>(elf.symbols);
+  FreeLinkedList<elf_string*>(elf.strings);
+  FreeLinkedList<elf_mapping>(elf.mappings);
+  FreeLinkedList<elf_relocation>(elf.relocations);
+  Free<elf_thing*>(elf.rodataThing);
 }
+
