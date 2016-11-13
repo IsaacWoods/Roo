@@ -292,7 +292,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
         {
           E(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-//          CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
+//          CreateRelocation(elf, thing, thing.length - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
         }
         else
         {
@@ -356,7 +356,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         E(i::CALL32, 0x0);
         // TODO: find the correct symbol for the function symbol in the table
         // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
-//        CreateRelocation(generator, ftell(generator.f) - generator.text.offset - sizeof(uint32_t), R_X86_64_PC32, 2u, -4);
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, 1u, -4);
       } break;
 
       case I_NUM_INSTRUCTIONS:

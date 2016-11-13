@@ -50,6 +50,18 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, uint32_t type, uint32_t symbolIndex, int64_t addend)
+{
+  elf_relocation relocation;
+  relocation.thing = thing;
+  relocation.offset = offset;
+  relocation.info = static_cast<uint64_t>(symbolIndex) << 32u;
+  relocation.info |= type;
+  relocation.addend = addend;
+
+  AddToLinkedList<elf_relocation>(elf.relocations, relocation);
+}
+
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment)
 {
   elf_segment* segment = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
@@ -288,6 +300,7 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
 {
   GetSection(elf, ".text")->size += thing->length;
   thing->symbol->value = GetSection(elf, ".text")->address + ftell(f) - GetSection(elf, ".text")->offset;
+  thing->fileOffset = ftell(f);
 
   for (unsigned int i = 0u;
        i < thing->length;
@@ -295,6 +308,72 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
   {
     fputc(thing->data[i], f);
   }
+}
+
+static void CompleteRelocations(FILE* f, elf_file& elf)
+{
+  long int currentPosition = ftell(f);
+
+  for (auto* relocationIt = elf.relocations.first;
+       relocationIt;
+       relocationIt = relocationIt->next)
+  {
+    elf_relocation& relocation = **relocationIt;
+    uint32_t type = relocation.info & 0xffffffffL;
+    uint32_t symbolIndex = (relocation.info << 32u) & 0xffffffffL;
+    elf_symbol* symbol = nullptr;
+
+    for (auto* symbolIt = elf.symbols.first;
+         symbolIt;
+         symbolIt = symbolIt->next)
+    {
+      if ((**symbolIt)->index == symbolIndex)
+      {
+        symbol = **symbolIt;
+        break;
+      }
+    }
+
+    if (!symbol)
+    {
+      fprintf(stderr, "FATAL: Failed to resolve symbol for relocation (Index: %u)!\n", symbolIndex);
+      exit(1);
+    }
+
+    // Go to the correct position in the ELF file to apply the relocation
+    uint64_t target = relocation.thing->fileOffset + relocation.offset;
+    fseek(f, target, SEEK_SET);
+
+    switch (type)
+    {
+      case R_X86_64_64:     // S + A
+      {
+        uint64_t value = symbol->value + relocation.addend;
+        fwrite(&value, sizeof(uint64_t), 1, f);
+      } break;
+
+      case R_X86_64_PC32:   // S + A - P
+      {
+        uint32_t relocationPos = GetSection(elf, ".text")->address + target - GetSection(elf, ".text")->offset;
+        uint32_t value = (symbol->value + relocation.addend) - relocationPos;
+        fwrite(&value, sizeof(uint32_t), 1, f);
+      } break;
+
+      case R_X86_64_32:     // S + A
+      {
+        uint32_t value = symbol->value + relocation.addend;
+        fwrite(&value, sizeof(uint32_t), 1, f);
+      } break;
+
+      default:
+      {
+        fprintf(stderr, "FATAL: Unhandled relocation type (%u)!\n", type);
+        exit(1);
+      }
+    }
+  }
+
+  fseek(f, currentPosition, SEEK_SET);
 }
 
 static void MapSectionsToSegments(elf_file& elf)
@@ -328,6 +407,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   CreateLinkedList<elf_section*>(elf.sections);
   CreateLinkedList<elf_string*>(elf.strings);
   CreateLinkedList<elf_mapping>(elf.mappings);
+  CreateLinkedList<elf_relocation>(elf.relocations);
   elf.stringTableTail = 1u;
 
   elf.header.fileType = ET_EXEC;
@@ -370,6 +450,9 @@ void WriteElf(elf_file& elf, const char* path)
   // --- Emit the symbol table ---
   GetSection(elf, ".symtab")->offset = ftell(f);
   EmitSymbolTable(f, elf, elf.symbols);
+
+  // --- Do all the relocations ---
+  CompleteRelocations(f, elf);
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
@@ -428,10 +511,16 @@ void Free<elf_file>(elf_file& elf)
   FreeLinkedList<elf_symbol*>(elf.symbols);
   FreeLinkedList<elf_string*>(elf.strings);
   FreeLinkedList<elf_mapping>(elf.mappings);
+  FreeLinkedList<elf_relocation>(elf.relocations);
 }
 
 template<>
 void Free<elf_mapping>(elf_mapping& /*mapping*/)
+{
+}
+
+template<>
+void Free<elf_relocation>(elf_relocation& /*relocation*/)
 {
 }
 
