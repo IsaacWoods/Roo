@@ -226,4 +226,5 @@ elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uin
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);
 void MapSection(elf_file& elf, elf_segment* segment, elf_section* section);
+void LinkObject(elf_file& elf, const char* objectPath);
 void WriteElf(elf_file& elf, const char* path);

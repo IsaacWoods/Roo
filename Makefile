@@ -17,14 +17,22 @@ OBJS = \
 
 AST_PASSES = \
 	src/pass_resolveVars.hpp \
+	src/pass_resolveFunctionCalls.hpp \
+
+STD_OBJECTS = \
+	std/bootstrap.o \
+	std/io.o \
 
 .PHONY: clean
 
-roo: $(OBJS) $(AST_PASSES)
+roo: $(OBJS) $(STD_OBJECTS) $(AST_PASSES)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 %.o: %.cpp
 	$(CXX) -o $@ -c $< $(CFLAGS)
+
+%.o: %.s
+	nasm -felf64 -o $@ $<
 
 clean:
 	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo

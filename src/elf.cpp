@@ -142,6 +142,32 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
   AddToLinkedList<elf_mapping>(elf.mappings, mapping);
 }
 
+void LinkObject(elf_file& elf, const char* objectPath)
+{
+  FILE* object = fopen(objectPath, "rb");
+
+  if (!object)
+  {
+    fprintf(stderr, "FATAL: failed to open object to link against: '%s'!\n", objectPath);
+    exit(1);
+  }
+
+  #define CONSUME(byte) \
+    if (fgetc(object) != byte) \
+    { \
+      fprintf(stderr, "FATAL: Object file (%s) does not match expected format!\n", objectPath); \
+    }
+
+  // Check the magic
+  CONSUME(0x7F);
+  CONSUME('E');
+  CONSUME('L');
+  CONSUME('F');
+
+  fclose(object);
+#undef CONSUME
+}
+
 template<>
 void Emit_<uint8_t>(elf_thing* thing, uint8_t byte)
 {

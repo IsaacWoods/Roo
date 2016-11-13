@@ -405,6 +405,10 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, **functionIt));
   }
 
+  // --- TEMPORARY TESTING STUFF AND THINGS ---
+  LinkObject(elf, "./std/bootstrap.o");
+  // ---
+
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);
 }
