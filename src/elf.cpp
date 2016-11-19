@@ -64,7 +64,6 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   }
 
   elf.numSymbols++;
-  GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
   AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
   return symbol;
 }
@@ -86,7 +85,6 @@ elf_symbol* CreateSymbol(elf_file& elf, unsigned int nameOffset, symbol_binding 
   }
 
   elf.numSymbols++;
-  GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
   AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
   return symbol;
 }
@@ -197,7 +195,7 @@ void Free<elf_object>(elf_object& object)
   FreeLinkedList<elf_section*>(object.sections);
 }
 
-static elf_string* ExtractString(elf_file& elf, elf_object& object, elf_section* stringTable, uint64_t stringOffset)
+static elf_string* ExtractString(elf_file& elf, elf_object& object, const elf_section* stringTable, uint64_t stringOffset)
 {
   assert(stringTable);
 
@@ -312,6 +310,65 @@ void LinkObject(elf_file& elf, const char* objectPath)
   }
 
   ParseSectionHeader(elf, object);
+
+  for (auto* sectionIt = object.sections.first;
+       sectionIt;
+       sectionIt = sectionIt->next)
+  {
+    elf_section* section = **sectionIt;
+
+    switch (section->type)
+    {
+      case SHT_SYMTAB:
+      {
+        if (section->entrySize != SYMBOL_TABLE_ENTRY_SIZE)
+        {
+          fprintf(stderr, "FATAL: External object has weirdly-sized symbols!\n");
+          exit(1);
+        }
+
+        unsigned int numSymbols = section->size / SYMBOL_TABLE_ENTRY_SIZE;
+
+        // NOTE(Isaac): start at 1 to skip the nulled symbol at the beginning
+        for (unsigned int i = 1u;
+             i < numSymbols;
+             i++)
+        {
+          fseek(object.f, section->offset + i * SYMBOL_TABLE_ENTRY_SIZE, SEEK_SET);
+          const elf_section* stringTable = object.sections[section->link];
+          elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
+          uint32_t nameOffset;
+
+          /*0x00*/fread(&nameOffset,              sizeof(uint32_t), 1, object.f);
+          /*0x04*/fread(&(symbol->info),          sizeof(uint8_t) , 1, object.f);
+          /*0x05*/fseek(object.f, ftell(object.f) + 1u, SEEK_SET);
+          /*0x06*/fread(&(symbol->sectionIndex),  sizeof(uint16_t), 1, object.f);
+          /*0x08*/fread(&(symbol->value),         sizeof(uint64_t), 1, object.f);
+          /*0x10*/fread(&(symbol->size),          sizeof(uint64_t), 1, object.f);
+          /*0x18*/
+
+          /*
+           * NOTE(Isaac): skip file symbols (we don't want them in the file executable)
+           */
+          if ((symbol->info & 0xf) == SYM_TYPE_FILE)
+          {
+            free(symbol);
+            continue;
+          }
+
+          elf_string* name = ExtractString(elf, object, stringTable, nameOffset);
+          printf("Linking symbol in from external object: '%s'\n", (name ? name->str : "NO_NAME"));
+          symbol->nameOffset = (name ? name->offset : 0u);
+
+          AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
+        }
+      } break;
+
+      default:
+      {
+      } break;
+    }
+  }
 
   Free<elf_object>(object);
   #undef CONSUME
@@ -437,13 +494,15 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
        symbolIt = symbolIt->next)
   {
     elf_symbol* symbol = **symbolIt;
+    GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
+
 /*n + */
-/*0x00*/fwrite(&(symbol->nameOffset), sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(symbol->info), sizeof(uint8_t), 1, f);
+/*0x00*/fwrite(&(symbol->nameOffset),   sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(symbol->info),         sizeof(uint8_t) , 1, f);
 /*0x05*/fputc(0x00, f);   // NOTE(Isaac): the `st_other` field, which is marked as reserved
 /*0x06*/fwrite(&(symbol->sectionIndex), sizeof(uint16_t), 1, f);
-/*0x08*/fwrite(&(symbol->value), sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(symbol->size), sizeof(uint64_t), 1, f);
+/*0x08*/fwrite(&(symbol->value),        sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(symbol->size),         sizeof(uint64_t), 1, f);
 /*0x18*/
   }
 }
