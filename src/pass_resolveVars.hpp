@@ -17,7 +17,7 @@ void InitResolveVarsPass()
   __builtin_puts("Init pass: Resolve Variables");
 
   PASS_resolveVars[VARIABLE_NODE] =
-    [](parse_result& parse, function_def* function, node* n)
+    [](parse_result& /*parse*/, function_def* function, node* n)
     {
       assert(!n->payload.variable.isResolved);
       printf("Resolving variable: %s\n", n->payload.variable.var.name);

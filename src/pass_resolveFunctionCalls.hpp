@@ -17,7 +17,7 @@ void InitFunctionCallsPass()
   __builtin_puts("Init pass: Resolve Function Calls");
 
   PASS_resolveFunctionCalls[FUNCTION_CALL_NODE] =
-    [](parse_result& parse, function_def* function, node* n)
+    [](parse_result& parse, function_def* /*function*/, node* n)
     {
       assert(!n->payload.functionCall.isResolved);
       printf("Resolving function call: %s\n", n->payload.functionCall.function.name);
@@ -26,7 +26,7 @@ void InitFunctionCallsPass()
            functionIt;
            functionIt = functionIt->next)
       {
-        // TODO: be cleverer here - compare mangled names or something (functions can have the same name)
+        // TODO: be cleverer here - compare mangled names or something (functions can have the same basic name)
         if (strcmp((**functionIt)->name, n->payload.functionCall.function.name) == 0)
         {
           printf("Resolved function call to: %s!\n", n->payload.functionCall.function.name);

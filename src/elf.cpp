@@ -6,16 +6,36 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <climits>
+#include <cassert>
 
 #define PROGRAM_HEADER_ENTRY_SIZE 0x38
 #define SECTION_HEADER_ENTRY_SIZE 0x40
 #define SYMBOL_TABLE_ENTRY_SIZE 0x18
+
+/*
+ * NOTE(Isaac): if the string passed has a `const` qualifier, it's not freed on freeing of the `elf_string`.
+ * Otherwise, it is.
+ */
+static elf_string* CreateString(elf_file& elf, char* str)
+{
+  elf_string* string = static_cast<elf_string*>(malloc(sizeof(elf_string)));
+  string->offset = elf.stringTableTail;
+  string->str = str;
+  string->owned = true;
+
+  elf.stringTableTail += strlen(str) + 1u;
+
+  AddToLinkedList<elf_string*>(elf.strings, string);
+  return string;
+}
 
 static elf_string* CreateString(elf_file& elf, const char* str)
 {
   elf_string* string = static_cast<elf_string*>(malloc(sizeof(elf_string)));
   string->offset = elf.stringTableTail;
   string->str = str;
+  string->owned = false;
   
   elf.stringTableTail += strlen(str) + 1u;
 
@@ -30,7 +50,29 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
                                 uint16_t sectionIndex, uint64_t value)
 {
   elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
-  symbol->name = (name ? CreateString(elf, name) : nullptr);
+  symbol->nameOffset = (name ? CreateString(elf, name)->offset : 0u);
+  symbol->info = type;
+  symbol->info |= binding << 4u;
+  symbol->sectionIndex = sectionIndex;
+  symbol->value = value;
+  symbol->size = 0u;
+
+  // Set the `info` field of the symbol table to the index of the first GLOBAL symbol
+  if (GetSection(elf, ".symtab")->info == 0u && binding == SYM_BIND_GLOBAL)
+  {
+    GetSection(elf, ".symtab")->info = elf.numSymbols;
+  }
+
+  elf.numSymbols++;
+  GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
+  AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
+  return symbol;
+}
+
+elf_symbol* CreateSymbol(elf_file& elf, unsigned int nameOffset, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value)
+{
+  elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
+  symbol->nameOffset = nameOffset;
   symbol->info = type;
   symbol->info |= binding << 4u;
   symbol->sectionIndex = sectionIndex;
@@ -142,18 +184,112 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
   AddToLinkedList<elf_mapping>(elf.mappings, mapping);
 }
 
+struct elf_object
+{
+  FILE*                     f;
+  linked_list<elf_section*> sections;
+};
+
+template<>
+void Free<elf_object>(elf_object& object)
+{
+  fclose(object.f);
+  FreeLinkedList<elf_section*>(object.sections);
+}
+
+static elf_string* ExtractString(elf_file& elf, elf_object& object, elf_section* stringTable, uint64_t stringOffset)
+{
+  assert(stringTable);
+
+  if (stringOffset == 0u)
+  {
+    return nullptr;
+  }
+
+  fseek(object.f, stringTable->offset + stringOffset, SEEK_SET);
+  char buffer[1024u];
+  unsigned int length = 0u;
+
+  for (char c = fgetc(object.f);
+       c;
+       c = fgetc(object.f))
+  {
+    buffer[length++] = c;
+  }
+
+  buffer[length++] = '\0';
+  char* str = static_cast<char*>(malloc(sizeof(char) * length));
+  memcpy(str, buffer, sizeof(char) * length);
+
+  return CreateString(elf, str);
+}
+
+static void ParseSectionHeader(elf_file& elf, elf_object& object)
+{
+  uint64_t sectionHeaderOffset;
+  fseek(object.f, 0x28, SEEK_SET);
+  fread(&sectionHeaderOffset, sizeof(uint64_t), 1, object.f);
+
+  uint16_t numSectionHeaders;
+  fseek(object.f, 0x3C, SEEK_SET);
+  fread(&numSectionHeaders, sizeof(uint16_t), 1, object.f);
+
+  fseek(object.f, sectionHeaderOffset, SEEK_SET);
+
+  for (unsigned int i = 0u;
+       i < numSectionHeaders;
+       i++)
+  {
+    elf_section* section = static_cast<elf_section*>(malloc(sizeof(elf_section)));
+    section->index = UINT_MAX;
+ 
+    /*
+     * NOTE(Isaac): We don't know where the string table is yet, so we can't load the section names for now
+     */
+    section->name = nullptr;
+
+    /*0x00*/fread(&(section->nameOffset), sizeof(uint32_t), 1, object.f);
+    /*0x04*/fread(&(section->type),       sizeof(uint32_t), 1, object.f);
+    /*0x08*/fread(&(section->flags),      sizeof(uint64_t), 1, object.f);
+    /*0x10*/fread(&(section->address),    sizeof(uint64_t), 1, object.f);
+    /*0x18*/fread(&(section->offset),     sizeof(uint64_t), 1, object.f);
+    /*0x20*/fread(&(section->size),       sizeof(uint64_t), 1, object.f);
+    /*0x28*/fread(&(section->link),       sizeof(uint32_t), 1, object.f);
+    /*0x2C*/fread(&(section->info),       sizeof(uint32_t), 1, object.f);
+    /*0x30*/fread(&(section->alignment),  sizeof(uint64_t), 1, object.f);
+    /*0x38*/fread(&(section->entrySize),  sizeof(uint64_t), 1, object.f);
+    /*0x40*/
+
+    AddToLinkedList<elf_section*>(object.sections, section);
+  }
+
+  uint16_t sectionWithNames;
+  fseek(object.f, 0x3E, SEEK_SET);
+  fread(&sectionWithNames, sizeof(uint16_t), 1, object.f);
+  elf_section* stringTable = object.sections[sectionWithNames];
+
+  for (auto* sectionIt = object.sections.first;
+       sectionIt;
+       sectionIt = sectionIt->next)
+  {
+    (**sectionIt)->name = ExtractString(elf, object, stringTable, (**sectionIt)->nameOffset);
+  }
+}
+
 void LinkObject(elf_file& elf, const char* objectPath)
 {
-  FILE* object = fopen(objectPath, "rb");
+  elf_object object;
+  object.f = fopen(objectPath, "rb");
+  CreateLinkedList<elf_section*>(object.sections);
 
-  if (!object)
+  if (!(object.f))
   {
     fprintf(stderr, "FATAL: failed to open object to link against: '%s'!\n", objectPath);
     exit(1);
   }
 
   #define CONSUME(byte) \
-    if (fgetc(object) != byte) \
+    if (fgetc(object.f) != byte) \
     { \
       fprintf(stderr, "FATAL: Object file (%s) does not match expected format!\n", objectPath); \
     }
@@ -164,8 +300,21 @@ void LinkObject(elf_file& elf, const char* objectPath)
   CONSUME('L');
   CONSUME('F');
 
-  fclose(object);
-#undef CONSUME
+  // Check that it's a relocatable object
+  uint16_t fileType;
+  fseek(object.f, 0x10, SEEK_SET);
+  fread(&fileType, sizeof(uint16_t), 1, object.f);
+
+  if (fileType != ET_REL)
+  {
+    fprintf(stderr, "FATAL: Can only link relocatable object files!\n");
+    exit(1);
+  }
+
+  ParseSectionHeader(elf, object);
+
+  Free<elf_object>(object);
+  #undef CONSUME
 }
 
 template<>
@@ -289,17 +438,7 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
   {
     elf_symbol* symbol = **symbolIt;
 /*n + */
-    if (symbol->name)
-    {
-/*0x00*/fwrite(&(symbol->name->offset), sizeof(uint32_t), 1, f);
-    }
-    else
-    {
-/*0x00*/fputc(0x00, f);
-        fputc(0x00, f);
-        fputc(0x00, f);
-        fputc(0x00, f);
-    }
+/*0x00*/fwrite(&(symbol->nameOffset), sizeof(uint32_t), 1, f);
 /*0x04*/fwrite(&(symbol->info), sizeof(uint8_t), 1, f);
 /*0x05*/fputc(0x00, f);   // NOTE(Isaac): the `st_other` field, which is marked as reserved
 /*0x06*/fwrite(&(symbol->sectionIndex), sizeof(uint16_t), 1, f);
@@ -558,13 +697,17 @@ void Free<elf_relocation>(elf_relocation& /*relocation*/)
 template<>
 void Free<elf_string*>(elf_string*& string)
 {
+  if (string->owned)
+  {
+    free(const_cast<char*>(string->str));
+  }
+
   free(string);
 }
 
 template<>
 void Free<elf_symbol*>(elf_symbol*& symbol)
 {
-  Free<elf_string*>(symbol->name);
   free(symbol);
 }
 
@@ -577,7 +720,8 @@ void Free<elf_segment*>(elf_segment*& segment)
 template<>
 void Free<elf_section*>(elf_section*& section)
 {
-  Free<elf_string*>(section->name);
+  // NOTE(Isaac): don't free the name, it's added to the list of strings and would be freed twice!
+  
   free(section);
 }
 
@@ -593,4 +737,3 @@ void Free<elf_file>(elf_file& elf)
   FreeLinkedList<elf_relocation>(elf.relocations);
   Free<elf_thing*>(elf.rodataThing);
 }
-

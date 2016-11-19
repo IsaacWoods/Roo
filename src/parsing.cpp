@@ -548,8 +548,7 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
   return next;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
+#if 0
 static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
@@ -583,7 +582,7 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
     printf("PEEK_NEXT: %s\n", GetTokenName(PeekNextToken(parser, ignoreLines).type));
   }
 }
-#pragma GCC diagnostic pop
+#endif
 
 static inline void Consume(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
 {

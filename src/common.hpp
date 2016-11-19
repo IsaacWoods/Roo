@@ -23,9 +23,23 @@ struct linked_list
 
     T& operator*()
     {
-      return payload;
+      return this->payload;
     }
   } *first;
+
+  T& operator[](unsigned int i)
+  {
+    auto* it = this->first;
+
+    for (unsigned int j = 0u;
+         j < i;
+         j++)
+    {
+      it = it->next;
+    }
+
+    return **it;
+  }
 
   link* tail;
 };

@@ -34,6 +34,7 @@ struct elf_string
 {
   unsigned int  offset;
   const char*   str;
+  bool          owned;  // NOTE(Isaac): If true, the string will be freed when this is
 };
 
 #define SEGMENT_ATTRIB_X        0x1         // Marks the segment as executable
@@ -117,6 +118,7 @@ struct elf_section
   uint64_t      entrySize;  // Size of each section entry (if fixed, zero otherwise)
 
   unsigned int index;       // Index in the section header
+  unsigned int nameOffset;  // NOTE(Isaac): Used when parsing external objects before we can parse the string table
 };
 
 struct elf_mapping
@@ -155,15 +157,20 @@ enum symbol_type : uint8_t
   SYM_TYPE_OBJECT,
   SYM_TYPE_FUNCTION,
   SYM_TYPE_SECTION,
+  SYM_TYPE_FILE,
+  SYM_TYPE_LOOS,
+  SYM_TYPE_HIOS,
+  SYM_TYPE_LOPROC,
+  SYM_TYPE_HIPROC,
 };
 
 struct elf_symbol
 {
-  elf_string* name;
-  uint8_t     info;
-  uint16_t    sectionIndex;
-  uint64_t    value;
-  uint64_t    size;
+  uint32_t  nameOffset;
+  uint8_t   info;
+  uint16_t  sectionIndex;
+  uint64_t  value;
+  uint64_t  size;
 
   unsigned int index;   // Index of this symbol in the symbol table
 };

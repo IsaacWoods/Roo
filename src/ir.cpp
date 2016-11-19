@@ -61,6 +61,8 @@ variable_def* CreateVariableDef(char* name, char* typeName, node* initValue)
   var->type.isResolved = false;
   var->initValue = initValue;
   var->mostRecentSlot = nullptr;
+
+  return var;
 }
 
 function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
