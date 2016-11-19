@@ -84,7 +84,8 @@ char* MangleFunctionName(function_def* function)
 {
   const char* base = "_R_";
 
-  char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(function->name))));
+  // NOTE(Isaac): add one to leave space for an added null-terminator
+  char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(function->name) + 1u)));
   strcpy(mangled, base);
   strcat(mangled, function->name);
 
