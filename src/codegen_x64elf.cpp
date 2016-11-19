@@ -409,6 +409,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   LinkObject(elf, "./std/bootstrap.o");
   // ---
 
+  CompleteElf(elf);
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);
 }

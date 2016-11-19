@@ -166,13 +166,13 @@ enum symbol_type : uint8_t
 
 struct elf_symbol
 {
-  uint32_t  nameOffset;
-  uint8_t   info;
-  uint16_t  sectionIndex;
-  uint64_t  value;
-  uint64_t  size;
+  elf_string*   name;
+  uint8_t       info;
+  uint16_t      sectionIndex;
+  uint64_t      value;
+  uint64_t      size;
 
-  unsigned int index;   // Index of this symbol in the symbol table
+  unsigned int  index;   // Index of this symbol in the symbol table
 };
 
 /*
@@ -234,4 +234,5 @@ elf_section* CreateSection(elf_file& elf, const char* name, section_type type, u
 elf_section* GetSection(elf_file& elf, const char* name);
 void MapSection(elf_file& elf, elf_segment* segment, elf_section* section);
 void LinkObject(elf_file& elf, const char* objectPath);
+void CompleteElf(elf_file& elf);
 void WriteElf(elf_file& elf, const char* path);

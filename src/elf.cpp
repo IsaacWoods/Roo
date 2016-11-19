@@ -50,7 +50,7 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
                                 uint16_t sectionIndex, uint64_t value)
 {
   elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
-  symbol->nameOffset = (name ? CreateString(elf, name)->offset : 0u);
+  symbol->name = (name ? CreateString(elf, name) : nullptr);
   symbol->info = type;
   symbol->info |= binding << 4u;
   symbol->sectionIndex = sectionIndex;
@@ -70,10 +70,11 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
+/*
 elf_symbol* CreateSymbol(elf_file& elf, unsigned int nameOffset, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value)
 {
   elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
-  symbol->nameOffset = nameOffset;
+  symbol->name = nullptr;
   symbol->info = type;
   symbol->info |= binding << 4u;
   symbol->sectionIndex = sectionIndex;
@@ -81,6 +82,7 @@ elf_symbol* CreateSymbol(elf_file& elf, unsigned int nameOffset, symbol_binding 
   symbol->size = 0u;
 
   symbol->index = elf.numSymbols + 1u;
+  symbol->nameOffset = nameOffset;
 
   // Set the `info` field of the symbol table to the index of the first GLOBAL symbol
   if (GetSection(elf, ".symtab")->info == 0u && binding == SYM_BIND_GLOBAL)
@@ -92,6 +94,7 @@ elf_symbol* CreateSymbol(elf_file& elf, unsigned int nameOffset, symbol_binding 
   AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
   return symbol;
 }
+*/
 
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, uint32_t type, uint32_t symbolIndex, int64_t addend)
 {
@@ -324,9 +327,8 @@ static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* tab
       continue;
     }
   
-    elf_string* name = ExtractString(elf, object, stringTable, nameOffset);
-    printf("Linking symbol in from external object: '%s'\n", (name ? name->str : "NO_NAME"));
-    symbol->nameOffset = (name ? name->offset : 0u);
+    symbol->name = ExtractString(elf, object, stringTable, nameOffset);
+    printf("Linking symbol in from external object: '%s'\n", (symbol->name ? symbol->name->str : "NO_NAME"));
   
     // Emit a remap from the index of the symbol in the relocatable object to the index in our symbol table
     object.symbolRemaps[i] = symbol;
@@ -570,7 +572,17 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
     GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
 
 /*n + */
-/*0x00*/fwrite(&(symbol->nameOffset),   sizeof(uint32_t), 1, f);
+    if (symbol->name)
+    {
+/*0x00*/fwrite(&(symbol->name->offset), sizeof(uint32_t), 1, f);
+    }
+    else
+    {
+/*0x00*/fputc(0x00, f);
+/*0x01*/fputc(0x00, f);
+/*0x02*/fputc(0x00, f);
+/*0x03*/fputc(0x00, f);
+    }
 /*0x04*/fwrite(&(symbol->info),         sizeof(uint8_t) , 1, f);
 /*0x05*/fputc(0x00, f);   // NOTE(Isaac): the `st_other` field, which is marked as reserved
 /*0x06*/fwrite(&(symbol->sectionIndex), sizeof(uint16_t), 1, f);
@@ -617,6 +629,48 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
   }
 }
 
+/*
+ * This resolves the symbols in the symbol table that are actually referencing symbols
+ * that haven't been linked yet.
+ */
+static void ResolveUndefinedSymbols(elf_file& elf)
+{
+  for (auto* symbolIt = elf.symbols.first;
+       symbolIt;
+       symbolIt = symbolIt->next)
+  {
+    elf_symbol* symbol = **symbolIt;
+
+    // NOTE(Isaac): no work needs to be done for normal symbols
+    if (!(symbol->name) || symbol->sectionIndex != 0u)
+    {
+      continue;
+    }
+
+    for (auto* otherSymbolIt = elf.symbols.first;
+         otherSymbolIt;
+         otherSymbolIt = otherSymbolIt->next)
+    {
+      elf_symbol* other = **otherSymbolIt;
+
+      if (!(other->name))
+      {
+        continue;
+      }
+
+      if (strcmp(symbol->name->str, other->name->str) == 0u)
+      {
+        // TODO: coalesce the symbols
+        printf("Coalescing symbols with name: '%s'!\n", symbol->name->str);
+      }
+    }
+
+    // We can't find a matching symbol - throw an error
+    fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", symbol->name->str);
+    exit(1);
+  }
+}
+
 static void CompleteRelocations(FILE* f, elf_file& elf)
 {
   long int currentPosition = ftell(f);
@@ -630,6 +684,7 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
     uint32_t symbolIndex = (relocation.info >> 32u) & 0xffffffffL;
     elf_symbol* symbol = nullptr;
 
+    assert(relocation.thing);
     printf("Doing relocation at 0x%lx to symbol (%u)\n", relocation.offset, symbolIndex);
 
     for (auto* symbolIt = elf.symbols.first;
@@ -728,6 +783,11 @@ void CreateElf(elf_file& elf, codegen_target& target)
   elf.header.numProgramHeaderEntries = 0u;
   elf.header.numSectionHeaderEntries = 0u;
   elf.header.sectionWithSectionNames = 0u;
+}
+
+void CompleteElf(elf_file& elf)
+{
+  ResolveUndefinedSymbols(elf);
 }
 
 void WriteElf(elf_file& elf, const char* path)
@@ -843,6 +903,8 @@ void Free<elf_string*>(elf_string*& string)
 template<>
 void Free<elf_symbol*>(elf_symbol*& symbol)
 {
+  // NOTE(Isaac): don't free the name
+  
   free(symbol);
 }
 
