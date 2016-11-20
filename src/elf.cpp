@@ -203,6 +203,7 @@ void Free<elf_object>(elf_object& object)
 {
   fclose(object.f);
   FreeLinkedList<elf_section*>(object.sections);
+  // TODO
 //  free(object.symbolRemaps);
 }
 
@@ -300,7 +301,7 @@ static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* tab
 
   // NOTE(Isaac): start at 1 to skip the nulled symbol at the beginning
   for (unsigned int i = 1u;
-       i < numSymbols + 1u;
+       i < numSymbols;
        i++)
   {
     fseek(object.f, table->offset + i * SYMBOL_TABLE_ENTRY_SIZE, SEEK_SET);
@@ -639,35 +640,58 @@ static void ResolveUndefinedSymbols(elf_file& elf)
        symbolIt;
        symbolIt = symbolIt->next)
   {
-    elf_symbol* symbol = **symbolIt;
-
     // NOTE(Isaac): no work needs to be done for normal symbols
-    if (!(symbol->name) || symbol->sectionIndex != 0u)
+    if (!((**symbolIt)->name) || (**symbolIt)->sectionIndex != 0u)
     {
       continue;
     }
+
+    elf_symbol* undefinedSymbol = **symbolIt;
+    bool symbolResolved = false;
 
     for (auto* otherSymbolIt = elf.symbols.first;
          otherSymbolIt;
          otherSymbolIt = otherSymbolIt->next)
     {
-      elf_symbol* other = **otherSymbolIt;
-
-      if (!(other->name))
+      // NOTE(Isaac): don't try and coalesce with yourself!
+      if ((undefinedSymbol == **otherSymbolIt) || !((**otherSymbolIt)->name))
       {
         continue;
       }
 
-      if (strcmp(symbol->name->str, other->name->str) == 0u)
+      if (strcmp(undefinedSymbol->name->str, (**otherSymbolIt)->name->str) == 0u)
       {
-        // TODO: coalesce the symbols
-        printf("Coalescing symbols with name: '%s'!\n", symbol->name->str);
+        // NOTE(Isaac): Coalesce the symbols!
+        printf("Coalescing symbols with name: '%s'!\n", undefinedSymbol->name->str);
+        elf_symbol* partner = **otherSymbolIt;
+        RemoveFromLinkedList<elf_symbol*>(elf.symbols, undefinedSymbol);
+        symbolResolved = true;
+
+        // Point relocations that refer to the undefined symbol to its defined partner
+        for (auto* relocationIt = elf.relocations.first;
+             relocationIt;
+             relocationIt = relocationIt->next)
+        {
+          elf_relocation& relocation = **relocationIt;
+          uint32_t symbolIndex = (relocation.info >> 32u) & 0xffffffffL;
+
+          if (symbolIndex == undefinedSymbol->index)
+          {
+            printf("Correcting relocation!\n");
+            relocation.info = (static_cast<uint64_t>(partner->index) << 32u) + (relocation.info & 0xffffffffL);
+          }
+        }
+
+        break;
       }
     }
 
-    // We can't find a matching symbol - throw an error
-    fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", symbol->name->str);
-    exit(1);
+    if (!symbolResolved)
+    {
+      // We can't find a matching symbol - throw an error
+      fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", undefinedSymbol->name->str);
+      exit(1);
+    }
   }
 }
 
@@ -823,7 +847,8 @@ void WriteElf(elf_file& elf, const char* path)
   EmitSymbolTable(f, elf, elf.symbols);
 
   // --- Do all the relocations ---
-  CompleteRelocations(f, elf);
+  // TODO: turn relocations back on!
+//  CompleteRelocations(f, elf);
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);

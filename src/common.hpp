@@ -104,6 +104,36 @@ void AddToLinkedList(linked_list<T>& list, T thing)
   }
 }
 
+template<typename T>
+void RemoveFromLinkedList(linked_list<T>& list, T thing)
+{
+  if ((**(list.first)) == thing)
+  {
+    typename linked_list<T>::link* newFirst = list.first->next;
+    Free<T>(**(list.first));
+    free(list.first);
+    list.first = newFirst;
+    return;
+  }
+
+  typename linked_list<T>::link* previous = list.first;
+  for (auto* it = list.first->next;
+       it;
+       it = it->next)
+  {
+    if (**it == thing)
+    {
+      typename linked_list<T>::link* newNext = it->next;
+      Free<T>(**it);
+      free(it);
+      previous->next = newNext;
+      return;
+    }
+
+    previous = it;
+  }
+}
+
 // O(n)
 template<typename T>
 unsigned int GetSizeOfLinkedList(linked_list<T>& list)
