@@ -104,6 +104,7 @@ void AddToLinkedList(linked_list<T>& list, T thing)
   }
 }
 
+// O(n) (I think)
 template<typename T>
 void RemoveFromLinkedList(linked_list<T>& list, T thing)
 {
@@ -148,6 +149,50 @@ unsigned int GetSizeOfLinkedList(linked_list<T>& list)
   }
 
   return size;
+}
+
+// O(terrible)
+template<typename T>
+void SortLinkedList(linked_list<T>& list, bool (*evaluationFn)(T& a, T& b))
+{
+  if (!(list.first))
+  {
+    return;
+  }
+
+  typename linked_list<T>::link* head = nullptr;
+
+  while (list.first)
+  {
+    typename linked_list<T>::link* current = list.first;
+    list.first = list.first->next;
+
+    if (!head || (*evaluationFn)(**current, **head))
+    {
+      // Insert onto the head of the sorted list
+      current->next = head;
+      head = current;
+    }
+    else
+    {
+      typename linked_list<T>::link* p = head;
+
+      while (p)
+      {
+        if (!(p->next) || (*evaluationFn)(**current, **(p->next)))
+        {
+          // Insert into the middle of the sorted list
+          current->next = p->next;
+          p->next = current;
+          break;
+        }
+
+        p = p->next;
+      }
+    }
+  }
+
+  list.first = head;
 }
 
 // O(n)

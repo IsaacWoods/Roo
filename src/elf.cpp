@@ -70,32 +70,6 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
-/*
-elf_symbol* CreateSymbol(elf_file& elf, unsigned int nameOffset, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value)
-{
-  elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
-  symbol->name = nullptr;
-  symbol->info = type;
-  symbol->info |= binding << 4u;
-  symbol->sectionIndex = sectionIndex;
-  symbol->value = value;
-  symbol->size = 0u;
-
-  symbol->index = elf.numSymbols + 1u;
-  symbol->nameOffset = nameOffset;
-
-  // Set the `info` field of the symbol table to the index of the first GLOBAL symbol
-  if (GetSection(elf, ".symtab")->info == 0u && binding == SYM_BIND_GLOBAL)
-  {
-    GetSection(elf, ".symtab")->info = elf.numSymbols;
-  }
-
-  elf.numSymbols++;
-  AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
-  return symbol;
-}
-*/
-
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, uint32_t type, uint32_t symbolIndex, int64_t addend)
 {
   elf_relocation relocation;
@@ -193,6 +167,7 @@ struct elf_object
 {
   FILE*                     f;
   linked_list<elf_section*> sections;
+  linked_list<elf_symbol*>  symbols;    // NOTE(Isaac): these should be *unlinked*, NOT freed
 
   elf_symbol**              symbolRemaps;
   unsigned int              numRemaps;
@@ -203,6 +178,7 @@ void Free<elf_object>(elf_object& object)
 {
   fclose(object.f);
   FreeLinkedList<elf_section*>(object.sections);
+  UnlinkLinkedList<elf_symbol*>(object.symbols);
   // TODO
 //  free(object.symbolRemaps);
 }
@@ -251,7 +227,7 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
        i++)
   {
     elf_section* section = static_cast<elf_section*>(malloc(sizeof(elf_section)));
-    section->index = UINT_MAX;
+    section->index = i; // NOTE(Isaac): this is the index in the *external object*, not our executable
  
     /*
      * NOTE(Isaac): We don't know where the string table is yet, so we can't load the section names for now
@@ -329,13 +305,13 @@ static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* tab
     }
   
     symbol->name = ExtractString(elf, object, stringTable, nameOffset);
-    printf("Linking symbol in from external object: '%s'\n", (symbol->name ? symbol->name->str : "NO_NAME"));
   
     // Emit a remap from the index of the symbol in the relocatable object to the index in our symbol table
     object.symbolRemaps[i] = symbol;
 
     elf.numSymbols++;
     AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
+    AddToLinkedList<elf_symbol*>(object.symbols, symbol);
   }
 }
 
@@ -386,6 +362,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
   elf_object object;
   object.f = fopen(objectPath, "rb");
   CreateLinkedList<elf_section*>(object.sections);
+  CreateLinkedList<elf_symbol*>(object.symbols);
 
   if (!(object.f))
   {
@@ -416,8 +393,8 @@ void LinkObject(elf_file& elf, const char* objectPath)
     exit(1);
   }
 
+  // Parse the section header
   ParseSectionHeader(elf, object);
-
   for (auto* sectionIt = object.sections.first;
        sectionIt;
        sectionIt = sectionIt->next)
@@ -446,6 +423,82 @@ void LinkObject(elf_file& elf, const char* objectPath)
     }
   }
 
+  // Find the .text section
+  elf_section* text = nullptr;
+  for (auto* sectionIt = object.sections.first;
+       sectionIt;
+       sectionIt = sectionIt->next)
+  {
+    if (!((**sectionIt)->name))
+    {
+      continue;
+    }
+
+    if (strcmp((**sectionIt)->name->str, ".text") == 0)
+    {
+      text = **sectionIt;
+      break;
+    }
+  }
+
+  /*
+   * NOTE(Isaac): this *borrows* symbols from the actual symbol table - don't free it, just unlink it!
+   */
+  linked_list<elf_symbol*> functionSymbols;
+  CreateLinkedList<elf_symbol*>(functionSymbols);
+
+  // Extract functions from the symbol table and their code from .text
+  for (auto* symbolIt = object.symbols.first;
+       symbolIt;
+       symbolIt = symbolIt->next)
+  {
+    elf_symbol* symbol = **symbolIt;
+
+    /*
+     * NOTE(Isaac): NASM refuses to emit symbols for functions with the correct type,
+     * so assume that symbols with no type that are in .text are also functions
+     */
+    if ((symbol->info & 0xf) == SYM_TYPE_FUNCTION ||
+        ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
+    {
+      AddToLinkedList<elf_symbol*>(functionSymbols, symbol);
+    }
+  }
+
+  // Sort the linked list by the symbols' values (offsets into .text)
+  SortLinkedList<elf_symbol*>(functionSymbols, [](elf_symbol*& a, elf_symbol*& b)
+    {
+      return (a->value < b->value);
+    });
+
+  for (auto* symbolIt = functionSymbols.first;
+       symbolIt;
+       symbolIt = symbolIt->next)
+  {
+    elf_symbol* symbol = **symbolIt;
+
+    if (symbolIt->next)
+    {
+      symbol->size = (**(symbolIt->next))->value - symbol->value;
+    }
+    else
+    {
+      symbol->size = text->size - symbol->value;
+    }
+
+    printf("Extracting function from external object '%s' at 0x%lx (size=%lu)\n", symbol->name->str, symbol->value, symbol->size);
+
+    // TODO: find the size of the function
+    // TODO: allocate the correct amount of space in the thing
+    // TODO: extract the data from the right part of .text and move it into the thing
+    // TODO: remove the old symbol from the symbol table
+    // TODO: add the thing to the list to be emitted
+    
+    elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
+    thing->symbol = CreateSymbol(elf, symbol->name->str, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
+  }
+
+  UnlinkLinkedList<elf_symbol*>(functionSymbols);
   Free<elf_object>(object);
   #undef CONSUME
 }
@@ -620,6 +673,7 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
 {
   GetSection(elf, ".text")->size += thing->length;
   thing->symbol->value = GetSection(elf, ".text")->address + ftell(f) - GetSection(elf, ".text")->offset;
+  thing->symbol->size = thing->length;
   thing->fileOffset = ftell(f);
 
   for (unsigned int i = 0u;
@@ -809,6 +863,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   elf.header.sectionWithSectionNames = 0u;
 }
 
+template<> void Free<int>(int&) {}
 void CompleteElf(elf_file& elf)
 {
   ResolveUndefinedSymbols(elf);
