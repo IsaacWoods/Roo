@@ -353,7 +353,8 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
       exit(1);
     }
 
-    AddToLinkedList<elf_relocation>(elf.relocations, relocation);
+//    printf("Adding relocation with offset=0x%lx, info=0x%lx, addend=%lu\n", relocation.offset, relocation.info, relocation.addend);
+//    AddToLinkedList<elf_relocation>(elf.relocations, relocation);
   }
 }
 
@@ -488,14 +489,29 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
     printf("Extracting function from external object '%s' at 0x%lx (size=%lu)\n", symbol->name->str, symbol->value, symbol->size);
 
-    // TODO: find the size of the function
-    // TODO: allocate the correct amount of space in the thing
     // TODO: extract the data from the right part of .text and move it into the thing
     // TODO: remove the old symbol from the symbol table
     // TODO: add the thing to the list to be emitted
     
     elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
     thing->symbol = CreateSymbol(elf, symbol->name->str, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
+    thing->length = symbol->size;
+    thing->capacity = symbol->size;
+    thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * symbol->size));
+    thing->fileOffset = 0u;
+    thing->address = 0u;
+
+    /*
+     * NOTE(Isaac): The symbol's value currently points to the offset in the external object's .text section
+     */
+    fseek(object.f, text->offset + symbol->value, SEEK_SET);
+    fread(thing->data, sizeof(uint8_t), symbol->size, object.f);
+    AddToLinkedList<elf_thing*>(elf.things, thing);
+
+    /*
+     * We create a new symbol for the function, so remove the old one
+     */
+    RemoveFromLinkedList<elf_symbol*>(elf.symbols, symbol);
   }
 
   UnlinkLinkedList<elf_symbol*>(functionSymbols);
@@ -902,8 +918,7 @@ void WriteElf(elf_file& elf, const char* path)
   EmitSymbolTable(f, elf, elf.symbols);
 
   // --- Do all the relocations ---
-  // TODO: turn relocations back on!
-//  CompleteRelocations(f, elf);
+//  CompleteRelocations(f, elf); TODO
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
@@ -984,7 +999,6 @@ template<>
 void Free<elf_symbol*>(elf_symbol*& symbol)
 {
   // NOTE(Isaac): don't free the name
-  
   free(symbol);
 }
 
@@ -998,7 +1012,6 @@ template<>
 void Free<elf_section*>(elf_section*& section)
 {
   // NOTE(Isaac): don't free the name, it's added to the list of strings and would be freed twice!
-  
   free(section);
 }
 
