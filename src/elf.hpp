@@ -127,19 +127,6 @@ struct elf_mapping
   elf_section* section;
 };
 
-#define R_X86_64_64   1u
-#define R_X86_64_PC32 2u
-#define R_X86_64_32   10u
-
-struct elf_thing;
-struct elf_relocation
-{
-  elf_thing*  thing;
-  uint64_t    offset; // The offset from the beginning of `thing` to apply the relocation to
-  uint64_t    info;
-  int64_t     addend;
-};
-
 enum symbol_binding : uint8_t
 {
   SYM_BIND_LOCAL      = 0x0,
@@ -189,6 +176,22 @@ struct elf_thing
   unsigned int address;
 };
 
+enum relocation_type : uint32_t
+{
+  R_X86_64_64   = 1u,
+  R_X86_64_PC32 = 2u,
+  R_X86_64_32   = 10u,
+};
+
+struct elf_relocation
+{
+  elf_thing*      thing;
+  uint64_t        offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
+  relocation_type type;
+  elf_symbol*     symbol;
+  int64_t         addend;
+};
+
 // NOTE(Isaac): do not call this directly!
 template<typename T>
 void Emit_(elf_thing* thing, T);
@@ -211,23 +214,23 @@ struct elf_symbol;
 
 struct elf_file
 {
-  codegen_target*             target;
-  elf_header                  header;
-  linked_list<elf_segment*>   segments;
-  linked_list<elf_section*>   sections;
-  linked_list<elf_thing*>     things;
-  linked_list<elf_symbol*>    symbols;
-  linked_list<elf_string*>    strings;
-  linked_list<elf_mapping>    mappings;
-  linked_list<elf_relocation> relocations;
-  unsigned int                stringTableTail; // Tail of the string table, relative to the start of the table
-  unsigned int                numSymbols;
-  elf_thing*                  rodataThing;
+  codegen_target*               target;
+  elf_header                    header;
+  linked_list<elf_segment*>     segments;
+  linked_list<elf_section*>     sections;
+  linked_list<elf_thing*>       things;
+  linked_list<elf_symbol*>      symbols;
+  linked_list<elf_string*>      strings;
+  linked_list<elf_mapping>      mappings;
+  linked_list<elf_relocation*>  relocations;
+  unsigned int                  stringTableTail; // Tail of the string table, relative to the start of the table
+  unsigned int                  numSymbols;
+  elf_thing*                    rodataThing;
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, uint32_t type, uint32_t symbolIndex, int64_t addend);
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend);
 elf_thing* CreateThing(elf_file& elf, const char* name);
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);

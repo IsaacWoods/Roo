@@ -70,16 +70,16 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, uint32_t type, uint32_t symbolIndex, int64_t addend)
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend)
 {
-  elf_relocation relocation;
-  relocation.thing = thing;
-  relocation.offset = offset;
-  relocation.info = static_cast<uint64_t>(symbolIndex) << 32u;
-  relocation.info |= type & 0xffffffffL;
-  relocation.addend = addend;
+  elf_relocation* relocation = static_cast<elf_relocation*>(malloc(sizeof(elf_relocation)));
+  relocation->thing   = thing;
+  relocation->offset  = offset;
+  relocation->type    = type;
+  relocation->symbol  = symbol;
+  relocation->addend  = addend;
 
-  AddToLinkedList<elf_relocation>(elf.relocations, relocation);
+  AddToLinkedList<elf_relocation*>(elf.relocations, relocation);
 }
 
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment)
@@ -165,12 +165,14 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
 
 struct elf_object
 {
-  FILE*                     f;
-  linked_list<elf_section*> sections;
-  linked_list<elf_symbol*>  symbols;    // NOTE(Isaac): these should be *unlinked*, NOT freed
+  FILE*                         f;
+  linked_list<elf_section*>     sections;
+  linked_list<elf_symbol*>      symbols;      // NOTE(Isaac): these should be *unlinked*, NOT freed
+  linked_list<elf_relocation*>  relocations;  // NOTE(Isaac): these should be *unlinked*; they're not dynamically allocated
+  linked_list<elf_thing*>       things;       // NOTE(Isaac): should be unlinked
 
-  elf_symbol**              symbolRemaps;
-  unsigned int              numRemaps;
+  elf_symbol**                  symbolRemaps;
+  unsigned int                  numRemaps;
 };
 
 template<>
@@ -179,6 +181,8 @@ void Free<elf_object>(elf_object& object)
   fclose(object.f);
   FreeLinkedList<elf_section*>(object.sections);
   UnlinkLinkedList<elf_symbol*>(object.symbols);
+  UnlinkLinkedList<elf_relocation*>(object.relocations);
+  UnlinkLinkedList<elf_thing*>(object.things);
   // TODO
 //  free(object.symbolRemaps);
 }
@@ -332,29 +336,26 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
        i++)
   {
     fseek(object.f, section->offset + i * RELOCATION_ENTRY_SIZE, SEEK_SET);
-    elf_relocation relocation;
-    relocation.thing = nullptr;
+    elf_relocation* relocation = static_cast<elf_relocation*>(malloc(sizeof(elf_relocation)));
+    relocation->thing = nullptr;
 
-    /*0x00*/fread(&(relocation.offset),  sizeof(uint64_t), 1, object.f);
-    /*0x08*/fread(&(relocation.info),    sizeof(uint64_t), 1, object.f);
-    /*0x10*/fread(&(relocation.addend),  sizeof(int64_t) , 1, object.f);
+    uint64_t info;
+    /*0x00*/fread(&(relocation->offset),  sizeof(uint64_t), 1, object.f);
+    /*0x08*/fread(&info,                  sizeof(uint64_t), 1, object.f);
+    /*0x10*/fread(&(relocation->addend),  sizeof(int64_t) , 1, object.f);
     /*0x18*/
 
-    // Correct the symbol mapping to point to the one in our symbol table
-    elf_symbol* symbol = object.symbolRemaps[(relocation.info >> 32u) & 0xffffffffL];
+    relocation->type = static_cast<relocation_type>(info & 0xffffffffL);
+    relocation->symbol = object.symbolRemaps[(info >> 32u) & 0xffffffffL];
 
-    if (symbol)
+    if (!(relocation->symbol))
     {
-      relocation.info = (static_cast<uint64_t>(symbol->index) << 32u) | (relocation.info & 0xffffffffL);
-    }
-    else
-    {
-      printf("FATAL: Failed to find remapped symbol for relocation!\n");
+      printf("FATAL: Failed to find resolve symbol used in an external relocation!\n");
       exit(1);
     }
 
-//    printf("Adding relocation with offset=0x%lx, info=0x%lx, addend=%lu\n", relocation.offset, relocation.info, relocation.addend);
-//    AddToLinkedList<elf_relocation>(elf.relocations, relocation);
+    AddToLinkedList<elf_relocation*>(elf.relocations, relocation);
+    AddToLinkedList<elf_relocation*>(object.relocations, relocation);
   }
 }
 
@@ -364,6 +365,8 @@ void LinkObject(elf_file& elf, const char* objectPath)
   object.f = fopen(objectPath, "rb");
   CreateLinkedList<elf_section*>(object.sections);
   CreateLinkedList<elf_symbol*>(object.symbols);
+  CreateLinkedList<elf_relocation*>(object.relocations);
+  CreateLinkedList<elf_thing*>(object.things);
 
   if (!(object.f))
   {
@@ -472,11 +475,13 @@ void LinkObject(elf_file& elf, const char* objectPath)
       return (a->value < b->value);
     });
 
+  // Extract functions from the external object and link them into ourselves
   for (auto* symbolIt = functionSymbols.first;
        symbolIt;
        symbolIt = symbolIt->next)
   {
     elf_symbol* symbol = **symbolIt;
+    assert(symbol->name); // NOTE(Isaac): functions should probably always have names
 
     if (symbolIt->next)
     {
@@ -487,19 +492,15 @@ void LinkObject(elf_file& elf, const char* objectPath)
       symbol->size = text->size - symbol->value;
     }
 
-    printf("Extracting function from external object '%s' at 0x%lx (size=%lu)\n", symbol->name->str, symbol->value, symbol->size);
+    printf("Extracting function from external object '%s' from 0x%lx\n", symbol->name->str, symbol->value);
 
-    // TODO: extract the data from the right part of .text and move it into the thing
-    // TODO: remove the old symbol from the symbol table
-    // TODO: add the thing to the list to be emitted
-    
     elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
     thing->symbol = CreateSymbol(elf, symbol->name->str, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
     thing->length = symbol->size;
     thing->capacity = symbol->size;
     thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * symbol->size));
     thing->fileOffset = 0u;
-    thing->address = 0u;
+    thing->address = symbol->value;  // NOTE(Isaac): Before it's linked, this is the original offset from the file
 
     /*
      * NOTE(Isaac): The symbol's value currently points to the offset in the external object's .text section
@@ -507,11 +508,35 @@ void LinkObject(elf_file& elf, const char* objectPath)
     fseek(object.f, text->offset + symbol->value, SEEK_SET);
     fread(thing->data, sizeof(uint8_t), symbol->size, object.f);
     AddToLinkedList<elf_thing*>(elf.things, thing);
+    AddToLinkedList<elf_thing*>(object.things, thing);
 
     /*
      * We create a new symbol for the function, so remove the old one
      */
     RemoveFromLinkedList<elf_symbol*>(elf.symbols, symbol);
+  }
+
+  // Complete the relocations loaded from the external object
+  for (auto* it = object.relocations.first;
+       it;
+       it = it->next)
+  {
+    elf_relocation* relocation = **it;
+
+    for (auto* thingIt = object.things.first;
+         thingIt;
+         thingIt = thingIt->next)
+    {
+      elf_thing* thing = **thingIt;
+
+      // NOTE(Isaac): the address should still be the offset in the external object's .text section
+      if ((relocation->offset >= thing->address) &&
+          (relocation->offset < thing->address + thing->length))
+      {
+        relocation->thing = thing;
+        continue;
+      }
+    }
   }
 
   UnlinkLinkedList<elf_symbol*>(functionSymbols);
@@ -691,6 +716,7 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
   thing->symbol->value = GetSection(elf, ".text")->address + ftell(f) - GetSection(elf, ".text")->offset;
   thing->symbol->size = thing->length;
   thing->fileOffset = ftell(f);
+  thing->address = GetSection(elf, ".text")->address + (thing->fileOffset - GetSection(elf, ".text")->offset);
 
   for (unsigned int i = 0u;
        i < thing->length;
@@ -710,7 +736,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
        symbolIt;
        symbolIt = symbolIt->next)
   {
-    // NOTE(Isaac): no work needs to be done for normal symbols
+    // No work needs to be done for defined
     if (!((**symbolIt)->name) || (**symbolIt)->sectionIndex != 0u)
     {
       continue;
@@ -731,8 +757,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
 
       if (strcmp(undefinedSymbol->name->str, (**otherSymbolIt)->name->str) == 0u)
       {
-        // NOTE(Isaac): Coalesce the symbols!
-        printf("Coalescing symbols with name: '%s'!\n", undefinedSymbol->name->str);
+        // Coalesce the symbols!
         elf_symbol* partner = **otherSymbolIt;
         RemoveFromLinkedList<elf_symbol*>(elf.symbols, undefinedSymbol);
         symbolResolved = true;
@@ -742,13 +767,11 @@ static void ResolveUndefinedSymbols(elf_file& elf)
              relocationIt;
              relocationIt = relocationIt->next)
         {
-          elf_relocation& relocation = **relocationIt;
-          uint32_t symbolIndex = (relocation.info >> 32u) & 0xffffffffL;
+          elf_relocation* relocation = **relocationIt;
 
-          if (symbolIndex == undefinedSymbol->index)
+          if (relocation->symbol->index == undefinedSymbol->index)
           {
-            printf("Correcting relocation!\n");
-            relocation.info = (static_cast<uint64_t>(partner->index) << 32u) + (relocation.info & 0xffffffffL);
+            relocation->symbol = partner;
           }
         }
 
@@ -765,6 +788,32 @@ static void ResolveUndefinedSymbols(elf_file& elf)
   }
 }
 
+const char* GetRelocationTypeName(relocation_type type)
+{
+  switch (type)
+  {
+    case R_X86_64_64:
+    {
+      return "R_X86_64_64";
+    } break;
+
+    case R_X86_64_PC32:
+    {
+      return "R_X86_64_PC32";
+    } break;
+
+    case R_X86_64_32:
+    {
+      return "R_X86_64_32";
+    } break;
+
+    default:
+    {
+      return "!!!UNHANDLED RELOCATION TYPE IN GetRelocationTypeName!!!";
+    } break;
+  }
+}
+
 static void CompleteRelocations(FILE* f, elf_file& elf)
 {
   long int currentPosition = ftell(f);
@@ -773,59 +822,47 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
        relocationIt;
        relocationIt = relocationIt->next)
   {
-    elf_relocation& relocation = **relocationIt;
-    uint32_t type = relocation.info & 0xffffffffL;
-    uint32_t symbolIndex = (relocation.info >> 32u) & 0xffffffffL;
-    elf_symbol* symbol = nullptr;
-
-    assert(relocation.thing);
-    printf("Doing relocation at 0x%lx to symbol (%u)\n", relocation.offset, symbolIndex);
-
-    for (auto* symbolIt = elf.symbols.first;
-         symbolIt;
-         symbolIt = symbolIt->next)
-    {
-      if ((**symbolIt)->index == symbolIndex)
-      {
-        symbol = **symbolIt;
-        break;
-      }
-    }
-
-    if (!symbol)
-    {
-      fprintf(stderr, "FATAL: Failed to resolve symbol for relocation (Index: %u)!\n", symbolIndex);
-      exit(1);
-    }
+    elf_relocation* relocation = **relocationIt;
+    assert(relocation->thing);
+    assert(relocation->symbol);
 
     // Go to the correct position in the ELF file to apply the relocation
-    uint64_t target = relocation.thing->fileOffset + relocation.offset;
+    uint64_t target = relocation->thing->fileOffset + relocation->offset;
     fseek(f, target, SEEK_SET);
 
-    switch (type)
+    if (relocation->symbol->name)
+    {
+      printf("Doing relocation at 0x%lx to symbol '%s'\n", target, relocation->symbol->name->str);
+    }
+    else
+    {
+      printf("Doing relocation at 0x%lx to symbol with no name (index=%u)\n", target, relocation->symbol->index);
+    }
+
+    switch (relocation->type)
     {
       case R_X86_64_64:     // S + A
       {
-        uint64_t value = symbol->value + relocation.addend;
+        uint64_t value = relocation->symbol->value + relocation->addend;
         fwrite(&value, sizeof(uint64_t), 1, f);
       } break;
 
       case R_X86_64_PC32:   // S + A - P
       {
         uint32_t relocationPos = GetSection(elf, ".text")->address + target - GetSection(elf, ".text")->offset;
-        uint32_t value = (symbol->value + relocation.addend) - relocationPos;
+        uint32_t value = (relocation->symbol->value + relocation->addend) - relocationPos;
         fwrite(&value, sizeof(uint32_t), 1, f);
       } break;
 
       case R_X86_64_32:     // S + A
       {
-        uint32_t value = symbol->value + relocation.addend;
+        uint32_t value = relocation->symbol->value + relocation->addend;
         fwrite(&value, sizeof(uint32_t), 1, f);
       } break;
 
       default:
       {
-        fprintf(stderr, "FATAL: Unhandled relocation type (%u)!\n", type);
+        fprintf(stderr, "FATAL: Unhandled relocation->type (%s)!\n", GetRelocationTypeName(relocation->type));
         exit(1);
       }
     }
@@ -865,7 +902,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   CreateLinkedList<elf_section*>(elf.sections);
   CreateLinkedList<elf_string*>(elf.strings);
   CreateLinkedList<elf_mapping>(elf.mappings);
-  CreateLinkedList<elf_relocation>(elf.relocations);
+  CreateLinkedList<elf_relocation*>(elf.relocations);
   elf.stringTableTail = 1u;
   elf.numSymbols = 0u;
   elf.rodataThing = nullptr;
@@ -918,7 +955,7 @@ void WriteElf(elf_file& elf, const char* path)
   EmitSymbolTable(f, elf, elf.symbols);
 
   // --- Do all the relocations ---
-//  CompleteRelocations(f, elf); TODO
+  CompleteRelocations(f, elf);
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
@@ -980,8 +1017,9 @@ void Free<elf_mapping>(elf_mapping& /*mapping*/)
 }
 
 template<>
-void Free<elf_relocation>(elf_relocation& /*relocation*/)
+void Free<elf_relocation*>(elf_relocation*& relocation)
 {
+  free(relocation);
 }
 
 template<>
@@ -1024,6 +1062,6 @@ void Free<elf_file>(elf_file& elf)
   FreeLinkedList<elf_symbol*>(elf.symbols);
   FreeLinkedList<elf_string*>(elf.strings);
   FreeLinkedList<elf_mapping>(elf.mappings);
-  FreeLinkedList<elf_relocation>(elf.relocations);
+  FreeLinkedList<elf_relocation*>(elf.relocations);
   Free<elf_thing*>(elf.rodataThing);
 }
