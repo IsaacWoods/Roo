@@ -23,9 +23,23 @@ struct linked_list
 
     T& operator*()
     {
-      return payload;
+      return this->payload;
     }
   } *first;
+
+  T& operator[](unsigned int i)
+  {
+    auto* it = this->first;
+
+    for (unsigned int j = 0u;
+         j < i;
+         j++)
+    {
+      it = it->next;
+    }
+
+    return **it;
+  }
 
   link* tail;
 };
@@ -90,6 +104,37 @@ void AddToLinkedList(linked_list<T>& list, T thing)
   }
 }
 
+// O(n) (I think)
+template<typename T>
+void RemoveFromLinkedList(linked_list<T>& list, T thing)
+{
+  if ((**(list.first)) == thing)
+  {
+    typename linked_list<T>::link* newFirst = list.first->next;
+    Free<T>(**(list.first));
+    free(list.first);
+    list.first = newFirst;
+    return;
+  }
+
+  typename linked_list<T>::link* previous = list.first;
+  for (auto* it = list.first->next;
+       it;
+       it = it->next)
+  {
+    if (**it == thing)
+    {
+      typename linked_list<T>::link* newNext = it->next;
+      Free<T>(**it);
+      free(it);
+      previous->next = newNext;
+      return;
+    }
+
+    previous = it;
+  }
+}
+
 // O(n)
 template<typename T>
 unsigned int GetSizeOfLinkedList(linked_list<T>& list)
@@ -104,6 +149,50 @@ unsigned int GetSizeOfLinkedList(linked_list<T>& list)
   }
 
   return size;
+}
+
+// O(terrible)
+template<typename T>
+void SortLinkedList(linked_list<T>& list, bool (*evaluationFn)(T& a, T& b))
+{
+  if (!(list.first))
+  {
+    return;
+  }
+
+  typename linked_list<T>::link* head = nullptr;
+
+  while (list.first)
+  {
+    typename linked_list<T>::link* current = list.first;
+    list.first = list.first->next;
+
+    if (!head || (*evaluationFn)(**current, **head))
+    {
+      // Insert onto the head of the sorted list
+      current->next = head;
+      head = current;
+    }
+    else
+    {
+      typename linked_list<T>::link* p = head;
+
+      while (p)
+      {
+        if (!(p->next) || (*evaluationFn)(**current, **(p->next)))
+        {
+          // Insert into the middle of the sorted list
+          current->next = p->next;
+          p->next = current;
+          break;
+        }
+
+        p = p->next;
+      }
+    }
+  }
+
+  list.first = head;
 }
 
 // O(n)

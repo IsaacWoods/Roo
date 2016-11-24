@@ -11,6 +11,5 @@ fn Potato(x : int) -> int
 #[Entry]
 fn Main(y : int) -> int
 {
-  Print("Hello, World!\n")
   return 0
 }

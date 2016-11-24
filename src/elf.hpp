@@ -34,6 +34,7 @@ struct elf_string
 {
   unsigned int  offset;
   const char*   str;
+  bool          owned;  // NOTE(Isaac): If true, the string will be freed when this is
 };
 
 #define SEGMENT_ATTRIB_X        0x1         // Marks the segment as executable
@@ -117,25 +118,13 @@ struct elf_section
   uint64_t      entrySize;  // Size of each section entry (if fixed, zero otherwise)
 
   unsigned int index;       // Index in the section header
+  unsigned int nameOffset;  // NOTE(Isaac): Used when parsing external objects before we can parse the string table
 };
 
 struct elf_mapping
 {
   elf_segment* segment;
   elf_section* section;
-};
-
-#define R_X86_64_64   1u
-#define R_X86_64_PC32 2u
-#define R_X86_64_32   10u
-
-struct elf_thing;
-struct elf_relocation
-{
-  elf_thing*  thing;
-  uint64_t    offset; // The offset from the beginning of `thing` to apply the relocation to
-  uint64_t    info;
-  int64_t     addend;
 };
 
 enum symbol_binding : uint8_t
@@ -155,17 +144,22 @@ enum symbol_type : uint8_t
   SYM_TYPE_OBJECT,
   SYM_TYPE_FUNCTION,
   SYM_TYPE_SECTION,
+  SYM_TYPE_FILE,
+  SYM_TYPE_LOOS,
+  SYM_TYPE_HIOS,
+  SYM_TYPE_LOPROC,
+  SYM_TYPE_HIPROC,
 };
 
 struct elf_symbol
 {
-  elf_string* name;
-  uint8_t     info;
-  uint16_t    sectionIndex;
-  uint64_t    value;
-  uint64_t    size;
+  elf_string*   name;
+  uint8_t       info;
+  uint16_t      sectionIndex;
+  uint64_t      value;
+  uint64_t      size;
 
-  unsigned int index;   // Index of this symbol in the symbol table
+  unsigned int  index;   // Index of this symbol in the symbol table
 };
 
 /*
@@ -180,6 +174,22 @@ struct elf_thing
 
   unsigned int fileOffset;
   unsigned int address;
+};
+
+enum relocation_type : uint32_t
+{
+  R_X86_64_64   = 1u,
+  R_X86_64_PC32 = 2u,
+  R_X86_64_32   = 10u,
+};
+
+struct elf_relocation
+{
+  elf_thing*      thing;
+  uint64_t        offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
+  relocation_type type;
+  elf_symbol*     symbol;
+  int64_t         addend;
 };
 
 // NOTE(Isaac): do not call this directly!
@@ -204,26 +214,28 @@ struct elf_symbol;
 
 struct elf_file
 {
-  codegen_target*             target;
-  elf_header                  header;
-  linked_list<elf_segment*>   segments;
-  linked_list<elf_section*>   sections;
-  linked_list<elf_thing*>     things;
-  linked_list<elf_symbol*>    symbols;
-  linked_list<elf_string*>    strings;
-  linked_list<elf_mapping>    mappings;
-  linked_list<elf_relocation> relocations;
-  unsigned int                stringTableTail; // Tail of the string table, relative to the start of the table
-  unsigned int                numSymbols;
-  elf_thing*                  rodataThing;
+  codegen_target*               target;
+  elf_header                    header;
+  linked_list<elf_segment*>     segments;
+  linked_list<elf_section*>     sections;
+  linked_list<elf_thing*>       things;
+  linked_list<elf_symbol*>      symbols;
+  linked_list<elf_string*>      strings;
+  linked_list<elf_mapping>      mappings;
+  linked_list<elf_relocation*>  relocations;
+  unsigned int                  stringTableTail; // Tail of the string table, relative to the start of the table
+  unsigned int                  numSymbols;
+  elf_thing*                    rodataThing;
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, uint32_t type, uint32_t symbolIndex, int64_t addend);
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend);
 elf_thing* CreateThing(elf_file& elf, const char* name);
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);
 void MapSection(elf_file& elf, elf_segment* segment, elf_section* section);
+void LinkObject(elf_file& elf, const char* objectPath);
+void CompleteElf(elf_file& elf);
 void WriteElf(elf_file& elf, const char* path);

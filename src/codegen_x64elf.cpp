@@ -356,7 +356,8 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         E(i::CALL32, 0x0);
         // TODO: find the correct symbol for the function symbol in the table
         // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, 1u, -4);
+        // TODO: we definitely need a better way of finding symbols...
+//        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, 1u, -4);
       } break;
 
       case I_NUM_INSTRUCTIONS:
@@ -387,7 +388,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // Create a symbol to reference the .rodata section using
   elf.rodataThing = CreateThing(elf, nullptr);
-  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_NONE, GetSection(elf, ".rodata")->index, 0x0);
+  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
   
   MapSection(elf, loadSegment, GetSection(elf, ".text"));
   MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
@@ -405,6 +406,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, **functionIt));
   }
 
+  // --- TEMPORARY TESTING STUFF AND THINGS ---
+  LinkObject(elf, "./std/bootstrap.o");
+  // ---
+
+  CompleteElf(elf);
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);
 }
