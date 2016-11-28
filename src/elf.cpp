@@ -1040,6 +1040,7 @@ template<>
 void Free<elf_thing*>(elf_thing*& thing)
 {
   free(thing->data);
+  free(thing);
 }
 
 template<>

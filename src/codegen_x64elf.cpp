@@ -42,7 +42,7 @@ struct register_pimpl
 static type_def* CreateInbuiltType(const char* name, unsigned int size)
 {
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
-  type->name = static_cast<char*>(malloc(sizeof(char) * strlen(name)));
+  type->name = static_cast<char*>(malloc(sizeof(char) * strlen(name) + 1u));
   strcpy(type->name, name);
   type->size = size;
 

@@ -605,43 +605,43 @@ static char* GetSlotString(slot* s)
   {
     case slot::slot_type::PARAM:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(P)", s->payload.variable->name)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(P)", s->payload.variable->name) + 1u));
       sprintf(result, "%s(P)", s->payload.variable->name);
     } break;
 
     case slot::slot_type::LOCAL:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(L)", s->payload.variable->name)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(L)", s->payload.variable->name) + 1u));
       sprintf(result, "%s(L)", s->payload.variable->name);
     } break;
 
     case slot::slot_type::IN_PARAM:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%d(IN)", s->color)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%d(IN)", s->color) + 1u));
       sprintf(result, "%d(IN)", s->color);
     } break;
 
     case slot::slot_type::INTERMEDIATE:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag) + 1u));
       sprintf(result, "i%u", s->tag);
     } break;
 
     case slot::slot_type::INT_CONSTANT:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%d", s->payload.i)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%d", s->payload.i) + 1u));
       sprintf(result, "#%d", s->payload.i);
     } break;
 
     case slot::slot_type::FLOAT_CONSTANT:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f) + 1u));
       sprintf(result, "#%f", s->payload.f);
     } break;
 
     case slot::slot_type::STRING_CONSTANT:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "\"%s\"", s->payload.string->string)));
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "\"%s\"", s->payload.string->string) + 1u));
       sprintf(result, "\"%s\"", s->payload.string->string);
     } break;
   }

@@ -176,6 +176,7 @@ void Free<variable_def*>(variable_def*& variable)
   free(variable->name);
   Free<type_ref>(variable->type);
   Free<node*>(variable->initValue);
+  free(variable);
 }
 
 template<>
@@ -187,10 +188,15 @@ template<>
 void Free<function_def*>(function_def*& function)
 {
   free(function->name);
-  Free<type_ref>(*(function->returnType));
-  free(function->returnType);
   FreeLinkedList<variable_def*>(function->params);
   FreeLinkedList<variable_def*>(function->locals);
+
+  if (function->returnType)
+  {
+    Free<type_ref>(*(function->returnType));
+    free(function->returnType);
+  }
+
   FreeLinkedList<function_attrib>(function->attribs);
 
   if (function->ast)
@@ -198,7 +204,10 @@ void Free<function_def*>(function_def*& function)
     Free<node*>(function->ast);
   }
 
-  Free<air_function*>(function->air);
+  if (function->air)
+  {
+    Free<air_function*>(function->air);
+  }
 }
 
 static void ResolveTypeRef(type_ref& ref, parse_result& parse)

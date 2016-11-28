@@ -139,6 +139,6 @@ int main()
   printf("--- Generating a %s executable ---\n", target.name);  
   Generate(GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name, target, result);
 
-  // TODO: fix
-//  Free<parse_result>(result);
+  Free<parse_result>(result);
+  Free<codegen_target>(target);
 }
