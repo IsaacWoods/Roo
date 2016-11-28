@@ -1,5 +1,4 @@
 section .rodata
-otherMessage db "Potato",0
 message db "Hello, World!",0xa,0
 
 section .text

@@ -376,22 +376,24 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf_file elf;
   CreateElf(elf, target);
 
-  elf_segment* loadSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R, 0x08048000, 0x1000);
+  elf_segment* loadSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R, 0x400000, 0x200000);
 
   CreateSection(elf, ".text", SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
-  CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
+//  CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
   CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
   CreateSection(elf, ".symtab", SHT_SYMTAB, 0x04)->link = GetSection(elf, ".strtab")->index;
 
-  GetSection(elf, ".text")->address = 0x08048000;
+  GetSection(elf, ".text")->address = 0x400040;
   GetSection(elf, ".symtab")->entrySize = 0x18;
 
   // Create a symbol to reference the .rodata section using
   elf.rodataThing = CreateThing(elf, nullptr);
-  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
+//  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
   
   MapSection(elf, loadSegment, GetSection(elf, ".text"));
-  MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
+  loadSegment->fileSize = 0x9b;
+  loadSegment->memorySize = 0x9b;
+//  MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
 
   // Generate an `elf_thing` for each function
   for (auto* functionIt = result.functions.first;

@@ -150,7 +150,30 @@ elf_section* GetSection(elf_file& elf, const char* name)
     }
   }
 
-  fprintf(stderr, "FATAL: Couldn't find section of name '%s'!\n", name);
+  fprintf(stderr, "WARNING: Couldn't find section of name '%s'!\n", name);
+  return nullptr;
+}
+
+elf_symbol* GetSymbol(elf_file& elf, const char* name)
+{
+  for (auto* it = elf.symbols.first;
+       it;
+       it = it->next)
+  {
+    elf_symbol* symbol = **it;
+
+    if (!(symbol->name))
+    {
+      continue;
+    }
+
+    if (strcmp(symbol->name->str, name) == 0)
+    {
+      return symbol;
+    }
+  }
+
+  fprintf(stderr, "WARNING: Couldn't find symbol of name: '%s'!\n", name);
   return nullptr;
 }
 
@@ -954,8 +977,16 @@ void WriteElf(elf_file& elf, const char* path)
   GetSection(elf, ".symtab")->offset = ftell(f);
   EmitSymbolTable(f, elf, elf.symbols);
 
-  // --- Do all the relocations ---
+  // --- Do all the relocations and find the entry point ---
   CompleteRelocations(f, elf);
+
+  elf_symbol* startSymbol = GetSymbol(elf, "_start");
+  if (!startSymbol)
+  {
+    fprintf(stderr, "FATAL: Can't find a '_start' symbol to enter into!\n");
+    exit(1);
+  }
+  elf.header.entryPoint = startSymbol->value;
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
@@ -983,13 +1014,13 @@ void WriteElf(elf_file& elf, const char* path)
   elf.header.programHeaderOffset = ftell(f);
 
   // Emit an empty program header entry
-  elf.header.numProgramHeaderEntries++;
+/*  elf.header.numProgramHeaderEntries++;
   for (unsigned int i = 0u;
        i < PROGRAM_HEADER_ENTRY_SIZE;
        i++)
   {
     fputc(0x00, f);
-  }
+  }*/
 
   for (auto* segmentIt = elf.segments.first;
        segmentIt;
