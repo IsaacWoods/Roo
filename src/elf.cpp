@@ -82,7 +82,7 @@ void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocati
   AddToLinkedList<elf_relocation*>(elf.relocations, relocation);
 }
 
-elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment)
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly)
 {
   elf_segment* segment = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
   segment->type = type;
@@ -90,9 +90,9 @@ elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uin
   segment->offset = 0u;
   segment->virtualAddress = address;
   segment->physicalAddress = address;
-  segment->fileSize = 0u;
-  segment->memorySize = 0u;
   segment->alignment = alignment;
+  segment->size.map = {};  // NOTE(Isaac): `map` is biggest, so this will correctly zero-initialise the union
+  segment->isMappedDirectly = isMappedDirectly;
 
   elf.header.numProgramHeaderEntries++;
   AddToLinkedList<elf_segment*>(elf.segments, segment);
@@ -643,14 +643,22 @@ static void EmitHeader(FILE* f, elf_header& header)
 static void EmitProgramEntry(FILE* f, elf_segment* segment)
 {
 /*n + */
-/*0x00*/fwrite(&(segment->type),             sizeof(uint32_t), 1, f);
-/*0x04*/fwrite(&(segment->flags),            sizeof(uint32_t), 1, f);
-/*0x08*/fwrite(&(segment->offset),           sizeof(uint64_t), 1, f);
-/*0x10*/fwrite(&(segment->virtualAddress),   sizeof(uint64_t), 1, f);
-/*0x18*/fwrite(&(segment->physicalAddress),  sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(segment->fileSize),         sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(segment->memorySize),       sizeof(uint64_t), 1, f);
-/*0x30*/fwrite(&(segment->alignment),        sizeof(uint64_t), 1, f);
+/*0x00*/fwrite(&(segment->type),              sizeof(uint32_t), 1, f);
+/*0x04*/fwrite(&(segment->flags),             sizeof(uint32_t), 1, f);
+/*0x08*/fwrite(&(segment->offset),            sizeof(uint64_t), 1, f);
+/*0x10*/fwrite(&(segment->virtualAddress),    sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(segment->physicalAddress),   sizeof(uint64_t), 1, f);
+  if (segment->isMappedDirectly)
+  {
+/*0x20*/fwrite(&(segment->size.inFile),       sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(segment->size.inFile),       sizeof(uint64_t), 1, f);
+  }
+  else
+  {
+/*0x20*/fwrite(&(segment->size.map.inFile),   sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(segment->size.map.inImage),  sizeof(uint64_t), 1, f);
+  }
+/*0x30*/fwrite(&(segment->alignment),         sizeof(uint64_t), 1, f);
 /*0x38*/
 }
 
@@ -735,7 +743,11 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
 static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
 {
   GetSection(elf, ".text")->size += thing->length;
-  thing->symbol->value = GetSection(elf, ".text")->address + ftell(f) - GetSection(elf, ".text")->offset;
+
+  /*
+   * For now, set the symbol's value relative to the start of the section, since we don't know the address yet
+   */
+  thing->symbol->value = ftell(f) - GetSection(elf, ".text")->offset;
   thing->symbol->size = thing->length;
   thing->fileOffset = ftell(f);
   thing->address = GetSection(elf, ".text")->address + (thing->fileOffset - GetSection(elf, ".text")->offset);
@@ -852,15 +864,6 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
     uint64_t target = relocation->thing->fileOffset + relocation->offset;
     fseek(f, target, SEEK_SET);
 
-    if (relocation->symbol->name)
-    {
-      printf("Doing relocation at 0x%lx to symbol '%s'\n", target, relocation->symbol->name->str);
-    }
-    else
-    {
-      printf("Doing relocation at 0x%lx to symbol with no name (index=%u)\n", target, relocation->symbol->index);
-    }
-
     switch (relocation->type)
     {
       case R_X86_64_64:     // S + A
@@ -902,15 +905,21 @@ static void MapSectionsToSegments(elf_file& elf)
     elf_segment* segment = (**mappingIt).segment;
     elf_section* section = (**mappingIt).section;
 
-    if (segment->offset == 0u || section->offset < segment->offset)
-    {
-      segment->offset = section->offset;
-    }
+    /*
+     * Atm, we can't tell the size of a SHT_NOBITS section, because it's size in the file is a lie
+     */
+    assert(section->type != SHT_NOBITS);
 
-    if ((section->offset + section->size) > (segment->offset + segment->fileSize))
+    if (segment->isMappedDirectly)
     {
-      segment->fileSize = section->offset + section->size - segment->offset;
-      segment->memorySize = section->offset + section->size - segment->offset;
+      section->address = segment->virtualAddress + segment->size.inFile;
+      segment->size.inFile += section->size;
+    }
+    else
+    {
+      section->address = segment->virtualAddress + segment->size.map.inFile;
+      segment->size.map.inFile += section->size;
+      segment->size.map.inImage += section->size;
     }
   }
 }
@@ -967,6 +976,17 @@ void WriteElf(elf_file& elf, const char* path)
     EmitThing(f, elf, **thingIt);
   }
 
+  // --- Map sections to segments and recalculate symbol values ---
+  MapSectionsToSegments(elf);
+
+  uint64_t textAddress = GetSection(elf, ".text")->address;
+  for (auto* it = elf.things.first;
+       it;
+       it = it->next)
+  {
+    (**it)->symbol->value += textAddress;
+  }
+
   // --- Emit the string table ---
   GetSection(elf, ".strtab")->offset = ftell(f);
   elf.header.sectionWithSectionNames = GetSection(elf, ".strtab")->index;
@@ -1006,20 +1026,8 @@ void WriteElf(elf_file& elf, const char* path)
     EmitSectionEntry(f, **sectionIt);
   }
 
-  // --- Map sections to segments ---
-  MapSectionsToSegments(elf);
-
   // --- Emit the program header ---
   elf.header.programHeaderOffset = ftell(f);
-
-  // Emit an empty program header entry
-/*  elf.header.numProgramHeaderEntries++;
-  for (unsigned int i = 0u;
-       i < PROGRAM_HEADER_ENTRY_SIZE;
-       i++)
-  {
-    fputc(0x00, f);
-  }*/
 
   for (auto* segmentIt = elf.segments.first;
        segmentIt;

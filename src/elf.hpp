@@ -66,9 +66,22 @@ struct elf_segment
   uint64_t      offset;
   uint64_t      virtualAddress;
   uint64_t      physicalAddress;
-  uint64_t      fileSize;         // Number of bytes in the *file* allocated to this segment
-  uint64_t      memorySize;       // Number of bytes in the *image* allocated to this segment
   uint64_t      alignment;        // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this alignment
+
+  union
+  {
+    struct
+    {
+      uint64_t inFile;
+      uint64_t inImage;
+    } map;            // NOTE(Isaac): valid if `isMappedDirectly` is false
+    uint64_t inFile;  // NOTE(Isaac): valid if `isMappedDirectly` is true
+  } size;
+
+  /*
+   * Set if the size in the memory image is the same as in the file
+   */
+  bool isMappedDirectly;
 };
 
 #define SECTION_ATTRIB_W        0x1         // Marks the section as writable
@@ -232,7 +245,7 @@ void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend);
 elf_thing* CreateThing(elf_file& elf, const char* name);
-elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment);
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);
 elf_symbol* GetSymbol(elf_file& elf, const char* name);
