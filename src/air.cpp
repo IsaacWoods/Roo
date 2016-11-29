@@ -82,8 +82,9 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 }
 
 template<>
-void Free<slot*>(slot*& /*slot*/)
+void Free<slot*>(slot*& slot)
 {
+  free(slot);
 }
 
 static void AddInterference(slot* a, slot* b)

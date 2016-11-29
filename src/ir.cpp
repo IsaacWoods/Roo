@@ -208,6 +208,8 @@ void Free<function_def*>(function_def*& function)
   {
     Free<air_function*>(function->air);
   }
+
+  free(function);
 }
 
 static void ResolveTypeRef(type_ref& ref, parse_result& parse)

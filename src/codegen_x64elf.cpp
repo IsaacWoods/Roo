@@ -390,7 +390,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf.rodataThing = CreateThing(elf, nullptr);
 //  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
   
-  MapSection(elf, loadSegment, GetSection(elf, ".text"));
+//  MapSection(elf, loadSegment, GetSection(elf, ".text"));
+  loadSegment->offset = 0x00;
   loadSegment->fileSize = 0x9b;
   loadSegment->memorySize = 0x9b;
 //  MapSection(elf, loadSegment, GetSection(elf, ".rodata"));

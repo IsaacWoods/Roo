@@ -932,6 +932,7 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
 
   CreateLinkedList<function_attrib>(definition->attribs);
   CopyLinkedList<function_attrib>(definition->attribs, attribs);
+  FreeLinkedList<function_attrib>(attribs);
 
   AddToLinkedList<function_def*>(parser.result->functions, definition);
 

@@ -206,8 +206,7 @@ void Free<elf_object>(elf_object& object)
   UnlinkLinkedList<elf_symbol*>(object.symbols);
   UnlinkLinkedList<elf_relocation*>(object.relocations);
   UnlinkLinkedList<elf_thing*>(object.things);
-  // TODO
-//  free(object.symbolRemaps);
+  free(object.symbolRemaps);
 }
 
 static elf_string* ExtractString(elf_file& elf, elf_object& object, const elf_section* stringTable, uint64_t stringOffset)
