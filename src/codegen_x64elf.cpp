@@ -394,8 +394,14 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf.rodataThing = CreateThing(elf, nullptr);
   elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
 
+  // --- TEMPORARY TESTING STUFF AND THINGS ---
+  LinkObject(elf, "./std/bootstrap.o");
+  // ---
+ 
+  // TODO: link external object files we need here
+
   // Emit string constants into the .rodata thing
-  unsigned int tail = 1u; // NOTE(Isaac): start passed the leading null-terminator
+  unsigned int tail = 0u;
   for (auto* it = result.strings.first;
        it;
        it = it->next)
@@ -420,7 +426,37 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        it = it->next)
   {
     function_def* function = **it;
-    function->symbol = CreateSymbol(elf, MangleFunctionName(function), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+    char* mangledName = MangleFunctionName(function);
+
+    /*
+     * If it's a prototype function, we want to reference the symbol of an already loaded (hopefully) function.
+     */
+    if (function->isPrototype)
+    {
+      for (auto* thingIt = elf.things.first;
+           thingIt;
+           thingIt = thingIt->next)
+      {
+        elf_thing* thing = **thingIt;
+
+        if (strcmp(thing->symbol->name->str, mangledName) == 0)
+        {
+          function->symbol = thing->symbol;
+        }
+      }
+
+      if (!function->symbol)
+      {
+        fprintf(stderr, "FATAL: Prototyped function '%s' is missing definition!\n", function->name);
+        exit(1);
+      }
+    }
+    else
+    {
+      function->symbol = CreateSymbol(elf, mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+    }
+
+    free(mangledName);
   }
 
   // Generate an `elf_thing` for each function
@@ -437,10 +473,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
     AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, function));
   }
-
-  // --- TEMPORARY TESTING STUFF AND THINGS ---
-  LinkObject(elf, "./std/bootstrap.o");
-  // ---
 
   CompleteElf(elf);
   WriteElf(elf, outputPath);
