@@ -245,7 +245,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
   #define E(...) \
     Emit(thing, target, __VA_ARGS__);
 
-  elf_thing* thing = CreateThing(elf, MangleFunctionName(function));
+  elf_thing* thing = CreateThing(elf, function->symbol);
 
   if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
   {
@@ -292,7 +292,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
         {
           E(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-//          CreateRelocation(elf, thing, thing.length - sizeof(uint64_t), R_X86_64_64, generator.rodataSymbol, mov.src->payload.string->offset);
+          CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, mov.src->payload.string->offset);
         }
         else
         {
@@ -354,10 +354,9 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       case I_CALL:
       {
         E(i::CALL32, 0x0);
-        // TODO: find the correct symbol for the function symbol in the table
-        // TODO: not entirely sure why we need an addend of -4, but all the relocations were off by 4 for some reason so meh...?
-        // TODO: we definitely need a better way of finding symbols...
-//        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, 1u, -4);
+
+        // NOTE(Isaac): yeah I don't know why we need an addend of -0x4, but we do (probably should work that out)
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->payload.function->symbol, -0x4);
       } break;
 
       case I_NUM_INSTRUCTIONS:
@@ -380,31 +379,63 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   loadSegment->offset = 0x00;
   loadSegment->size.inFile = 0x40;  // NOTE(Isaac): set the tail to the end of the ELF header
 
-  CreateSection(elf, ".text", SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
-//  CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
-  CreateSection(elf, ".strtab", SHT_STRTAB, 0x04);
-  CreateSection(elf, ".symtab", SHT_SYMTAB, 0x04);
+  CreateSection(elf, ".text",   SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
+  CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
+  CreateSection(elf, ".strtab", SHT_STRTAB,   0x04);
+  CreateSection(elf, ".symtab", SHT_SYMTAB,   0x04);
+
   GetSection(elf, ".symtab")->link = GetSection(elf, ".strtab")->index;
   GetSection(elf, ".symtab")->entrySize = 0x18;
 
-  // Create a symbol to reference the .rodata section using
-  elf.rodataThing = CreateThing(elf, nullptr);
-//  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
-  
   MapSection(elf, loadSegment, GetSection(elf, ".text"));
-//  MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
+  MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
+
+  // Create a symbol to reference the .rodata section with
+  elf.rodataThing = CreateThing(elf, nullptr);
+  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
+
+  // Emit string constants into the .rodata thing
+  unsigned int tail = 1u; // NOTE(Isaac): start passed the leading null-terminator
+  for (auto* it = result.strings.first;
+       it;
+       it = it->next)
+  {
+    string_constant* constant = **it;
+    printf("Emitting string into .rodata: '%s'\n", constant->string);
+
+    constant->offset = tail;
+
+    for (char* c = constant->string;
+         *c;
+         c++)
+    {
+      Emit<uint8_t>(elf.rodataThing, *c);
+      tail++;    
+    }
+  }
+
+  // Generate the symbol for each function
+  for (auto* it = result.functions.first;
+       it;
+       it = it->next)
+  {
+    function_def* function = **it;
+    function->symbol = CreateSymbol(elf, MangleFunctionName(function), SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+  }
 
   // Generate an `elf_thing` for each function
-  for (auto* functionIt = result.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
+  for (auto* it = result.functions.first;
+       it;
+       it = it->next)
   {
-    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    function_def* function = **it;
+
+    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
     {
       continue;
     }
 
-    AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, **functionIt));
+    AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, function));
   }
 
   // --- TEMPORARY TESTING STUFF AND THINGS ---

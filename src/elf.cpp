@@ -14,29 +14,14 @@
 #define SYMBOL_TABLE_ENTRY_SIZE 0x18
 
 /*
- * NOTE(Isaac): if the string passed has a `const` qualifier, it's not freed on freeing of the `elf_string`.
- * Otherwise, it is.
+ * NOTE(Isaac): the string is duplicated and freed separately of the passed string.
  */
-static elf_string* CreateString(elf_file& elf, char* str)
-{
-  elf_string* string = static_cast<elf_string*>(malloc(sizeof(elf_string)));
-  string->offset = elf.stringTableTail;
-  string->str = str;
-  string->owned = true;
-
-  elf.stringTableTail += strlen(str) + 1u;
-
-  AddToLinkedList<elf_string*>(elf.strings, string);
-  return string;
-}
-
 static elf_string* CreateString(elf_file& elf, const char* str)
 {
   elf_string* string = static_cast<elf_string*>(malloc(sizeof(elf_string)));
   string->offset = elf.stringTableTail;
-  string->str = str;
-  string->owned = false;
-  
+  string->str = strdup(str);
+
   elf.stringTableTail += strlen(str) + 1u;
 
   AddToLinkedList<elf_string*>(elf.strings, string);
@@ -123,12 +108,12 @@ elf_section* CreateSection(elf_file& elf, const char* name, section_type type, u
 
 // TODO: allow local functions to be bound as local symbols
 // TODO: correct offset into section for symbol value
-elf_thing* CreateThing(elf_file& elf, const char* name)
+elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol)
 {
   const unsigned int INITIAL_DATA_SIZE = 256u;
 
   elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
-  thing->symbol = CreateSymbol(elf, name, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
+  thing->symbol = symbol;
   thing->length = 0u;
   thing->capacity = INITIAL_DATA_SIZE;
   thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * INITIAL_DATA_SIZE));
@@ -740,17 +725,22 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
   }
 }
 
-static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing)
+static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* section = nullptr)
 {
-  GetSection(elf, ".text")->size += thing->length;
+  if (!section)
+  {
+    section = GetSection(elf, ".text");
+  }
+
+  section->size += thing->length;
 
   /*
    * For now, set the symbol's value relative to the start of the section, since we don't know the address yet
    */
-  thing->symbol->value = ftell(f) - GetSection(elf, ".text")->offset;
+  thing->symbol->value = ftell(f) - section->offset;
   thing->symbol->size = thing->length;
   thing->fileOffset = ftell(f);
-  thing->address = GetSection(elf, ".text")->address + (thing->fileOffset - GetSection(elf, ".text")->offset);
+  thing->address = section->address + (thing->fileOffset - section->offset);
 
   for (unsigned int i = 0u;
        i < thing->length;
@@ -976,9 +966,17 @@ void WriteElf(elf_file& elf, const char* path)
     EmitThing(f, elf, **thingIt);
   }
 
-  // --- Map sections to segments and recalculate symbol values ---
+  // Manually emit the .rodata thing
+  if (elf.rodataThing)
+  {
+    GetSection(elf, ".rodata")->offset = ftell(f);
+    EmitThing(f, elf, elf.rodataThing, GetSection(elf, ".rodata"));
+  }
+
+  // --- Map sections to segments ---
   MapSectionsToSegments(elf);
 
+  // Recalculate symbol values
   uint64_t textAddress = GetSection(elf, ".text")->address;
   for (auto* it = elf.things.first;
        it;
@@ -986,6 +984,9 @@ void WriteElf(elf_file& elf, const char* path)
   {
     (**it)->symbol->value += textAddress;
   }
+
+  // Calculate virtual address of .rodata symbol
+  elf.rodataThing->symbol->value = GetSection(elf, ".rodata")->address;
 
   // --- Emit the string table ---
   GetSection(elf, ".strtab")->offset = ftell(f);
@@ -1064,11 +1065,7 @@ void Free<elf_relocation*>(elf_relocation*& relocation)
 template<>
 void Free<elf_string*>(elf_string*& string)
 {
-  if (string->owned)
-  {
-    free(const_cast<char*>(string->str));
-  }
-
+  free(string->str);
   free(string);
 }
 

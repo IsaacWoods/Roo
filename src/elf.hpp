@@ -33,8 +33,7 @@ struct elf_header
 struct elf_string
 {
   unsigned int  offset;
-  const char*   str;
-  bool          owned;  // NOTE(Isaac): If true, the string will be freed when this is
+  char*         str;
 };
 
 #define SEGMENT_ATTRIB_X        0x1         // Marks the segment as executable
@@ -244,7 +243,7 @@ struct elf_file
 void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend);
-elf_thing* CreateThing(elf_file& elf, const char* name);
+elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol);
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
 elf_section* GetSection(elf_file& elf, const char* name);

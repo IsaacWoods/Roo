@@ -8,6 +8,7 @@
 
 struct node;
 struct air_instruction;
+struct elf_symbol;
 
 /*
  * NOTE(Isaac): This allows the codegen module to store platform-dependent
@@ -140,6 +141,7 @@ struct function_def
 
   node*                         ast;
   air_function*                 air;
+  elf_symbol*                   symbol;
 };
 
 /*
