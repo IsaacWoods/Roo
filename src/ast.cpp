@@ -131,6 +131,7 @@ void Free<node*>(node*& n)
   // NOTE(Isaac): allows for easier handling of child nodes
   if (!n)
   {
+    fprintf(stderr, "WARNING: relying on crappy method of not freeing null AST nodes!\n");
     return;
   }
 
@@ -142,7 +143,10 @@ void Free<node*>(node*& n)
 
     case RETURN_NODE:
     {
-      Free<node*>(n->payload.expression);
+      if (n->payload.expression)
+      {
+        Free<node*>(n->payload.expression);
+      }
     } break;
 
     case BINARY_OP_NODE:
@@ -158,7 +162,11 @@ void Free<node*>(node*& n)
 
     case VARIABLE_NODE:
     {
-      if (!n->payload.variable.isResolved)
+      if (n->payload.variable.isResolved)
+      {
+        // NOTE(Isaac): Don't free the variable_def*; it's not ours
+      }
+      else
       {
         free(n->payload.variable.var.name);
       }
@@ -217,6 +225,11 @@ void Free<node*>(node*& n)
     {
       fprintf(stderr, "Node of type NUM_AST_NODES found in actual AST!\n");
     } break;
+  }
+
+  if (n->next)
+  {
+    Free<node*>(n->next);
   }
 
   free(n);

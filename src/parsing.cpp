@@ -1241,7 +1241,7 @@ void InitParseletMaps()
         SyntaxError(parser, "Unrecognised function name!");
       }
 
-      char* functionName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.var.name)));
+      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->payload.variable.var.name) + 1u)));
       strcpy(functionName, left->payload.variable.var.name);
       Free<node*>(left);
 

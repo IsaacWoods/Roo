@@ -218,7 +218,9 @@ static elf_string* ExtractString(elf_file& elf, elf_object& object, const elf_se
   char* str = static_cast<char*>(malloc(sizeof(char) * length));
   memcpy(str, buffer, sizeof(char) * length);
 
-  return CreateString(elf, str);
+  elf_string* string = CreateString(elf, str);
+  free(str);
+  return string;
 }
 
 static void ParseSectionHeader(elf_file& elf, elf_object& object)

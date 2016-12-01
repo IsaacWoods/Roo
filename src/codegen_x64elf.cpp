@@ -102,6 +102,13 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
 template<>
 void Free<codegen_target>(codegen_target& target)
 {
+  for (unsigned int i = 0u;
+       i < target.numRegisters;
+       i++)
+  {
+    free(target.registerSet[i].pimpl);
+  }
+
   free(target.registerSet);
   free(target.intParamColors);
 }

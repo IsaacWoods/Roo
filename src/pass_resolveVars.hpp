@@ -26,10 +26,13 @@ void InitResolveVarsPass()
            localIt;
            localIt = localIt->next)
       {
-        if (strcmp((**localIt)->name, n->payload.variable.var.name) == 0)
+        variable_def* local = **localIt;
+
+        if (strcmp(local->name, n->payload.variable.var.name) == 0)
         {
+          free(n->payload.variable.var.name);
           n->payload.variable.isResolved = true;
-          n->payload.variable.var.def = (**localIt);
+          n->payload.variable.var.def = local;
           return;
         }
       }
@@ -38,10 +41,13 @@ void InitResolveVarsPass()
            paramIt;
            paramIt = paramIt->next)
       {
-        if (strcmp((**paramIt)->name, n->payload.variable.var.name) == 0)
+        variable_def* param = **paramIt;
+
+        if (strcmp(param->name, n->payload.variable.var.name) == 0)
         {
+          free(n->payload.variable.var.name);
           n->payload.variable.isResolved = true;
-          n->payload.variable.var.def = (**paramIt);
+          n->payload.variable.var.def = param;
           return;
         }
       }
