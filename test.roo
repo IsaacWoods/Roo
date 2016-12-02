@@ -5,7 +5,7 @@ fn Print(str : string)
 
 fn Potato(x : int) -> int
 {
-  return x + 7
+  return x + 0b110011
 }
 
 #[Entry]

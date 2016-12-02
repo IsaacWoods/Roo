@@ -22,6 +22,12 @@ struct token
 
   const char*  textStart;   // NOTE(Isaac): this points into the parser's source. It is not null-terminated!
   unsigned int textLength;
+
+  union
+  {
+    int   i;    // Valid if token type is TOKEN_NUMBER_INT
+    float f;    // Valid if token type is TOKEN_NUMBER_FLOAT
+  } payload;
 };
 
 struct roo_parser
@@ -78,6 +84,7 @@ static inline char* GetTextFromToken(const token& tkn)
 
           default:
           {
+            // TODO: use real syntax error system
             fprintf(stderr, "ERROR: Unrecognised escape sequence found '\\%c'!\n", *c);
             exit(1);
           }
@@ -223,7 +230,30 @@ static token LexNumber(roo_parser& parser)
 
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
-  return MakeToken(parser, type, tokenOffset, startChar, (unsigned int) length);
+
+  token tkn = MakeToken(parser, type, tokenOffset, startChar, (unsigned int)length);
+  char* text = GetTextFromToken(tkn);
+
+  switch (type)
+  {
+    case TOKEN_NUMBER_INT:
+    {
+      tkn.payload.i = strtol(text, nullptr, 10);
+    } break;
+
+    case TOKEN_NUMBER_FLOAT:
+    {
+      tkn.payload.f = strtof(text, nullptr);
+    } break;
+
+    default:
+    {
+      assert(false);
+    }
+  }
+
+  free(text);
+  return tkn;
 }
 
 static token LexHexNumber(roo_parser& parser)
@@ -238,7 +268,35 @@ static token LexHexNumber(roo_parser& parser)
 
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
-  return MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
+
+  token tkn = MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
+  char* text = GetTextFromToken(tkn);
+  tkn.payload.i = strtol(text, nullptr, 16);
+  free(text);
+
+  return tkn;
+}
+
+static token LexBinaryNumber(roo_parser& parser)
+{
+  NextChar(parser); // NOTE(Isaac): skip over the 'b'
+  const char* startChar = parser.currentChar;
+
+  while (*(parser.currentChar) == '0' ||
+         *(parser.currentChar) == '1')
+  {
+    NextChar(parser);
+  }
+
+  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
+  unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
+
+  token tkn = MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
+  char* text = GetTextFromToken(tkn);
+  tkn.payload.i = strtol(text, nullptr, 2);
+  free(text);
+
+  return tkn;
 }
 
 static token LexString(roo_parser& parser)
@@ -530,6 +588,11 @@ static token LexNext(roo_parser& parser)
         if (c == '0' && *(parser.currentChar) == 'x')
         {
           return LexHexNumber(parser);
+        }
+
+        if (c == '0' && *(parser.currentChar) == 'b')
+        {
+          return LexBinaryNumber(parser);
         }
     
         if (IsDigit(c))
@@ -1222,10 +1285,7 @@ void InitParseletMaps()
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] Number constant (integer)\n");
-      char* tokenText = GetTextFromToken(PeekToken(parser));
-      int value = strtol(tokenText, nullptr, 10); // TODO(Isaac): parse hexadecimal here too
-      free(tokenText);
-
+      int value = PeekToken(parser).payload.i;
       NextToken(parser);
       printf("<-- [PARSELET] Number constant (integer)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
@@ -1235,10 +1295,7 @@ void InitParseletMaps()
     [](roo_parser& parser) -> node*
     {
       printf("--> [PARSELET] Number constant (floating point)\n");
-      char* tokenText = GetTextFromToken(PeekToken(parser));
-      float value = strtof(tokenText, nullptr);
-      free(tokenText);
-
+      float value = PeekToken(parser).payload.f;
       NextToken(parser);
       printf("<-- [PARSELET] Number constant (floating point)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
