@@ -40,9 +40,63 @@ struct roo_parser
 
 static inline char* GetTextFromToken(const token& tkn)
 {
-  char* text = static_cast<char*>(malloc(sizeof(char) * tkn.textLength + 1u));
-  memcpy(text, tkn.textStart, tkn.textLength);
-  text[tkn.textLength] = '\0';
+  // NOTE(Isaac): this is the upper bound of the amount of memory we need to store the string representation
+  char* text = static_cast<char*>(malloc(sizeof(char) * (tkn.textLength + 1u)));
+
+  // We need to manually escape string constants into actually correct chars
+  if (tkn.type == TOKEN_STRING)
+  {
+    unsigned int i = 0u;
+
+    for (const char* c = tkn.textStart;
+         c < (tkn.textStart + static_cast<uintptr_t>(tkn.textLength));
+         c++)
+    {
+      if (*c == '\\')
+      {
+        switch (*(++c))
+        {
+          case '0':
+          {
+            text[i++] = '\0';
+          } break;
+
+          case 'n':
+          {
+            text[i++] = '\n';
+          } break;
+
+          case 't':
+          {
+            text[i++] = '\t';
+          } break;
+
+          case '\\':
+          {
+            text[i++] = '\\';
+          } break;
+
+          default:
+          {
+            fprintf(stderr, "ERROR: Unrecognised escape sequence found '\\%c'!\n", *c);
+            exit(1);
+          }
+        }
+      }
+      else
+      {
+        text[i++] = *c;
+      }
+    }
+
+    text[i] = '\0';
+  }
+  else
+  {
+    // NOTE(Isaac): In this case, we just need to shove the thing into the other thing
+    memcpy(text, tkn.textStart, tkn.textLength);
+    text[tkn.textLength] = '\0';
+  }
 
   return text;
 }

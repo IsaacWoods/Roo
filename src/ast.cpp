@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
+#include <cassert>
 #include <common.hpp>
 
 node* CreateNode(node_type type, ...)
@@ -128,12 +129,7 @@ node* CreateNode(node_type type, ...)
 template<>
 void Free<node*>(node*& n)
 {
-  // NOTE(Isaac): allows for easier handling of child nodes
-  if (!n)
-  {
-    fprintf(stderr, "WARNING: relying on crappy method of not freeing null AST nodes!\n");
-    return;
-  }
+  assert(n);
 
   switch (n->type)
   {

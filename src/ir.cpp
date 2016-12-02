@@ -175,7 +175,12 @@ void Free<variable_def*>(variable_def*& variable)
 {
   free(variable->name);
   Free<type_ref>(variable->type);
-  Free<node*>(variable->initValue);
+
+  if (variable->initValue)
+  {
+    Free<node*>(variable->initValue);
+  }
+
   free(variable);
 }
 
