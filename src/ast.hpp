@@ -81,6 +81,7 @@ struct condition_node_part
   token_type  condition;
   node*       left;
   node*       right;
+  bool        reverseOnJump;
 };
 
 struct if_node_part

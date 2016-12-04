@@ -25,15 +25,15 @@ enum instruction_type
   I_NEGATE,
   I_CALL,
 
+  /*
+   * NOTE(Isaac): This doesn't correspond to an actual instruction, but marks positions we can jump to in the code
+   */
+  I_LABEL,
+
   I_NUM_INSTRUCTIONS
 };
 
 const char* GetInstructionName(instruction_type type);
-
-struct instruction_label
-{
-  
-};
 
 struct slot
 {
@@ -81,6 +81,11 @@ struct slot
 #endif
 };
 
+struct instruction_label
+{
+  uint64_t address;   // NOTE(Isaac): initially 0
+};
+
 struct jump_instruction
 {
   enum condition
@@ -124,6 +129,7 @@ struct slot_triple
 
 struct air_instruction
 {
+  unsigned int          index;
   air_instruction*      next;
 
   instruction_type      type;
@@ -137,6 +143,7 @@ struct air_instruction
     slot_pair             slotPair;
     slot_triple           slotTriple;
     function_def*         function;
+    instruction_label*    label;
   } payload;
 };
 

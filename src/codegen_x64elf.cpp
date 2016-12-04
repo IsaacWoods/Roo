@@ -121,6 +121,7 @@ void Free<codegen_target>(codegen_target& target)
 enum class i : uint8_t
 {
   ADD_REG_REG     = 0x01,       // [opcodeSize] (ModR/M)
+  CMP_REG_REG     = 0x39,       // (ModR/M)
   PUSH_REG        = 0x50,       // +r
   ADD_REG_IMM32   = 0x81,       // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
@@ -175,6 +176,15 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, static_cast<uint8_t>(i::ADD_REG_REG));
       Emit<uint8_t>(thing, CreateRegisterModRM(target, dest, src));
+    } break;
+
+    case i::CMP_REG_REG:
+    {
+      reg op1 = static_cast<reg>(va_arg(args, int));
+      reg op2 = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, static_cast<uint8_t>(i::CMP_REG_REG));
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, op1, op2));
     } break;
 
     case i::PUSH_REG:
@@ -312,7 +322,17 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_CMP:
       {
+        slot_pair& pair = instruction->payload.slotPair;
 
+        if (pair.left->shouldBeColored && pair.right->shouldBeColored)
+        {
+          E(i::CMP_REG_REG, pair.left->color, pair.right->color);
+        }
+        else
+        {
+          // TODO: compare against things that aren't registers?
+          assert(false);
+        }
       } break;
 
       case I_ADD:
@@ -364,6 +384,12 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
         // NOTE(Isaac): yeah I don't know why we need an addend of -0x4, but we do (probably should work that out)
         CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->payload.function->symbol, -0x4);
+      } break;
+
+      case I_LABEL:
+      {
+        // TODO
+        printf("Emitting label\n");
       } break;
 
       case I_NUM_INSTRUCTIONS:

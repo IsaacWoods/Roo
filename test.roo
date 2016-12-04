@@ -3,14 +3,13 @@
 #[Prototype]
 fn Print(str : string)
 
-fn Potato(x : int) -> int
-{
-  return x + 0b110011
-}
-
 #[Entry]
 fn Main(y : int) -> int
 {
-  Print("Hello, World!\n")
+  left : int = 4
+  right : int = 7 + 3
+
+  middle : int = left + right
+
   return 0
 }

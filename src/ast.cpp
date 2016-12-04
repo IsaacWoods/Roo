@@ -56,6 +56,7 @@ node* CreateNode(node_type type, ...)
       payload.condition.condition         = static_cast<token_type>(va_arg(args, int));
       payload.condition.left              = va_arg(args, node*);
       payload.condition.right             = va_arg(args, node*);
+      payload.condition.reverseOnJump     = static_cast<bool>(va_arg(args, int));
     } break;
 
     case IF_NODE:

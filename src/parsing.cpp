@@ -147,7 +147,7 @@ static bool IsHexDigit(char c)
 static inline token MakeToken(roo_parser& parser, token_type type, unsigned int offset, const char* startChar,
     unsigned int length)
 {
-  return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length};
+  return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
 __attribute__((noreturn))
@@ -856,7 +856,7 @@ static node* Block(roo_parser& parser)
   return code;
 }
 
-static node* Condition(roo_parser& parser)
+static node* Condition(roo_parser& parser, bool reverseOnJump)
 {
   printf("--> Condition\n");
   node* left = Expression(parser);
@@ -877,7 +877,7 @@ static node* Condition(roo_parser& parser)
   node* right = Expression(parser);
 
   printf("<-- Condition\n");
-  return CreateNode(CONDITION_NODE, condition, left, right);
+  return CreateNode(CONDITION_NODE, condition, left, right, reverseOnJump);
 }
 
 static node* If(roo_parser& parser)
@@ -886,7 +886,7 @@ static node* If(roo_parser& parser)
 
   Consume(parser, TOKEN_IF);
   Consume(parser, TOKEN_LEFT_PAREN);
-  node* condition = Condition(parser);
+  node* condition = Condition(parser, true);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
   node* thenCode = Block(parser);

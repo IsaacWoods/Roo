@@ -153,6 +153,11 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
       payload.function              = va_arg(args, function_def*);
     } break;
 
+    case I_LABEL:
+    {
+      payload.label                 = va_arg(args, instruction_label*);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled AIR instruction type in CreateInstruction!\n");
@@ -164,12 +169,21 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
   return i;
 }
 
+instruction_label* CreateInstructionLabel()
+{
+  instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
+  label->address = 0u;
+  
+  return label;
+}
+
 /*
  * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
  * Always supply an AIR instruction type as the first vararg!
  */
 #define PushInstruction(...) \
   function->tail->next = CreateInstruction(__VA_ARGS__); \
+  function->tail->next->index = function->tail->index + 1u; \
   function->tail = function->tail->next; \
 
 /*
@@ -178,7 +192,7 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
  * BINARY_OP_NODE:          `slot*
  * PREFIX_OP_NODE:          `slot*
  * VARIABLE_NAME:           `slot*
- * CONDITION_NODE:          `
+ * CONDITION_NODE:          `jump_instruction::condition
  * IF_NODE:                 `Nothing
  * NUMBER_NODE:             `slot*
  * STRING_CONSTANT_NODE:    `
@@ -334,38 +348,52 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_targ
     {
       slot* a = GenNodeAIR<slot*>(target, function, n->payload.condition.left);
       slot* b = GenNodeAIR<slot*>(target, function, n->payload.condition.right);
+      AddInterference(a, b);
+
       PushInstruction(I_CMP, a, b);
 
       switch (n->payload.condition.condition)
       {
         case TOKEN_EQUALS_EQUALS:
         {
-          return jump_instruction::condition::IF_EQUAL;
+          return (n->payload.condition.reverseOnJump ?
+                  jump_instruction::condition::IF_NOT_EQUAL :
+                  jump_instruction::condition::IF_EQUAL);
         }
 
         case TOKEN_BANG_EQUALS:
         {
-          return jump_instruction::condition::IF_NOT_EQUAL;
+          return (n->payload.condition.reverseOnJump ?
+                  jump_instruction::condition::IF_EQUAL :
+                  jump_instruction::condition::IF_NOT_EQUAL);
         }
 
         case TOKEN_GREATER_THAN:
         {
-          return jump_instruction::condition::IF_GREATER;
+          return (n->payload.condition.reverseOnJump ?
+                  jump_instruction::condition::IF_LESSER_OR_EQUAL :
+                  jump_instruction::condition::IF_GREATER);
         }
 
         case TOKEN_GREATER_THAN_EQUAL_TO:
         {
-          return jump_instruction::condition::IF_GREATER_OR_EQUAL;
+          return (n->payload.condition.reverseOnJump ?
+                  jump_instruction::condition::IF_LESSER :
+                  jump_instruction::condition::IF_GREATER_OR_EQUAL);
         }
 
         case TOKEN_LESS_THAN:
         {
-          return jump_instruction::condition::IF_LESSER;
+          return (n->payload.condition.reverseOnJump ?
+                  jump_instruction::condition::IF_GREATER_OR_EQUAL :
+                  jump_instruction::condition::IF_LESSER);
         }
 
         case TOKEN_LESS_THAN_EQUAL_TO:
         {
-          return jump_instruction::condition::IF_LESSER_OR_EQUAL;
+          return (n->payload.condition.reverseOnJump ?
+                  jump_instruction::condition::IF_GREATER :
+                  jump_instruction::condition::IF_LESSER_OR_EQUAL);
         }
 
         default:
@@ -431,6 +459,34 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 
       assert(n->payload.functionCall.isResolved);
       PushInstruction(I_CALL, n->payload.functionCall.function.def);
+    } break;
+
+    case IF_NODE:
+    {
+      assert(n->payload.ifThing.condition->type == CONDITION_NODE);
+      assert(n->payload.ifThing.condition->payload.condition.reverseOnJump);
+      jump_instruction::condition jumpCondition = GenNodeAIR<jump_instruction::condition>(target, function, n->payload.ifThing.condition);
+
+      instruction_label* elseLabel = nullptr;
+      instruction_label* endLabel = CreateInstructionLabel();
+      
+      if (n->payload.ifThing.elseCode)
+      {
+        elseLabel = CreateInstructionLabel();
+      }
+
+      PushInstruction(I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
+      GenNodeAIR(target, function, n->payload.ifThing.thenCode);
+
+      if (n->payload.ifThing.elseCode)
+      {
+        air_instruction* currentTail = function->tail;
+        GenNodeAIR(target, function, n->payload.ifThing.elseCode);
+
+        // NOTE(Isaac): The first instruction after the old tail should be the first instruction of the else code
+        assert(currentTail->next);
+        currentTail->next->label = elseLabel;
+      }
     } break;
 
     default:
@@ -547,6 +603,7 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
   function->numIntermediates = 0;
 
   function->code = CreateInstruction(I_ENTER_STACK_FRAME);
+  function->code->index = 0u;
   function->tail = function->code;
 
   for (node* n = functionDef->ast;
@@ -652,11 +709,11 @@ static char* GetSlotString(slot* s)
 
 void PrintInstruction(air_instruction* instruction)
 {
-  if (instruction->label)
+/*  if (instruction->label)
   {
     // TODO(Isaac): print more information about the label
     printf("[LABEL]: ");
-  }
+  }*/
 
   switch (instruction->type)
   {
@@ -664,7 +721,7 @@ void PrintInstruction(air_instruction* instruction)
     case I_LEAVE_STACK_FRAME:
     case I_NUM_INSTRUCTIONS:
     {
-      printf("%s\n", GetInstructionName(instruction->type));
+      printf("%u: %s\n", instruction->index, GetInstructionName(instruction->type));
     } break;
 
     case I_RETURN:
@@ -676,7 +733,7 @@ void PrintInstruction(air_instruction* instruction)
         returnValue = GetSlotString(instruction->payload.s);
       }
 
-      printf("RETURN %s\n", returnValue);
+      printf("%u: RETURN %s\n", instruction->index, returnValue);
       free(returnValue);
     } break;
 
@@ -689,7 +746,7 @@ void PrintInstruction(air_instruction* instruction)
     {
       char* srcSlot = GetSlotString(instruction->payload.mov.src);
       char* destSlot = GetSlotString(instruction->payload.mov.dest);
-      printf("%s -> %s\n", srcSlot, destSlot);
+      printf("%u: %s -> %s\n", instruction->index, srcSlot, destSlot);
       free(srcSlot);
       free(destSlot);
     } break;
@@ -698,7 +755,7 @@ void PrintInstruction(air_instruction* instruction)
     {
       char* leftSlot = GetSlotString(instruction->payload.slotPair.left);
       char* rightSlot = GetSlotString(instruction->payload.slotPair.right);
-      printf("CMP %s, %s\n", leftSlot, rightSlot);
+      printf("%u: CMP %s, %s\n", instruction->index, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
     } break;
@@ -708,7 +765,7 @@ void PrintInstruction(air_instruction* instruction)
       char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
       char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
       char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%s := %s + %s\n", resultSlot, leftSlot, rightSlot);
+      printf("%u: %s := %s + %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
       free(resultSlot);
@@ -719,7 +776,7 @@ void PrintInstruction(air_instruction* instruction)
       char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
       char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
       char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%s := %s - %s\n", resultSlot, leftSlot, rightSlot);
+      printf("%u: %s := %s - %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
       free(resultSlot);
@@ -730,7 +787,7 @@ void PrintInstruction(air_instruction* instruction)
       char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
       char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
       char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%s := %s * %s\n", resultSlot, leftSlot, rightSlot);
+      printf("%u: %s := %s * %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
       free(resultSlot);
@@ -741,7 +798,7 @@ void PrintInstruction(air_instruction* instruction)
       char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
       char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
       char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%s := %s / %s\n", resultSlot, leftSlot, rightSlot);
+      printf("%u: %s := %s / %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
       free(resultSlot);
@@ -754,7 +811,13 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_CALL:
     {
-      printf("CALL %s\n", instruction->payload.function->name);
+      printf("%u: CALL %s\n", instruction->index, instruction->payload.function->name);
+    } break;
+
+    case I_LABEL:
+    {
+      printf("LABEL\n");
+      // TODO: be more helpful to the poor sod debugginh here
     } break;
   }
 }
@@ -820,12 +883,11 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
   const char* snazzyColors[] =
   {
-    "cyan2", "deeppink", "gainsboro", "dodgerblue4", "slategray", "goldenrod", "darkorchid1", "blue",
+    "cyan2", "deeppink", "darkgoldenrod2", "dodgerblue4", "slategray", "goldenrod", "darkorchid1", "blue",
     "green3", "lightblue2", "mediumspringgreeen", "orange1", "mistyrose3", "maroon2", "mediumpurple2",
     "steelblue2", "plum", "lightseagreen"
   };
 
-  // Emit nodes
   for (auto* slotIt = function->slots.first;
        slotIt;
        slotIt = slotIt->next)

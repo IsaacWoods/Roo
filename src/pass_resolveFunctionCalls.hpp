@@ -38,6 +38,7 @@ void InitFunctionCallsPass()
       }
 
       // TODO: use fancy-ass error system (when it's built)
-      fprintf(stderr, "Failed to resolve function call: '%s'!\n", n->payload.functionCall.function.name);
+      fprintf(stderr, "FATAL: Failed to resolve function call to '%s'!\n", n->payload.functionCall.function.name);
+      exit(1);
     };
 }

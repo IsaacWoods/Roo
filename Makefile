@@ -23,7 +23,8 @@ STD_OBJECTS = \
 	std/bootstrap.o \
 	std/io.o \
 
-.PHONY: clean
+.PHONY: clean install
+.DEFAULT: roo
 
 roo: $(OBJS) $(STD_OBJECTS) $(AST_PASSES)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
@@ -36,3 +37,7 @@ roo: $(OBJS) $(STD_OBJECTS) $(AST_PASSES)
 
 clean:
 	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo
+
+install:
+	mkdir -p ~/.vim/syntax
+	cp roo.vim ~/.vim/syntax/roo.vim
