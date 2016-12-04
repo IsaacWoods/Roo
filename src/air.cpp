@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstdarg>
+#include <climits>
 #include <common.hpp>
 #include <ast.hpp>
 
@@ -21,6 +22,9 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   s->numInterferences = 0u;
   memset(s->interferences, 0, sizeof(slot*) * MAX_INTERFERENCES);
   s->color = -1;
+
+  s->range.definer = function->tail;
+  s->range.lastUser = function->tail;
   
   switch (type)
   {
@@ -526,7 +530,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_fu
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-void ColorSlots(codegen_target& target, air_function* function)
+static void ColorSlots(codegen_target& target, air_function* function)
 {
   const unsigned int numGeneralRegisters = 14u;
 //  unsigned int numSlots;
@@ -888,84 +892,96 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
     "steelblue2", "plum", "lightseagreen"
   };
 
-  for (auto* slotIt = function->slots.first;
-       slotIt;
-       slotIt = slotIt->next)
+  for (auto* it = function->slots.first;
+       it;
+       it = it->next)
   {
+    slot* slot = **it;
     const char* color = "black";
 
-    if (!(**slotIt)->shouldBeColored)
+    if (!(slot->shouldBeColored))
     {
       color = "gray";
     }
     else
     {
-      if ((**slotIt)->color < 0)
+      if (slot->color < 0)
       {
         fprintf(stderr, "WARNING: found uncolored node! Using red!\n");
         color = "red";
       }
       else
       {
-        color = snazzyColors[(**slotIt)->color];
+        color = snazzyColors[slot->color];
       }
     }
 
-    switch ((**slotIt)->type)
+    /*
+     * NOTE(Isaac): this is a slightly hacky way of concatenating strings using GCC varadic macros,
+     * since apparently the ## preprocessing token is next to bloody useless...
+     */
+    #define CAT(A, B, C) A B C
+    #define PRINT_SLOT(label, ...) \
+        fprintf(f, CAT("\ts%u[label=\"", label, "(%u...%u)\" color=\"%s\" fontcolor=\"%s\"];\n"), \
+            i, __VA_ARGS__, slot->range.definer->index, slot->range.lastUser->index, color, color);
+
+    switch (slot->type)
     {
       case slot::slot_type::PARAM:
       {
-        fprintf(f, "\ts%u[label=\"%s : PARAM(%d)\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag, color, color);
+        PRINT_SLOT("%s : PARAM(%d)", slot->payload.variable->name, slot->tag);
       } break;
 
       case slot::slot_type::LOCAL:
       {
-        fprintf(f, "\ts%u[label=\"%s : LOCAL(%d)\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.variable->name, (**slotIt)->tag, color, color);
+        PRINT_SLOT("%s : LOCAL(%d)", slot->payload.variable->name, slot->tag);
       } break;
 
       case slot::slot_type::INTERMEDIATE:
       {
-        fprintf(f, "\ts%u[label=\"t%d : INTERMEDIATE\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->tag, color, color);
+        PRINT_SLOT("%d : INTERMEDIATE", slot->tag);
       } break;
 
       case slot::slot_type::IN_PARAM:
       {
-        fprintf(f, "\ts%u[label=\"IN\" color=\"%s\" fontcolor=\"%s\"];\n", i, color, color);
+        PRINT_SLOT("%u : IN", i);
       } break;
 
       case slot::slot_type::INT_CONSTANT:
       {
-        fprintf(f, "\ts%u[label=\"%d : INT\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.i, color, color);
+        PRINT_SLOT("%d : INT", slot->payload.i);
       } break;
 
       case slot::slot_type::FLOAT_CONSTANT:
       {
-        fprintf(f, "\ts%u[label=\"%f : FLOAT\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.f, color, color);
+        PRINT_SLOT("%f : FLOAT", slot->payload.f);
       } break;
 
       case slot::slot_type::STRING_CONSTANT:
       {
-        fprintf(f, "\ts%u[label=\"\\\"%s\\\" : STRING\" color=\"%s\" fontcolor=\"%s\"];\n", i, (**slotIt)->payload.string->string, color, color);
+        PRINT_SLOT("\"%s\" : STRING", slot->payload.string->string);
       } break;
     }
 
-    (**slotIt)->dotTag = i;
+    slot->dotTag = i;
     i++;
   }
 
   // Emit the interferences between them
-  for (auto* slotIt = function->slots.first;
-       slotIt;
-       slotIt = slotIt->next)
+  for (auto* it = function->slots.first;
+       it;
+       it = it->next)
   {
+    slot* slot = **it;
+
     for (unsigned int i = 0u;
-         i < (**slotIt)->numInterferences;
+         i < slot->numInterferences;
          i++)
     {
       // NOTE(Isaac): this is a slightly tenuous way to avoid emitting duplicates
-      if ((**slotIt)->dotTag < (**slotIt)->interferences[i]->dotTag)
+      if (slot->dotTag < slot->interferences[i]->dotTag)
       {
-        fprintf(f, "\ts%u -> s%u[dir=none];\n", (**slotIt)->dotTag, (**slotIt)->interferences[i]->dotTag);
+        fprintf(f, "\ts%u -> s%u[dir=none];\n", slot->dotTag, slot->interferences[i]->dotTag);
       }
     }
   }

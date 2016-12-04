@@ -35,6 +35,16 @@ enum instruction_type
 
 const char* GetInstructionName(instruction_type type);
 
+/*
+ * Represents the range a slot is live for, in terms of instruction indices.
+ */
+struct air_instruction;
+struct live_range
+{
+  air_instruction* definer;
+  air_instruction* lastUser;
+};
+
 struct slot
 {
   enum slot_type
@@ -66,6 +76,7 @@ struct slot
    * -1 : signifies this slot holds a constant
    */
   signed int tag;
+  live_range range;
 
   unsigned int numInterferences;
   slot* interferences[MAX_INTERFERENCES];
