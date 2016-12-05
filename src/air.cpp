@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstdarg>
-#include <climits>
 #include <common.hpp>
 #include <ast.hpp>
 
@@ -22,9 +21,8 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   s->numInterferences = 0u;
   memset(s->interferences, 0, sizeof(slot*) * MAX_INTERFERENCES);
   s->color = -1;
-
-  s->range.definer = function->tail;
-  s->range.lastUser = function->tail;
+  s->range.definer = nullptr;
+  s->range.lastUser = nullptr;
   
   switch (type)
   {
@@ -91,22 +89,28 @@ void Free<slot*>(slot*& slot)
   free(slot);
 }
 
-static void AddInterference(slot* a, slot* b)
+/*static void AddInterference(slot* a, slot* b)
 {
   a->interferences[a->numInterferences++] = b;
   b->interferences[b->numInterferences++] = a;
+}*/
+
+instruction_label* CreateInstructionLabel()
+{
+  instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
+  label->address = 0u;
+  
+  return label;
 }
 
-static air_instruction* CreateInstruction(instruction_type type, ...)
+static air_instruction* PushInstruction(air_function* function, instruction_type type, ...)
 {
-  air_instruction* i = static_cast<air_instruction*>(malloc(sizeof(air_instruction)));
-  i->type = type;
-  i->label = nullptr;
-  i->next = nullptr;
-  air_instruction::instruction_payload& payload = i->payload;
-
   va_list args;
   va_start(args, type);
+
+  air_instruction* i = static_cast<air_instruction*>(malloc(sizeof(air_instruction)));
+  i->type = type;
+  i->next = nullptr;
 
   switch (type)
   {
@@ -120,19 +124,19 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
 
     case I_RETURN:
     {
-      payload.s                     = va_arg(args, slot*);
+      i->payload.s                     = va_arg(args, slot*);
     } break;
 
     case I_JUMP:
     {
-      payload.jump.cond             = static_cast<jump_instruction::condition>(va_arg(args, int));
-      payload.jump.label            = va_arg(args, instruction_label*);
+      i->payload.jump.cond             = static_cast<jump_instruction::condition>(va_arg(args, int));
+      i->payload.jump.label            = va_arg(args, instruction_label*);
     } break;
 
     case I_MOV:
     {
-      payload.mov.dest              = va_arg(args, slot*);
-      payload.mov.src               =va_arg(args, slot*);
+      i->payload.mov.dest              = va_arg(args, slot*);
+      i->payload.mov.src               = va_arg(args, slot*);
     } break;
 
     case I_CMP:
@@ -141,54 +145,44 @@ static air_instruction* CreateInstruction(instruction_type type, ...)
     case I_MUL:
     case I_DIV:
     {
-      payload.slotTriple.left       = va_arg(args, slot*);
-      payload.slotTriple.right      = va_arg(args, slot*);
-      payload.slotTriple.result     = va_arg(args, slot*);
+      i->payload.slotTriple.left       = va_arg(args, slot*);
+      i->payload.slotTriple.right      = va_arg(args, slot*);
+      i->payload.slotTriple.result     = va_arg(args, slot*);
     } break;
 
     case I_NEGATE:
     {
-      payload.slotPair.left         = va_arg(args, slot*);
-      payload.slotPair.right        = va_arg(args, slot*);
+      i->payload.slotPair.left         = va_arg(args, slot*);
+      i->payload.slotPair.right        = va_arg(args, slot*);
     } break;
 
     case I_CALL:
     {
-      payload.function              = va_arg(args, function_def*);
+      i->payload.function              = va_arg(args, function_def*);
     } break;
 
     case I_LABEL:
     {
-      payload.label                 = va_arg(args, instruction_label*);
+      i->payload.label                 = va_arg(args, instruction_label*);
     } break;
+  }
 
-    default:
-    {
-      fprintf(stderr, "Unhandled AIR instruction type in CreateInstruction!\n");
-      exit(1);
-    }
+  if (function->code)
+  {
+    i->index = function->tail->index + 1u;
+    function->tail->next = i;
+    function->tail = i;
+  }
+  else
+  {
+    i->index = 0u;
+    function->code = i;
+    function->tail = i;
   }
 
   va_end(args);
   return i;
 }
-
-instruction_label* CreateInstructionLabel()
-{
-  instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
-  label->address = 0u;
-  
-  return label;
-}
-
-/*
- * NOTE(Isaac): because the C++ spec is written in a stupid-ass manner, the instruction type has to be a vararg.
- * Always supply an AIR instruction type as the first vararg!
- */
-#define PushInstruction(...) \
-  function->tail->next = CreateInstruction(__VA_ARGS__); \
-  function->tail->next->index = function->tail->index + 1u; \
-  function->tail = function->tail->next; \
 
 /*
  * BREAK_NODE:              `
@@ -203,7 +197,6 @@ instruction_label* CreateInstructionLabel()
  * FUNCTION_CALL_NODE:      `slot*      `Nothing
  * VARIABLE_ASSIGN_NODE:    `Nothing
  */
-
 template<typename T = void>
 T GenNodeAIR(codegen_target& target, air_function* function, node* n);
 
@@ -220,31 +213,28 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
       slot* left = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
-
-      AddInterference(left, right);
-      AddInterference(left, result);
-      AddInterference(right, result);
+      air_instruction* instruction = nullptr;
 
       switch (n->payload.binaryOp.op)
       {
         case TOKEN_PLUS:
         {
-          PushInstruction(I_ADD, left, right, result);
+          instruction = PushInstruction(function, I_ADD, left, right, result);
         } break;
 
         case TOKEN_MINUS:
         {
-          PushInstruction(I_SUB, left, right, result);
+          instruction = PushInstruction(function, I_SUB, left, right, result);
         } break;
 
         case TOKEN_ASTERIX:
         {
-          PushInstruction(I_MUL, left, right, result);
+          instruction = PushInstruction(function, I_MUL, left, right, result);
         } break;
 
         case TOKEN_SLASH:
         {
-          PushInstruction(I_DIV, left, right, result);
+          instruction = PushInstruction(function, I_DIV, left, right, result);
         } break;
 
         default:
@@ -254,6 +244,10 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
         }
       }
 
+      left->range.lastUser = instruction;
+      right->range.lastUser = instruction;
+      result->range.definer = instruction;
+
       return result;
     } break;
 
@@ -261,6 +255,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
     {
       slot* right = GenNodeAIR<slot*>(target, function, n->payload.prefixOp.right);
       slot* result = static_cast<slot*>(malloc(sizeof(slot)));
+      air_instruction* instruction = nullptr;
 
       switch (n->payload.prefixOp.op)
       {
@@ -281,7 +276,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
 
         case TOKEN_TILDE:
         {
-          PushInstruction(I_NEGATE, right, result);
+          instruction = PushInstruction(function, I_NEGATE, right, result);
         } break;
 
         default:
@@ -290,6 +285,9 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
           exit(1);
         }
       }
+
+      right->range.lastUser = instruction;
+      result->range.definer = instruction;
 
       return result;
     } break;
@@ -352,9 +350,10 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_targ
     {
       slot* a = GenNodeAIR<slot*>(target, function, n->payload.condition.left);
       slot* b = GenNodeAIR<slot*>(target, function, n->payload.condition.right);
-      AddInterference(a, b);
 
-      PushInstruction(I_CMP, a, b);
+      air_instruction* instruction = PushInstruction(function, I_CMP, a, b);
+      a->range.lastUser = instruction;
+      b->range.lastUser = instruction;
 
       switch (n->payload.condition.condition)
       {
@@ -433,8 +432,8 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
         returnValue = GenNodeAIR<slot*>(target, function, n->payload.expression);
       }
 
-      PushInstruction(I_LEAVE_STACK_FRAME);
-      PushInstruction(I_RETURN, returnValue);
+      PushInstruction(function, I_LEAVE_STACK_FRAME);
+      returnValue->range.lastUser = PushInstruction(function, I_RETURN, returnValue);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -442,9 +441,10 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
       // TODO: don't assume it's a local (could be a param?)
       slot* variableSlot = CreateSlot(function, slot::slot_type::LOCAL, n->payload.variableAssignment.variable);
       slot* newValueSlot = GenNodeAIR<slot*>(target, function, n->payload.variableAssignment.newValue);
-      AddInterference(variableSlot, newValueSlot);
 
-      PushInstruction(I_MOV, variableSlot, newValueSlot);
+      air_instruction* instruction = PushInstruction(function, I_MOV, variableSlot, newValueSlot);
+      variableSlot->range.definer = instruction;
+      newValueSlot->range.lastUser = instruction;
     } break;
 
     case FUNCTION_CALL_NODE:
@@ -455,14 +455,16 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
            paramIt;
            paramIt = paramIt->next)
       {
-        slot* paramSlot = CreateSlot(function, slot::slot_type::IN_PARAM, target.intParamColors[numGeneralParams++]);
-        slot* valueSlot = GenNodeAIR<slot*>(target, function, **paramIt);
-        AddInterference(paramSlot, valueSlot);
-        PushInstruction(I_MOV, paramSlot, valueSlot);
+        slot* param = CreateSlot(function, slot::slot_type::IN_PARAM, target.intParamColors[numGeneralParams++]);
+        slot* value = GenNodeAIR<slot*>(target, function, **paramIt);
+
+        air_instruction* iMov = PushInstruction(function, I_MOV, param, value);
+        param->range.definer = iMov;
+        value->range.lastUser = iMov;
       }
 
       assert(n->payload.functionCall.isResolved);
-      PushInstruction(I_CALL, n->payload.functionCall.function.def);
+      PushInstruction(function, I_CALL, n->payload.functionCall.function.def);
     } break;
 
     case IF_NODE:
@@ -479,7 +481,7 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
         elseLabel = CreateInstructionLabel();
       }
 
-      PushInstruction(I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
+      PushInstruction(function, I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
       GenNodeAIR(target, function, n->payload.ifThing.thenCode);
 
       if (n->payload.ifThing.elseCode)
@@ -489,7 +491,8 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 
         // NOTE(Isaac): The first instruction after the old tail should be the first instruction of the else code
         assert(currentTail->next);
-        currentTail->next->label = elseLabel;
+        // TODO: wat
+//        currentTail->next->label = elseLabel;
       }
     } break;
 
@@ -512,7 +515,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_fu
     case BREAK_NODE:
     {
       instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
-      PushInstruction(I_JUMP, jump_instruction::condition::UNCONDITIONAL, label);
+      PushInstruction(function, I_JUMP, jump_instruction::condition::UNCONDITIONAL, label);
 
       return label;
     } break;
@@ -533,8 +536,6 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_fu
 static void ColorSlots(codegen_target& target, air_function* function)
 {
   const unsigned int numGeneralRegisters = 14u;
-//  unsigned int numSlots;
-//  slot** slots = LinearizeLinkedList<slot*>(function->slots, &numSlots);
 
   // Color params
   unsigned int intParamCounter = 0u;
@@ -603,12 +604,12 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
   assert(functionDef->air == nullptr);
 
   air_function* function = functionDef->air = static_cast<air_function*>(malloc(sizeof(air_function)));
+  function->code = nullptr;
+  function->tail = nullptr;
   CreateLinkedList<slot*>(function->slots);
   function->numIntermediates = 0;
 
-  function->code = CreateInstruction(I_ENTER_STACK_FRAME);
-  function->code->index = 0u;
-  function->tail = function->code;
+  PushInstruction(function, I_ENTER_STACK_FRAME);
 
   for (node* n = functionDef->ast;
        n;
@@ -619,8 +620,8 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
 
   if (functionDef->shouldAutoReturn)
   {
-    PushInstruction(I_LEAVE_STACK_FRAME);
-    PushInstruction(I_RETURN, nullptr);
+    PushInstruction(function, I_LEAVE_STACK_FRAME);
+    PushInstruction(function, I_RETURN, nullptr);
   }
 
   // Color the interference graph
@@ -650,9 +651,6 @@ void Free<air_function*>(air_function*& function)
   {
     air_instruction* temp = function->code;
     function->code = function->code->next;
-
-    // Free the instruction
-    free(temp->label);
     free(temp);
   }
 
@@ -713,12 +711,6 @@ static char* GetSlotString(slot* s)
 
 void PrintInstruction(air_instruction* instruction)
 {
-/*  if (instruction->label)
-  {
-    // TODO(Isaac): print more information about the label
-    printf("[LABEL]: ");
-  }*/
-
   switch (instruction->type)
   {
     case I_ENTER_STACK_FRAME:
@@ -922,28 +914,66 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
      */
     #define CAT(A, B, C) A B C
     #define PRINT_SLOT(label, ...) \
-        fprintf(f, CAT("\ts%u[label=\"", label, "(%u...%u)\" color=\"%s\" fontcolor=\"%s\"];\n"), \
-            i, __VA_ARGS__, slot->range.definer->index, slot->range.lastUser->index, color, color);
+        fprintf(f, CAT("\ts%u[label=\"", label, "%s\" color=\"%s\" fontcolor=\"%s\"];\n"), \
+            i, __VA_ARGS__, (liveRange ? liveRange : ""), color, color);
+    // NOTE(Isaac): a format string should be supplied as the first vararg
+    #define MAKE_LIVE_RANGE(...) \
+        liveRange = static_cast<char*>(malloc(sizeof(char) * (snprintf(nullptr, 0u, __VA_ARGS__) + 1u))); \
+        sprintf(liveRange, __VA_ARGS__);
+
+    char* liveRange = nullptr;
 
     switch (slot->type)
     {
       case slot::slot_type::PARAM:
       {
+        assert(slot->range.definer);
+
+        if (slot->range.lastUser)
+        {
+          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+        }
+        else
+        {
+          /*
+           *  NOTE(Isaac): apparently trigraphs still exist, so we need to escape one of the question marks.
+           *  IBM has a lot to answer for...
+           */
+          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
+        }
+
         PRINT_SLOT("%s : PARAM(%d)", slot->payload.variable->name, slot->tag);
       } break;
 
       case slot::slot_type::LOCAL:
       {
+        assert(slot->range.definer);
+
+        if (slot->range.lastUser)
+        {
+          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+        }
+        else
+        {
+          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
+        }
+
         PRINT_SLOT("%s : LOCAL(%d)", slot->payload.variable->name, slot->tag);
       } break;
 
       case slot::slot_type::INTERMEDIATE:
       {
-        PRINT_SLOT("%d : INTERMEDIATE", slot->tag);
+        assert(slot->range.definer);
+        assert(slot->range.lastUser);
+        MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+        PRINT_SLOT("t%d : INTERMEDIATE", slot->tag);
       } break;
 
       case slot::slot_type::IN_PARAM:
       {
+        assert(slot->range.definer);
+        assert(slot->range.lastUser);
+        MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
         PRINT_SLOT("%u : IN", i);
       } break;
 
@@ -963,6 +993,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
       } break;
     }
 
+    free(liveRange);
     slot->dotTag = i;
     i++;
   }

@@ -142,9 +142,7 @@ struct air_instruction
 {
   unsigned int          index;
   air_instruction*      next;
-
   instruction_type      type;
-  instruction_label*    label;    // NOTE(Isaac): `nullptr` for unlabelled instructions
 
   union instruction_payload
   {

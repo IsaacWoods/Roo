@@ -8,11 +8,8 @@ highlight link rooKeyword Keyword
 syntax keyword rooBools true false
 highlight link rooBools Boolean
 
-syntax match rooNumber '\d\+' contained display
-syntax match rooNumber '[-+]\d\+' contained display
-syntax match rooNumber '\d\+\.\d*' contained display
-syntax match rooNumber '[-+]\d\+\.\d*' contained display
-highlight link rooNumber Number
+syntax match rooNumber display contained "\d\+\(u\=l\{0,2}\|ll\=u\)\>"
+highlight def link rooNumber Number
 
 syntax region rooString start='"' end='"' contained
 highlight link rooString Constant
