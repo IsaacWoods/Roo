@@ -201,6 +201,7 @@ static token LexName(roo_parser& parser)
   KEYWORD("return",   TOKEN_RETURN)
   KEYWORD("if",       TOKEN_IF)
   KEYWORD("else",     TOKEN_ELSE)
+  KEYWORD("mut",      TOKEN_MUT)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
@@ -665,7 +666,7 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
   return next;
 }
 
-#if 0
+#if 1
 static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
@@ -759,7 +760,7 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
     ConsumeNext(parser, TOKEN_COLON);
     char* typeName = GetTextFromToken(PeekToken(parser));
 
-    variable_def* param = CreateVariableDef(varName, typeName, nullptr);
+    variable_def* param = CreateVariableDef(varName, typeName, false, nullptr);
 
     printf("Param: %s of type %s\n", param->name, param->type.type.name);
     AddToLinkedList<variable_def*>(params, param);
@@ -803,6 +804,14 @@ static variable_def* VariableDef(roo_parser& parser)
 {
   char* name = GetTextFromToken(PeekToken(parser));
   ConsumeNext(parser, TOKEN_COLON);
+
+  bool isMutable = false;
+  if (Match(parser, TOKEN_MUT))
+  {
+    isMutable = true;
+    NextToken(parser);
+  }
+
   char* typeName = GetTextFromToken(PeekToken(parser));
   node* initValue;
 
@@ -817,8 +826,8 @@ static variable_def* VariableDef(roo_parser& parser)
     NextToken(parser);
   }
 
-  variable_def* variable = CreateVariableDef(name, typeName, initValue);
-  printf("Defined variable: %s of type: %s\n", variable->name, variable->type.type.name);
+  variable_def* variable = CreateVariableDef(name, typeName, isMutable, initValue);
+  printf("Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.type.name, (isMutable ? "is mutable" : "is immutable"));
   return variable;
 }
 

@@ -6,7 +6,7 @@ fn Print(str : string)
 #[Entry]
 fn Main(y : int) -> int
 {
-  left : int = 3
+  left : mut int = 3
   right : int = 7
 
   middle : int = left + right

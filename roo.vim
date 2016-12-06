@@ -2,7 +2,7 @@ if exists("b:current_syntax")
   finish
 endif
 
-syntax keyword rooKeyword type fn import break return if else
+syntax keyword rooKeyword type fn import break return if else mut
 highlight link rooKeyword Keyword
 
 syntax keyword rooBools true false

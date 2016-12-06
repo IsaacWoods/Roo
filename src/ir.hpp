@@ -115,11 +115,12 @@ struct variable_def
 {
   char*         name;
   type_ref      type;
+  bool          isMutable;
   node*         initValue;
   slot*         mostRecentSlot;
 };
 
-variable_def* CreateVariableDef(char* name, char* typeName, node* initValue);
+variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node* initValue);
 
 struct function_attrib
 {

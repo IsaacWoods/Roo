@@ -234,6 +234,8 @@ void Free<node*>(node*& n)
 
 static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NUM_AST_NODES], parse_result& parse)
 {
+  assert(n->type);
+
   // Apply the pass to the node
   if (pass[n->type])
   {
@@ -330,16 +332,21 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
 void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
 {
-  for (auto* functionIt = parse.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
+  for (auto* it = parse.functions.first;
+       it;
+       it = it->next)
   {
-    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    function_def* function = **it;
+
+    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
     {
       continue;
     }
 
-    ApplyPassToNode((**functionIt)->ast, **functionIt, pass, parse);
+    if (function->ast)
+    {
+      ApplyPassToNode(function->ast, function, pass, parse);
+    }
   }
 }
 
