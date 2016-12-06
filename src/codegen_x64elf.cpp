@@ -429,6 +429,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // --- TEMPORARY TESTING STUFF AND THINGS ---
   LinkObject(elf, "./std/bootstrap.o");
+  LinkObject(elf, "./std/io.o");
   // ---
  
   // TODO: link external object files we need here

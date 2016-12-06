@@ -531,7 +531,6 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_fu
   return nullptr;
 }
 
-static char* GetSlotString(slot*);
 static void GenerateInterferences(air_function* function)
 {
   for (auto* itA = function->slots.first;
@@ -1020,16 +1019,32 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
       case slot::slot_type::INTERMEDIATE:
       {
         assert(slot->range.definer);
-        assert(slot->range.lastUser);
-        MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+
+        if (slot->range.lastUser)
+        {
+          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+        }
+        else
+        {
+          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
+        }
+
         PRINT_SLOT("t%d : INTERMEDIATE", slot->tag);
       } break;
 
       case slot::slot_type::IN_PARAM:
       {
         assert(slot->range.definer);
-        assert(slot->range.lastUser);
-        MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+
+        if (slot->range.lastUser)
+        {
+          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
+        }
+        else
+        {
+          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
+        }
+
         PRINT_SLOT("%u : IN", i);
       } break;
 

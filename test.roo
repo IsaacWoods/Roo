@@ -11,5 +11,7 @@ fn Main(y : int) -> int
 
   middle : int = left + right
 
+  Print("Hello, World!\n")
+
   return 0
 }
