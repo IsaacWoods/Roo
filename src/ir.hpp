@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <common.hpp>
+#include <linked_list.hpp>
+#include <cstdint>
 
 struct node;
 struct air_instruction;

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <linked_list.hpp>
 #include <common.hpp>
 #include <ir.hpp>
 

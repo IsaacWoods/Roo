@@ -4,7 +4,7 @@
  */
 
 #include <cstdio>
-#include <tinydir.hpp>
+//#include <tinydir.hpp>
 #include <common.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
@@ -23,32 +23,26 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 void InitCodegenTarget(parse_result& result, codegen_target& target);
 void FreeCodegenTarget(codegen_target& target);
 
-static compile_result Compile(parse_result& result, const char* directory)
+static compile_result Compile(parse_result& result, const char* directoryPath)
 {
   // Find and parse all .roo files in the specified directory
+  directory dir;
+  OpenDirectory(dir, directoryPath);
+
+  for (auto* it = dir.files.first;
+       it;
+       it = it->next)
   {
-    tinydir_dir dir;
-    tinydir_open(&dir, directory);
-  
-    while (dir.has_next)
+    file* f = **it;
+
+    if (f->extension && strcmp(f->extension, "roo") == 0)
     {
-      tinydir_file file;
-      tinydir_readfile(&dir, &file);
-  
-      if (file.is_dir || strcmp(file.extension, "roo") != 0)
-      {
-        tinydir_next(&dir);
-        continue;
-      }
-  
-      printf("Parsing Roo source file: %s\n", file.name);
-      Parse(&result, file.name); 
-      tinydir_next(&dir);
+      printf("Parsing Roo source file: %s\n", f->name);
+      Parse(&result, f->name); 
     }
-  
-    tinydir_close(&dir);
   }
 
+  Free<directory>(dir);
   return compile_result::SUCCESS;
 }
 
