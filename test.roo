@@ -6,8 +6,8 @@ fn Print(str : string)
 #[Entry]
 fn Main(y : int) -> int
 {
-  left : int = 4
-  right : int = 7 + 3
+  left : int = 3
+  right : int = 7
 
   middle : int = left + right
 

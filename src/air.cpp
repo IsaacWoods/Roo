@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstdarg>
+#include <climits>
 #include <common.hpp>
 #include <ast.hpp>
 
@@ -89,12 +90,6 @@ void Free<slot*>(slot*& slot)
   free(slot);
 }
 
-/*static void AddInterference(slot* a, slot* b)
-{
-  a->interferences[a->numInterferences++] = b;
-  b->interferences[b->numInterferences++] = a;
-}*/
-
 instruction_label* CreateInstructionLabel()
 {
   instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
@@ -165,6 +160,12 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
     {
       i->payload.label                 = va_arg(args, instruction_label*);
     } break;
+
+    case I_NUM_INSTRUCTIONS:
+    {
+      fprintf(stderr, "Tried to push AIR instruction of type I_NUM_INSTRUCTIONS!\n");
+      assert(false);
+    }
   }
 
   if (function->code)
@@ -530,6 +531,54 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_fu
   return nullptr;
 }
 
+static char* GetSlotString(slot*);
+static void GenerateInterferences(air_function* function)
+{
+  for (auto* itA = function->slots.first;
+       itA;
+       itA = itA->next)
+  {
+    slot* a = **itA;
+
+    if (a->type == slot::slot_type::INT_CONSTANT ||
+        a->type == slot::slot_type::FLOAT_CONSTANT ||
+        a->type == slot::slot_type::STRING_CONSTANT)
+    {
+      continue;
+    }
+
+    for (auto* itB = itA->next;
+         itB;
+         itB = itB->next)
+    {
+      slot* b = **itB;
+
+      if (b->type == slot::slot_type::INT_CONSTANT ||
+          b->type == slot::slot_type::FLOAT_CONSTANT ||
+          b->type == slot::slot_type::STRING_CONSTANT)
+      {
+        continue;
+      }
+
+      /*
+       * NOTE(Isaac): `lastUser` can be null if the variable is never used in the function
+       * This shouldn't happen in optimizing builds, but that would require smart stuff to guarantee ¯\_(ツ)_/¯
+       */
+      unsigned int defA = a->range.definer->index;
+      unsigned int useA = (a->range.lastUser ? a->range.lastUser->index : UINT_MAX);
+      unsigned int defB = b->range.definer->index;
+      unsigned int useB = (b->range.lastUser ? b->range.lastUser->index : UINT_MAX);
+
+      // If their live ranges intersect, add an intersection
+      if (defA <= useB && defB <= useA)
+      {
+        a->interferences[a->numInterferences++] = b;
+        b->interferences[b->numInterferences++] = a;
+      }
+    }
+  }
+}
+
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
@@ -625,6 +674,7 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
   }
 
   // Color the interference graph
+  GenerateInterferences(functionDef->air);
   ColorSlots(target, functionDef->air);
 
 #if 1
@@ -715,7 +765,6 @@ void PrintInstruction(air_instruction* instruction)
   {
     case I_ENTER_STACK_FRAME:
     case I_LEAVE_STACK_FRAME:
-    case I_NUM_INSTRUCTIONS:
     {
       printf("%u: %s\n", instruction->index, GetInstructionName(instruction->type));
     } break;
@@ -815,6 +864,11 @@ void PrintInstruction(air_instruction* instruction)
       printf("LABEL\n");
       // TODO: be more helpful to the poor sod debugginh here
     } break;
+
+    case I_NUM_INSTRUCTIONS:
+    {
+      printf("!!!I_NUM_INSTRUCTIONS!!!\n");
+    } break;
   }
 }
 
@@ -844,13 +898,15 @@ const char* GetInstructionName(instruction_type type)
       return "DIV";
     case I_NEGATE:
       return "NEGATE";
-
-    default:
-    {
-      fprintf(stderr, "Unhandled AIR instruction type in GetInstructionName!\n");
-      exit(1);
-    }
+    case I_CALL:
+      return "CALL";
+    case I_LABEL:
+      return "LABEL";
+    case I_NUM_INSTRUCTIONS:
+      return "!!!I_NUM_INSTRUCTIONS!!!";
   }
+
+  return nullptr;
 }
 
 void CreateInterferenceDOT(air_function* function, const char* functionName)

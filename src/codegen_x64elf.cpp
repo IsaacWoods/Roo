@@ -175,7 +175,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, static_cast<uint8_t>(i::ADD_REG_REG));
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, dest, src));
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
     } break;
 
     case i::CMP_REG_REG:

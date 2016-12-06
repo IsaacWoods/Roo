@@ -37,6 +37,7 @@ const char* GetInstructionName(instruction_type type);
 
 /*
  * Represents the range a slot is live for, in terms of instruction indices.
+ * NOTE(Isaac): `lastUser` should be or should appear after `definer`
  */
 struct air_instruction;
 struct live_range
