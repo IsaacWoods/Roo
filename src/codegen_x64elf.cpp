@@ -516,6 +516,10 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
       Emit<uint8_t>(elf.rodataThing, *c);
       tail++;    
     }
+
+    // Add a null terminator
+    Emit<uint8_t>(elf.rodataThing, '\0');
+    tail++;
   }
 
   // Generate the symbol for each function
