@@ -783,7 +783,73 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_JUMP:
     {
+      switch (instruction->payload.jump.cond)
+      {
+        case jump_instruction::condition::UNCONDITIONAL:
+        {
+          printf("%u: JMP I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
 
+        case jump_instruction::condition::IF_EQUAL:
+        {
+          printf("%u: JE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_NOT_EQUAL:
+        {
+          printf("%u: JNE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_OVERFLOW:
+        {
+          printf("%u: JO I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_NOT_OVERFLOW:
+        {
+          printf("%u: JNO I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_SIGN:
+        {
+          printf("%u: JS I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_NOT_SIGN:
+        {
+          printf("%u: JNS I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_GREATER:
+        {
+          printf("%u: JG I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_GREATER_OR_EQUAL:
+        {
+          printf("%u: JGE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_LESSER:
+        {
+          printf("%u: JL I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_LESSER_OR_EQUAL:
+        {
+          printf("%u: JLE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_PARITY_EVEN:
+        {
+          printf("%u: JPE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+
+        case jump_instruction::condition::IF_PARITY_ODD:
+        {
+          printf("%u: JPO I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+        } break;
+      }
     } break;
 
     case I_MOV:

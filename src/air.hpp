@@ -95,6 +95,7 @@ struct slot
 
 struct instruction_label
 {
+  air_instruction* instruction;
   uint64_t address;   // NOTE(Isaac): initially 0
 };
 

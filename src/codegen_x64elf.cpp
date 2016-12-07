@@ -118,18 +118,31 @@ void Free<codegen_target>(codegen_target& target)
  * [...] - denotes a prefix byte
  * (...) - denotes bytes that follow the opcode, in order
  */
-enum class i : uint8_t
+enum class i
 {
-  ADD_REG_REG     = 0x01,       // [opcodeSize] (ModR/M)
-  CMP_REG_REG     = 0x39,       // (ModR/M)
-  PUSH_REG        = 0x50,       // +r
-  ADD_REG_IMM32   = 0x81,       // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
-  MOV_REG_REG     = 0x89,       // [opcodeSize] (ModR/M)
-  MOV_REG_IMM32   = 0xB8,       // +r (4-byte immediate)
-  MOV_REG_IMM64         ,       // NOTE(Isaac): same opcode as MOV_REG_IMM32      [immSize] +r (8-byte immedite)
-  RET             = 0xC3,
-  LEAVE           = 0xC9,
-  CALL32          = 0xE8,       // (4-byte offset to RIP)
+  ADD_REG_REG,      // [opcodeSize] (ModR/M)
+  CMP_REG_REG,      // (ModR/M)
+  PUSH_REG,         // +r
+  ADD_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  MOV_REG_REG,      // [opcodeSize] (ModR/M)
+  MOV_REG_IMM32,    // +r (4-byte immediate)
+  MOV_REG_IMM64,    // [immSize] +r (8-byte immedite)
+  CALL32,           // (4-byte offset to RIP)
+  LEAVE,
+  RET,
+  JMP,              // (4-byte offset to RIP)
+  JE,               // (4-byte offset to RIP)
+  JNE,              // (4-byte offset to RIP)
+  JO,               // (4-byte offset to RIP)
+  JNO,              // (4-byte offset to RIP)
+  JS,               // (4-byte offset to RIP)
+  JNS,              // (4-byte offset to RIP)
+  JG,               // (4-byte offset to RIP)
+  JGE,              // (4-byte offset to RIP)
+  JL,               // (4-byte offset to RIP)
+  JLE,              // (4-byte offset to RIP)
+  JPE,              // (4-byte offset to RIP)
+  JPO,              // (4-byte offset to RIP)
 };
 
 /*
@@ -174,7 +187,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg src   = static_cast<reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::ADD_REG_REG));
+      Emit<uint8_t>(thing, 0x01);
       Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
     } break;
 
@@ -183,14 +196,14 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg op1 = static_cast<reg>(va_arg(args, int));
       reg op2 = static_cast<reg>(va_arg(args, int));
 
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::CMP_REG_REG));
+      Emit<uint8_t>(thing, 0x39);
       Emit<uint8_t>(thing, CreateRegisterModRM(target, op1, op2));
     } break;
 
     case i::PUSH_REG:
     {
       reg r = static_cast<reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::PUSH_REG) + target.registerSet[r].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0x50 + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::ADD_REG_IMM32:
@@ -199,7 +212,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       uint32_t imm  = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::ADD_REG_IMM32));
+      Emit<uint8_t>(thing, 0x81);
       Emit<uint8_t>(thing, CreateExtensionModRM(target, 0u, result));
       Emit<uint32_t>(thing, imm);
     } break;
@@ -210,7 +223,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg src  = static_cast<reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::MOV_REG_REG));
+      Emit<uint8_t>(thing, 0x89);
       Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
     } break;
 
@@ -219,7 +232,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg dest = static_cast<reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
       Emit<uint32_t>(thing, imm);
     } break;
 
@@ -229,8 +242,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       uint64_t imm = va_arg(args, uint64_t);
 
       Emit<uint8_t>(thing, 0x48);
-      // NOTE(Isaac): use the opcode from `MOV_REG_IMM32` because they wouldn't all fit in the enum
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::MOV_REG_IMM32) + target.registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
       Emit<uint64_t>(thing, imm);
     } break;
 
@@ -238,15 +250,45 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     {
       uint32_t offset = va_arg(args, uint32_t);
 
-      Emit<uint8_t>(thing, static_cast<uint8_t>(i::CALL32));
+      Emit<uint8_t>(thing, 0xE8);
       Emit<uint32_t>(thing, offset);
     } break;
 
-    // NOTE(Isaac): these are the single-opcode instructions with no extra crap
-    case i::RET:
     case i::LEAVE:
     {
-      Emit<uint8_t>(thing, static_cast<uint8_t>(instruction));
+      Emit<uint8_t>(thing, 0xC9);
+    } break;
+
+    case i::RET:
+    {
+      Emit<uint8_t>(thing, 0xC3);
+    } break;
+
+    case i::JMP:
+    {
+      Emit<uint8_t>(thing, 0xE9);
+    } break;
+
+    case i::JE:
+    case i::JNE:
+    case i::JO:
+    case i::JNO:
+    case i::JS:
+    case i::JNS:
+    case i::JG:
+    case i::JGE:
+    case i::JL:
+    case i::JLE:
+    case i::JPE:
+    case i::JPO:
+    {
+      //                         JE    JNE   JO    JNO   JS    JNS   JG    JGE   JL    JLE   JPE   JPO
+      static uint8_t jumps[] = { 0x84, 0x85, 0x80, 0x81, 0x88, 0x89, 0x8F, 0x8D, 0x8C, 0x8E, 0x8A, 0x8B };
+
+      uint32_t relAddress = va_arg(args, uint32_t);
+      Emit<uint8_t>(thing, 0x0F);
+      Emit<uint8_t>(thing, jumps[static_cast<unsigned int>(instruction) - static_cast<unsigned int>(i::JE)]);
+      Emit<uint32_t>(thing, relAddress);
     } break;
   }
 
@@ -295,7 +337,29 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_JUMP:
       {
+        jump_instruction& jump = instruction->payload.jump;
 
+        // TODO: find the correct relative address (can we find it yet, or do we need to emit a relocation?)
+        uint64_t relativeAddress = 0x00;
+
+        switch (jump.cond)
+        {
+          // TODO: the instructions we use for greater, greater or equal, less and less or equal depend
+          // on whether the operands are signed or unsigned - take this into account
+          case jump_instruction::condition::UNCONDITIONAL:        E(i::JMP,   relativeAddress); break;
+          case jump_instruction::condition::IF_EQUAL:             E(i::JE,    relativeAddress); break;
+          case jump_instruction::condition::IF_NOT_EQUAL:         E(i::JNE,   relativeAddress); break;
+          case jump_instruction::condition::IF_OVERFLOW:          E(i::JO,    relativeAddress); break;
+          case jump_instruction::condition::IF_NOT_OVERFLOW:      E(i::JNO,   relativeAddress); break;
+          case jump_instruction::condition::IF_SIGN:              E(i::JS,    relativeAddress); break;
+          case jump_instruction::condition::IF_NOT_SIGN:          E(i::JNS,   relativeAddress); break;
+          case jump_instruction::condition::IF_GREATER:           E(i::JG,    relativeAddress); break;
+          case jump_instruction::condition::IF_GREATER_OR_EQUAL:  E(i::JGE,   relativeAddress); break;
+          case jump_instruction::condition::IF_LESSER:            E(i::JL,    relativeAddress); break;
+          case jump_instruction::condition::IF_LESSER_OR_EQUAL:   E(i::JLE,   relativeAddress); break;
+          case jump_instruction::condition::IF_PARITY_EVEN:       E(i::JPE,   relativeAddress); break;
+          case jump_instruction::condition::IF_PARITY_ODD:        E(i::JPO,   relativeAddress); break;
+        }
       } break;
 
       case I_MOV:

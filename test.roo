@@ -6,12 +6,17 @@ fn Print(str : string)
 #[Entry]
 fn Main(y : int) -> int
 {
-  left : mut int = 3
+  left : int = 3
   right : int = 7
 
-  middle : int = left + right
-
-  Print("Hello, World!\n")
+  if (left > right)
+  {
+    Print("Left is greater than right\n")
+  }
+  else
+  {
+    Print("Left is not greater than right\n")
+  }
 
   return 0
 }
