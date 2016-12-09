@@ -1125,7 +1125,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
       case slot::slot_type::STRING_CONSTANT:
       {
-        PRINT_SLOT("\"%s\" : STRING", slot->payload.string->string);
+        PRINT_SLOT("\\\"%s\\\" : STRING", slot->payload.string->string);
       } break;
     }
 

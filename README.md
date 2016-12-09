@@ -40,6 +40,8 @@ fn Main() -> int
   // Make and print a color
   myColor : color(1.0f, 0.0f, 1.0f, 1.0f)
   PrintColor(myColor)
+
+  return 0
 }
 ```
 
