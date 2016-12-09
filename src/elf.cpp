@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <cstdarg>
 #include <climits>
 #include <cassert>
 
@@ -55,7 +56,7 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend)
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const instruction_label* label)
 {
   elf_relocation* relocation = static_cast<elf_relocation*>(malloc(sizeof(elf_relocation)));
   relocation->thing   = thing;
@@ -63,6 +64,7 @@ void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocati
   relocation->type    = type;
   relocation->symbol  = symbol;
   relocation->addend  = addend;
+  relocation->label   = label;
 
   AddToLinkedList<elf_relocation*>(elf.relocations, relocation);
 }
@@ -856,24 +858,31 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
     uint64_t target = relocation->thing->fileOffset + relocation->offset;
     fseek(f, target, SEEK_SET);
 
+    int64_t addend = relocation->addend;
+
+    if (relocation->label)
+    {
+      addend += static_cast<int64_t>(relocation->label->offset);
+    }
+
     switch (relocation->type)
     {
       case R_X86_64_64:     // S + A
       {
-        uint64_t value = relocation->symbol->value + relocation->addend;
+        uint64_t value = relocation->symbol->value + addend;
         fwrite(&value, sizeof(uint64_t), 1, f);
       } break;
 
       case R_X86_64_PC32:   // S + A - P
       {
         uint32_t relocationPos = GetSection(elf, ".text")->address + target - GetSection(elf, ".text")->offset;
-        uint32_t value = (relocation->symbol->value + relocation->addend) - relocationPos;
+        uint32_t value = (relocation->symbol->value + addend) - relocationPos;
         fwrite(&value, sizeof(uint32_t), 1, f);
       } break;
 
       case R_X86_64_32:     // S + A
       {
-        uint32_t value = relocation->symbol->value + relocation->addend;
+        uint32_t value = relocation->symbol->value + addend;
         fwrite(&value, sizeof(uint32_t), 1, f);
       } break;
 

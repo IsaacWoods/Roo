@@ -95,8 +95,11 @@ struct slot
 
 struct instruction_label
 {
-  air_instruction* instruction;
-  uint64_t address;   // NOTE(Isaac): initially 0
+  /*
+   * Initially 0x00.
+   * Labels are assumed to be local to the function, so this is an offset from the symbol of the current function.
+   */
+  uint64_t offset;
 };
 
 struct jump_instruction

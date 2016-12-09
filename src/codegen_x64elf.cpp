@@ -266,7 +266,10 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
     case i::JMP:
     {
+      uint32_t relAddress = va_arg(args, uint32_t);
+
       Emit<uint8_t>(thing, 0xE9);
+      Emit<uint32_t>(thing, relAddress);
     } break;
 
     case i::JE:
@@ -339,27 +342,31 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
         jump_instruction& jump = instruction->payload.jump;
 
-        // TODO: find the correct relative address (can we find it yet, or do we need to emit a relocation?)
-        uint64_t relativeAddress = 0x00;
-
         switch (jump.cond)
         {
           // TODO: the instructions we use for greater, greater or equal, less and less or equal depend
           // on whether the operands are signed or unsigned - take this into account
-          case jump_instruction::condition::UNCONDITIONAL:        E(i::JMP,   relativeAddress); break;
-          case jump_instruction::condition::IF_EQUAL:             E(i::JE,    relativeAddress); break;
-          case jump_instruction::condition::IF_NOT_EQUAL:         E(i::JNE,   relativeAddress); break;
-          case jump_instruction::condition::IF_OVERFLOW:          E(i::JO,    relativeAddress); break;
-          case jump_instruction::condition::IF_NOT_OVERFLOW:      E(i::JNO,   relativeAddress); break;
-          case jump_instruction::condition::IF_SIGN:              E(i::JS,    relativeAddress); break;
-          case jump_instruction::condition::IF_NOT_SIGN:          E(i::JNS,   relativeAddress); break;
-          case jump_instruction::condition::IF_GREATER:           E(i::JG,    relativeAddress); break;
-          case jump_instruction::condition::IF_GREATER_OR_EQUAL:  E(i::JGE,   relativeAddress); break;
-          case jump_instruction::condition::IF_LESSER:            E(i::JL,    relativeAddress); break;
-          case jump_instruction::condition::IF_LESSER_OR_EQUAL:   E(i::JLE,   relativeAddress); break;
-          case jump_instruction::condition::IF_PARITY_EVEN:       E(i::JPE,   relativeAddress); break;
-          case jump_instruction::condition::IF_PARITY_ODD:        E(i::JPO,   relativeAddress); break;
+          
+          /*
+           * NOTE(Isaac): Because we're jumping to a label we don't have an address for yet,
+           * we're emitting 0 and adding a relocation to do it later
+           */
+          case jump_instruction::condition::UNCONDITIONAL:        E(i::JMP,   0x00); break;
+          case jump_instruction::condition::IF_EQUAL:             E(i::JE,    0x00); break;
+          case jump_instruction::condition::IF_NOT_EQUAL:         E(i::JNE,   0x00); break;
+          case jump_instruction::condition::IF_OVERFLOW:          E(i::JO,    0x00); break;
+          case jump_instruction::condition::IF_NOT_OVERFLOW:      E(i::JNO,   0x00); break;
+          case jump_instruction::condition::IF_SIGN:              E(i::JS,    0x00); break;
+          case jump_instruction::condition::IF_NOT_SIGN:          E(i::JNS,   0x00); break;
+          case jump_instruction::condition::IF_GREATER:           E(i::JG,    0x00); break;
+          case jump_instruction::condition::IF_GREATER_OR_EQUAL:  E(i::JGE,   0x00); break;
+          case jump_instruction::condition::IF_LESSER:            E(i::JL,    0x00); break;
+          case jump_instruction::condition::IF_LESSER_OR_EQUAL:   E(i::JLE,   0x00); break;
+          case jump_instruction::condition::IF_PARITY_EVEN:       E(i::JPE,   0x00); break;
+          case jump_instruction::condition::IF_PARITY_ODD:        E(i::JPO,   0x00); break;
         }
+
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, thing->symbol, -0x4, instruction->payload.jump.label);
       } break;
 
       case I_MOV:
@@ -452,8 +459,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_LABEL:
       {
-        // TODO
-        printf("Emitting label\n");
+        instruction->payload.label->offset = thing->length;
       } break;
 
       case I_NUM_INSTRUCTIONS:

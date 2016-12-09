@@ -6,16 +6,16 @@ fn Print(str : string)
 #[Entry]
 fn Main(y : int) -> int
 {
-  left : int = 3
-  right : int = 7
+  left : int = 7
+  right : int = 11
 
-  if (left > right)
+  if (left == right + 1)
   {
-    Print("Left is greater than right\n")
+    Print("Left is equal to right!\n")
   }
   else
   {
-    Print("Left is not greater than right\n")
+    Print("Left is not equal to right!\n")
   }
 
   return 0

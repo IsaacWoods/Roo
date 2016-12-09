@@ -93,7 +93,7 @@ void Free<slot*>(slot*& slot)
 instruction_label* CreateInstructionLabel()
 {
   instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
-  label->address = 0u;
+  label->offset = 0u;
   
   return label;
 }
@@ -487,14 +487,13 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 
       if (n->payload.ifThing.elseCode)
       {
-        air_instruction* currentTail = function->tail;
-        GenNodeAIR(target, function, n->payload.ifThing.elseCode);
+        PushInstruction(function, I_JUMP, jump_instruction::condition::UNCONDITIONAL, endLabel);
 
-        // NOTE(Isaac): The first instruction after the old tail should be the first instruction of the else code
-        assert(currentTail->next);
-        // TODO: wat
-//        currentTail->next->label = elseLabel;
+        PushInstruction(function, I_LABEL, elseLabel);
+        GenNodeAIR(target, function, n->payload.ifThing.elseCode);
       }
+
+      PushInstruction(function, I_LABEL, endLabel);
     } break;
 
     default:
@@ -787,67 +786,67 @@ void PrintInstruction(air_instruction* instruction)
       {
         case jump_instruction::condition::UNCONDITIONAL:
         {
-          printf("%u: JMP I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JMP I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_EQUAL:
         {
-          printf("%u: JE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_NOT_EQUAL:
         {
-          printf("%u: JNE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JNE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_OVERFLOW:
         {
-          printf("%u: JO I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JO I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_NOT_OVERFLOW:
         {
-          printf("%u: JNO I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JNO I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_SIGN:
         {
-          printf("%u: JS I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JS I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_NOT_SIGN:
         {
-          printf("%u: JNS I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JNS I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_GREATER:
         {
-          printf("%u: JG I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JG I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_GREATER_OR_EQUAL:
         {
-          printf("%u: JGE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JGE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_LESSER:
         {
-          printf("%u: JL I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JL I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_LESSER_OR_EQUAL:
         {
-          printf("%u: JLE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JLE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_PARITY_EVEN:
         {
-          printf("%u: JPE I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JPE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
         case jump_instruction::condition::IF_PARITY_ODD:
         {
-          printf("%u: JPO I(%u)\n", instruction->index, instruction->payload.jump.label->instruction->index);
+          printf("%u: JPO I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
       }
     } break;

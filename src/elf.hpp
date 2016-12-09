@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <common.hpp>
 #include <ir.hpp>
+#include <air.hpp>
 
 enum elf_file_type : uint16_t
 {
@@ -197,11 +198,16 @@ enum relocation_type : uint32_t
 
 struct elf_relocation
 {
-  elf_thing*      thing;
-  uint64_t        offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
-  relocation_type type;
-  elf_symbol*     symbol;
-  int64_t         addend;
+  elf_thing*                thing;
+  uint64_t                  offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
+  relocation_type           type;
+  elf_symbol*               symbol;
+
+  /*
+   * NOTE(Isaac): the final addend will be the sum of the offset from the label (if not null) and the constant
+   */
+  int64_t                   addend;
+  const instruction_label*  label;
 };
 
 // NOTE(Isaac): do not call this directly!
@@ -242,7 +248,7 @@ struct elf_file
 
 void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend);
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const instruction_label* label = nullptr);
 elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol);
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
