@@ -119,46 +119,50 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
 
     case I_RETURN:
     {
-      i->payload.s                     = va_arg(args, slot*);
+      i->payload.s                    = va_arg(args, slot*);
     } break;
 
     case I_JUMP:
     {
-      i->payload.jump.cond             = static_cast<jump_instruction::condition>(va_arg(args, int));
-      i->payload.jump.label            = va_arg(args, instruction_label*);
+      i->payload.jump.cond            = static_cast<jump_instruction::condition>(va_arg(args, int));
+      i->payload.jump.label           = va_arg(args, instruction_label*);
     } break;
 
     case I_MOV:
     {
-      i->payload.mov.dest              = va_arg(args, slot*);
-      i->payload.mov.src               = va_arg(args, slot*);
+      i->payload.mov.dest             = va_arg(args, slot*);
+      i->payload.mov.src              = va_arg(args, slot*);
     } break;
 
     case I_CMP:
-    case I_ADD:
-    case I_SUB:
-    case I_MUL:
-    case I_DIV:
     {
-      i->payload.slotTriple.left       = va_arg(args, slot*);
-      i->payload.slotTriple.right      = va_arg(args, slot*);
-      i->payload.slotTriple.result     = va_arg(args, slot*);
+      i->payload.slotTriple.left      = va_arg(args, slot*);
+      i->payload.slotTriple.right     = va_arg(args, slot*);
+      i->payload.slotTriple.result    = va_arg(args, slot*);
+    } break;
+
+    case I_BINARY_OP:
+    {
+      i->payload.binaryOp.operation   = static_cast<binary_op_instruction::op>(va_arg(args, int));
+      i->payload.binaryOp.left        = va_arg(args, slot*);
+      i->payload.binaryOp.right       = va_arg(args, slot*);
+      i->payload.binaryOp.result      = va_arg(args, slot*);
     } break;
 
     case I_NEGATE:
     {
-      i->payload.slotPair.left         = va_arg(args, slot*);
-      i->payload.slotPair.right        = va_arg(args, slot*);
+      i->payload.slotPair.left        = va_arg(args, slot*);
+      i->payload.slotPair.right       = va_arg(args, slot*);
     } break;
 
     case I_CALL:
     {
-      i->payload.function              = va_arg(args, function_def*);
+      i->payload.function             = va_arg(args, function_def*);
     } break;
 
     case I_LABEL:
     {
-      i->payload.label                 = va_arg(args, instruction_label*);
+      i->payload.label                = va_arg(args, instruction_label*);
     } break;
 
     case I_NUM_INSTRUCTIONS:
@@ -214,29 +218,14 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
       slot* left = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
-      air_instruction* instruction = nullptr;
+      binary_op_instruction::op operation;
 
       switch (n->payload.binaryOp.op)
       {
-        case TOKEN_PLUS:
-        {
-          instruction = PushInstruction(function, I_ADD, left, right, result);
-        } break;
-
-        case TOKEN_MINUS:
-        {
-          instruction = PushInstruction(function, I_SUB, left, right, result);
-        } break;
-
-        case TOKEN_ASTERIX:
-        {
-          instruction = PushInstruction(function, I_MUL, left, right, result);
-        } break;
-
-        case TOKEN_SLASH:
-        {
-          instruction = PushInstruction(function, I_DIV, left, right, result);
-        } break;
+        case TOKEN_PLUS:    operation = binary_op_instruction::op::ADD; break;
+        case TOKEN_MINUS:   operation = binary_op_instruction::op::SUB; break;
+        case TOKEN_ASTERIX: operation = binary_op_instruction::op::MUL; break;
+        case TOKEN_SLASH:   operation = binary_op_instruction::op::DIV; break;
 
         default:
         {
@@ -245,6 +234,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
         }
       }
 
+      air_instruction* instruction = PushInstruction(function, I_BINARY_OP, operation, left, right, result);
       left->range.lastUser = instruction;
       right->range.lastUser = instruction;
       result->range.definer = instruction;
@@ -764,7 +754,7 @@ void PrintInstruction(air_instruction* instruction)
     case I_ENTER_STACK_FRAME:
     case I_LEAVE_STACK_FRAME:
     {
-      printf("%u: %s\n", instruction->index, GetInstructionName(instruction->type));
+      printf("%u: %s\n", instruction->index, GetInstructionName(instruction));
     } break;
 
     case I_RETURN:
@@ -869,49 +859,26 @@ void PrintInstruction(air_instruction* instruction)
       free(rightSlot);
     } break;
 
-    case I_ADD:
+    case I_BINARY_OP:
     {
-      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
-      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
-      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%u: %s := %s + %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
-      free(leftSlot);
-      free(rightSlot);
-      free(resultSlot);
-    } break;
+      const char* opString;
 
-    case I_SUB:
-    {
-      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
-      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
-      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%u: %s := %s - %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
-      free(leftSlot);
-      free(rightSlot);
-      free(resultSlot);
-    } break;
+      switch (instruction->payload.binaryOp.operation)
+      {
+        case binary_op_instruction::op::ADD: opString = "+"; break;
+        case binary_op_instruction::op::SUB: opString = "-"; break;
+        case binary_op_instruction::op::MUL: opString = "*"; break;
+        case binary_op_instruction::op::DIV: opString = "/"; break;
+      }
 
-    case I_MUL:
-    {
-      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
-      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
-      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%u: %s := %s * %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
+      char* leftSlot = GetSlotString(instruction->payload.binaryOp.left);
+      char* rightSlot = GetSlotString(instruction->payload.binaryOp.right);
+      char* resultSlot = GetSlotString(instruction->payload.binaryOp.result);
+      printf("%u: %s := %s %s %s\n", instruction->index, resultSlot, leftSlot, opString, rightSlot);
       free(leftSlot);
       free(rightSlot);
       free(resultSlot);
-    } break;
-
-    case I_DIV:
-    {
-      char* leftSlot = GetSlotString(instruction->payload.slotTriple.left);
-      char* rightSlot = GetSlotString(instruction->payload.slotTriple.right);
-      char* resultSlot = GetSlotString(instruction->payload.slotTriple.result);
-      printf("%u: %s := %s / %s\n", instruction->index, resultSlot, leftSlot, rightSlot);
-      free(leftSlot);
-      free(rightSlot);
-      free(resultSlot);
-    } break;
+    };
 
     case I_NEGATE:
     {
@@ -936,9 +903,9 @@ void PrintInstruction(air_instruction* instruction)
   }
 }
 
-const char* GetInstructionName(instruction_type type)
+const char* GetInstructionName(air_instruction* instruction)
 {
-  switch (type)
+  switch (instruction->type)
   {
     case I_ENTER_STACK_FRAME:
       return "ENTER_STACK_FRAME";
@@ -952,14 +919,16 @@ const char* GetInstructionName(instruction_type type)
       return "MOV";
     case I_CMP:
       return "CMP";
-    case I_ADD:
-      return "ADD";
-    case I_SUB:
-      return "SUB";
-    case I_MUL:
-      return "MUL";
-    case I_DIV:
-      return "DIV";
+    case I_BINARY_OP:
+    {
+      switch (instruction->payload.binaryOp.operation)
+      {
+        case binary_op_instruction::op::ADD: return "ADD";
+        case binary_op_instruction::op::SUB: return "SUB";
+        case binary_op_instruction::op::MUL: return "MUL";
+        case binary_op_instruction::op::DIV: return "DIV";
+      }
+    }
     case I_NEGATE:
       return "NEGATE";
     case I_CALL:

@@ -7,16 +7,8 @@ fn Print(str : string)
 fn Main(y : int) -> int
 {
   left : int = 7
-  right : int = 11
-
-  if (left == right + 1)
-  {
-    Print("Left is equal to right!\n")
-  }
-  else
-  {
-    Print("Left is not equal to right!\n")
-  }
+  right : int = 11 * 4
+  other : int = right - left + 4
 
   return 0
 }

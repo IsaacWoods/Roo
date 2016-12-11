@@ -7,6 +7,10 @@ global _start
 _start:
   xor rbp, rbp
 
+  mov rdi, 3
+  mov rax, 4
+  imul rdi, rax
+
   mov rdi, 1
   mov rax, 1
   mov rsi, message

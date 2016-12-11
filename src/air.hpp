@@ -18,10 +18,7 @@ enum instruction_type
   I_JUMP,
   I_MOV,
   I_CMP,
-  I_ADD,
-  I_SUB,
-  I_MUL,
-  I_DIV,
+  I_BINARY_OP,
   I_NEGATE,
   I_CALL,
 
@@ -32,8 +29,6 @@ enum instruction_type
 
   I_NUM_INSTRUCTIONS
 };
-
-const char* GetInstructionName(instruction_type type);
 
 /*
  * Represents the range a slot is live for, in terms of instruction indices.
@@ -130,6 +125,21 @@ struct mov_instruction
   slot* src;
 };
 
+struct binary_op_instruction
+{
+  enum op
+  {
+    ADD,
+    SUB,
+    MUL,
+    DIV
+  } operation;
+
+  slot* left;
+  slot* right;
+  slot* result;
+};
+
 struct slot_pair
 {
   slot* left;
@@ -153,6 +163,7 @@ struct air_instruction
   {
     jump_instruction      jump;
     mov_instruction       mov;
+    binary_op_instruction binaryOp;
     slot*                 s;
     slot_pair             slotPair;
     slot_triple           slotTriple;
@@ -170,5 +181,6 @@ struct air_function
 };
 
 void GenFunctionAIR(codegen_target& target, function_def* function);
+const char* GetInstructionName(air_instruction* instruction);
 void PrintInstruction(air_instruction* instruction);
 void CreateInterferenceDOT(air_function* function, const char* functionName);

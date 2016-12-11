@@ -121,9 +121,15 @@ void Free<codegen_target>(codegen_target& target)
 enum class i
 {
   ADD_REG_REG,      // [opcodeSize] (ModR/M)
+  SUB_REG_REG,      // [opcodeSize] (ModR/M)
+  MUL_REG_REG,      // [opcodeSize] (ModR/M)
+  DIV_REG_REG,      // [opcodeSize] (ModR/M)
   CMP_REG_REG,      // (ModR/M)
   PUSH_REG,         // +r
   ADD_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  SUB_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  MUL_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  DIV_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MOV_REG_REG,      // [opcodeSize] (ModR/M)
   MOV_REG_IMM32,    // +r (4-byte immediate)
   MOV_REG_IMM64,    // [immSize] +r (8-byte immedite)
@@ -191,6 +197,34 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
     } break;
 
+    case i::SUB_REG_REG:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      reg src  = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x29);
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+    } break;
+
+    case i::MUL_REG_REG:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      reg src  = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x0f);
+      Emit<uint8_t>(thing, 0xaf);
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+    } break;
+
+    case i::DIV_REG_REG:
+    {
+      // TODO(Isaac): division is apparently a PITA, so work out what the hell to do here
+      fprintf(stderr, "FATAL ICE: We can't actually do division yet...\n");
+      exit(1);
+    } break;
+
     case i::CMP_REG_REG:
     {
       reg op1 = static_cast<reg>(va_arg(args, int));
@@ -215,6 +249,40 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Emit<uint8_t>(thing, 0x81);
       Emit<uint8_t>(thing, CreateExtensionModRM(target, 0u, result));
       Emit<uint32_t>(thing, imm);
+    } break;
+
+    case i::SUB_REG_IMM32:
+    {
+      reg result    = static_cast<reg>(va_arg(args, int));
+      uint32_t imm  = va_arg(args, uint32_t);
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x81);
+      Emit<uint8_t>(thing, CreateExtensionModRM(target, 5u, result));
+      Emit<uint32_t>(thing, imm);
+    } break;
+
+    case i::MUL_REG_IMM32:
+    {
+      reg result    = static_cast<reg>(va_arg(args, int));
+      uint32_t imm  = va_arg(args, uint32_t);
+
+      if (imm >= 256u)
+      {
+        fprintf(stderr, "FATAL ICE: Multiplication by immediates that don't fit into a byte isn't supported: %u\n", imm);
+        exit(1);
+      }
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x6b);
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, result, result));
+      Emit<uint8_t>(thing, static_cast<uint8_t>(imm));
+    } break;
+
+    case i::DIV_REG_IMM32:
+    {
+      fprintf(stderr, "FATAL ICE: Division is currently deemed impossible on x64\n");
+      exit(1);
     } break;
 
     case i::MOV_REG_REG:
@@ -286,7 +354,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     case i::JPO:
     {
       //                         JE    JNE   JO    JNO   JS    JNS   JG    JGE   JL    JLE   JPE   JPO
-      static uint8_t jumps[] = { 0x84, 0x85, 0x80, 0x81, 0x88, 0x89, 0x8F, 0x8D, 0x8C, 0x8E, 0x8A, 0x8B };
+      static const uint8_t jumps[] = { 0x84, 0x85, 0x80, 0x81, 0x88, 0x89, 0x8F, 0x8D, 0x8C, 0x8E, 0x8A, 0x8B };
 
       uint32_t relAddress = va_arg(args, uint32_t);
       Emit<uint8_t>(thing, 0x0F);
@@ -406,47 +474,39 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         }
       } break;
 
-      case I_ADD:
+      case I_BINARY_OP:
       {
-        slot_triple& triple = instruction->payload.slotTriple;
+        binary_op_instruction& op = instruction->payload.binaryOp;
 
-        if (triple.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
+        if (op.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
         {
-          E(i::MOV_REG_REG, triple.result->color, triple.left->color);
+          E(i::MOV_REG_REG, op.result->color, op.left->color);
         }
         else
         {
-          E(i::MOV_REG_IMM32, triple.result->color, triple.left->payload.i);
+          E(i::MOV_REG_IMM32, op.result->color, op.left->payload.i);
         }
 
-        if (triple.right->shouldBeColored)
+        if (op.right->shouldBeColored)
         {
-          E(i::ADD_REG_REG, triple.result->color, triple.right->color);
+          switch (op.operation)
+          {
+            case binary_op_instruction::op::ADD: E(i::ADD_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_instruction::op::SUB: E(i::SUB_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_instruction::op::MUL: E(i::MUL_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_instruction::op::DIV: E(i::DIV_REG_REG, op.result->color, op.right->color); break;
+          }
         }
         else
         {
-          E(i::ADD_REG_IMM32, triple.result->color, triple.right->payload.i);
+          switch (op.operation)
+          {
+            case binary_op_instruction::op::ADD: E(i::ADD_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_instruction::op::SUB: E(i::SUB_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_instruction::op::MUL: E(i::MUL_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_instruction::op::DIV: E(i::DIV_REG_IMM32, op.result->color, op.right->payload.i); break;
+          }
         }
-      } break;
-
-      case I_SUB:
-      {
-
-      } break;
-
-      case I_MUL:
-      {
-
-      } break;
-
-      case I_DIV:
-      {
-
-      } break;
-
-      case I_NEGATE:
-      {
-
       } break;
 
       case I_CALL:
