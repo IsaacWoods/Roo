@@ -49,7 +49,7 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
     constant->handle = 0u;
   }
 
-  AddToLinkedList<string_constant*>(result->strings, constant);
+  Add<string_constant*>(result->strings, constant);
   return constant;
 }
 

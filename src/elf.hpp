@@ -249,6 +249,7 @@ struct elf_file
 void CreateElf(elf_file& elf, codegen_target& target);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const instruction_label* label = nullptr);
+elf_thing* CreateRodataThing(elf_file& elf);
 elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol);
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);

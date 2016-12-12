@@ -86,17 +86,17 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
 
   // Add inbuilt types
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("int",    4u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("uint",   4u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("float",  4u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u8",     1u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s8",     1u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u16",    2u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s16",    2u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u32",    4u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s32",    4u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("u64",    8u));
-  AddToLinkedList<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("int",    4u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("uint",   4u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("float",  4u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("u8",     1u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("s8",     1u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("u16",    2u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("s16",    2u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("u32",    4u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("s32",    4u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("u64",    8u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
 }
 
 template<>
@@ -376,6 +376,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
     Emit(thing, target, __VA_ARGS__);
 
   elf_thing* thing = CreateThing(elf, function->symbol);
+  printf("Making function with name: %s\n", function->symbol->name->str);
 
   if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
   {
@@ -554,8 +555,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
 
   // Create a symbol to reference the .rodata section with
-  elf.rodataThing = CreateThing(elf, nullptr);
-  elf.rodataThing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x0);
+  elf.rodataThing = CreateRodataThing(elf);
 
   // --- TEMPORARY TESTING STUFF AND THINGS ---
   LinkObject(elf, "./std/bootstrap.o");
@@ -639,7 +639,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
       continue;
     }
 
-    AddToLinkedList<elf_thing*>(elf.things, GenerateFunction(elf, target, function));
+    GenerateFunction(elf, target, function);
   }
 
   CompleteElf(elf);

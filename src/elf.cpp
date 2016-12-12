@@ -25,7 +25,7 @@ static elf_string* CreateString(elf_file& elf, const char* str)
 
   elf.stringTableTail += strlen(str) + 1u;
 
-  AddToLinkedList<elf_string*>(elf.strings, string);
+  Add<elf_string*>(elf.strings, string);
   return string;
 }
 
@@ -52,7 +52,7 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   }
 
   elf.numSymbols++;
-  AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
+  Add<elf_symbol*>(elf.symbols, symbol);
   return symbol;
 }
 
@@ -66,7 +66,7 @@ void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocati
   relocation->addend  = addend;
   relocation->label   = label;
 
-  AddToLinkedList<elf_relocation*>(elf.relocations, relocation);
+  Add<elf_relocation*>(elf.relocations, relocation);
 }
 
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly)
@@ -82,7 +82,7 @@ elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uin
   segment->isMappedDirectly = isMappedDirectly;
 
   elf.header.numProgramHeaderEntries++;
-  AddToLinkedList<elf_segment*>(elf.segments, segment);
+  Add<elf_segment*>(elf.segments, segment);
   return segment;
 }
 
@@ -104,16 +104,13 @@ elf_section* CreateSection(elf_file& elf, const char* name, section_type type, u
   section->index = (elf.sections.tail ? (**elf.sections.tail)->index + 1u : 1u);
 
   elf.header.numSectionHeaderEntries++;
-  AddToLinkedList<elf_section*>(elf.sections, section);
+  Add<elf_section*>(elf.sections, section);
   return section;
 }
 
-// TODO: allow local functions to be bound as local symbols
-// TODO: correct offset into section for symbol value
+#define INITIAL_DATA_SIZE 256u
 elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol)
 {
-  const unsigned int INITIAL_DATA_SIZE = 256u;
-
   elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
   thing->symbol = symbol;
   thing->length = 0u;
@@ -122,8 +119,23 @@ elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol)
   thing->fileOffset = 0u;
   thing->address = 0x0;
 
+  Add<elf_thing*>(elf.things, thing);
   return thing;
 }
+
+elf_thing* CreateRodataThing(elf_file& elf)
+{
+  elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
+  thing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x00);
+  thing->length = 0u;
+  thing->capacity = INITIAL_DATA_SIZE;
+  thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * INITIAL_DATA_SIZE));
+  thing->fileOffset = 0u;
+  thing->address = 0x0;
+
+  return thing;
+}
+#undef INITIAL_DATA_SIZE
 
 elf_section* GetSection(elf_file& elf, const char* name)
 {
@@ -170,16 +182,16 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
   mapping.segment = segment;
   mapping.section = section;
 
-  AddToLinkedList<elf_mapping>(elf.mappings, mapping);
+  Add<elf_mapping>(elf.mappings, mapping);
 }
 
 struct elf_object
 {
   FILE*                         f;
   linked_list<elf_section*>     sections;
-  linked_list<elf_symbol*>      symbols;      // NOTE(Isaac): these should be *unlinked*, NOT freed
-  linked_list<elf_relocation*>  relocations;  // NOTE(Isaac): these should be *unlinked*; they're not dynamically allocated
-  linked_list<elf_thing*>       things;       // NOTE(Isaac): should be unlinked
+  linked_list<elf_symbol*>      symbols;      // NOTE(Isaac): should be *unlinked*
+  linked_list<elf_relocation*>  relocations;  // NOTE(Isaac): should be *unlinked*
+  linked_list<elf_thing*>       things;       // NOTE(Isaac): should be *unlinked*
 
   elf_symbol**                  symbolRemaps;
   unsigned int                  numRemaps;
@@ -261,7 +273,7 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
     /*0x38*/fread(&(section->entrySize),  sizeof(uint64_t), 1, object.f);
     /*0x40*/
 
-    AddToLinkedList<elf_section*>(object.sections, section);
+    Add<elf_section*>(object.sections, section);
   }
 
   uint16_t sectionWithNames;
@@ -325,8 +337,8 @@ static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* tab
     object.symbolRemaps[i] = symbol;
 
     elf.numSymbols++;
-    AddToLinkedList<elf_symbol*>(elf.symbols, symbol);
-    AddToLinkedList<elf_symbol*>(object.symbols, symbol);
+    Add<elf_symbol*>(elf.symbols, symbol);
+    Add<elf_symbol*>(object.symbols, symbol);
   }
 }
 
@@ -365,8 +377,8 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
       exit(1);
     }
 
-    AddToLinkedList<elf_relocation*>(elf.relocations, relocation);
-    AddToLinkedList<elf_relocation*>(object.relocations, relocation);
+    Add<elf_relocation*>(elf.relocations, relocation);
+    Add<elf_relocation*>(object.relocations, relocation);
   }
 }
 
@@ -476,7 +488,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
     if ((symbol->info & 0xf) == SYM_TYPE_FUNCTION ||
         ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
     {
-      AddToLinkedList<elf_symbol*>(functionSymbols, symbol);
+      Add<elf_symbol*>(functionSymbols, symbol);
     }
   }
 
@@ -518,13 +530,13 @@ void LinkObject(elf_file& elf, const char* objectPath)
      */
     fseek(object.f, text->offset + symbol->value, SEEK_SET);
     fread(thing->data, sizeof(uint8_t), symbol->size, object.f);
-    AddToLinkedList<elf_thing*>(elf.things, thing);
-    AddToLinkedList<elf_thing*>(object.things, thing);
+    Add<elf_thing*>(elf.things, thing);
+    Add<elf_thing*>(object.things, thing);
 
     /*
      * We create a new symbol for the function, so remove the old one
      */
-    RemoveFromLinkedList<elf_symbol*>(elf.symbols, symbol);
+    Remove<elf_symbol*>(elf.symbols, symbol);
   }
 
   // Complete the relocations loaded from the external object
@@ -787,7 +799,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
       {
         // Coalesce the symbols!
         elf_symbol* partner = **otherSymbolIt;
-        RemoveFromLinkedList<elf_symbol*>(elf.symbols, undefinedSymbol);
+        Remove<elf_symbol*>(elf.symbols, undefinedSymbol);
         symbolResolved = true;
 
         // Point relocations that refer to the undefined symbol to its defined partner

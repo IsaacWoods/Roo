@@ -79,7 +79,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
     } break;
   }
 
-  AddToLinkedList<slot*>(function->slots, s);
+  Add<slot*>(function->slots, s);
   va_end(args);
   return s;
 }
@@ -147,12 +147,6 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
       i->payload.binaryOp.left        = va_arg(args, slot*);
       i->payload.binaryOp.right       = va_arg(args, slot*);
       i->payload.binaryOp.result      = va_arg(args, slot*);
-    } break;
-
-    case I_NEGATE:
-    {
-      i->payload.slotPair.left        = va_arg(args, slot*);
-      i->payload.slotPair.right       = va_arg(args, slot*);
     } break;
 
     case I_CALL:
@@ -267,7 +261,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
 
         case TOKEN_TILDE:
         {
-          instruction = PushInstruction(function, I_NEGATE, right, result);
+          // TODO
         } break;
 
         default:
@@ -574,7 +568,7 @@ static void ColorSlots(codegen_target& target, air_function* function)
 {
   const unsigned int numGeneralRegisters = 14u;
 
-  // Color params
+  // --- Color params ---
   unsigned int intParamCounter = 0u;
 
   for (auto* slotIt = function->slots.first;
@@ -588,9 +582,7 @@ static void ColorSlots(codegen_target& target, air_function* function)
     }
   }
 
-  // Color all colorable slots
-  bool isColorUsed[numGeneralRegisters] = {0};
-
+  // --- Color other slots ---
   for (auto* slotIt = function->slots.first;
        slotIt;
        slotIt = slotIt->next)
@@ -878,11 +870,6 @@ void PrintInstruction(air_instruction* instruction)
       free(leftSlot);
       free(rightSlot);
       free(resultSlot);
-    };
-
-    case I_NEGATE:
-    {
-
     } break;
 
     case I_CALL:
@@ -929,8 +916,6 @@ const char* GetInstructionName(air_instruction* instruction)
         case binary_op_instruction::op::DIV: return "DIV";
       }
     }
-    case I_NEGATE:
-      return "NEGATE";
     case I_CALL:
       return "CALL";
     case I_LABEL:

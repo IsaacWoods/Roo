@@ -10,5 +10,7 @@ fn Main(y : int) -> int
   right : int = 11 * 4
   other : int = right - left + 4
 
+  Print("Hello, World!\n")
+
   return 0
 }

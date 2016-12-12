@@ -763,7 +763,7 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
     variable_def* param = CreateVariableDef(varName, typeName, false, nullptr);
 
     printf("Param: %s of type %s\n", param->name, param->type.type.name);
-    AddToLinkedList<variable_def*>(params, param);
+    Add<variable_def*>(params, param);
   } while (MatchNext(parser, TOKEN_COMMA));
 
   ConsumeNext(parser, TOKEN_RIGHT_PAREN);
@@ -965,7 +965,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         result = CreateNode(VARIABLE_ASSIGN_NODE, variable->name, variable->initValue);
         result->payload.variableAssignment.variable = variable;
 
-        AddToLinkedList<variable_def*>(parser.currentFunction->locals, variable);
+        Add<variable_def*>(parser.currentFunction->locals, variable);
         break;
       }
     } // NOTE(Isaac): no break
@@ -1000,11 +1000,11 @@ static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
   while (PeekToken(parser).type != TOKEN_RIGHT_BRACE)
   {
     variable_def* member = VariableDef(parser);
-    AddToLinkedList<variable_def*>(type->members, member);
+    Add<variable_def*>(type->members, member);
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);
-  AddToLinkedList<type_def*>(parser.result->types, type);
+  Add<type_def*>(parser.result->types, type);
   printf("<-- TypeDef\n");
 }
 
@@ -1041,7 +1041,7 @@ static void Import(roo_parser& parser)
     }
   }
 
-  AddToLinkedList<dependency_def*>(parser.result->dependencies, dependency);
+  Add<dependency_def*>(parser.result->dependencies, dependency);
   NextToken(parser);
   printf("<-- Import\n");
 }
@@ -1060,7 +1060,7 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
   CopyLinkedList<function_attrib>(definition->attribs, attribs);
   FreeLinkedList<function_attrib>(attribs);
 
-  AddToLinkedList<function_def*>(parser.result->functions, definition);
+  Add<function_def*>(parser.result->functions, definition);
 
   definition->name = GetTextFromToken(NextToken(parser));
   printf("%s)\n", definition->name);
@@ -1122,7 +1122,7 @@ static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& pr
     function_attrib attrib;
     attrib.type = function_attrib::attrib_type::ENTRY;
 
-    AddToLinkedList<function_attrib>(functionAttribs, attrib);
+    Add<function_attrib>(functionAttribs, attrib);
     type = attrib_type::FUNCTION;
     NextToken(parser);
   }
@@ -1141,7 +1141,7 @@ static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& pr
 
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
 
-    AddToLinkedList<program_attrib>(programAttribs, attrib);
+    Add<program_attrib>(programAttribs, attrib);
     type = attrib_type::PROGRAM;
   }
   else if (strcmp(attribName, "Prototype") == 0)
@@ -1149,7 +1149,7 @@ static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& pr
     function_attrib attrib;
     attrib.type = function_attrib::attrib_type::PROTOTYPE;
 
-    AddToLinkedList<function_attrib>(functionAttribs, attrib);
+    Add<function_attrib>(functionAttribs, attrib);
     type = attrib_type::FUNCTION;
     NextToken(parser);
   }
@@ -1370,7 +1370,7 @@ void InitParseletMaps()
 
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        AddToLinkedList<node*>(result->payload.functionCall.params, Expression(parser));
+        Add<node*>(result->payload.functionCall.params, Expression(parser));
       }
 
       Consume(parser, TOKEN_RIGHT_PAREN);

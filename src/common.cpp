@@ -54,7 +54,7 @@ void OpenDirectory(directory& dir, const char* path)
       f->extension = dotIndex + (uintptr_t)1u;
     }
 
-    AddToLinkedList<file*>(dir.files, f);
+    Add<file*>(dir.files, f);
   }
 
   closedir(d);

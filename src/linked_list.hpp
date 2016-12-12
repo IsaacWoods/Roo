@@ -83,7 +83,7 @@ void FreeLinkedList(linked_list<T>& list)
 
 // O(1)
 template<typename T>
-void AddToLinkedList(linked_list<T>& list, T thing)
+void Add(linked_list<T>& list, T thing)
 {
   typename linked_list<T>::link* link = static_cast<typename linked_list<T>::link*>(malloc(sizeof(typename linked_list<T>::link)));
   link->next = nullptr;
@@ -102,7 +102,7 @@ void AddToLinkedList(linked_list<T>& list, T thing)
 
 // O(n) (I think)
 template<typename T>
-void RemoveFromLinkedList(linked_list<T>& list, T thing)
+void Remove(linked_list<T>& list, T thing)
 {
   if ((**(list.first)) == thing)
   {
@@ -199,7 +199,7 @@ void CopyLinkedList(linked_list<T>& dest, linked_list<T>& src)
        it;
        it = it->next)
   {
-    AddToLinkedList<T>(dest, **it);
+    Add<T>(dest, **it);
   }
 }
 
