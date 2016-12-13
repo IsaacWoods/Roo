@@ -9,14 +9,8 @@
 #include <cstdio>
 #include <linked_list.hpp>
 
-#define USING_GDB
-
 // --- Ameanable crashes ---
-#ifdef USING_GDB
-  void Crash();
-#else
-  [[noreturn]] void Crash();
-#endif
+[[noreturn]] void Crash();
 
 // --- File stuff and things ---
 struct file

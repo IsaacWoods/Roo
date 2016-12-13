@@ -163,6 +163,5 @@ struct node
 };
 
 node* CreateNode(node_type type, ...);
-void FreeNode(node* n);
 void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES]);
 void OutputDOTOfAST(function_def* function);

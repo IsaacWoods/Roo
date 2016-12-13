@@ -490,7 +490,7 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_function* function, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, air_function* function, node* n)
 {
   assert(function->tail);
   assert(n);
@@ -565,16 +565,16 @@ static void GenerateInterferences(air_function* function)
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-static void ColorSlots(codegen_target& target, air_function* function)
+static void ColorSlots(codegen_target& /*target*/, air_function* function)
 {
   const unsigned int numGeneralRegisters = 14u;
 
   // --- Color params ---
-  unsigned int intParamCounter = 0u;
-
   // TODO: color incoming parameters to this function
+/*  unsigned int intParamCounter = 0u;
 
-/*  for (auto* slotIt = function->slots.first;
+
+  for (auto* slotIt = function->slots.first;
        slotIt;
        slotIt = slotIt->next)
   {

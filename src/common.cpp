@@ -9,11 +9,14 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+#define USING_GDB
+
 #ifdef USING_GDB
   #include <signal.h>
-  void Crash()
+  [[noreturn]] void Crash()
   {
     raise(SIGINT);
+    exit(1);
   }
 #else
   [[noreturn]] void Crash()
