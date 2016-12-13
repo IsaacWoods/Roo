@@ -573,7 +573,6 @@ static void ColorSlots(codegen_target& /*target*/, air_function* function)
   // TODO: color incoming parameters to this function
 /*  unsigned int intParamCounter = 0u;
 
-
   for (auto* slotIt = function->slots.first;
        slotIt;
        slotIt = slotIt->next)

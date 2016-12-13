@@ -96,7 +96,7 @@ int main()
   }*/
 
   // Complete the AST and apply all the passes
-  CompleteAST(result);
+  CompleteIR(result);
   ApplyASTPass(result, PASS_resolveVars);
   ApplyASTPass(result, PASS_resolveFunctionCalls);
 

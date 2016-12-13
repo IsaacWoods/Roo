@@ -261,19 +261,40 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
   return type->size;
 }
 
-void CompleteAST(parse_result& parse)
+void CompleteIR(parse_result& parse)
 {
   // --- Resolve `variable_def`s everywhere ---
   for (auto* functionIt = parse.functions.first;
        functionIt;
        functionIt = functionIt->next)
   {
-    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    function_def* function = **functionIt;
+
+    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
     {
       continue;
     }
 
-    ResolveTypeRef(*((**functionIt)->returnType), parse);
+    if (function->returnType)
+    {
+      ResolveTypeRef(*(function->returnType), parse);
+    }
+
+    for (auto* paramIt = function->params.first;
+         paramIt;
+         paramIt = paramIt->next)
+    {
+      variable_def* param = **paramIt;
+      ResolveTypeRef(param->type, parse);
+    }
+
+    for (auto* localIt = function->locals.first;
+         localIt;
+         localIt = localIt->next)
+    {
+      variable_def* local = **localIt;
+      ResolveTypeRef(local->type, parse);
+    }
   }
 
   // --- Calculate the sizes of composite types ---

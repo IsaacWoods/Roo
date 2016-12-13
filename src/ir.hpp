@@ -174,9 +174,4 @@ struct type_def
 };
 
 type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
-
-/*
- * This fills in all the stuff that couldn't be completed during parsing.
- * NOTE(Isaac): After this is called, the AST should be completely valid.
- */
-void CompleteAST(parse_result& parse);
+void CompleteIR(parse_result& parse);
