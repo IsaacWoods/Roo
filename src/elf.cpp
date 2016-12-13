@@ -294,7 +294,7 @@ static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* tab
   if (table->entrySize != SYMBOL_TABLE_ENTRY_SIZE)
   {
     fprintf(stderr, "FATAL: External object has weirdly-sized symbols!\n");
-    exit(1);
+    Crash();
   }
   
   unsigned int numSymbols = table->size / SYMBOL_TABLE_ENTRY_SIZE;
@@ -349,7 +349,7 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
   if (section->entrySize != RELOCATION_ENTRY_SIZE)
   {
     fprintf(stderr, "FATAL: External object has weirdly-sized relocations!\n");
-    exit(1);
+    Crash();
   }
 
   unsigned int numRelocations = section->size / section->entrySize;
@@ -374,7 +374,7 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
     if (!(relocation->symbol))
     {
       printf("FATAL: Failed to find resolve symbol used in an external relocation!\n");
-      exit(1);
+      Crash();
     }
 
     Add<elf_relocation*>(elf.relocations, relocation);
@@ -394,7 +394,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
   if (!(object.f))
   {
     fprintf(stderr, "FATAL: failed to open object to link against: '%s'!\n", objectPath);
-    exit(1);
+    Crash();
   }
 
   #define CONSUME(byte) \
@@ -417,7 +417,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
   if (fileType != ET_REL)
   {
     fprintf(stderr, "FATAL: Can only link relocatable object files!\n");
-    exit(1);
+    Crash();
   }
 
   // Parse the section header
@@ -436,7 +436,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
       case SHT_REL:
       {
         fprintf(stderr, "FATAL: SHT_REL sections are not supported, please emit SHT_RELA sections instead!\n");
-        exit(1);
+        Crash();
       } break;
 
       case SHT_RELA:
@@ -823,7 +823,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
     {
       // We can't find a matching symbol - throw an error
       fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", undefinedSymbol->name->str);
-      exit(1);
+      Crash();
     }
   }
 }
@@ -901,7 +901,7 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
       default:
       {
         fprintf(stderr, "FATAL: Unhandled relocation->type (%s)!\n", GetRelocationTypeName(relocation->type));
-        exit(1);
+        Crash();
       }
     }
   }
@@ -973,7 +973,7 @@ void WriteElf(elf_file& elf, const char* path)
   if (!f)
   {
     fprintf(stderr, "FATAL: unable to create executable at path: %s\n", path);
-    exit(1);
+    Crash();
   }
 
   // Leave space for the ELF header
@@ -1027,7 +1027,7 @@ void WriteElf(elf_file& elf, const char* path)
   if (!startSymbol)
   {
     fprintf(stderr, "FATAL: Can't find a '_start' symbol to enter into!\n");
-    exit(1);
+    Crash();
   }
   elf.header.entryPoint = startSymbol->value;
 

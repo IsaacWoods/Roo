@@ -222,7 +222,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     {
       // TODO(Isaac): division is apparently a PITA, so work out what the hell to do here
       fprintf(stderr, "FATAL ICE: We can't actually do division yet...\n");
-      exit(1);
+      Crash();
     } break;
 
     case i::CMP_REG_REG:
@@ -270,7 +270,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       if (imm >= 256u)
       {
         fprintf(stderr, "FATAL ICE: Multiplication by immediates that don't fit into a byte isn't supported: %u\n", imm);
-        exit(1);
+        Crash();
       }
 
       Emit<uint8_t>(thing, 0x48);
@@ -282,7 +282,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     case i::DIV_REG_IMM32:
     {
       fprintf(stderr, "FATAL ICE: Division is currently deemed impossible on x64\n");
-      exit(1);
+      Crash();
     } break;
 
     case i::MOV_REG_REG:
@@ -526,7 +526,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       case I_NUM_INSTRUCTIONS:
       {
         fprintf(stderr, "Tried to generate code for AIR instruction of type `I_NUM_INSTRUCTIONS`!\n");
-        exit(1);
+        Crash();
       }
     }
   }
@@ -616,7 +616,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
       if (!function->symbol)
       {
         fprintf(stderr, "FATAL: Prototyped function '%s' is missing definition!\n", function->name);
-        exit(1);
+        Crash();
       }
     }
     else

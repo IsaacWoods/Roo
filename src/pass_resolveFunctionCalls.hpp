@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include <common.hpp>
 #include <ast.hpp>
 
 ast_passlet PASS_resolveFunctionCalls[NUM_AST_NODES] = {};
@@ -39,6 +40,6 @@ void InitFunctionCallsPass()
 
       // TODO: use fancy-ass error system (when it's built)
       fprintf(stderr, "FATAL: Failed to resolve function call to '%s'!\n", n->payload.functionCall.function.name);
-      exit(1);
+      Crash();
     };
 }

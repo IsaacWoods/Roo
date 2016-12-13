@@ -6,11 +6,8 @@ fn Print(str : string)
 #[Entry]
 fn Main(y : int) -> int
 {
-  left : int = 7
-  right : int = 11 * 4
-  other : int = right - left + 4
-
-  Print("Hello, World!\n")
+  thang : mut int = 5
+  thang = 7
 
   return 0
 }

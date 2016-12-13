@@ -61,7 +61,7 @@ int main()
   if (Compile(result, ".") != compile_result::SUCCESS)
   {
     fprintf(stderr, "FATAL: Failed to compile a thing!\n");
-    exit(1);
+    Crash();
   }
 
   // Compile the dependencies
@@ -89,7 +89,7 @@ int main()
     if (dependencyDirectory != nullptr && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
     {
       fprintf(stderr, "FATAL: failed to compile dependency: %s\n", dependencyDirectory);
-      exit(1);
+      Crash();
     }
 
     free(dependencyDirectory);
@@ -126,7 +126,7 @@ int main()
   if (!GetAttrib(result, program_attrib::attrib_type::NAME))
   {
     fprintf(stderr, "FATAL: A program name must be given using the #[Name(...)] attribute!\n");
-    exit(1);
+    Crash();
   }
 
   // Generate the code into a final executable!

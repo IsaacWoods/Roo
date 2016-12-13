@@ -120,13 +120,11 @@ struct function_call_part
 
 struct variable_assign_part
 {
-  char* variableName;
-  node* newValue;
-
   /*
-   * NOTE(Isaac): this starts as `nullptr`, and is filled in after we finish parsing... hopefully
+   * NOTE(Isaac): May be either a MEMBER_ACCESS_NODE or a VARIABLE_NODE
    */
-  variable_def* variable;
+  node* variable;
+  node* newValue;
 };
 
 struct member_access_part

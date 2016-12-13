@@ -9,6 +9,20 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+#ifdef USING_GDB
+  #include <signal.h>
+  void Crash()
+  {
+    raise(SIGINT);
+  }
+#else
+  [[noreturn]] void Crash()
+  {
+    fprintf(stderr, "((ABORTING))\n");
+    exit(1);
+  }
+#endif
+
 template<>
 void Free<directory>(directory& dir)
 {
@@ -35,7 +49,7 @@ void OpenDirectory(directory& dir, const char* path)
   if (!(d = opendir(path)))
   {
     fprintf(stderr, "FATAL: failed to open directory: '%s'\n", path);
-    exit(1);
+    Crash();
   }
 
   while ((dirent = readdir(d)))
@@ -116,7 +130,7 @@ char* ReadFile(const char* path)
   if (!file)
   {
     fprintf(stderr, "Failed to read source file: %s\n", path);
-    exit(1);
+    Crash();
   }
 
   fseek(file, 0, SEEK_END);
@@ -127,13 +141,13 @@ char* ReadFile(const char* path)
   if (!contents)
   {
     fprintf(stderr, "Failed to allocate space for source file!\n");
-    exit(1);
+    Crash();
   }
 
   if (fread(contents, 1, length, file) != length)
   {
     fprintf(stderr, "Failed to read source file: %s\n", path);
-    exit(1);
+    Crash();
   }
 
   contents[length] = '\0';
@@ -255,9 +269,10 @@ const char* GetTokenName(token_type type)
       return "TOKEN_LINE";
     case TOKEN_INVALID:
       return "TOKEN_INVALID";
-
     default:
-      fprintf(stderr, "Unhandled token type in GetTokenName!\n");
+    {
+      fprintf(stderr, "FATAL: Unhandled token type in GetTokenName!\n");
       exit(1);
+    }
   }
 }

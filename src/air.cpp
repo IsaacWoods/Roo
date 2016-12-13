@@ -27,8 +27,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   
   switch (type)
   {
-    case slot::slot_type::PARAM:
-    case slot::slot_type::LOCAL:
+    case slot::slot_type::VARIABLE:
     {
       s->payload.variable = va_arg(args, variable_def*);
       s->shouldBeColored = true;
@@ -224,7 +223,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
         default:
         {
           fprintf(stderr, "Unhandled AST binary op in GenNodeAIR!\n");
-          exit(1);
+          Crash();
         }
       }
 
@@ -267,7 +266,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
         default:
         {
           fprintf(stderr, "Unhandled AST prefix op in GenNodeAIR!\n");
-          exit(1);
+          Crash();
         }
       }
 
@@ -283,10 +282,13 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
      */
     case VARIABLE_NODE:
     {
+      // TODO: why the fuck does this assume it's a param??
+      // TODO: how do we know which to use??
+
       // If no slot exists yet, create one
       if (!n->payload.variable.var.def->mostRecentSlot)
       {
-        n->payload.variable.var.def->mostRecentSlot = CreateSlot(function, slot::slot_type::PARAM, n->payload.variable.var.def);
+        n->payload.variable.var.def->mostRecentSlot = CreateSlot(function, slot::slot_type::VARIABLE, n->payload.variable.var.def);
       }
 
       assert(n->payload.variable.isResolved);
@@ -317,7 +319,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
     default:
     {
       fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR: %s\n", GetNodeName(n->type));
-      exit(1);
+      Crash();
     }
   }
 }
@@ -387,7 +389,7 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_targ
         default:
         {
           fprintf(stderr, "Unhandled AST conditional in GenNodeAIR!\n");
-          exit(1);
+          Crash();
         }
       }
     } break;
@@ -395,7 +397,7 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_targ
     default:
     {
       fprintf(stderr, "Unhandled node type for returning a `jump_instruction::condition` in GenNodeAIR: %s\n", GetNodeName(n->type));
-      exit(1);
+      Crash();
     }
   }
 }
@@ -423,8 +425,7 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 
     case VARIABLE_ASSIGN_NODE:
     {
-      // TODO: don't assume it's a local (could be a param?)
-      slot* variableSlot = CreateSlot(function, slot::slot_type::LOCAL, n->payload.variableAssignment.variable);
+      slot* variableSlot = GenNodeAIR<slot*>(target, function, n->payload.variableAssignment.variable);
       slot* newValueSlot = GenNodeAIR<slot*>(target, function, n->payload.variableAssignment.newValue);
 
       air_instruction* instruction = PushInstruction(function, I_MOV, variableSlot, newValueSlot);
@@ -483,7 +484,7 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
     default:
     {
       fprintf(stderr, "Unhandled node type for returning nothing in GenNodeAIR: %s\n", GetNodeName(n->type));
-      exit(1);
+      Crash();
     }
   }
 }
@@ -507,7 +508,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& target, air_fu
     default:
     {
       fprintf(stderr, "Unhandled node type for returning a `instruction_label*` in GenNodeAIR: %s\n", GetNodeName(n->type));
-      exit(1);
+      Crash();
     }
   }
 
@@ -571,7 +572,9 @@ static void ColorSlots(codegen_target& target, air_function* function)
   // --- Color params ---
   unsigned int intParamCounter = 0u;
 
-  for (auto* slotIt = function->slots.first;
+  // TODO: color incoming parameters to this function
+
+/*  for (auto* slotIt = function->slots.first;
        slotIt;
        slotIt = slotIt->next)
   {
@@ -580,7 +583,7 @@ static void ColorSlots(codegen_target& target, air_function* function)
       printf("Coloring param slot: %s\n", (**slotIt)->payload.variable->name);
       (**slotIt)->color = target.intParamColors[intParamCounter++];
     }
-  }
+  }*/
 
   // --- Color other slots ---
   for (auto* slotIt = function->slots.first;
@@ -623,7 +626,7 @@ static void ColorSlots(codegen_target& target, air_function* function)
     {
       // TODO: spill something instead of crashing
       fprintf(stderr, "FATAL: failed to find valid k-coloring of interference graph!\n");
-      exit(1);
+      Crash();
     }
   }
 }
@@ -693,16 +696,10 @@ static char* GetSlotString(slot* s)
 
   switch (s->type)
   {
-    case slot::slot_type::PARAM:
+    case slot::slot_type::VARIABLE:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(P)", s->payload.variable->name) + 1u));
-      sprintf(result, "%s(P)", s->payload.variable->name);
-    } break;
-
-    case slot::slot_type::LOCAL:
-    {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(L)", s->payload.variable->name) + 1u));
-      sprintf(result, "%s(L)", s->payload.variable->name);
+      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(V)", s->payload.variable->name) + 1u));
+      sprintf(result, "%s(V)", s->payload.variable->name);
     } break;
 
     case slot::slot_type::IN_PARAM:
@@ -945,7 +942,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
   if (!f)
   {
     fprintf(stderr, "Failed to open DOT file: %s!\n", fileName);
-    exit(1);
+    Crash();
   }
 
   fprintf(f, "digraph G\n{\n");
@@ -953,9 +950,9 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
   const char* snazzyColors[] =
   {
-    "cyan2", "deeppink", "darkgoldenrod2", "dodgerblue4", "slategray", "goldenrod", "darkorchid1", "blue",
-    "green3", "lightblue2", "mediumspringgreeen", "orange1", "mistyrose3", "maroon2", "mediumpurple2",
-    "steelblue2", "plum", "lightseagreen"
+    "cyan2", "deeppink", "darkgoldenrod2", "mediumpurple2", "slategray", "goldenrod", "darkorchid1", "plum",
+    "green3", "lightblue2", "mediumspringgreeen", "orange1", "mistyrose3", "maroon2", "dodgerblue4",
+    "steelblue2", "blue", "lightseagreen"
   };
 
   for (auto* it = function->slots.first;
@@ -999,7 +996,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
     switch (slot->type)
     {
-      case slot::slot_type::PARAM:
+      case slot::slot_type::VARIABLE:
       {
         assert(slot->range.definer);
 
@@ -1010,29 +1007,12 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
         else
         {
           /*
-           *  NOTE(Isaac): apparently trigraphs still exist, so we need to escape one of the question marks.
-           *  IBM has a lot to answer for...
+           *  NOTE(Isaac): apparently trigraphs still exist, so we need to escape one of the question marks
            */
           MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
         }
 
-        PRINT_SLOT("%s : PARAM(%d)", slot->payload.variable->name, slot->tag);
-      } break;
-
-      case slot::slot_type::LOCAL:
-      {
-        assert(slot->range.definer);
-
-        if (slot->range.lastUser)
-        {
-          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
-        }
-        else
-        {
-          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
-        }
-
-        PRINT_SLOT("%s : LOCAL(%d)", slot->payload.variable->name, slot->tag);
+        PRINT_SLOT("%s : VAR(%d)", slot->payload.variable->name, slot->tag);
       } break;
 
       case slot::slot_type::INTERMEDIATE:

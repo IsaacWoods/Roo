@@ -44,8 +44,7 @@ struct slot
 {
   enum slot_type
   {
-    PARAM,            // NOTE(Isaac): `variable` field of `payload` is valid
-    LOCAL,            // NOTE(Isaac): `variable` field of `payload` is valid
+    VARIABLE,         // NOTE(Isaac): either a local or a parameter. `variable` field of `payload` is valid.
     INTERMEDIATE,     // NOTE(Isaac): `payload` is undefined
 
     /*

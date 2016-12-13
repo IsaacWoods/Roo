@@ -28,85 +28,84 @@ node* CreateNode(node_type type, ...)
 
     case RETURN_NODE:
     {
-      payload.expression                  = va_arg(args, node*);
+      payload.expression                      = va_arg(args, node*);
     } break;
 
     case BINARY_OP_NODE:
     {
       // NOTE(Isaac): enum types are promoted to `int`s on the stack
-      payload.binaryOp.op                 = static_cast<token_type>(va_arg(args, int));
-      payload.binaryOp.left               = va_arg(args, node*);
-      payload.binaryOp.right              = va_arg(args, node*);
+      payload.binaryOp.op                     = static_cast<token_type>(va_arg(args, int));
+      payload.binaryOp.left                   = va_arg(args, node*);
+      payload.binaryOp.right                  = va_arg(args, node*);
     } break;
 
     case PREFIX_OP_NODE:
     {
-      payload.prefixOp.op                 = static_cast<token_type>(va_arg(args, int));
-      payload.prefixOp.right              = va_arg(args, node*);
+      payload.prefixOp.op                     = static_cast<token_type>(va_arg(args, int));
+      payload.prefixOp.right                  = va_arg(args, node*);
     } break;
 
     case VARIABLE_NODE:
     {
-      payload.variable.var.name           = va_arg(args, char*);
-      payload.variable.isResolved         = false;
+      payload.variable.var.name               = va_arg(args, char*);
+      payload.variable.isResolved             = false;
     } break;
 
     case CONDITION_NODE:
     {
-      payload.condition.condition         = static_cast<token_type>(va_arg(args, int));
-      payload.condition.left              = va_arg(args, node*);
-      payload.condition.right             = va_arg(args, node*);
-      payload.condition.reverseOnJump     = static_cast<bool>(va_arg(args, int));
+      payload.condition.condition             = static_cast<token_type>(va_arg(args, int));
+      payload.condition.left                  = va_arg(args, node*);
+      payload.condition.right                 = va_arg(args, node*);
+      payload.condition.reverseOnJump         = static_cast<bool>(va_arg(args, int));
     } break;
 
     case IF_NODE:
     {
-      payload.ifThing.condition           = va_arg(args, node*);
-      payload.ifThing.thenCode            = va_arg(args, node*);
-      payload.ifThing.elseCode            = va_arg(args, node*);
+      payload.ifThing.condition               = va_arg(args, node*);
+      payload.ifThing.thenCode                = va_arg(args, node*);
+      payload.ifThing.elseCode                = va_arg(args, node*);
     } break;
 
     case NUMBER_CONSTANT_NODE:
     {
-      payload.numberConstant.type         = static_cast<number_constant_part::constant_type>(va_arg(args, int));
+      payload.numberConstant.type = static_cast<number_constant_part::constant_type>(va_arg(args, int));
 
       switch (payload.numberConstant.type)
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          payload.numberConstant.constant.i = va_arg(args, int);
+          payload.numberConstant.constant.i   = va_arg(args, int);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          payload.numberConstant.constant.f = static_cast<float>(va_arg(args, double));
+          payload.numberConstant.constant.f   = static_cast<float>(va_arg(args, double));
         } break;
 
         default:
         {
           fprintf(stderr, "Unhandled number constant type in CreateNode!\n");
-          exit(1);
+          Crash();
         }
       }
     } break;
 
     case STRING_CONSTANT_NODE:
     {
-      payload.stringConstant              = va_arg(args, string_constant*);
+      payload.stringConstant                  = va_arg(args, string_constant*);
     } break;
 
     case FUNCTION_CALL_NODE:
     {
-      payload.functionCall.isResolved     = false;
-      payload.functionCall.function.name  = va_arg(args, char*);
+      payload.functionCall.isResolved         = false;
+      payload.functionCall.function.name      = va_arg(args, char*);
       CreateLinkedList<node*>(payload.functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      payload.variableAssignment.variableName = va_arg(args, char*);
+      payload.variableAssignment.variable     = va_arg(args, node*);
       payload.variableAssignment.newValue     = va_arg(args, node*);
-      payload.variableAssignment.variable     = nullptr;
     } break;
 
     case MEMBER_ACCESS_NODE:
@@ -119,7 +118,7 @@ node* CreateNode(node_type type, ...)
     default:
     {
       fprintf(stderr, "Unhandled node type in CreateNode!\n");
-      exit(1);
+      Crash();
     }
   }
 
@@ -207,7 +206,7 @@ void Free<node*>(node*& n)
 
     case VARIABLE_ASSIGN_NODE:
     {
-      free(n->payload.variableAssignment.variableName);
+      Free<node*>(n->payload.variableAssignment.variable);
       Free<node*>(n->payload.variableAssignment.newValue);
     } break;
 
@@ -309,6 +308,7 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case VARIABLE_ASSIGN_NODE:
     {
+      ApplyPassToNode(n->payload.variableAssignment.variable, function, pass, parse);
       ApplyPassToNode(n->payload.variableAssignment.newValue, function, pass, parse);
     } break;
 
@@ -319,7 +319,7 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
     case NUM_AST_NODES:
     {
       fprintf(stderr, "Node of type NUM_AST_NODES actually in the AST!\n");
-      exit(1);
+      Crash();
     } break;
   }
 
@@ -413,7 +413,7 @@ void OutputDOTOfAST(function_def* function)
   if (!f)
   {
     fprintf(stderr, "Failed to open DOT file: %s!\n", fileName);
-    exit(1);
+    Crash();
   }
 
   fprintf(f, "digraph G\n{\n");
@@ -459,7 +459,7 @@ void OutputDOTOfAST(function_def* function)
             default:
             {
               fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
-              exit(1);
+              Crash();
             }
           }
 
@@ -483,7 +483,7 @@ void OutputDOTOfAST(function_def* function)
             default:
             {
               fprintf(stderr, "Unhandled prefix op node in OutputDOTForAST\n");
-              exit(1);
+              Crash();
             }
           }
 
@@ -517,7 +517,7 @@ void OutputDOTOfAST(function_def* function)
             default:
             {
               fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
-              exit(1);
+              Crash();
             }
           }
 
@@ -563,9 +563,12 @@ void OutputDOTOfAST(function_def* function)
 
         case VARIABLE_ASSIGN_NODE:
         {
-//          assert(n->payload.variableAssignment.variable);
+          fprintf(f, "\t%s[label=\"=\"];\n", name);
 
-          fprintf(f, "\t%s[label=\"`%s`=\"];\n", name, n->payload.variableAssignment.variableName);
+          assert(n->payload.variableAssignment.variable);
+          char* variableName = EmitNode(n->payload.variableAssignment.newValue);
+          fprintf(f, "\t%s -> %s;\n", name, variableName);
+          free(variableName);
 
           char* newValueName = EmitNode(n->payload.variableAssignment.newValue);
           fprintf(f, "\t%s -> %s;\n", name, newValueName);
@@ -580,7 +583,7 @@ void OutputDOTOfAST(function_def* function)
         case NUM_AST_NODES:
         {
           fprintf(stderr, "Node of type NUM_AST_NODES found in actual AST!\n");
-          exit(1);
+          Crash();
         } break;
       }
 

@@ -85,8 +85,8 @@ static inline char* GetTextFromToken(const token& tkn)
           default:
           {
             // TODO: use real syntax error system
-            fprintf(stderr, "ERROR: Unrecognised escape sequence found '\\%c'!\n", *c);
-            exit(1);
+            fprintf(stderr, "FATAL: Unrecognised escape sequence found '\\%c'!\n", *c);
+            Crash();
           }
         }
       }
@@ -165,7 +165,7 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
   fprintf(stderr, "SYNTAX ERROR(%u:%u): %s\n", parser.currentLine, parser.currentLineOffset, message);
 
   va_end(args);
-  exit(1);
+  Crash();
 }
 
 /*
@@ -962,8 +962,13 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         variable_def* variable = VariableDef(parser);
 
         // Assign the initial value to the variable
-        result = CreateNode(VARIABLE_ASSIGN_NODE, variable->name, variable->initValue);
-        result->payload.variableAssignment.variable = variable;
+        node* variableNode = static_cast<node*>(malloc(sizeof(node)));
+        variableNode->type = VARIABLE_NODE;
+        variableNode->next = nullptr;
+        variableNode->payload.variable.var.def = variable;
+        variableNode->payload.variable.isResolved = true;
+
+        result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue);
 
         Add<variable_def*>(parser.currentFunction->locals, variable);
         break;
@@ -1403,20 +1408,17 @@ void InitParseletMaps()
     {
       printf("--> [PARSELET] Variable assignment\n");
 
-      if (left->type != VARIABLE_NODE)
+      if (left->type != VARIABLE_NODE &&
+          left->type != MEMBER_ACCESS_NODE)
       {
         SyntaxError(parser, "Expected variable name before '=' token!");
       }
-
-      char* variableName = static_cast<char*>(malloc(sizeof(char) * strlen(left->payload.variable.var.name)));
-      strcpy(variableName, left->payload.variable.var.name);
-      Free<node*>(left);
 
       NextToken(parser);
       // NOTE(Isaac): minus one from the precedence because assignment is right-associative
       node* expression = Expression(parser, P_ASSIGNMENT - 1u);
 
       printf("<-- [PARSELET] Variable assignment\n");
-      return CreateNode(VARIABLE_ASSIGN_NODE, variableName, expression);
+      return CreateNode(VARIABLE_ASSIGN_NODE, left, expression);
     };
 }

@@ -19,7 +19,11 @@ void InitResolveVarsPass()
   PASS_resolveVars[VARIABLE_NODE] =
     [](parse_result& /*parse*/, function_def* function, node* n)
     {
-      assert(!n->payload.variable.isResolved);
+      if (n->payload.variable.isResolved)
+      {
+        return;
+      }
+
       printf("Resolving variable: %s\n", n->payload.variable.var.name);
 
       for (auto* localIt = function->locals.first;
@@ -54,5 +58,13 @@ void InitResolveVarsPass()
 
       // TODO: use fancy-ass error system (when it's built)
       fprintf(stderr, "Failed to resolve variable: '%s'!\n", n->payload.variable.var.name);
+    };
+
+  PASS_resolveVars[MEMBER_ACCESS_NODE] =
+    [](parse_result& /*parse*/, function_def* /*function*/, node* /*n*/)
+    {
+      // TODO: actually implement this maybes
+      fprintf(stderr, "WE HAVEN'T IMPLEMENTED VARIABLE RESOLUTION FOR `MEMBER_ACCESS_NODE`S YET\n");
+      exit(1);
     };
 }
