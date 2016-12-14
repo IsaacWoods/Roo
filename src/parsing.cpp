@@ -168,15 +168,11 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
   Crash();
 }
 
-/*
- * Lex identifiers and keywords
- */
 static token LexName(roo_parser& parser)
 {
-  // NOTE(Isaac): Get the current char as well
+  // NOTE(Isaac): Minus one to get the current char as well
   const char* startChar = parser.currentChar - 1u;
 
-  // NOTE(Isaac): Concat the string until the next character that isn't part of the name
   while (IsName(*(parser.currentChar)))
   {
     NextChar(parser);
@@ -185,7 +181,6 @@ static token LexName(roo_parser& parser)
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
-  // Parse a keyword
   #define KEYWORD(keyword, tokenType) \
     if (memcmp(startChar, keyword, strlen(keyword)) == 0) \
     { \
