@@ -186,6 +186,7 @@ static token LexName(roo_parser& parser)
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
   // Parse a keyword
+  // TODO: use the length of the keyword instead of the token we're lexing (shorter tokens also match)
   #define KEYWORD(keyword, tokenType) \
     if (memcmp(startChar, keyword, length) == 0) \
     { \
@@ -537,8 +538,41 @@ static token LexNext(roo_parser& parser)
       }
 
       case '/':
-        type = TOKEN_SLASH;
-        goto EmitSimpleToken;
+      {
+        if (*(parser.currentChar) == '/')
+        {
+          // NOTE(Isaac): We're lexing a line comment, skip forward to the next new-line
+          do
+          {
+            NextChar(parser);
+          } while (*(parser.currentChar) != '\n');
+
+          NextChar(parser);
+        }
+        else if (*(parser.currentChar) == '*')
+        {
+          // NOTE(Isaac): We're lexing a block comment, skip forward to the ending token
+          NextChar(parser);
+
+          while (parser.currentChar)
+          {
+            if (*(parser.currentChar) == '/')
+            {
+              NextChar(parser);
+              break;
+            }
+            else
+            {
+              NextChar(parser);
+            }
+          }
+        }
+        else
+        {
+          type = TOKEN_SLASH;
+          goto EmitSimpleToken;
+        }
+      } break;
 
       case '#':
       {
