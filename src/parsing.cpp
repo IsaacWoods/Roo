@@ -186,9 +186,8 @@ static token LexName(roo_parser& parser)
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
   // Parse a keyword
-  // TODO: use the length of the keyword instead of the token we're lexing (shorter tokens also match)
   #define KEYWORD(keyword, tokenType) \
-    if (memcmp(startChar, keyword, length) == 0) \
+    if (memcmp(startChar, keyword, strlen(keyword)) == 0) \
     { \
       return MakeToken(parser, tokenType, tokenOffset, startChar, (unsigned int)length); \
     }

@@ -10,8 +10,8 @@ fn Print(str : string)
 #[Entry]
 fn Main(y : int) -> int
 {
-  thang : mut int = 5
-  thang = 7
+  i : mut int = 5
+  i = 7
 
   // This is a line comment
   return 0
