@@ -409,7 +409,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_JUMP:
       {
-        jump_instruction& jump = instruction->payload.jump;
+        jump_i& jump = instruction->payload.jump;
 
         switch (jump.cond)
         {
@@ -420,19 +420,19 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
            * NOTE(Isaac): Because we're jumping to a label we don't have an address for yet,
            * we're emitting 0 and adding a relocation to do it later
            */
-          case jump_instruction::condition::UNCONDITIONAL:        E(i::JMP,   0x00); break;
-          case jump_instruction::condition::IF_EQUAL:             E(i::JE,    0x00); break;
-          case jump_instruction::condition::IF_NOT_EQUAL:         E(i::JNE,   0x00); break;
-          case jump_instruction::condition::IF_OVERFLOW:          E(i::JO,    0x00); break;
-          case jump_instruction::condition::IF_NOT_OVERFLOW:      E(i::JNO,   0x00); break;
-          case jump_instruction::condition::IF_SIGN:              E(i::JS,    0x00); break;
-          case jump_instruction::condition::IF_NOT_SIGN:          E(i::JNS,   0x00); break;
-          case jump_instruction::condition::IF_GREATER:           E(i::JG,    0x00); break;
-          case jump_instruction::condition::IF_GREATER_OR_EQUAL:  E(i::JGE,   0x00); break;
-          case jump_instruction::condition::IF_LESSER:            E(i::JL,    0x00); break;
-          case jump_instruction::condition::IF_LESSER_OR_EQUAL:   E(i::JLE,   0x00); break;
-          case jump_instruction::condition::IF_PARITY_EVEN:       E(i::JPE,   0x00); break;
-          case jump_instruction::condition::IF_PARITY_ODD:        E(i::JPO,   0x00); break;
+          case jump_i::condition::UNCONDITIONAL:        E(i::JMP,   0x00); break;
+          case jump_i::condition::IF_EQUAL:             E(i::JE,    0x00); break;
+          case jump_i::condition::IF_NOT_EQUAL:         E(i::JNE,   0x00); break;
+          case jump_i::condition::IF_OVERFLOW:          E(i::JO,    0x00); break;
+          case jump_i::condition::IF_NOT_OVERFLOW:      E(i::JNO,   0x00); break;
+          case jump_i::condition::IF_SIGN:              E(i::JS,    0x00); break;
+          case jump_i::condition::IF_NOT_SIGN:          E(i::JNS,   0x00); break;
+          case jump_i::condition::IF_GREATER:           E(i::JG,    0x00); break;
+          case jump_i::condition::IF_GREATER_OR_EQUAL:  E(i::JGE,   0x00); break;
+          case jump_i::condition::IF_LESSER:            E(i::JL,    0x00); break;
+          case jump_i::condition::IF_LESSER_OR_EQUAL:   E(i::JLE,   0x00); break;
+          case jump_i::condition::IF_PARITY_EVEN:       E(i::JPE,   0x00); break;
+          case jump_i::condition::IF_PARITY_ODD:        E(i::JPO,   0x00); break;
         }
 
         CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, thing->symbol, -0x4, instruction->payload.jump.label);
@@ -440,7 +440,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_MOV:
       {
-        mov_instruction& mov = instruction->payload.mov;
+        mov_i& mov = instruction->payload.mov;
 
         if (mov.src->type == slot::slot_type::INT_CONSTANT)
         {
@@ -477,7 +477,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_BINARY_OP:
       {
-        binary_op_instruction& op = instruction->payload.binaryOp;
+        binary_op_i& op = instruction->payload.binaryOp;
 
         if (op.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
         {
@@ -492,20 +492,20 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         {
           switch (op.operation)
           {
-            case binary_op_instruction::op::ADD: E(i::ADD_REG_REG, op.result->color, op.right->color); break;
-            case binary_op_instruction::op::SUB: E(i::SUB_REG_REG, op.result->color, op.right->color); break;
-            case binary_op_instruction::op::MUL: E(i::MUL_REG_REG, op.result->color, op.right->color); break;
-            case binary_op_instruction::op::DIV: E(i::DIV_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_i::op::ADD_I: E(i::ADD_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_i::op::SUB_I: E(i::SUB_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_i::op::MUL_I: E(i::MUL_REG_REG, op.result->color, op.right->color); break;
+            case binary_op_i::op::DIV_I: E(i::DIV_REG_REG, op.result->color, op.right->color); break;
           }
         }
         else
         {
           switch (op.operation)
           {
-            case binary_op_instruction::op::ADD: E(i::ADD_REG_IMM32, op.result->color, op.right->payload.i); break;
-            case binary_op_instruction::op::SUB: E(i::SUB_REG_IMM32, op.result->color, op.right->payload.i); break;
-            case binary_op_instruction::op::MUL: E(i::MUL_REG_IMM32, op.result->color, op.right->payload.i); break;
-            case binary_op_instruction::op::DIV: E(i::DIV_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_i::op::ADD_I: E(i::ADD_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_i::op::SUB_I: E(i::SUB_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_i::op::MUL_I: E(i::MUL_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_i::op::DIV_I: E(i::DIV_REG_IMM32, op.result->color, op.right->payload.i); break;
           }
         }
       } break;

@@ -95,7 +95,7 @@ struct instruction_label
   uint64_t offset;
 };
 
-struct jump_instruction
+struct jump_i
 {
   enum condition
   {
@@ -117,20 +117,20 @@ struct jump_instruction
   const instruction_label* label;
 };
 
-struct mov_instruction
+struct mov_i
 {
   slot* dest;
   slot* src;
 };
 
-struct binary_op_instruction
+struct binary_op_i
 {
   enum op
   {
-    ADD,
-    SUB,
-    MUL,
-    DIV
+    ADD_I,
+    SUB_I,
+    MUL_I,
+    DIV_I
   } operation;
 
   slot* left;
@@ -159,14 +159,14 @@ struct air_instruction
 
   union instruction_payload
   {
-    jump_instruction      jump;
-    mov_instruction       mov;
-    binary_op_instruction binaryOp;
-    slot*                 s;
-    slot_pair             slotPair;
-    slot_triple           slotTriple;
-    function_def*         function;
-    instruction_label*    label;
+    jump_i              jump;
+    mov_i               mov;
+    binary_op_i         binaryOp;
+    slot*               s;
+    slot_pair           slotPair;
+    slot_triple         slotTriple;
+    function_def*       function;
+    instruction_label*  label;
   } payload;
 };
 

@@ -123,7 +123,7 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
 
     case I_JUMP:
     {
-      i->payload.jump.cond            = static_cast<jump_instruction::condition>(va_arg(args, int));
+      i->payload.jump.cond            = static_cast<jump_i::condition>(va_arg(args, int));
       i->payload.jump.label           = va_arg(args, instruction_label*);
     } break;
 
@@ -142,7 +142,7 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
 
     case I_BINARY_OP:
     {
-      i->payload.binaryOp.operation   = static_cast<binary_op_instruction::op>(va_arg(args, int));
+      i->payload.binaryOp.operation   = static_cast<binary_op_i::op>(va_arg(args, int));
       i->payload.binaryOp.left        = va_arg(args, slot*);
       i->payload.binaryOp.right       = va_arg(args, slot*);
       i->payload.binaryOp.result      = va_arg(args, slot*);
@@ -211,14 +211,15 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
       slot* left = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.left);
       slot* right = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.right);
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
-      binary_op_instruction::op operation;
+      binary_op_i::op operation;
 
+      // TODO: use the right instruction type depending on the types of the operands (or error out)
       switch (n->payload.binaryOp.op)
       {
-        case TOKEN_PLUS:    operation = binary_op_instruction::op::ADD; break;
-        case TOKEN_MINUS:   operation = binary_op_instruction::op::SUB; break;
-        case TOKEN_ASTERIX: operation = binary_op_instruction::op::MUL; break;
-        case TOKEN_SLASH:   operation = binary_op_instruction::op::DIV; break;
+        case TOKEN_PLUS:    operation = binary_op_i::op::ADD_I; break;
+        case TOKEN_MINUS:   operation = binary_op_i::op::SUB_I; break;
+        case TOKEN_ASTERIX: operation = binary_op_i::op::MUL_I; break;
+        case TOKEN_SLASH:   operation = binary_op_i::op::DIV_I; break;
 
         default:
         {
@@ -325,8 +326,7 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
 }
 
 template<>
-jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_target& target, air_function* function,
-                                                                    node* n)
+jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, air_function* function, node* n)
 {
   assert(function->tail);
   assert(n);
@@ -347,43 +347,43 @@ jump_instruction::condition GenNodeAIR<jump_instruction::condition>(codegen_targ
         case TOKEN_EQUALS_EQUALS:
         {
           return (n->payload.condition.reverseOnJump ?
-                  jump_instruction::condition::IF_NOT_EQUAL :
-                  jump_instruction::condition::IF_EQUAL);
+                  jump_i::condition::IF_NOT_EQUAL :
+                  jump_i::condition::IF_EQUAL);
         }
 
         case TOKEN_BANG_EQUALS:
         {
           return (n->payload.condition.reverseOnJump ?
-                  jump_instruction::condition::IF_EQUAL :
-                  jump_instruction::condition::IF_NOT_EQUAL);
+                  jump_i::condition::IF_EQUAL :
+                  jump_i::condition::IF_NOT_EQUAL);
         }
 
         case TOKEN_GREATER_THAN:
         {
           return (n->payload.condition.reverseOnJump ?
-                  jump_instruction::condition::IF_LESSER_OR_EQUAL :
-                  jump_instruction::condition::IF_GREATER);
+                  jump_i::condition::IF_LESSER_OR_EQUAL :
+                  jump_i::condition::IF_GREATER);
         }
 
         case TOKEN_GREATER_THAN_EQUAL_TO:
         {
           return (n->payload.condition.reverseOnJump ?
-                  jump_instruction::condition::IF_LESSER :
-                  jump_instruction::condition::IF_GREATER_OR_EQUAL);
+                  jump_i::condition::IF_LESSER :
+                  jump_i::condition::IF_GREATER_OR_EQUAL);
         }
 
         case TOKEN_LESS_THAN:
         {
           return (n->payload.condition.reverseOnJump ?
-                  jump_instruction::condition::IF_GREATER_OR_EQUAL :
-                  jump_instruction::condition::IF_LESSER);
+                  jump_i::condition::IF_GREATER_OR_EQUAL :
+                  jump_i::condition::IF_LESSER);
         }
 
         case TOKEN_LESS_THAN_EQUAL_TO:
         {
           return (n->payload.condition.reverseOnJump ?
-                  jump_instruction::condition::IF_GREATER :
-                  jump_instruction::condition::IF_LESSER_OR_EQUAL);
+                  jump_i::condition::IF_GREATER :
+                  jump_i::condition::IF_LESSER_OR_EQUAL);
         }
 
         default:
@@ -457,7 +457,7 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
     {
       assert(n->payload.ifThing.condition->type == CONDITION_NODE);
       assert(n->payload.ifThing.condition->payload.condition.reverseOnJump);
-      jump_instruction::condition jumpCondition = GenNodeAIR<jump_instruction::condition>(target, function, n->payload.ifThing.condition);
+      jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, function, n->payload.ifThing.condition);
 
       instruction_label* elseLabel = nullptr;
       instruction_label* endLabel = CreateInstructionLabel();
@@ -472,7 +472,7 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 
       if (n->payload.ifThing.elseCode)
       {
-        PushInstruction(function, I_JUMP, jump_instruction::condition::UNCONDITIONAL, endLabel);
+        PushInstruction(function, I_JUMP, jump_i::condition::UNCONDITIONAL, endLabel);
 
         PushInstruction(function, I_LABEL, elseLabel);
         GenNodeAIR(target, function, n->payload.ifThing.elseCode);
@@ -500,7 +500,8 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, ai
     case BREAK_NODE:
     {
       instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
-      PushInstruction(function, I_JUMP, jump_instruction::condition::UNCONDITIONAL, label);
+      PushInstruction(function, I_JUMP, jump_i::condition::UNCONDITIONAL, label);
+      // TODO
 
       return label;
     } break;
@@ -762,67 +763,67 @@ void PrintInstruction(air_instruction* instruction)
     {
       switch (instruction->payload.jump.cond)
       {
-        case jump_instruction::condition::UNCONDITIONAL:
+        case jump_i::condition::UNCONDITIONAL:
         {
           printf("%u: JMP I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_EQUAL:
+        case jump_i::condition::IF_EQUAL:
         {
           printf("%u: JE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_NOT_EQUAL:
+        case jump_i::condition::IF_NOT_EQUAL:
         {
           printf("%u: JNE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_OVERFLOW:
+        case jump_i::condition::IF_OVERFLOW:
         {
           printf("%u: JO I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_NOT_OVERFLOW:
+        case jump_i::condition::IF_NOT_OVERFLOW:
         {
           printf("%u: JNO I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_SIGN:
+        case jump_i::condition::IF_SIGN:
         {
           printf("%u: JS I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_NOT_SIGN:
+        case jump_i::condition::IF_NOT_SIGN:
         {
           printf("%u: JNS I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_GREATER:
+        case jump_i::condition::IF_GREATER:
         {
           printf("%u: JG I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_GREATER_OR_EQUAL:
+        case jump_i::condition::IF_GREATER_OR_EQUAL:
         {
           printf("%u: JGE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_LESSER:
+        case jump_i::condition::IF_LESSER:
         {
           printf("%u: JL I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_LESSER_OR_EQUAL:
+        case jump_i::condition::IF_LESSER_OR_EQUAL:
         {
           printf("%u: JLE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_PARITY_EVEN:
+        case jump_i::condition::IF_PARITY_EVEN:
         {
           printf("%u: JPE I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
 
-        case jump_instruction::condition::IF_PARITY_ODD:
+        case jump_i::condition::IF_PARITY_ODD:
         {
           printf("%u: JPO I(0x%lx)\n", instruction->index, instruction->payload.jump.label->offset);
         } break;
@@ -853,10 +854,10 @@ void PrintInstruction(air_instruction* instruction)
 
       switch (instruction->payload.binaryOp.operation)
       {
-        case binary_op_instruction::op::ADD: opString = "+"; break;
-        case binary_op_instruction::op::SUB: opString = "-"; break;
-        case binary_op_instruction::op::MUL: opString = "*"; break;
-        case binary_op_instruction::op::DIV: opString = "/"; break;
+        case binary_op_i::op::ADD_I: opString = "+"; break;
+        case binary_op_i::op::SUB_I: opString = "-"; break;
+        case binary_op_i::op::MUL_I: opString = "*"; break;
+        case binary_op_i::op::DIV_I: opString = "/"; break;
       }
 
       char* leftSlot = GetSlotString(instruction->payload.binaryOp.left);
@@ -906,10 +907,10 @@ const char* GetInstructionName(air_instruction* instruction)
     {
       switch (instruction->payload.binaryOp.operation)
       {
-        case binary_op_instruction::op::ADD: return "ADD";
-        case binary_op_instruction::op::SUB: return "SUB";
-        case binary_op_instruction::op::MUL: return "MUL";
-        case binary_op_instruction::op::DIV: return "DIV";
+        case binary_op_i::op::ADD_I: return "ADD_I";
+        case binary_op_i::op::SUB_I: return "SUB_I";
+        case binary_op_i::op::MUL_I: return "MUL_I";
+        case binary_op_i::op::DIV_I: return "DIV_I";
       }
     }
     case I_CALL:
