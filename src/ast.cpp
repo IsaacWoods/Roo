@@ -106,13 +106,14 @@ node* CreateNode(node_type type, ...)
     {
       payload.variableAssignment.variable     = va_arg(args, node*);
       payload.variableAssignment.newValue     = va_arg(args, node*);
+      payload.variableAssignment.ignoreImmutability = static_cast<bool>(va_arg(args, int));
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
       payload.memberAccess.parent             = va_arg(args, node*);
-      payload.memberAccess.memberName         = va_arg(args, char*);
-      payload.memberAccess.variable           = nullptr;
+      payload.memberAccess.member.name        = va_arg(args, char*);
+      payload.memberAccess.isResolved         = false;
     } break;
 
     default:
@@ -213,8 +214,15 @@ void Free<node*>(node*& n)
     case MEMBER_ACCESS_NODE:
     {
       Free<node*>(n->payload.memberAccess.parent);
-      free(n->payload.memberAccess.memberName);
-      Free<variable_def*>(n->payload.memberAccess.variable);
+
+      if (n->payload.memberAccess.isResolved)
+      {
+        // TODO: don't free the variable
+      }
+      else
+      {
+        free(n->payload.memberAccess.member.name);
+      }
     } break;
 
     case NUM_AST_NODES:

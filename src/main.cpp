@@ -13,6 +13,7 @@
 // AST Passes
 #include <pass_resolveVars.hpp>
 #include <pass_resolveFunctionCalls.hpp>
+#include <pass_typeChecker.hpp>
 
 // NOTE(Isaac): defined in `parsing.cpp`
 void InitParseletMaps();
@@ -99,6 +100,7 @@ int main()
   CompleteIR(result);
   ApplyASTPass(result, PASS_resolveVars);
   ApplyASTPass(result, PASS_resolveFunctionCalls);
+  ApplyASTPass(result, PASS_typeChecker);
 
   // Emit DOT files for function ASTs
   for (auto* functionIt = result.functions.first;

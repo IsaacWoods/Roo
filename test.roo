@@ -3,16 +3,11 @@
 #[Prototype]
 fn Print(str : string)
 
-/*
- * Block comment
- */
-
 #[Entry]
-fn Main(y : int) -> int
+fn Main() -> int
 {
-  i : mut int = 5
+  i : int = 5
   i = 7
 
-  // This is a line comment
   return 0
 }

@@ -18,6 +18,7 @@ OBJS = \
 AST_PASSES = \
 	src/pass_resolveVars.hpp \
 	src/pass_resolveFunctionCalls.hpp \
+	src/pass_typeChecker.hpp \
 
 STD_OBJECTS = \
 	std/bootstrap.o \

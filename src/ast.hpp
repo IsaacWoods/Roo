@@ -125,6 +125,7 @@ struct variable_assign_part
    */
   node* variable;
   node* newValue;
+  bool  ignoreImmutability;
 };
 
 struct member_access_part
@@ -132,13 +133,14 @@ struct member_access_part
   /*
    * NOTE(Isaac): Parent may either be another MEMBER_ACCESS_NODE, or a VARIABLE_NODE
    */
-  node* parent;
-  char* memberName;
+  node*   parent;
 
-  /*
-   * NOTE(Isaac): this starts as `nullptr`, and should be filled in after we finish parsing and know everything
-   */
-  variable_def* variable;
+  union
+  {
+    char*         name;
+    variable_def* def;
+  }       member;
+  bool    isResolved;
 };
 
 struct node

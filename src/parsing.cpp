@@ -996,7 +996,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
         variableNode->payload.variable.var.def = variable;
         variableNode->payload.variable.isResolved = true;
 
-        result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue);
+        result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
 
         Add<variable_def*>(parser.currentFunction->locals, variable);
         break;
@@ -1447,6 +1447,6 @@ void InitParseletMaps()
       node* expression = Expression(parser, P_ASSIGNMENT - 1u);
 
       printf("<-- [PARSELET] Variable assignment\n");
-      return CreateNode(VARIABLE_ASSIGN_NODE, left, expression);
+      return CreateNode(VARIABLE_ASSIGN_NODE, left, expression, false);
     };
 }

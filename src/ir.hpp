@@ -109,13 +109,14 @@ struct type_ref
     type_def* def;
   }     type;
   bool  isResolved;
+
+  bool  isMutable;
 };
 
 struct variable_def
 {
   char*         name;
   type_ref      type;
-  bool          isMutable;
   node*         initValue;
   slot*         mostRecentSlot;
 };
