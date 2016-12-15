@@ -14,8 +14,6 @@ ast_passlet PASS_resolveVars[NUM_AST_NODES] = {};
 __attribute__((constructor))
 void InitResolveVarsPass()
 {
-  __builtin_puts("Init pass: Resolve Variables");
-
   PASS_resolveVars[VARIABLE_NODE] =
     [](parse_result& /*parse*/, function_def* function, node* n)
     {
@@ -23,8 +21,6 @@ void InitResolveVarsPass()
       {
         return;
       }
-
-      printf("Resolving variable: %s\n", n->payload.variable.var.name);
 
       for (auto* localIt = function->locals.first;
            localIt;

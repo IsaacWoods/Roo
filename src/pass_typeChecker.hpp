@@ -12,8 +12,6 @@ ast_passlet PASS_typeChecker[NUM_AST_NODES] = {};
 __attribute__((constructor))
 void InitTypeCheckerPass()
 {
-  __builtin_puts("Init pass: Type checker");
-
   // NOTE(Isaac): This complains if we are assigning to a immutable variable
   PASS_typeChecker[VARIABLE_ASSIGN_NODE] =
     [](parse_result& /*parse*/, function_def* /*function*/, node* n)

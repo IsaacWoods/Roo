@@ -353,7 +353,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     case i::JPE:
     case i::JPO:
     {
-      //                         JE    JNE   JO    JNO   JS    JNS   JG    JGE   JL    JLE   JPE   JPO
+      //                               JE    JNE   JO    JNO   JS    JNS   JG    JGE   JL    JLE   JPE   JPO
       static const uint8_t jumps[] = { 0x84, 0x85, 0x80, 0x81, 0x88, 0x89, 0x8F, 0x8D, 0x8C, 0x8E, 0x8A, 0x8B };
 
       uint32_t relAddress = va_arg(args, uint32_t);
@@ -368,7 +368,6 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
 elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def* function)
 {
-  printf("Generating object code for function: %s\n", function->name);
   assert(function->air);
   assert(function->air->code);
 
@@ -376,11 +375,9 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
     Emit(thing, target, __VA_ARGS__);
 
   elf_thing* thing = CreateThing(elf, function->symbol);
-  printf("Making function with name: %s\n", function->symbol->name->str);
 
   if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
   {
-    printf("Found program entry point: %s!\n", function->name);
     // TODO: yeah this doesn't actually do anything yet
   }
 

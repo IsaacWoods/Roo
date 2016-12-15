@@ -410,8 +410,6 @@ void OutputDOTOfAST(function_def* function)
     return;
   }
 
-  printf("--- Outputting DOT file for function: %s ---\n", function->name);
-
   unsigned int i = 0u;
   char fileName[128u] = {0};
   strcpy(fileName, function->name);

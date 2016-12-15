@@ -38,7 +38,6 @@ static compile_result Compile(parse_result& result, const char* directoryPath)
 
     if (f->extension && strcmp(f->extension, "roo") == 0)
     {
-      printf("Parsing Roo source file: %s\n", f->name);
       Parse(&result, f->name); 
     }
   }
@@ -132,7 +131,6 @@ int main()
   }
 
   // Generate the code into a final executable!
-  printf("--- Generating a %s executable ---\n", target.name);  
   Generate(GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name, target, result);
 
   Free<parse_result>(result);

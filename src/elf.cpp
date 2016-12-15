@@ -515,8 +515,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
       symbol->size = text->size - symbol->value;
     }
 
-    printf("Extracting function from external object '%s' from 0x%lx\n", symbol->name->str, symbol->value);
-
+    // Create a thing for the extracted function
     elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
     thing->symbol = CreateSymbol(elf, symbol->name->str, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
     thing->length = symbol->size;

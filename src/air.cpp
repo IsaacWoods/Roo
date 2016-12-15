@@ -660,9 +660,9 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
   GenerateInterferences(functionDef->air);
   ColorSlots(target, functionDef->air);
 
-#if 1
   CreateInterferenceDOT(function, functionDef->name);
 
+#if 0
   // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", functionDef->name);
 
@@ -931,8 +931,6 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
   {
     return;
   }
-
-  printf("--- Outputting DOT of interference graph for: %s ---\n", functionName);
 
   char fileName[128u] = {0};
   strcpy(fileName, functionName);

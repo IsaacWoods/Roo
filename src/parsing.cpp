@@ -168,6 +168,18 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
   Crash();
 }
 
+static void Log(roo_parser& /*parser*/, const char* fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+
+#if 0
+  vprintf(fmt, args);
+#endif
+
+  va_end(args);
+}
+
 static token LexName(roo_parser& parser)
 {
   // NOTE(Isaac): Minus one to get the current char as well
@@ -790,7 +802,7 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
 
     variable_def* param = CreateVariableDef(varName, typeName, false, nullptr);
 
-    printf("Param: %s of type %s\n", param->name, param->type.type.name);
+    Log(parser, "Param: %s of type %s\n", param->name, param->type.type.name);
     Add<variable_def*>(params, param);
   } while (MatchNext(parser, TOKEN_COMMA));
 
@@ -799,7 +811,7 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
 
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
-  printf("--> Expression(%u)\n", precedence);
+  Log(parser, "--> Expression(%u)\n", precedence);
   prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
 
   if (!prefixParselet)
@@ -817,14 +829,14 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
     // NOTE(Isaac): there is no infix expression part - just return the prefix expression
     if (!infixParselet)
     {
-      printf("<-- Expression(NO INFIX)\n");
+      Log(parser, "<-- Expression(NO INFIX)\n");
       return expression;
     }
 
     expression = infixParselet(parser, expression);
   }
 
-  printf("<-- Expression\n");
+  Log(parser, "<-- Expression\n");
   return expression;
 }
 
@@ -855,7 +867,7 @@ static variable_def* VariableDef(roo_parser& parser)
   }
 
   variable_def* variable = CreateVariableDef(name, typeName, isMutable, initValue);
-  printf("Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.type.name, (isMutable ? "is mutable" : "is immutable"));
+  Log(parser, "Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.type.name, (isMutable ? "is mutable" : "is immutable"));
   return variable;
 }
 
@@ -863,7 +875,7 @@ static node* Statement(roo_parser& parser, bool isInLoop = false);
 
 static node* Block(roo_parser& parser)
 {
-  printf("--> Block\n");
+  Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
   node* code = nullptr;
 
@@ -889,13 +901,13 @@ static node* Block(roo_parser& parser)
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);
-  printf("<-- Block\n");
+  Log(parser, "<-- Block\n");
   return code;
 }
 
 static node* Condition(roo_parser& parser, bool reverseOnJump)
 {
-  printf("--> Condition\n");
+  Log(parser, "--> Condition\n");
   node* left = Expression(parser);
 
   token_type condition = PeekToken(parser).type;
@@ -913,13 +925,13 @@ static node* Condition(roo_parser& parser, bool reverseOnJump)
   NextToken(parser);
   node* right = Expression(parser);
 
-  printf("<-- Condition\n");
+  Log(parser, "<-- Condition\n");
   return CreateNode(CONDITION_NODE, condition, left, right, reverseOnJump);
 }
 
 static node* If(roo_parser& parser)
 {
-  printf("--> If\n");
+  Log(parser, "--> If\n");
 
   Consume(parser, TOKEN_IF);
   Consume(parser, TOKEN_LEFT_PAREN);
@@ -935,13 +947,13 @@ static node* If(roo_parser& parser)
     elseCode = Block(parser);
   }
 
-  printf("<-- If\n");
+  Log(parser, "<-- If\n");
   return CreateNode(IF_NODE, condition, thenCode, elseCode);
 }
 
 static node* Statement(roo_parser& parser, bool isInLoop)
 {
-  printf("--> Statement");
+  Log(parser, "--> Statement");
   node* result = nullptr;
 
   switch (PeekToken(parser).type)
@@ -954,13 +966,13 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       }
 
       result = CreateNode(BREAK_NODE);
-      printf("(BREAK)\n");
+      Log(parser, "(BREAK)\n");
       NextToken(parser);
     } break;
 
     case TOKEN_RETURN:
     {
-      printf("(RETURN)\n");
+      Log(parser, "(RETURN)\n");
       parser.currentFunction->shouldAutoReturn = false;
 
       if (MatchNext(parser, TOKEN_LINE, false))
@@ -976,7 +988,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
 
     case TOKEN_IF:
     {
-      printf("(IF)\n");
+      Log(parser, "(IF)\n");
 
       result = If(parser);
     } break;
@@ -986,7 +998,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
       // It's a variable definition (probably)
       if (MatchNext(parser, TOKEN_COLON))
       {
-        printf("(VARIABLE DEFINITION)\n");
+        Log(parser, "(VARIABLE DEFINITION)\n");
         variable_def* variable = VariableDef(parser);
 
         // Assign the initial value to the variable
@@ -1004,19 +1016,19 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     } // NOTE(Isaac): no break
 
     default:
-      printf("(EXPRESSION STATEMENT)\n");
+      Log(parser, "(EXPRESSION STATEMENT)\n");
       result = Expression(parser);
 
       // TODO(Isaac): make sure it's a valid node type to appear at top level
   }
 
-  printf("<-- Statement\n");
+  Log(parser, "<-- Statement\n");
   return result;
 }
 
 static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
 {
-  printf("--> TypeDef(");
+  Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
   CreateLinkedList<variable_def*>(type->members);
@@ -1026,7 +1038,7 @@ static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
   CopyLinkedList<type_attrib>(type->attribs, attribs);
 
   type->name = GetTextFromToken(PeekToken(parser));
-  printf("%s)\n", type->name);
+  Log(parser, "%s)\n", type->name);
   
   ConsumeNext(parser, TOKEN_LEFT_BRACE);
 
@@ -1038,12 +1050,12 @@ static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
 
   Consume(parser, TOKEN_RIGHT_BRACE);
   Add<type_def*>(parser.result->types, type);
-  printf("<-- TypeDef\n");
+  Log(parser, "<-- TypeDef\n");
 }
 
 static void Import(roo_parser& parser)
 {
-  printf("--> Import\n");
+  Log(parser, "--> Import\n");
   Consume(parser, TOKEN_IMPORT);
 
   dependency_def* dependency = static_cast<dependency_def*>(malloc(sizeof(dependency_def)));
@@ -1054,7 +1066,7 @@ static void Import(roo_parser& parser)
     case TOKEN_IDENTIFIER:
     {
       // TODO(Isaac): handle dotted identifiers
-      printf("Importing: %s\n", GetTextFromToken(PeekToken(parser)));
+      Log(parser, "Importing: %s\n", GetTextFromToken(PeekToken(parser)));
       dependency->type = dependency_def::dependency_type::LOCAL;
       dependency->path = GetTextFromToken(PeekToken(parser));
     } break;
@@ -1062,7 +1074,7 @@ static void Import(roo_parser& parser)
     // NOTE(Isaac): Import a library from a remote repository
     case TOKEN_STRING:
     {
-      printf("Importing remote: %s\n", GetTextFromToken(PeekToken(parser)));
+      Log(parser, "Importing remote: %s\n", GetTextFromToken(PeekToken(parser)));
       dependency->type = dependency_def::dependency_type::REMOTE;
       dependency->path = GetTextFromToken(PeekToken(parser));
     } break;
@@ -1076,12 +1088,12 @@ static void Import(roo_parser& parser)
 
   Add<dependency_def*>(parser.result->dependencies, dependency);
   NextToken(parser);
-  printf("<-- Import\n");
+  Log(parser, "<-- Import\n");
 }
 
 static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
 {
-  printf("--> Function(");
+  Log(parser, "--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
   parser.currentFunction = definition;
   CreateLinkedList<variable_def*>(definition->params);
@@ -1096,7 +1108,7 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
   Add<function_def*>(parser.result->functions, definition);
 
   definition->name = GetTextFromToken(NextToken(parser));
-  printf("%s)\n", definition->name);
+  Log(parser, "%s)\n", definition->name);
 
   ParameterList(parser, definition->params);
 
@@ -1109,12 +1121,12 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
     definition->returnType->isResolved = false;
     NextToken(parser);
 
-    printf("Return type: %s\n", definition->returnType->type.name);
+    Log(parser, "Return type: %s\n", definition->returnType->type.name);
   }
   else
   {
     definition->returnType = nullptr;
-    printf("Return type: NONE\n");
+    Log(parser, "Return type: NONE\n");
   }
 
   if (GetAttrib(definition, function_attrib::attrib_type::PROTOTYPE))
@@ -1128,7 +1140,7 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
     definition->ast = Block(parser);
   }
 
-  printf("<-- Function\n");
+  Log(parser, "<-- Function\n");
 }
 
 enum class attrib_type
@@ -1208,11 +1220,8 @@ void Parse(parse_result* result, const char* sourcePath)
   parser.currentToken = LexNext(parser);
   parser.nextToken    = LexNext(parser);
 
-  printf("--- Starting parse ---\n");
-
   linked_list<function_attrib> functionAttribs;
   linked_list<type_attrib> typeAttribs;
-
   CreateLinkedList<function_attrib>(functionAttribs);
   CreateLinkedList<type_attrib>(typeAttribs);
 
@@ -1262,8 +1271,6 @@ void Parse(parse_result* result, const char* sourcePath)
   {
     SyntaxError(parser, "Trailing attribute not applied to anything!");
   }
-
-  printf("--- Finished parse ---\n");
 
   free(parser.source);
   parser.source = nullptr;
@@ -1315,42 +1322,42 @@ void InitParseletMaps()
   g_prefixMap[TOKEN_IDENTIFIER] =
     [](roo_parser& parser) -> node*
     {
-      printf("--> [PARSELET] Identifier\n");
+      Log(parser, "--> [PARSELET] Identifier\n");
       char* name = GetTextFromToken(PeekToken(parser));
 
       NextToken(parser);
-      printf("<-- [PARSELET] Identifier\n");
+      Log(parser, "<-- [PARSELET] Identifier\n");
       return CreateNode(VARIABLE_NODE, name);
     };
 
   g_prefixMap[TOKEN_NUMBER_INT] =
     [](roo_parser& parser) -> node*
     {
-      printf("--> [PARSELET] Number constant (integer)\n");
+      Log(parser, "--> [PARSELET] Number constant (integer)\n");
       int value = PeekToken(parser).payload.i;
       NextToken(parser);
-      printf("<-- [PARSELET] Number constant (integer)\n");
+      Log(parser, "<-- [PARSELET] Number constant (integer)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
     };
 
   g_prefixMap[TOKEN_NUMBER_FLOAT] =
     [](roo_parser& parser) -> node*
     {
-      printf("--> [PARSELET] Number constant (floating point)\n");
+      Log(parser, "--> [PARSELET] Number constant (floating point)\n");
       float value = PeekToken(parser).payload.f;
       NextToken(parser);
-      printf("<-- [PARSELET] Number constant (floating point)\n");
+      Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
     };
 
   g_prefixMap[TOKEN_STRING] =
     [](roo_parser& parser) -> node*
     {
-      printf("--> [PARSELET] String\n");
+      Log(parser, "--> [PARSELET] String\n");
       char* tokenText = GetTextFromToken(PeekToken(parser));
       NextToken(parser);
 
-      printf("<-- [PARSELET] String\n");
+      Log(parser, "<-- [PARSELET] String\n");
       return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
     };
 
@@ -1360,11 +1367,11 @@ void InitParseletMaps()
   g_prefixMap[TOKEN_TILDE]  =
     [](roo_parser& parser) -> node*
     {
-      printf("--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
+      Log(parser, "--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
 
       NextToken(parser);
-      printf("<-- [PARSELET] Prefix operation\n");
+      Log(parser, "<-- [PARSELET] Prefix operation\n");
       return CreateNode(PREFIX_OP_NODE, operation, Expression(parser, P_PREFIX));
     };
 
@@ -1375,11 +1382,11 @@ void InitParseletMaps()
   g_infixMap[TOKEN_SLASH] =
     [](roo_parser& parser, node* left) -> node*
     {
-      printf("--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
+      Log(parser, "--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
 
       NextToken(parser);
-      printf("<-- [PARSELET] Binary operator\n");
+      Log(parser, "<-- [PARSELET] Binary operator\n");
       return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, g_precedenceTable[operation]));
     };
 
@@ -1387,7 +1394,7 @@ void InitParseletMaps()
   g_infixMap[TOKEN_LEFT_PAREN] =
     [](roo_parser& parser, node* left) -> node*
     {
-      printf("--> [PARSELET] Function Call\n");
+      Log(parser, "--> [PARSELET] Function Call\n");
 
       if (left->type != VARIABLE_NODE)
       {
@@ -1407,7 +1414,7 @@ void InitParseletMaps()
       }
 
       Consume(parser, TOKEN_RIGHT_PAREN);
-      printf("<-- [PARSELET] Function call\n");
+      Log(parser, "<-- [PARSELET] Function call\n");
       return result;
     };
 
@@ -1415,7 +1422,7 @@ void InitParseletMaps()
   g_infixMap[TOKEN_DOT] =
     [](roo_parser& parser, node* left) -> node*
     {
-      printf("--> [PARSELET] Member access\n");
+      Log(parser, "--> [PARSELET] Member access\n");
 
       if (left->type != VARIABLE_NODE &&
           left->type != MEMBER_ACCESS_NODE)
@@ -1426,7 +1433,7 @@ void InitParseletMaps()
       char* memberName = GetTextFromToken(PeekToken(parser));
       NextToken(parser);
 
-      printf("<-- [PARSELET] Member access\n");
+      Log(parser, "<-- [PARSELET] Member access\n");
       return CreateNode(MEMBER_ACCESS_NODE, left, memberName);
     };
 
@@ -1434,7 +1441,7 @@ void InitParseletMaps()
   g_infixMap[TOKEN_EQUALS] =
     [](roo_parser& parser, node* left) -> node*
     {
-      printf("--> [PARSELET] Variable assignment\n");
+      Log(parser, "--> [PARSELET] Variable assignment\n");
 
       if (left->type != VARIABLE_NODE &&
           left->type != MEMBER_ACCESS_NODE)
@@ -1446,7 +1453,7 @@ void InitParseletMaps()
       // NOTE(Isaac): minus one from the precedence because assignment is right-associative
       node* expression = Expression(parser, P_ASSIGNMENT - 1u);
 
-      printf("<-- [PARSELET] Variable assignment\n");
+      Log(parser, "<-- [PARSELET] Variable assignment\n");
       return CreateNode(VARIABLE_ASSIGN_NODE, left, expression, false);
     };
 }
