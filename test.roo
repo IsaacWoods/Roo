@@ -6,8 +6,12 @@ fn Print(str : string)
 #[Entry]
 fn Main() -> int
 {
-  i : int = 5
+  i : mut int = 5
   i = 7
 
   return 0
+}
+
+operator +(left : int, right : int) -> int
+{
 }

@@ -2,8 +2,8 @@
 # See LICENCE.md
 
 CXX ?= g++
-CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++14 -g -Isrc
-LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++14 -g -Isrc
+CFLAGS = -Wall -Wextra -pedantic -O2 -std=c++14 -g -Isrc
+LFLAGS = -Wall -Wextra -pedantic -O2 -std=c++14 -g -Isrc
 
 OBJS = \
   src/main.o \

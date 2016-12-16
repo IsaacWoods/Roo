@@ -213,21 +213,20 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
       slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
       binary_op_i::op operation;
 
-      // TODO: use the right instruction type depending on the types of the operands (or error out)
       switch (n->payload.binaryOp.op)
       {
         case TOKEN_PLUS:    operation = binary_op_i::op::ADD_I; break;
         case TOKEN_MINUS:   operation = binary_op_i::op::SUB_I; break;
         case TOKEN_ASTERIX: operation = binary_op_i::op::MUL_I; break;
         case TOKEN_SLASH:   operation = binary_op_i::op::DIV_I; break;
-
+    
         default:
         {
           fprintf(stderr, "Unhandled AST binary op in GenNodeAIR!\n");
           Crash();
         }
       }
-
+      
       air_instruction* instruction = PushInstruction(function, I_BINARY_OP, operation, left, right, result);
       left->range.lastUser = instruction;
       right->range.lastUser = instruction;

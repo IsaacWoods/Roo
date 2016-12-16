@@ -8,3 +8,4 @@ roo
 test
 *.dot
 *.png
+callgrind.out.*
