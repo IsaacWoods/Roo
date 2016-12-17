@@ -29,6 +29,7 @@ void CreateParseResult(parse_result& result)
 {
   CreateLinkedList<dependency_def*>(result.dependencies);
   CreateLinkedList<function_def*>(result.functions);
+  CreateLinkedList<operator_def*>(result.operators);
   CreateLinkedList<type_def*>(result.types);
   CreateLinkedList<string_constant*>(result.strings);
   CreateLinkedList<program_attrib>(result.attribs);
@@ -191,11 +192,17 @@ void Free<function_attrib>(function_attrib& /*attrib*/)
 }
 
 template<>
+void Free<block_def>(block_def& scope)
+{
+  FreeLinkedList<variable_def*>(scope.params);
+  FreeLinkedList<variable_def*>(scope.locals);
+}
+
+template<>
 void Free<function_def*>(function_def*& function)
 {
   free(function->name);
-  FreeLinkedList<variable_def*>(function->params);
-  FreeLinkedList<variable_def*>(function->locals);
+  Free<block_def>(function->scope);
 
   if (function->returnType)
   {
@@ -216,6 +223,24 @@ void Free<function_def*>(function_def*& function)
   }
 
   free(function);
+}
+
+template<>
+void Free<operator_def*>(operator_def*& operatorDef)
+{
+  Free<block_def>(operatorDef->scope);
+
+  if (operatorDef->ast)
+  {
+    Free<node*>(operatorDef->ast);
+  }
+
+  if (operatorDef->air)
+  {
+    Free<air_function*>(operatorDef->air);
+  }
+
+  free(operatorDef);
 }
 
 static void ResolveTypeRef(type_ref& ref, parse_result& parse)
@@ -280,7 +305,7 @@ void CompleteIR(parse_result& parse)
       ResolveTypeRef(*(function->returnType), parse);
     }
 
-    for (auto* paramIt = function->params.first;
+    for (auto* paramIt = function->scope.params.first;
          paramIt;
          paramIt = paramIt->next)
     {
@@ -288,7 +313,7 @@ void CompleteIR(parse_result& parse)
       ResolveTypeRef(param->type, parse);
     }
 
-    for (auto* localIt = function->locals.first;
+    for (auto* localIt = function->scope.locals.first;
          localIt;
          localIt = localIt->next)
     {

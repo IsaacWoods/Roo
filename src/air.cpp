@@ -649,7 +649,7 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
     GenNodeAIR(target, function, n);
   }
 
-  if (functionDef->shouldAutoReturn)
+  if (functionDef->scope.shouldAutoReturn)
   {
     PushInstruction(function, I_LEAVE_STACK_FRAME);
     PushInstruction(function, I_RETURN, nullptr);

@@ -183,6 +183,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_ELSE";
     case TOKEN_MUT:
       return "TOKEN_MUT";
+    case TOKEN_OPERATOR:
+      return "TOKEN_OPERATOR";
 
     case TOKEN_DOT:
       return "TOKEN_DOT";

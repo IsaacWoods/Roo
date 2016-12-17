@@ -41,7 +41,7 @@ struct roo_parser
   token           nextToken;
 
   parse_result*   result;
-  function_def*   currentFunction;
+//  function_def*   currentFunction;
 };
 
 static inline char* GetTextFromToken(const token& tkn)
@@ -209,6 +209,7 @@ static token LexName(roo_parser& parser)
   KEYWORD("if",       TOKEN_IF)
   KEYWORD("else",     TOKEN_ELSE)
   KEYWORD("mut",      TOKEN_MUT)
+  KEYWORD("operator", TOKEN_OPERATOR)
 
   // It's not a keyword, so create an identifier token
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
@@ -871,9 +872,9 @@ static variable_def* VariableDef(roo_parser& parser)
   return variable;
 }
 
-static node* Statement(roo_parser& parser, bool isInLoop = false);
+static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop = false);
 
-static node* Block(roo_parser& parser)
+static node* Block(roo_parser& parser, block_def& scope)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -881,7 +882,7 @@ static node* Block(roo_parser& parser)
 
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
-    node* statement = Statement(parser, false);
+    node* statement = Statement(parser, scope);
 
     if (code)
     {
@@ -929,7 +930,7 @@ static node* Condition(roo_parser& parser, bool reverseOnJump)
   return CreateNode(CONDITION_NODE, condition, left, right, reverseOnJump);
 }
 
-static node* If(roo_parser& parser)
+static node* If(roo_parser& parser, block_def& scope)
 {
   Log(parser, "--> If\n");
 
@@ -938,20 +939,20 @@ static node* If(roo_parser& parser)
   node* condition = Condition(parser, true);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
-  node* thenCode = Block(parser);
+  node* thenCode = Block(parser, scope);
   node* elseCode = nullptr;
 
   if (Match(parser, TOKEN_ELSE))
   {
     NextToken(parser);
-    elseCode = Block(parser);
+    elseCode = Block(parser, scope);
   }
 
   Log(parser, "<-- If\n");
   return CreateNode(IF_NODE, condition, thenCode, elseCode);
 }
 
-static node* Statement(roo_parser& parser, bool isInLoop)
+static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
   node* result = nullptr;
@@ -973,7 +974,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     case TOKEN_RETURN:
     {
       Log(parser, "(RETURN)\n");
-      parser.currentFunction->shouldAutoReturn = false;
+      scope.shouldAutoReturn = false;
 
       if (MatchNext(parser, TOKEN_LINE, false))
       {
@@ -990,7 +991,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
     {
       Log(parser, "(IF)\n");
 
-      result = If(parser);
+      result = If(parser, scope);
     } break;
 
     case TOKEN_IDENTIFIER:
@@ -1010,7 +1011,7 @@ static node* Statement(roo_parser& parser, bool isInLoop)
 
         result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
 
-        Add<variable_def*>(parser.currentFunction->locals, variable);
+        Add<variable_def*>(scope.locals, variable);
         break;
       }
     } // NOTE(Isaac): no break
@@ -1095,10 +1096,9 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
 {
   Log(parser, "--> Function(");
   function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
-  parser.currentFunction = definition;
-  CreateLinkedList<variable_def*>(definition->params);
-  CreateLinkedList<variable_def*>(definition->locals);
-  definition->shouldAutoReturn = true;
+  CreateLinkedList<variable_def*>(definition->scope.params);
+  CreateLinkedList<variable_def*>(definition->scope.locals);
+  definition->scope.shouldAutoReturn = true;
   definition->air = nullptr;
 
   CreateLinkedList<function_attrib>(definition->attribs);
@@ -1110,7 +1110,7 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
   definition->name = GetTextFromToken(NextToken(parser));
   Log(parser, "%s)\n", definition->name);
 
-  ParameterList(parser, definition->params);
+  ParameterList(parser, definition->scope.params);
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
@@ -1137,10 +1137,52 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
   else
   {
     definition->isPrototype = false;
-    definition->ast = Block(parser);
+    definition->ast = Block(parser, definition->scope);
   }
 
   Log(parser, "<-- Function\n");
+}
+
+static void Operator(roo_parser& parser/*, linked_list<operator_attrib>& attribs*/)
+{
+  Log(parser, "--> Operator(");
+
+  operator_def* definition = static_cast<operator_def*>(malloc(sizeof(operator_def)));
+  CreateLinkedList<variable_def*>(definition->scope.params);
+  CreateLinkedList<variable_def*>(definition->scope.locals);
+  definition->air = nullptr;
+
+/*  CreateLinkedList<operator_attrib>(definition->attribs);
+  CopyLinkedList<operator_attrib>(definition->attribs, attribs);
+  FreeLinkedList<operator_attrib>(attribs);*/
+
+  Add<operator_def*>(parser.result->operators, definition);
+
+  definition->op = NextToken(parser).type;
+  // TODO: validate the operator to make sure it's actually an operator
+  Log(parser, "%s)\n", GetTokenName(definition->op));
+
+  ParameterList(parser, definition->scope.params);
+
+  Consume(parser, TOKEN_YIELDS);
+  definition->returnType.type.name = GetTextFromToken(PeekToken(parser));
+  definition->returnType.isResolved = false;
+  NextToken(parser);
+  Log(parser, "Return type: %s\n", definition->returnType.type.name);
+
+/*  if (GetAttrib(definition, operator_attrib::attrib_type::PROTOTYPE))
+  {
+    definition->isPrototype = true;
+    definition->ast = nullptr;
+  }
+  else
+  {*/
+    definition->isPrototype = false;
+    definition->ast = Block(parser, definition->scope);
+    assert(!(definition->scope.shouldAutoReturn));
+  /*}*/
+
+  Log(parser, "<-- Operator\n");
 }
 
 enum class attrib_type
@@ -1242,6 +1284,18 @@ void Parse(parse_result* result, const char* sourcePath)
       }
 
       Function(parser, functionAttribs);
+      UnlinkLinkedList<function_attrib>(functionAttribs);
+      parsedAttribType = attrib_type::NONE;
+    }
+    else if (Match(parser, TOKEN_OPERATOR))
+    {
+      if (parsedAttribType != attrib_type::NONE &&
+          parsedAttribType != attrib_type::FUNCTION)
+      {
+        SyntaxError(parser, "Unexpected attribute to be applied to an operator!");
+      }
+
+      Operator(parser/*, functionAttribs*/);
       UnlinkLinkedList<function_attrib>(functionAttribs);
       parsedAttribType = attrib_type::NONE;
     }

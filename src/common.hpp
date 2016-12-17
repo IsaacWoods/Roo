@@ -56,6 +56,7 @@ enum token_type
   TOKEN_IF,
   TOKEN_ELSE,
   TOKEN_MUT,
+  TOKEN_OPERATOR,
 
   // Punctuation n' shit
   TOKEN_DOT,

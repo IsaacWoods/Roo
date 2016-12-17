@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <linked_list.hpp>
 #include <cstdint>
+#include <linked_list.hpp>
+#include <common.hpp>
 
 struct node;
 struct air_instruction;
@@ -40,6 +41,7 @@ struct codegen_target
 
 struct dependency_def;
 struct function_def;
+struct operator_def;
 struct type_def;
 struct string_constant;
 
@@ -63,6 +65,7 @@ struct parse_result
 {
   linked_list<dependency_def*>  dependencies;
   linked_list<function_def*>    functions;
+  linked_list<operator_def*>    operators;
   linked_list<type_def*>        types;
   linked_list<string_constant*> strings;
   linked_list<program_attrib>   attribs;
@@ -132,15 +135,41 @@ struct function_attrib
   } type;
 };
 
+struct block_def
+{
+  linked_list<variable_def*>  params;
+  linked_list<variable_def*>  locals;
+  bool                        shouldAutoReturn;
+};
+
 struct function_def
 {
   char*                         name;
   bool                          isPrototype;
-  linked_list<variable_def*>    params;
-  linked_list<variable_def*>    locals;
+  block_def                     scope;
   type_ref*                     returnType; // NOTE(Isaac): `nullptr` when function returns nothing
-  bool                          shouldAutoReturn;
   linked_list<function_attrib>  attribs;
+
+  node*                         ast;
+  air_function*                 air;
+  elf_symbol*                   symbol;
+};
+
+/*struct operator_attrib
+{
+  enum attrib_type
+  {
+    PROTOTYPE,
+  } type;
+};*/
+
+struct operator_def
+{
+  token_type                    op;
+  bool                          isPrototype;
+  block_def                     scope;
+  type_ref                      returnType; // NOTE(Isaac): operators have to return something
+//  linked_list<operator_attrib>  attribs;
 
   node*                         ast;
   air_function*                 air;

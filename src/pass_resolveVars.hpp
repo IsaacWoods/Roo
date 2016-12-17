@@ -22,7 +22,7 @@ void InitResolveVarsPass()
         return;
       }
 
-      for (auto* localIt = function->locals.first;
+      for (auto* localIt = function->scope.locals.first;
            localIt;
            localIt = localIt->next)
       {
@@ -37,7 +37,7 @@ void InitResolveVarsPass()
         }
       }
 
-      for (auto* paramIt = function->params.first;
+      for (auto* paramIt = function->scope.params.first;
            paramIt;
            paramIt = paramIt->next)
       {
