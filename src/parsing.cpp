@@ -783,7 +783,6 @@ prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
 unsigned int    g_precedenceTable[NUM_TOKENS];
 
-// TODO: doesn't appear to work for multiple parameters
 static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
@@ -795,19 +794,28 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
     return;
   }
 
-  do
+  while (true)
   {
     char* varName = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
+    // TODO: parse a full type reference here (mutability, ownership, all that jazz)
     char* typeName = GetTextFromToken(PeekToken(parser));
 
     variable_def* param = CreateVariableDef(varName, typeName, false, nullptr);
 
     Log(parser, "Param: %s of type %s\n", param->name, param->type.type.name);
     Add<variable_def*>(params, param);
-  } while (MatchNext(parser, TOKEN_COMMA));
 
-  ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+    if (MatchNext(parser, TOKEN_COMMA))
+    {
+      ConsumeNext(parser, TOKEN_COMMA);
+    }
+    else
+    {
+      ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+      break;
+    }
+  }
 }
 
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
