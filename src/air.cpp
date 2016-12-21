@@ -52,7 +52,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
     {
       s->color = va_arg(args, signed int);
       s->shouldBeColored = true; // TODO: uhhh it's precolored, so yes or no?
-      s->tag = -1; // TODO: do we need a nicer tag here?
+      s->tag = -1; // TODO: do we need a nicer tag here? NOTE(Isaac): do we even need tags tbh?
     } break;
 
     case slot::slot_type::INT_CONSTANT:
@@ -282,9 +282,6 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
      */
     case VARIABLE_NODE:
     {
-      // TODO: why the fuck does this assume it's a param??
-      // TODO: how do we know which to use??
-
       // If no slot exists yet, create one
       if (!n->payload.variable.var.def->mostRecentSlot)
       {
@@ -480,12 +477,35 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
       PushInstruction(function, I_LABEL, endLabel);
     } break;
 
+    case WHILE_NODE:
+    {
+      assert(n->payload.whileThing.condition->type == CONDITION_NODE);
+      assert(!(n->payload.whileThing.condition->payload.condition.reverseOnJump));
+
+      instruction_label* label = CreateInstructionLabel();
+      PushInstruction(function, I_LABEL, label);
+
+      GenNodeAIR(target, function, n->payload.whileThing.code);
+
+      jump_i::condition loopCondition = GenNodeAIR<jump_i::condition>(target, function, n->payload.whileThing.condition);
+      PushInstruction(function, I_JUMP, loopCondition, label);
+    } break;
+
     default:
     {
       fprintf(stderr, "Unhandled node type for returning nothing in GenNodeAIR: %s\n", GetNodeName(n->type));
       Crash();
     }
   }
+
+  /*
+   * NOTE(Isaac): the current node is probably a statement.
+   * It can therefore have a following statement, if it's in an internal scope.
+   */
+/*  if (n->next)
+  {
+    GenNodeAIR(target, function, n->next);
+  }*/
 }
 
 template<>
@@ -661,7 +681,7 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
 
   CreateInterferenceDOT(function, functionDef->name);
 
-#if 0
+#if 1
   // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", functionDef->name);
 
@@ -691,48 +711,51 @@ void Free<air_function*>(air_function*& function)
 
 static char* GetSlotString(slot* s)
 {
-  char* result;
-
   switch (s->type)
   {
     case slot::slot_type::VARIABLE:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(V)", s->payload.variable->name) + 1u));
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(V)", s->payload.variable->name) + 1u));
       sprintf(result, "%s(V)", s->payload.variable->name);
-    } break;
+    }
 
     case slot::slot_type::IN_PARAM:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%d(IN)", s->color) + 1u));
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%d(IN)", s->color) + 1u));
       sprintf(result, "%d(IN)", s->color);
-    } break;
+      return result;
+    }
 
     case slot::slot_type::INTERMEDIATE:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag) + 1u));
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag) + 1u));
       sprintf(result, "i%u", s->tag);
-    } break;
+      return result;
+    }
 
     case slot::slot_type::INT_CONSTANT:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%d", s->payload.i) + 1u));
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%d", s->payload.i) + 1u));
       sprintf(result, "#%d", s->payload.i);
-    } break;
+      return result;
+    }
 
     case slot::slot_type::FLOAT_CONSTANT:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f) + 1u));
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f) + 1u));
       sprintf(result, "#%f", s->payload.f);
-    } break;
+      return result;
+    }
 
     case slot::slot_type::STRING_CONSTANT:
     {
-      result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "\"%s\"", s->payload.string->string) + 1u));
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "\"%s\"", s->payload.string->string) + 1u));
       sprintf(result, "\"%s\"", s->payload.string->string);
-    } break;
+      return result;
+    }
   }
 
-  return result;
+  return nullptr;
 }
 
 void PrintInstruction(air_instruction* instruction)

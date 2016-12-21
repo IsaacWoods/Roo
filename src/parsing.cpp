@@ -208,6 +208,7 @@ static token LexName(roo_parser& parser)
   KEYWORD("return",   TOKEN_RETURN)
   KEYWORD("if",       TOKEN_IF)
   KEYWORD("else",     TOKEN_ELSE)
+  KEYWORD("while",    TOKEN_WHILE)
   KEYWORD("mut",      TOKEN_MUT)
   KEYWORD("operator", TOKEN_OPERATOR)
 
@@ -882,7 +883,7 @@ static variable_def* VariableDef(roo_parser& parser)
 
 static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop = false);
 
-static node* Block(roo_parser& parser, block_def& scope)
+static node* Block(roo_parser& parser, block_def& scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -890,7 +891,7 @@ static node* Block(roo_parser& parser, block_def& scope)
 
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
-    node* statement = Statement(parser, scope);
+    node* statement = Statement(parser, scope, isInLoop);
 
     if (code)
     {
@@ -960,6 +961,21 @@ static node* If(roo_parser& parser, block_def& scope)
   return CreateNode(IF_NODE, condition, thenCode, elseCode);
 }
 
+static node* While(roo_parser& parser, block_def& scope)
+{
+  Log(parser, "--> While\n");
+
+  Consume(parser, TOKEN_WHILE);
+  Consume(parser, TOKEN_LEFT_PAREN);
+  node* condition = Condition(parser, false);
+  Consume(parser, TOKEN_RIGHT_PAREN);
+
+  node* code = Block(parser, scope, true);
+
+  Log(parser, "<-- While\n");
+  return CreateNode(WHILE_NODE, condition, code);
+}
+
 static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
@@ -998,8 +1014,13 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
     case TOKEN_IF:
     {
       Log(parser, "(IF)\n");
-
       result = If(parser, scope);
+    } break;
+
+    case TOKEN_WHILE:
+    {
+      Log(parser, "(WHILE)\n");
+      result = While(parser, scope);
     } break;
 
     case TOKEN_IDENTIFIER:

@@ -125,6 +125,7 @@ enum class i
   MUL_REG_REG,      // [opcodeSize] (ModR/M)
   DIV_REG_REG,      // [opcodeSize] (ModR/M)
   CMP_REG_REG,      // (ModR/M)
+  CMP_RAX_IMM32,    // (4-byte immediate)
   PUSH_REG,         // +r
   ADD_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   SUB_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
@@ -232,6 +233,14 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x39);
       Emit<uint8_t>(thing, CreateRegisterModRM(target, op1, op2));
+    } break;
+
+    case i::CMP_RAX_IMM32:
+    {
+      uint32_t imm = va_arg(args, uint32_t);
+
+      Emit<uint8_t>(thing, 0x3D);
+      Emit<uint32_t>(thing, imm);
     } break;
 
     case i::PUSH_REG:
@@ -467,8 +476,13 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         }
         else
         {
-          // TODO: compare against things that aren't registers?
-          assert(false);
+          // TODO: precolor compare instructions with immediates, because the variable needs to be in RAX
+          if (pair.left->shouldBeColored)
+          {
+            // NOTE(Isaac): there's only an x86 instruction for comparing an immediate with RAX
+            assert(pair.left->color == RAX);
+            E(i::CMP_RAX_IMM32, pair.right->payload.i);
+          }
         }
       } break;
 
@@ -568,8 +582,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        it = it->next)
   {
     string_constant* constant = **it;
-    printf("Emitting string into .rodata: '%s'\n", constant->string);
-
     constant->offset = tail;
 
     for (char* c = constant->string;

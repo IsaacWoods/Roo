@@ -21,6 +21,7 @@ GetStringLength:
 
 global _R_Print
 
+; INPUT(rdi) - pointer to a string
 _R_Print:
   push rbp
 

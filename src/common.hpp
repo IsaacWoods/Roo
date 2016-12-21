@@ -55,6 +55,7 @@ enum token_type
   TOKEN_RETURN,
   TOKEN_IF,
   TOKEN_ELSE,
+  TOKEN_WHILE,
   TOKEN_MUT,
   TOKEN_OPERATOR,
 

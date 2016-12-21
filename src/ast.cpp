@@ -66,6 +66,12 @@ node* CreateNode(node_type type, ...)
       payload.ifThing.elseCode                = va_arg(args, node*);
     } break;
 
+    case WHILE_NODE:
+    {
+      payload.whileThing.condition            = va_arg(args, node*);
+      payload.whileThing.code                 = va_arg(args, node*);
+    } break;
+
     case NUMBER_CONSTANT_NODE:
     {
       payload.numberConstant.type = static_cast<number_constant_part::constant_type>(va_arg(args, int));
@@ -182,6 +188,12 @@ void Free<node*>(node*& n)
       Free<node*>(n->payload.ifThing.elseCode);
     } break;
 
+    case WHILE_NODE:
+    {
+      Free<node*>(n->payload.whileThing.condition);
+      Free<node*>(n->payload.whileThing.code);
+    } break;
+
     case NUMBER_CONSTANT_NODE:
     {
     } break;
@@ -296,6 +308,12 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
       }
     } break;
 
+    case WHILE_NODE:
+    {
+      ApplyPassToNode(n->payload.whileThing.condition, function, pass, parse);
+      ApplyPassToNode(n->payload.whileThing.code, function, pass, parse);
+    } break;
+
     case NUMBER_CONSTANT_NODE:
     {
     } break;
@@ -376,6 +394,8 @@ const char* GetNodeName(node_type type)
       return "CONDITION_NODE";
     case IF_NODE:
       return "IF_NODE";
+    case WHILE_NODE:
+      return "WHILE_NODE";
     case NUMBER_CONSTANT_NODE:
       return "NUMBER_CONSTANT_NODE";
     case STRING_CONSTANT_NODE:
@@ -425,7 +445,7 @@ void OutputDOTOfAST(function_def* function)
   fprintf(f, "digraph G\n{\n");
 
   // NOTE(Isaac): yes, this is a recursive lambda
-  // NOTE(Isaac): yeah, this also uses disgusting C++ STL stuff, but function pointers aren't powerful enough so
+  // NOTE(Isaac): yeah, this uses disgusting C++ STL stuff, but function pointers aren't powerful enough so
   std::function<char*(node*)> EmitNode =
     [&](node* n) -> char*
     {
@@ -538,7 +558,20 @@ void OutputDOTOfAST(function_def* function)
 
         case IF_NODE:
         {
+          // TODO
+        } break;
 
+        case WHILE_NODE:
+        {
+          fprintf(f, "\t%s[label=\"While\"];\n", name);
+
+          char* conditionName = EmitNode(n->payload.whileThing.condition);
+          fprintf(f, "\t%s -> %s;\n", name, conditionName);
+          free(conditionName);
+
+          char* codeName = EmitNode(n->payload.whileThing.code);
+          fprintf(f, "\t%s -> %s;\n", name, codeName);
+          free(codeName);
         } break;
 
         case NUMBER_CONSTANT_NODE:
@@ -564,7 +597,7 @@ void OutputDOTOfAST(function_def* function)
 
         case FUNCTION_CALL_NODE:
         {
-
+          fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->payload.functionCall.function.def->name);
         } break;
 
         case VARIABLE_ASSIGN_NODE:
@@ -572,7 +605,7 @@ void OutputDOTOfAST(function_def* function)
           fprintf(f, "\t%s[label=\"=\"];\n", name);
 
           assert(n->payload.variableAssignment.variable);
-          char* variableName = EmitNode(n->payload.variableAssignment.newValue);
+          char* variableName = EmitNode(n->payload.variableAssignment.variable);
           fprintf(f, "\t%s -> %s;\n", name, variableName);
           free(variableName);
 

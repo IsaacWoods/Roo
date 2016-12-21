@@ -181,6 +181,8 @@ const char* GetTokenName(token_type type)
       return "TOKEN_IF";
     case TOKEN_ELSE:
       return "TOKEN_ELSE";
+    case TOKEN_WHILE:
+      return "TOKEN_WHILE";
     case TOKEN_MUT:
       return "TOKEN_MUT";
     case TOKEN_OPERATOR:

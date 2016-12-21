@@ -10,9 +10,12 @@ fn Print(str : string)
 fn Main() -> int
 {
   i : mut int = 5
-  i = 7
 
-  Print("Hello, World\n")
+  while (i > 0)
+  {
+    Print("Loop!\n")
+    i = i - 1
+  }
 
   return 0
 }

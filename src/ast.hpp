@@ -17,6 +17,7 @@ enum node_type
   VARIABLE_NODE,          // `variable`
   CONDITION_NODE,         // `condition_node_part`
   IF_NODE,                // `if_node_part`
+  WHILE_NODE,             // `while_node_part`
   NUMBER_CONSTANT_NODE,   // `number_constant_part`
   STRING_CONSTANT_NODE,   // `string_constant*`
   FUNCTION_CALL_NODE,     // `function_call_node_part`
@@ -92,6 +93,12 @@ struct if_node_part
   node* elseCode;
 };
 
+struct while_node_part
+{
+  node* condition;
+  node* code;
+};
+
 struct number_constant_part
 {
   enum constant_type
@@ -156,6 +163,7 @@ struct node
     variable_node_part      variable;
     condition_node_part     condition;
     if_node_part            ifThing;
+    while_node_part         whileThing;
     number_constant_part    numberConstant;
     string_constant*        stringConstant;
     function_call_part      functionCall;

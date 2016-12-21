@@ -732,15 +732,6 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
 
     // NOTE(Isaac): add 1 to also write the included null-terminator
     fwrite(string, sizeof(char), strlen(string) + 1u, f);
-/*
-    for (const char* c = (**it)->str;
-         *c;
-         c++)
-    {
-      fputc(*c, f);
-    }
-
-    fputc('\0', f);*/
   }
 }
 
