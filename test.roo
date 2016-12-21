@@ -1,5 +1,8 @@
 #[Name(test)]
 
+import X
+import GL
+
 #[Prototype]
 fn Print(str : string)
 
@@ -8,6 +11,8 @@ fn Main() -> int
 {
   i : mut int = 5
   i = 7
+
+  Print("Hello, World\n")
 
   return 0
 }

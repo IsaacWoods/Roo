@@ -65,18 +65,19 @@ int main()
   }
 
   // Compile the dependencies
-/*  for (auto* dependencyIt = result.dependencies.first;
+  for (auto* dependencyIt = result.dependencies.first;
        dependencyIt;
        dependencyIt = dependencyIt->next)
   {
     char* dependencyDirectory = nullptr;
+    dependency_def* dependency = **dependencyIt;
 
-    switch ((**dependencyIt)->type)
+    switch (dependency->type)
     {
       case dependency_def::dependency_type::LOCAL:
       {
         // TODO: resolve the path
-        fprintf(stderr, "Failed to find local dependency!\n");
+        fprintf(stderr, "Failed to find local dependency: %s\n", dependency->path);
         continue;
       } break;
 
@@ -93,7 +94,7 @@ int main()
     }
 
     free(dependencyDirectory);
-  }*/
+  }
 
   // Complete the AST and apply all the passes
   CompleteIR(result);

@@ -727,8 +727,12 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
        it;
        it = it->next)
   {
-    GetSection(elf, ".strtab")->size += strlen((**it)->str) + 1u;
+    const char* string = (**it)->str;
+    GetSection(elf, ".strtab")->size += strlen(string) + 1u;
 
+    // NOTE(Isaac): add 1 to also write the included null-terminator
+    fwrite(string, sizeof(char), strlen(string) + 1u, f);
+/*
     for (const char* c = (**it)->str;
          *c;
          c++)
@@ -736,7 +740,7 @@ static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& st
       fputc(*c, f);
     }
 
-    fputc('\0', f);
+    fputc('\0', f);*/
   }
 }
 
@@ -757,12 +761,7 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* sec
   thing->fileOffset = ftell(f);
   thing->address = section->address + (thing->fileOffset - section->offset);
 
-  for (unsigned int i = 0u;
-       i < thing->length;
-       i++)
-  {
-    fputc(thing->data[i], f);
-  }
+  fwrite(thing->data, sizeof(uint8_t), thing->length, f);
 }
 
 /*
