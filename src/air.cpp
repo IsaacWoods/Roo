@@ -496,7 +496,6 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, fu
   return nullptr;
 }
 
-#if 0
 static void GenerateInterferences(function_def* function)
 {
   for (auto* itA = function->slots.first;
@@ -525,25 +524,39 @@ static void GenerateInterferences(function_def* function)
         continue;
       }
 
-      /*
-       * NOTE(Isaac): `lastUser` can be null if the variable is never used in the function
-       * This shouldn't happen in optimizing builds, but that would require smart stuff to guarantee ¯\_(ツ)_/¯
-       */
-      unsigned int defA = a->range.definer->index;
-      unsigned int useA = (a->range.lastUser ? a->range.lastUser->index : UINT_MAX);
-      unsigned int defB = b->range.definer->index;
-      unsigned int useB = (b->range.lastUser ? b->range.lastUser->index : UINT_MAX);
-
-      // If their live ranges intersect, add an intersection
-      if (defA <= useB && defB <= useA)
+      for (auto* aRangeIt = a->liveRanges.first;
+           aRangeIt;
+           aRangeIt = aRangeIt->next)
       {
-        a->interferences[a->numInterferences++] = b;
-        b->interferences[b->numInterferences++] = a;
+        live_range& rangeA = **aRangeIt;
+
+        for (auto* bRangeIt = b->liveRanges.first;
+             bRangeIt;
+             bRangeIt = bRangeIt->next)
+        {
+          live_range& rangeB = **bRangeIt;
+          unsigned int useA = (rangeA.lastUse ? rangeA.lastUse->index : UINT_MAX);
+          unsigned int useB = (rangeB.lastUse ? rangeB.lastUse->index : UINT_MAX);
+
+          // NOTE(Isaac): this checks if the live-ranges intersect
+          if ((rangeA.definition->index <= useB) && (rangeB.definition->index <= useA))
+          {
+            a->interferences[a->numInterferences++] = b;
+            b->interferences[b->numInterferences++] = a;
+            goto FoundInterference;
+          }
+        }
       }
+
+      /*
+       * NOTE(Isaac): We need the `continue` here even though it's at the end of the loop because
+       * C++ makes us have a statement after a label...
+       */
+FoundInterference:
+      continue;
     }
   }
 }
-#endif
 
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
@@ -631,8 +644,7 @@ void GenFunctionAIR(codegen_target& target, function_def* function)
   }
 
   // Color the interference graph
-  // TODO
-//  GenerateInterferences(function);
+  GenerateInterferences(function);
   ColorSlots(target, function);
 
 #ifdef OUTPUT_DOT
