@@ -499,13 +499,13 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
   }
 
   /*
-   * NOTE(Isaac): the current node is probably a statement.
-   * It can therefore have a following statement, if it's in an internal scope.
+   * Because these nodes don't produce a result, they're probably statements.
+   * They can therefore be in a block and so can have a node following them.
    */
-/*  if (n->next)
+  if (n->next)
   {
     GenNodeAIR(target, function, n->next);
-  }*/
+  }
 }
 
 template<>
@@ -662,12 +662,8 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
 
   PushInstruction(function, I_ENTER_STACK_FRAME);
 
-  for (node* n = functionDef->ast;
-       n;
-       n = n->next)
-  {
-    GenNodeAIR(target, function, n);
-  }
+  // NOTE(Isaac): this prints all the nodes in the function's outermost scope
+  GenNodeAIR(target, function, functionDef->ast);
 
   if (functionDef->scope.shouldAutoReturn)
   {
@@ -984,19 +980,17 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
     if (!(slot->shouldBeColored))
     {
-      color = "gray";
+      continue;
+    }
+
+    if (slot->color < 0)
+    {
+      fprintf(stderr, "WARNING: found uncolored node! Using red!\n");
+      color = "red";
     }
     else
     {
-      if (slot->color < 0)
-      {
-        fprintf(stderr, "WARNING: found uncolored node! Using red!\n");
-        color = "red";
-      }
-      else
-      {
-        color = snazzyColors[slot->color];
-      }
+      color = snazzyColors[slot->color];
     }
 
     /*
