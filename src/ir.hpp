@@ -37,6 +37,7 @@ struct codegen_target
 
 struct dependency_def;
 struct function_def;
+struct variable_def;
 struct operator_def;
 struct type_def;
 struct string_constant;
@@ -55,11 +56,11 @@ enum slot_type
 
 struct live_range
 {
-  // TODO
+  air_instruction* definition;
+  air_instruction* lastUse;
 };
 
 #define MAX_SLOT_INTERFERENCES 32u
-struct variable_def;
 struct slot_def
 {
   union
@@ -69,13 +70,12 @@ struct slot_def
     int               i;
     float             f;
     string_constant*  string;
-  }               payload;
-  slot_type       type;
-  signed int      color;  // NOTE(Isaac): -1 means it hasn't been colored
-  unsigned int    numInterferences;
-  slot_def*       interferences[MAX_SLOT_INTERFERENCES];
-
-  // TODO: collection of live ranges
+  }                       payload;
+  slot_type               type;
+  signed int              color;  // NOTE(Isaac): -1 means it hasn't been colored
+  unsigned int            numInterferences;
+  slot_def*               interferences[MAX_SLOT_INTERFERENCES];
+  linked_list<live_range> liveRanges;
 
 #ifdef OUTPUT_DOT
   unsigned int dotTag;
@@ -246,6 +246,7 @@ struct type_def
 type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
 
 slot_def* CreateSlot(function_def* function, slot_type type, ...);
+char* SlotAsString(slot_def* slot);
 function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
 void CompleteIR(parse_result& parse);

@@ -11,6 +11,11 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+template<>
+void Free<live_range>(live_range& /*range*/)
+{
+}
+
 slot_def* CreateSlot(function_def* function, slot_type type, ...)
 {
   va_list args;
@@ -21,6 +26,7 @@ slot_def* CreateSlot(function_def* function, slot_type type, ...)
   slot->color = -1;
   slot->numInterferences = 0u;
   memset(slot->interferences, 0, sizeof(slot_def*) * MAX_SLOT_INTERFERENCES);
+  CreateLinkedList<live_range>(slot->liveRanges);
 
   switch (type)
   {
@@ -50,13 +56,37 @@ slot_def* CreateSlot(function_def* function, slot_type type, ...)
     } break;
   }
 
+  Add<slot_def*>(function->slots, slot);
   va_end(args);
   return slot;
+}
+
+char* SlotAsString(slot_def* slot)
+{
+  #define SLOT_STR(slotType, format, arg) \
+    case slotType: \
+    { \
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, format, arg) + 1u)); \
+      sprintf(result, format, arg); \
+      return result; \
+    }
+
+  switch (slot->type)
+  {
+    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->payload.variable->name)
+    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->payload.tag)
+    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->payload.i)
+    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->payload.f)
+    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->payload.string->string)
+  }
+
+  return nullptr;
 }
 
 template<>
 void Free<slot_def*>(slot_def*& slot)
 {
+  FreeLinkedList<live_range>(slot->liveRanges);
   free(slot);
 }
 
@@ -112,9 +142,7 @@ variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node
   var->type.isResolved  = false;
   var->type.isMutable   = isMutable;
   var->initValue        = initValue;
-
-  // NOTE(Isaac): the function_def is only needed for creating temporaries, but this still feels a little hacky...
-  var->slot             = CreateSlot(nullptr, slot_type::VARIABLE, var);
+  var->slot             = nullptr;
 
   return var;
 }

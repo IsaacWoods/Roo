@@ -107,12 +107,42 @@ static air_instruction* PushInstruction(function_def* function, instruction_type
 
 static void UseSlot(slot_def* slot, air_instruction* user)
 {
-  // TODO
+  if (slot->type == slot_type::INT_CONSTANT    ||
+      slot->type == slot_type::FLOAT_CONSTANT  ||
+      slot->type == slot_type::STRING_CONSTANT   )
+  {
+    return;
+  }
+
+  if (slot->liveRanges.tail)
+  {
+    live_range& lastRange = **(slot->liveRanges.tail);
+    assert(lastRange.definition->index < user->index);
+    lastRange.lastUse = user;
+  }
+  else
+  {
+    char* slotString = SlotAsString(slot);
+    fprintf(stderr, "FATAL: Tried to use slot before defining it (slot=%s)\n", slotString);
+    free(slotString);
+    exit(1);
+  }
 }
 
 static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
 {
-  // TODO
+  if (slot->type == slot_type::INT_CONSTANT    ||
+      slot->type == slot_type::FLOAT_CONSTANT  ||
+      slot->type == slot_type::STRING_CONSTANT   )
+  {
+    return;
+  }
+
+  live_range range;
+  range.definition = changer;
+  range.lastUse = nullptr;
+
+  Add<live_range>(slot->liveRanges, range);
 }
 
 /*
@@ -212,7 +242,12 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
     {
       assert(n->payload.variable.isResolved);
       variable_def* variable = n->payload.variable.var.def;
-      assert(variable->slot);
+
+      if (!(variable->slot))
+      {
+        variable->slot = CreateSlot(function, slot_type::VARIABLE, variable);
+      }
+      
       return variable->slot;
     } break;
 
@@ -605,38 +640,52 @@ void GenFunctionAIR(codegen_target& target, function_def* function)
 #endif
 
 #if 1
-  // Print all the instructions
   printf("--- AIR instruction listing for function: %s\n", function->name);
-
   for (air_instruction* i = function->airHead;
        i;
        i = i->next)
   {
     PrintInstruction(i);
   }
-#endif
-}
 
-static char* GetSlotString(slot_def* slot)
-{
-  #define SLOT_STR(slotType, format, arg) \
-    case slotType: \
-    { \
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, format, arg) + 1u)); \
-      sprintf(result, format, arg); \
-      return result; \
+  printf("\n--- Slot listing for function: %s ---\n", function->name);
+  for (auto* it = function->slots.first;
+       it;
+       it = it->next)
+  {
+    slot_def* slot = **it;
+
+    if (slot->type == slot_type::INT_CONSTANT   ||
+        slot->type == slot_type::FLOAT_CONSTANT ||
+        slot->type == slot_type::STRING_CONSTANT  )
+    {
+      continue;
     }
 
-  switch (slot->type)
-  {
-    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->payload.variable->name)
-    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->payload.tag)
-    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->payload.i)
-    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->payload.f)
-    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->payload.string->string)
-  }
+    char* slotString = SlotAsString(slot);
+    printf("%-15s ", slotString);
+    free(slotString);
 
-  return nullptr;
+    for (auto* rangeIt = slot->liveRanges.first;
+         rangeIt;
+         rangeIt = rangeIt->next)
+    {
+      live_range& range = **rangeIt;
+
+      if (range.lastUse)
+      {
+        printf("(%u..%u) ", range.definition->index, range.lastUse->index);
+      }
+      else
+      {
+        // NOTE(Isaac): `??)` forms a trigraph so escape one of the question marks
+        printf("(%u..?\?) ", range.definition->index);
+      }
+    }
+    printf("\n");
+  }
+  printf("\n");
+#endif
 }
 
 void PrintInstruction(air_instruction* instruction)
@@ -655,7 +704,7 @@ void PrintInstruction(air_instruction* instruction)
 
       if (instruction->payload.slot)
       {
-        returnValue = GetSlotString(instruction->payload.slot);
+        returnValue = SlotAsString(instruction->payload.slot);
       }
 
       printf("%u: RETURN %s\n", instruction->index, returnValue);
@@ -735,8 +784,8 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_MOV:
     {
-      char* srcSlot = GetSlotString(instruction->payload.mov.src);
-      char* destSlot = GetSlotString(instruction->payload.mov.dest);
+      char* srcSlot = SlotAsString(instruction->payload.mov.src);
+      char* destSlot = SlotAsString(instruction->payload.mov.dest);
       printf("%u: %s -> %s\n", instruction->index, srcSlot, destSlot);
       free(srcSlot);
       free(destSlot);
@@ -744,8 +793,8 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_CMP:
     {
-      char* leftSlot = GetSlotString(instruction->payload.slotPair.left);
-      char* rightSlot = GetSlotString(instruction->payload.slotPair.right);
+      char* leftSlot = SlotAsString(instruction->payload.slotPair.left);
+      char* rightSlot = SlotAsString(instruction->payload.slotPair.right);
       printf("%u: CMP %s, %s\n", instruction->index, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
@@ -763,9 +812,9 @@ void PrintInstruction(air_instruction* instruction)
         case binary_op_i::op::DIV_I: opString = "/"; break;
       }
 
-      char* leftSlot = GetSlotString(instruction->payload.binaryOp.left);
-      char* rightSlot = GetSlotString(instruction->payload.binaryOp.right);
-      char* resultSlot = GetSlotString(instruction->payload.binaryOp.result);
+      char* leftSlot = SlotAsString(instruction->payload.binaryOp.left);
+      char* rightSlot = SlotAsString(instruction->payload.binaryOp.right);
+      char* resultSlot = SlotAsString(instruction->payload.binaryOp.result);
       printf("%u: %s := %s %s %s\n", instruction->index, resultSlot, leftSlot, opString, rightSlot);
       free(leftSlot);
       free(rightSlot);
@@ -885,14 +934,8 @@ void CreateInterferenceDOT(function_def* function)
      */
     #define CAT(A, B, C) A B C
     #define PRINT_SLOT(label, ...) \
-        fprintf(f, CAT("\ts%u[label=\"", label, "%s\" color=\"%s\" fontcolor=\"%s\"];\n"), \
-            i, __VA_ARGS__, (liveRange ? liveRange : ""), color, color);
-    // NOTE(Isaac): a format string should be supplied as the first vararg
-    #define MAKE_LIVE_RANGE(...) \
-        liveRange = static_cast<char*>(malloc(sizeof(char) * (snprintf(nullptr, 0u, __VA_ARGS__) + 1u))); \
-        sprintf(liveRange, __VA_ARGS__);
-
-    char* liveRange = nullptr;
+        fprintf(f, CAT("\ts%u[label=\"", label, "\" color=\"%s\" fontcolor=\"%s\"];\n"), \
+            i, __VA_ARGS__, color, color);
 
     switch (slot->type)
     {
@@ -922,48 +965,6 @@ void CreateInterferenceDOT(function_def* function)
       } break;
     }
 
-#if 0
-    switch (slot->type)
-    {
-      case slot::slot_type::VARIABLE:
-      {
-        assert(slot->range.definer);
-
-        if (slot->range.lastUser)
-        {
-          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
-        }
-        else
-        {
-          /*
-           *  NOTE(Isaac): apparently trigraphs still exist, so we need to escape one of the question marks
-           */
-          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
-        }
-
-        PRINT_SLOT("%s : VAR(%d)", slot->payload.variable->name, slot->tag);
-      } break;
-
-      case slot::slot_type::INTERMEDIATE:
-      {
-        assert(slot->range.definer);
-
-        if (slot->range.lastUser)
-        {
-          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
-        }
-        else
-        {
-          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
-        }
-
-        PRINT_SLOT("t%d : INTERMEDIATE", slot->tag);
-      } break;
-
-    }
-#endif
-
-    free(liveRange);
     slot->dotTag = i;
     i++;
   }
