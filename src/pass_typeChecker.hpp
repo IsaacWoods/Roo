@@ -41,4 +41,32 @@ void InitTypeCheckerPass()
         fprintf(stderr, "ERROR: Cannot assign to an immutable variable: %s\n", variable->name);
       }
     };
+
+  PASS_typeChecker[BINARY_OP_NODE] =
+    [](parse_result& /*parse*/, function_def* /*function*/, node* n)
+    {
+      if (n->payload.binaryOp.op == TOKEN_DOUBLE_PLUS ||
+          n->payload.binaryOp.op == TOKEN_DOUBLE_MINUS  )
+      {
+        node* variableNode = n->payload.binaryOp.left;
+        variable_def* variable;
+
+        if (variableNode->type == VARIABLE_NODE)
+        {
+          assert(variableNode->payload.variable.isResolved);
+          variable = variableNode->payload.variable.var.def;
+        }
+        else
+        {
+          assert(variableNode->type == MEMBER_ACCESS_NODE);
+          assert(variableNode->payload.memberAccess.isResolved);
+          variable = variableNode->payload.memberAccess.member.def;
+        }
+  
+        if (!(variable->type.isMutable))
+        {
+          fprintf(stderr, "ERROR: Cannot operate on an immutable variable: %s\n", variable->name);
+        }
+      }
+    };
 }
