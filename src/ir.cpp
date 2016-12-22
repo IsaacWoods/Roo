@@ -6,9 +6,53 @@
 #include <cassert>
 #include <climits>
 #include <cstring>
+#include <cstdarg>
 #include <common.hpp>
 #include <ast.hpp>
 #include <air.hpp>
+
+slot_def* CreateSlot(function_def* function, slot_type type, ...)
+{
+  va_list args;
+  va_start(args, type);
+
+  slot_def* slot = static_cast<slot_def*>(malloc(sizeof(slot_def)));
+  slot->type = type;
+  slot->color = -1;
+  slot->numInterferences = 0u;
+  memset(slot->interferences, 0, sizeof(slot_def*) * MAX_SLOT_INTERFERENCES);
+
+  switch (type)
+  {
+    case slot_type::VARIABLE:
+    {
+      slot->payload.variable = va_arg(args, variable_def*);
+    } break;
+
+    case slot_type::TEMPORARY:
+    {
+      slot->payload.tag = function->numTemporaries++;
+    } break;
+
+    case slot_type::INT_CONSTANT:
+    {
+      slot->payload.i = va_arg(args, int);
+    } break;
+
+    case slot_type::FLOAT_CONSTANT:
+    {
+      slot->payload.f = static_cast<float>(va_arg(args, double));
+    } break;
+
+    case slot_type::STRING_CONSTANT:
+    {
+      slot->payload.string = va_arg(args, string_constant*);
+    } break;
+  }
+
+  va_end(args);
+  return slot;
+}
 
 template<>
 void Free<slot_def*>(slot_def*& slot)
@@ -62,15 +106,15 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
 
 variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node* initValue)
 {
-  variable_def* var = static_cast<variable_def*>(malloc(sizeof(variable_def)));
-  var->name = name;
+  variable_def* var     = static_cast<variable_def*>(malloc(sizeof(variable_def)));
+  var->name             = name;
   var->type.type.name   = typeName;
   var->type.isResolved  = false;
   var->type.isMutable   = isMutable;
   var->initValue        = initValue;
 
-  // TODO: create an empty slot
-  var->slot             = nullptr;
+  // NOTE(Isaac): the function_def is only needed for creating temporaries, but this still feels a little hacky...
+  var->slot             = CreateSlot(nullptr, slot_type::VARIABLE, var);
 
   return var;
 }
@@ -258,8 +302,13 @@ void Free<function_def*>(function_def*& function)
   }
 
   FreeLinkedList<slot_def*>(function->slots);
-  Free<air_instruction*>(function->airHead);
-  Free<air_instruction*>(function->airTail);
+
+  while (function->airHead)
+  {
+    air_instruction* temp = function->airHead;
+    function->airHead = function->airHead->next;
+    Free<air_instruction*>(temp);
+  }
 
   free(function);
 }

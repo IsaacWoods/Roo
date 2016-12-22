@@ -245,6 +245,7 @@ struct type_def
 
 type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
 
+slot_def* CreateSlot(function_def* function, slot_type type, ...);
 function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
 void CompleteIR(parse_result& parse);

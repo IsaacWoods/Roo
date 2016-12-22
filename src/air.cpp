@@ -12,78 +12,6 @@
 #include <common.hpp>
 #include <ast.hpp>
 
-/*
-slot* CreateSlot(air_function* function, slot::slot_type type, ...)
-{
-  va_list args;
-  va_start(args, type);
-
-  slot* s = static_cast<slot*>(malloc(sizeof(slot)));
-  s->type = type;
-  s->numInterferences = 0u;
-  memset(s->interferences, 0, sizeof(slot*) * MAX_INTERFERENCES);
-  s->color = -1;
-  s->range.definer = nullptr;
-  s->range.lastUser = nullptr;
-  
-  switch (type)
-  {
-    case slot::slot_type::VARIABLE:
-    {
-      s->payload.variable = va_arg(args, variable_def*);
-      s->shouldBeColored = true;
-      s->tag = 0;
-
-      // Set this slot to be more recent that the most recent (so it's the newest)
-      if (s->payload.variable->mostRecentSlot)
-      {
-        s->tag = s->payload.variable->mostRecentSlot->tag + 1;
-      }
-
-      s->payload.variable->mostRecentSlot = s;
-    } break;
-
-    case slot::slot_type::INTERMEDIATE:
-    {
-      s->tag = function->numIntermediates++;
-      s->shouldBeColored = true;
-    } break;
-
-    case slot::slot_type::IN_PARAM:
-    {
-      s->color = va_arg(args, signed int);
-      s->shouldBeColored = true; // TODO: uhhh it's precolored, so yes or no?
-      s->tag = -1; // TODO: do we need a nicer tag here? NOTE(Isaac): do we even need tags tbh?
-    } break;
-
-    case slot::slot_type::INT_CONSTANT:
-    {
-      s->payload.i = va_arg(args, int);
-      s->tag = -1;
-      s->shouldBeColored = false;
-    } break;
-
-    case slot::slot_type::FLOAT_CONSTANT:
-    {
-      // NOTE(Isaac): `float` is helpfully promoted to `double` all on its own...
-      s->payload.f = static_cast<float>(va_arg(args, double));
-      s->tag = -1;
-      s->shouldBeColored = false;
-    } break;
-
-    case slot::slot_type::STRING_CONSTANT:
-    {
-      s->payload.string = va_arg(args, string_constant*);
-      s->tag = -1;
-      s->shouldBeColored = false;
-    } break;
-  }
-
-  Add<slot*>(function->slots, s);
-  va_end(args);
-  return s;
-}*/
-
 instruction_label* CreateInstructionLabel()
 {
   instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
@@ -113,7 +41,7 @@ static air_instruction* PushInstruction(function_def* function, instruction_type
 
     case I_RETURN:
     {
-      i->payload.s                    = va_arg(args, slot_def*);
+      i->payload.slot                 = va_arg(args, slot_def*);
     } break;
 
     case I_JUMP:
@@ -177,17 +105,27 @@ static air_instruction* PushInstruction(function_def* function, instruction_type
   return i;
 }
 
+static void UseSlot(slot_def* slot, air_instruction* user)
+{
+  // TODO
+}
+
+static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
+{
+  // TODO
+}
+
 /*
  * BREAK_NODE:              `
  * RETURN_NODE:             `Nothing
- * BINARY_OP_NODE:          `slot*
- * PREFIX_OP_NODE:          `slot*
- * VARIABLE_NAME:           `slot*
+ * BINARY_OP_NODE:          `slot_def*
+ * PREFIX_OP_NODE:          `slot_def*
+ * VARIABLE_NAME:           `slot_def*
  * CONDITION_NODE:          `jump_instruction::condition
  * IF_NODE:                 `Nothing
- * NUMBER_NODE:             `slot*
+ * NUMBER_NODE:             `slot_def*
  * STRING_CONSTANT_NODE:    `
- * FUNCTION_CALL_NODE:      `slot*      `Nothing
+ * FUNCTION_CALL_NODE:      `slot_def*  `Nothing
  * VARIABLE_ASSIGN_NODE:    `Nothing
  */
 template<typename T = void>
@@ -202,9 +140,9 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
   {
     case BINARY_OP_NODE:
     {
-      slot* left = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.left);
-      slot* right = GenNodeAIR<slot*>(target, function, n->payload.binaryOp.right);
-      slot* result = CreateSlot(function, slot::slot_type::INTERMEDIATE);
+      slot_def* left = GenNodeAIR<slot_def*>(target, function, n->payload.binaryOp.left);
+      slot_def* right = GenNodeAIR<slot_def*>(target, function, n->payload.binaryOp.right);
+      slot_def* result = CreateSlot(function, slot_type::TEMPORARY);
       binary_op_i::op operation;
 
       switch (n->payload.binaryOp.op)
@@ -222,17 +160,17 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
       }
       
       air_instruction* instruction = PushInstruction(function, I_BINARY_OP, operation, left, right, result);
-      left->range.lastUser = instruction;
-      right->range.lastUser = instruction;
-      result->range.definer = instruction;
+      UseSlot(left, instruction);
+      UseSlot(right, instruction);
+      ChangeSlotValue(result, instruction);
 
       return result;
     } break;
 
     case PREFIX_OP_NODE:
     {
-      slot* right = GenNodeAIR<slot*>(target, function, n->payload.prefixOp.right);
-      slot* result = static_cast<slot*>(malloc(sizeof(slot)));
+      slot_def* right = GenNodeAIR<slot_def*>(target, function, n->payload.prefixOp.right);
+      slot_def* result = CreateSlot(function, slot_type::TEMPORARY);
       air_instruction* instruction = nullptr;
 
       switch (n->payload.prefixOp.op)
@@ -264,26 +202,18 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
         }
       }
 
-      right->range.lastUser = instruction;
-      result->range.definer = instruction;
+      UseSlot(right, instruction);
+      ChangeSlotValue(result, instruction);
 
       return result;
     } break;
 
-    /*
-     * NOTE(Isaac): at the moment, this always returns the most recent slot
-     * At some point, we have to create new slots for the variable
-     */
     case VARIABLE_NODE:
     {
-      // If no slot exists yet, create one
-      if (!n->payload.variable.var.def->mostRecentSlot)
-      {
-        n->payload.variable.var.def->mostRecentSlot = CreateSlot(function, slot::slot_type::VARIABLE, n->payload.variable.var.def);
-      }
-
       assert(n->payload.variable.isResolved);
-      return n->payload.variable.var.def->mostRecentSlot;
+      variable_def* variable = n->payload.variable.var.def;
+      assert(variable->slot);
+      return variable->slot;
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -292,19 +222,19 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          return CreateSlot(function, slot::slot_type::INT_CONSTANT, n->payload.numberConstant.constant.i);
+          return CreateSlot(function, slot_type::INT_CONSTANT, n->payload.numberConstant.constant.i);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          return CreateSlot(function, slot::slot_type::FLOAT_CONSTANT, n->payload.numberConstant.constant.f);
+          return CreateSlot(function, slot_type::FLOAT_CONSTANT, n->payload.numberConstant.constant.f);
         } break;
       }
     };
 
     case STRING_CONSTANT_NODE:
     {
-      return CreateSlot(function, slot::slot_type::STRING_CONSTANT, n->payload.stringConstant);
+      return CreateSlot(function, slot_type::STRING_CONSTANT, n->payload.stringConstant);
     } break;
 
     default:
@@ -324,12 +254,12 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, function
   {
     case CONDITION_NODE:
     {
-      slot* a = GenNodeAIR<slot*>(target, function, n->payload.condition.left);
-      slot* b = GenNodeAIR<slot*>(target, function, n->payload.condition.right);
+      slot_def* a = GenNodeAIR<slot_def*>(target, function, n->payload.condition.left);
+      slot_def* b = GenNodeAIR<slot_def*>(target, function, n->payload.condition.right);
 
       air_instruction* instruction = PushInstruction(function, I_CMP, a, b);
-      a->range.lastUser = instruction;
-      b->range.lastUser = instruction;
+      UseSlot(a, instruction);
+      UseSlot(a, instruction);
 
       switch (n->payload.condition.condition)
       {
@@ -400,31 +330,32 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
   {
     case RETURN_NODE:
     {
-      slot* returnValue = nullptr;
+      slot_def* returnValue = nullptr;
 
       if (n->payload.expression)
       {
-        returnValue = GenNodeAIR<slot*>(target, function, n->payload.expression);
+        returnValue = GenNodeAIR<slot_def*>(target, function, n->payload.expression);
       }
 
       PushInstruction(function, I_LEAVE_STACK_FRAME);
-      returnValue->range.lastUser = PushInstruction(function, I_RETURN, returnValue);
+      air_instruction* retInstruction = PushInstruction(function, I_RETURN, returnValue);
+      UseSlot(returnValue, retInstruction);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      slot* variableSlot = GenNodeAIR<slot*>(target, function, n->payload.variableAssignment.variable);
-      slot* newValueSlot = GenNodeAIR<slot*>(target, function, n->payload.variableAssignment.newValue);
+      slot_def* variable= GenNodeAIR<slot_def*>(target, function, n->payload.variableAssignment.variable);
+      slot_def* newValue= GenNodeAIR<slot_def*>(target, function, n->payload.variableAssignment.newValue);
 
-      air_instruction* instruction = PushInstruction(function, I_MOV, variableSlot, newValueSlot);
-      variableSlot->range.definer = instruction;
-      newValueSlot->range.lastUser = instruction;
+      air_instruction* instruction = PushInstruction(function, I_MOV, variable, newValue);
+      ChangeSlotValue(variable, instruction);
+      UseSlot(newValue, instruction);
     } break;
 
     case FUNCTION_CALL_NODE:
     {
       // TODO: don't assume everything will fit in a general register
-      unsigned int numGeneralParams = 0u;
+/*      unsigned int numGeneralParams = 0u;
       for (auto* paramIt = n->payload.functionCall.params.first;
            paramIt;
            paramIt = paramIt->next)
@@ -438,7 +369,11 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
       }
 
       assert(n->payload.functionCall.isResolved);
-      PushInstruction(function, I_CALL, n->payload.functionCall.function.def);
+      PushInstruction(function, I_CALL, n->payload.functionCall.function.def);*/
+
+      // TODO: do this properly:
+      //   * Save and restore caller-saved registers (that are in use)
+      //   * Mark registers used by params
     } break;
 
     case IF_NODE:
@@ -652,7 +587,7 @@ void GenFunctionAIR(codegen_target& target, function_def* function)
   PushInstruction(function, I_ENTER_STACK_FRAME);
 
   // NOTE(Isaac): this prints all the nodes in the function's outermost scope
-  GenNodeAIR(target, function);
+  GenNodeAIR(target, function, function->ast);
 
   if (function->scope.shouldAutoReturn)
   {
@@ -1056,3 +991,9 @@ void CreateInterferenceDOT(function_def* function)
   fclose(f);
 }
 #endif
+
+template<>
+void Free<air_instruction*>(air_instruction*& instruction)
+{
+  free(instruction);
+}
