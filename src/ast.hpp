@@ -8,6 +8,9 @@
 #include <common.hpp>
 #include <ir.hpp>
 
+struct node;
+typedef void(*ast_passlet)(parse_result&, function_def*, node*);
+
 enum node_type
 {
   BREAK_NODE,             // Nothing
@@ -27,17 +30,14 @@ enum node_type
   NUM_AST_NODES
 };
 
-const char* GetNodeName(node_type type);
-
-struct node;
-typedef void(*ast_passlet)(parse_result&, function_def*, node*);
-
 /*
  * Binary operations:
  *     TOKEN_PLUS
  *     TOKEN_MINUS
  *     TOKEN_ASTERIX
  *     TOKEN_SLASH
+ *     TOKEN_DOUBLE_PLUS (no `right`)
+ *     TOKEN_DOUBLE_MINUS (no `right`)
  */
 struct binary_op_node_part
 {
@@ -172,6 +172,7 @@ struct node
   } payload;
 };
 
+const char* GetNodeName(node_type type);
 node* CreateNode(node_type type, ...);
 void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES]);
 void OutputDOTOfAST(function_def* function);

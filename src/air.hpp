@@ -16,6 +16,8 @@ enum instruction_type
   I_MOV,
   I_CMP,
   I_BINARY_OP,
+  I_INC,
+  I_DEC,
   I_CALL,
 
   /*

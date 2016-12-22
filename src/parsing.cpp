@@ -1377,13 +1377,15 @@ void InitParseletMaps()
     P_MEMBER_ACCESS,            // x.y
   };
   
-  g_precedenceTable[TOKEN_EQUALS]     = P_ASSIGNMENT;
-  g_precedenceTable[TOKEN_PLUS]       = P_ADDITIVE;
-  g_precedenceTable[TOKEN_MINUS]      = P_ADDITIVE;
-  g_precedenceTable[TOKEN_ASTERIX]    = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_SLASH]      = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_LEFT_PAREN] = P_PREFIX;
-  g_precedenceTable[TOKEN_DOT]        = P_MEMBER_ACCESS;
+  g_precedenceTable[TOKEN_EQUALS]       = P_ASSIGNMENT;
+  g_precedenceTable[TOKEN_PLUS]         = P_ADDITIVE;
+  g_precedenceTable[TOKEN_MINUS]        = P_ADDITIVE;
+  g_precedenceTable[TOKEN_ASTERIX]      = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_SLASH]        = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_LEFT_PAREN]   = P_PREFIX;
+  g_precedenceTable[TOKEN_DOT]          = P_MEMBER_ACCESS;
+  g_precedenceTable[TOKEN_DOUBLE_PLUS]  = P_PREFIX;
+  g_precedenceTable[TOKEN_DOUBLE_MINUS] = P_PREFIX;
 
   // --- Parselets ---
   memset(g_prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
@@ -1461,7 +1463,20 @@ void InitParseletMaps()
       return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, g_precedenceTable[operation]));
     };
 
-  // Parses a function call
+  // NOTE(Isaac): these are binary operations that don't have a right side (like increment and decrement)
+  g_infixMap[TOKEN_DOUBLE_PLUS] =
+  g_infixMap[TOKEN_DOUBLE_MINUS] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      Log(parser, "--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
+      token_type operation = PeekToken(parser).type;
+
+      NextToken(parser);
+      Log(parser, "<-- [PARSELET] Binary operator\n");
+      return CreateNode(BINARY_OP_NODE, operation, left, nullptr);
+    };
+
+  // NOTE(Isaac): Parses a function call
   g_infixMap[TOKEN_LEFT_PAREN] =
     [](roo_parser& parser, node* left) -> node*
     {
@@ -1489,7 +1504,7 @@ void InitParseletMaps()
       return result;
     };
 
-  // Parses a member access
+  // NOTE(Isaac): Parses a member access
   g_infixMap[TOKEN_DOT] =
     [](roo_parser& parser, node* left) -> node*
     {
@@ -1508,7 +1523,7 @@ void InitParseletMaps()
       return CreateNode(MEMBER_ACCESS_NODE, left, memberName);
     };
 
-  // Parses a variable assignment
+  // NOTE(Isaac): Parses a variable assignment
   g_infixMap[TOKEN_EQUALS] =
     [](roo_parser& parser, node* left) -> node*
     {

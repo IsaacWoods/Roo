@@ -71,6 +71,12 @@ static air_instruction* PushInstruction(function_def* function, instruction_type
       i->payload.binaryOp.result      = va_arg(args, slot_def*);
     } break;
 
+    case I_INC:
+    case I_DEC:
+    {
+      i->payload.slot                 = va_arg(args, slot_def*);
+    } break;
+
     case I_CALL:
     {
       i->payload.function             = va_arg(args, function_def*);
@@ -148,7 +154,7 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
 /*
  * BREAK_NODE:              `
  * RETURN_NODE:             `Nothing
- * BINARY_OP_NODE:          `slot_def*
+ * BINARY_OP_NODE:          `slot_def*  `Nothing
  * PREFIX_OP_NODE:          `slot_def*
  * VARIABLE_NAME:           `slot_def*
  * CONDITION_NODE:          `jump_instruction::condition
@@ -173,28 +179,61 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
       slot_def* left = GenNodeAIR<slot_def*>(target, function, n->payload.binaryOp.left);
       slot_def* right = GenNodeAIR<slot_def*>(target, function, n->payload.binaryOp.right);
       slot_def* result = CreateSlot(function, slot_type::TEMPORARY);
-      binary_op_i::op operation;
+      air_instruction* instruction;
 
       switch (n->payload.binaryOp.op)
       {
-        case TOKEN_PLUS:    operation = binary_op_i::op::ADD_I; break;
-        case TOKEN_MINUS:   operation = binary_op_i::op::SUB_I; break;
-        case TOKEN_ASTERIX: operation = binary_op_i::op::MUL_I; break;
-        case TOKEN_SLASH:   operation = binary_op_i::op::DIV_I; break;
-    
+        case TOKEN_PLUS:
+        {
+          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::ADD_I, left, right, result);
+        } break;
+
+        case TOKEN_MINUS:
+        {
+          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::SUB_I, left, right, result);
+        } break;
+
+        case TOKEN_ASTERIX:
+        {
+          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::MUL_I, left, right, result);
+        } break;
+
+        case TOKEN_SLASH:
+        {
+          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::DIV_I, left, right, result);
+        } break;
+
+        case TOKEN_DOUBLE_PLUS:
+        {
+          instruction = PushInstruction(function, I_INC, left);
+        } break;
+
+        case TOKEN_DOUBLE_MINUS:
+        {
+          instruction = PushInstruction(function, I_DEC, left);
+        } break;
+
         default:
         {
-          fprintf(stderr, "Unhandled AST binary op in GenNodeAIR!\n");
+          fprintf(stderr, "Unhandled AST binary op in GenNodeAIR<slot_def*>!\n");
           Crash();
         }
       }
-      
-      air_instruction* instruction = PushInstruction(function, I_BINARY_OP, operation, left, right, result);
-      UseSlot(left, instruction);
-      UseSlot(right, instruction);
-      ChangeSlotValue(result, instruction);
 
-      return result;
+      if (right)
+      {
+        UseSlot(left, instruction);
+        UseSlot(right, instruction);
+        ChangeSlotValue(result, instruction);
+        return result;
+      }
+      else
+      {
+        // NOTE(Isaac): order of these is important, we want to update the old live-range, then create a new one
+        UseSlot(left, instruction);
+        ChangeSlotValue(left, instruction);
+        return left;
+      }
     } break;
 
     case PREFIX_OP_NODE:
@@ -385,6 +424,34 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
       air_instruction* instruction = PushInstruction(function, I_MOV, variable, newValue);
       ChangeSlotValue(variable, instruction);
       UseSlot(newValue, instruction);
+    } break;
+
+    case BINARY_OP_NODE:
+    {
+      slot_def* left = GenNodeAIR<slot_def*>(target, function, n->payload.binaryOp.left);
+      air_instruction* instruction;
+
+      switch (n->payload.binaryOp.op)
+      {
+        case TOKEN_DOUBLE_PLUS:
+        {
+          instruction = PushInstruction(function, I_INC, left);
+        } break;
+
+        case TOKEN_DOUBLE_MINUS:
+        {
+          instruction = PushInstruction(function, I_DEC, left);
+        } break;
+
+        default:
+        {
+          fprintf(stderr, "ICE: Unhandled AST binary op in GenNodeAIR<void?!\n");
+          Crash();
+        }
+      }
+
+      UseSlot(left, instruction);
+      ChangeSlotValue(left, instruction);
     } break;
 
     case FUNCTION_CALL_NODE:
@@ -833,6 +900,20 @@ void PrintInstruction(air_instruction* instruction)
       free(resultSlot);
     } break;
 
+    case I_INC:
+    {
+      char* slot = SlotAsString(instruction->payload.slot);
+      printf("%u: INC %s\n", instruction->index, slot);
+      free(slot);
+    } break;
+
+    case I_DEC:
+    {
+      char* slot = SlotAsString(instruction->payload.slot);
+      printf("%u: DEC %s\n", instruction->index, slot);
+      free(slot);
+    } break;
+
     case I_CALL:
     {
       printf("%u: CALL %s\n", instruction->index, instruction->payload.function->name);
@@ -877,6 +958,10 @@ const char* GetInstructionName(air_instruction* instruction)
         case binary_op_i::op::DIV_I: return "DIV_I";
       }
     }
+    case I_INC:
+      return "INC";
+    case I_DEC:
+      return "DEC";
     case I_CALL:
       return "CALL";
     case I_LABEL:

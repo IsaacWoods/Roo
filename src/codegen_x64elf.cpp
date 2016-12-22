@@ -134,6 +134,8 @@ enum class i
   MOV_REG_REG,      // [opcodeSize] (ModR/M)
   MOV_REG_IMM32,    // +r (4-byte immediate)
   MOV_REG_IMM64,    // [immSize] +r (8-byte immedite)
+  INC_REG,          // (ModR/M [extension])
+  DEC_REG,          // (ModR/M [extension])
   CALL32,           // (4-byte offset to RIP)
   LEAVE,
   RET,
@@ -321,6 +323,22 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
       Emit<uint64_t>(thing, imm);
+    } break;
+
+    case i::INC_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0xFF);
+      Emit<uint8_t>(thing, CreateExtensionModRM(target, 0u, r));
+    } break;
+
+    case i::DEC_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0xFF);
+      Emit<uint8_t>(thing, CreateExtensionModRM(target, 1u, r));
     } break;
 
     case i::CALL32:
@@ -518,6 +536,18 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
             case binary_op_i::op::DIV_I: E(i::DIV_REG_IMM32, op.result->color, op.right->payload.i); break;
           }
         }
+      } break;
+
+      case I_INC:
+      {
+        assert(instruction->payload.slot->color != -1);
+        E(i::INC_REG, instruction->payload.slot->color);
+      } break;
+
+      case I_DEC:
+      {
+        assert(instruction->payload.slot->color != -1);
+        E(i::DEC_REG, instruction->payload.slot->color);
       } break;
 
       case I_CALL:

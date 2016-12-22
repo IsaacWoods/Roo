@@ -155,7 +155,12 @@ void Free<node*>(node*& n)
     case BINARY_OP_NODE:
     {
       Free<node*>(n->payload.binaryOp.left);
-      Free<node*>(n->payload.binaryOp.right);
+
+      if (n->payload.binaryOp.op != TOKEN_DOUBLE_PLUS &&
+          n->payload.binaryOp.op != TOKEN_DOUBLE_MINUS)
+      {
+        Free<node*>(n->payload.binaryOp.right);
+      }
     } break;
 
     case PREFIX_OP_NODE:
@@ -279,7 +284,12 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
     case BINARY_OP_NODE:
     {
       ApplyPassToNode(n->payload.binaryOp.left, function, pass, parse);
-      ApplyPassToNode(n->payload.binaryOp.right, function, pass, parse);
+      
+      if (n->payload.binaryOp.op != TOKEN_DOUBLE_PLUS &&
+          n->payload.binaryOp.op != TOKEN_DOUBLE_MINUS)
+      {
+        ApplyPassToNode(n->payload.binaryOp.right, function, pass, parse);
+      }
     } break;
 
     case PREFIX_OP_NODE:
@@ -478,10 +488,13 @@ void OutputDOTOfAST(function_def* function)
         {
           switch (n->payload.binaryOp.op)
           {
-            case TOKEN_PLUS:      fprintf(f, "\t%s[label=\"+\"];\n", name); break;
-            case TOKEN_MINUS:     fprintf(f, "\t%s[label=\"-\"];\n", name); break;
-            case TOKEN_ASTERIX:   fprintf(f, "\t%s[label=\"*\"];\n", name); break;
-            case TOKEN_SLASH:     fprintf(f, "\t%s[label=\"/\"];\n", name); break;
+            case TOKEN_PLUS:          fprintf(f, "\t%s[label=\"+\"];\n",  name); break;
+            case TOKEN_MINUS:         fprintf(f, "\t%s[label=\"-\"];\n",  name); break;
+            case TOKEN_ASTERIX:       fprintf(f, "\t%s[label=\"*\"];\n",  name); break;
+            case TOKEN_SLASH:         fprintf(f, "\t%s[label=\"/\"];\n",  name); break;
+            case TOKEN_DOUBLE_PLUS:   fprintf(f, "\t%s[label=\"++\"];\n", name); break;
+            case TOKEN_DOUBLE_MINUS:  fprintf(f, "\t%s[label=\"--\"];\n", name); break;
+
             default:
             {
               fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
@@ -493,9 +506,12 @@ void OutputDOTOfAST(function_def* function)
           fprintf(f, "\t%s -> %s;\n", name, leftName);
           free(leftName);
 
-          char* rightName = EmitNode(n->payload.binaryOp.right);
-          fprintf(f, "\t%s -> %s;\n", name, rightName);
-          free(rightName);
+          if (n->payload.binaryOp.right)
+          {
+            char* rightName = EmitNode(n->payload.binaryOp.right);
+            fprintf(f, "\t%s -> %s;\n", name, rightName);
+            free(rightName);
+          }
         } break;
 
         case PREFIX_OP_NODE:
