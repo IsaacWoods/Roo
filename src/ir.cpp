@@ -6,9 +6,89 @@
 #include <cassert>
 #include <climits>
 #include <cstring>
+#include <cstdarg>
 #include <common.hpp>
 #include <ast.hpp>
 #include <air.hpp>
+
+template<>
+void Free<live_range>(live_range& /*range*/)
+{
+}
+
+slot_def* CreateSlot(function_def* function, slot_type type, ...)
+{
+  va_list args;
+  va_start(args, type);
+
+  slot_def* slot = static_cast<slot_def*>(malloc(sizeof(slot_def)));
+  slot->type = type;
+  slot->color = -1;
+  slot->numInterferences = 0u;
+  memset(slot->interferences, 0, sizeof(slot_def*) * MAX_SLOT_INTERFERENCES);
+  CreateLinkedList<live_range>(slot->liveRanges);
+
+  switch (type)
+  {
+    case slot_type::VARIABLE:
+    {
+      slot->payload.variable = va_arg(args, variable_def*);
+    } break;
+
+    case slot_type::TEMPORARY:
+    {
+      slot->payload.tag = function->numTemporaries++;
+    } break;
+
+    case slot_type::INT_CONSTANT:
+    {
+      slot->payload.i = va_arg(args, int);
+    } break;
+
+    case slot_type::FLOAT_CONSTANT:
+    {
+      slot->payload.f = static_cast<float>(va_arg(args, double));
+    } break;
+
+    case slot_type::STRING_CONSTANT:
+    {
+      slot->payload.string = va_arg(args, string_constant*);
+    } break;
+  }
+
+  Add<slot_def*>(function->slots, slot);
+  va_end(args);
+  return slot;
+}
+
+char* SlotAsString(slot_def* slot)
+{
+  #define SLOT_STR(slotType, format, arg) \
+    case slotType: \
+    { \
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, format, arg) + 1u)); \
+      sprintf(result, format, arg); \
+      return result; \
+    }
+
+  switch (slot->type)
+  {
+    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->payload.variable->name)
+    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->payload.tag)
+    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->payload.i)
+    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->payload.f)
+    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->payload.string->string)
+  }
+
+  return nullptr;
+}
+
+template<>
+void Free<slot_def*>(slot_def*& slot)
+{
+  FreeLinkedList<live_range>(slot->liveRanges);
+  free(slot);
+}
 
 program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type)
 {
@@ -56,15 +136,47 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
 
 variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node* initValue)
 {
-  variable_def* var = static_cast<variable_def*>(malloc(sizeof(variable_def)));
-  var->name = name;
+  variable_def* var     = static_cast<variable_def*>(malloc(sizeof(variable_def)));
+  var->name             = name;
   var->type.type.name   = typeName;
   var->type.isResolved  = false;
   var->type.isMutable   = isMutable;
   var->initValue        = initValue;
-  var->mostRecentSlot   = nullptr;
+  var->slot             = nullptr;
 
   return var;
+}
+
+function_def* CreateFunctionDef(char* name)
+{
+  function_def* function = static_cast<function_def*>(malloc(sizeof(function_def)));
+  function->name = name;
+  CreateLinkedList<variable_def*>(function->scope.params);
+  CreateLinkedList<variable_def*>(function->scope.locals);
+  function->scope.shouldAutoReturn = false;
+  CreateLinkedList<slot_def*>(function->slots);
+  function->airHead = nullptr;
+  function->airTail = nullptr;
+  function->numTemporaries = 0u;
+  function->symbol = nullptr;
+
+  return function;
+}
+
+operator_def* CreateOperatorDef(token_type op)
+{
+  operator_def* operatorDef = static_cast<operator_def*>(malloc(sizeof(operator_def)));
+  operatorDef->op = op;
+  CreateLinkedList<variable_def*>(operatorDef->scope.params);
+  CreateLinkedList<variable_def*>(operatorDef->scope.locals);
+  operatorDef->scope.shouldAutoReturn = false;
+  CreateLinkedList<slot_def*>(operatorDef->slots);
+  operatorDef->airHead = nullptr;
+  operatorDef->airTail = nullptr;
+  operatorDef->numTemporaries = 0u;
+  operatorDef->symbol = nullptr;
+
+  return operatorDef;
 }
 
 function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
@@ -217,9 +329,13 @@ void Free<function_def*>(function_def*& function)
     Free<node*>(function->ast);
   }
 
-  if (function->air)
+  FreeLinkedList<slot_def*>(function->slots);
+
+  while (function->airHead)
   {
-    Free<air_function*>(function->air);
+    air_instruction* temp = function->airHead;
+    function->airHead = function->airHead->next;
+    Free<air_instruction*>(temp);
   }
 
   free(function);
@@ -235,10 +351,9 @@ void Free<operator_def*>(operator_def*& operatorDef)
     Free<node*>(operatorDef->ast);
   }
 
-  if (operatorDef->air)
-  {
-    Free<air_function*>(operatorDef->air);
-  }
+  FreeLinkedList<slot_def*>(operatorDef->slots);
+  Free<air_instruction*>(operatorDef->airHead);
+  Free<air_instruction*>(operatorDef->airTail);
 
   free(operatorDef);
 }

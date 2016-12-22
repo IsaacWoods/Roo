@@ -377,8 +377,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
 elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def* function)
 {
-  assert(function->air);
-  assert(function->air->code);
+  assert(function->airHead);
 
   #define E(...) \
     Emit(thing, target, __VA_ARGS__);
@@ -390,7 +389,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
     // TODO: yeah this doesn't actually do anything yet
   }
 
-  for (air_instruction* instruction = function->air->code;
+  for (air_instruction* instruction = function->airHead;
        instruction;
        instruction = instruction->next)
   {
@@ -448,11 +447,11 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
         mov_i& mov = instruction->payload.mov;
 
-        if (mov.src->type == slot::slot_type::INT_CONSTANT)
+        if (mov.src->type == slot_type::INT_CONSTANT)
         {
           E(i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
         }
-        else if (mov.src->type == slot::slot_type::STRING_CONSTANT)
+        else if (mov.src->type == slot_type::STRING_CONSTANT)
         {
           E(i::MOV_REG_IMM64, mov.dest->color, 0x0);
           CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, mov.src->payload.string->offset);
@@ -470,14 +469,14 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
         slot_pair& pair = instruction->payload.slotPair;
 
-        if (pair.left->shouldBeColored && pair.right->shouldBeColored)
+        if ((pair.left->color != -1) && (pair.right->color != -1))
         {
           E(i::CMP_REG_REG, pair.left->color, pair.right->color);
         }
         else
         {
           // TODO: precolor compare instructions with immediates, because the variable needs to be in RAX
-          if (pair.left->shouldBeColored)
+          if (pair.left->color != -1)
           {
             // NOTE(Isaac): there's only an x86 instruction for comparing an immediate with RAX
             assert(pair.left->color == RAX);
@@ -490,7 +489,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
         binary_op_i& op = instruction->payload.binaryOp;
 
-        if (op.left->shouldBeColored) // NOTE(Isaac): this effectively checks if it's gonna be in a register
+        if (op.left->color != -1)
         {
           E(i::MOV_REG_REG, op.result->color, op.left->color);
         }
@@ -499,7 +498,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
           E(i::MOV_REG_IMM32, op.result->color, op.left->payload.i);
         }
 
-        if (op.right->shouldBeColored)
+        if (op.right->color != -1)
         {
           switch (op.operation)
           {
