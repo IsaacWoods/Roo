@@ -713,6 +713,7 @@ static char* GetSlotString(slot* s)
     {
       char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(V)", s->payload.variable->name) + 1u));
       sprintf(result, "%s(V)", s->payload.variable->name);
+      return result;
     }
 
     case slot::slot_type::IN_PARAM:
