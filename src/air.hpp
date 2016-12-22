@@ -7,9 +7,6 @@
 #include <common.hpp>
 #include <ir.hpp>
 
-// NOTE(Isaac): Could be considered bad practice, but stops us needing a gazillion dynamic arrays everywhere??
-#define MAX_INTERFERENCES 32u
-
 enum instruction_type
 {
   I_ENTER_STACK_FRAME,
@@ -27,63 +24,6 @@ enum instruction_type
   I_LABEL,
 
   I_NUM_INSTRUCTIONS
-};
-
-/*
- * Represents the range a slot is live for, in terms of instruction indices.
- * NOTE(Isaac): `lastUser` should be or should appear after `definer`
- */
-struct air_instruction;
-struct live_range
-{
-  air_instruction* definer;
-  air_instruction* lastUser;
-};
-
-struct slot
-{
-  enum slot_type
-  {
-    VARIABLE,         // NOTE(Isaac): either a local or a parameter. `variable` field of `payload` is valid.
-    INTERMEDIATE,     // NOTE(Isaac): `payload` is undefined
-
-    /*
-     * Used to store the parameters of function calls in the correct registers according to the ABI
-     * NOTE(Isaac): comes precolored
-     */
-    IN_PARAM,
-
-    INT_CONSTANT,     // NOTE(Isaac): `i` field of `payload` is valid
-    FLOAT_CONSTANT,   // NOTE(Isaac): `f` field of `payload` is valid
-    STRING_CONSTANT,  // NOTE(Isaac): `string` field of `payload` is valid
-  } type;
-
-  union
-  {
-    variable_def*     variable;
-    int               i;
-    float             f;
-    string_constant*  string;
-  } payload;
-
-  /*
-   * -1 : signifies this slot holds a constant
-   */
-  signed int tag;
-  live_range range;
-
-  unsigned int numInterferences;
-  slot* interferences[MAX_INTERFERENCES];
-
-  /*
-   * -1: signifies that this slot has not been colored
-   */
-  bool shouldBeColored;
-  signed int color;
-
-#if 1
-  unsigned int dotTag;
-#endif
 };
 
 struct instruction_label
@@ -119,8 +59,8 @@ struct jump_i
 
 struct mov_i
 {
-  slot* dest;
-  slot* src;
+  slot_def* dest;
+  slot_def* src;
 };
 
 struct binary_op_i
@@ -133,22 +73,22 @@ struct binary_op_i
     DIV_I
   } operation;
 
-  slot* left;
-  slot* right;
-  slot* result;
+  slot_def* left;
+  slot_def* right;
+  slot_def* result;
 };
 
 struct slot_pair
 {
-  slot* left;
-  slot* right;
+  slot_def* left;
+  slot_def* right;
 };
 
 struct slot_triple
 {
-  slot* left;
-  slot* right;
-  slot* result;
+  slot_def* left;
+  slot_def* right;
+  slot_def* result;
 };
 
 struct air_instruction
@@ -162,7 +102,7 @@ struct air_instruction
     jump_i              jump;
     mov_i               mov;
     binary_op_i         binaryOp;
-    slot*               s;
+    slot_def*           slot;
     slot_pair           slotPair;
     slot_triple         slotTriple;
     function_def*       function;
@@ -170,15 +110,7 @@ struct air_instruction
   } payload;
 };
 
-struct air_function
-{
-  air_instruction*    code;
-  air_instruction*    tail;
-  linked_list<slot*>  slots;
-  int                 numIntermediates;
-};
-
 void GenFunctionAIR(codegen_target& target, function_def* function);
 const char* GetInstructionName(air_instruction* instruction);
 void PrintInstruction(air_instruction* instruction);
-void CreateInterferenceDOT(air_function* function, const char* functionName);
+void CreateInterferenceDOT(function_def* function);

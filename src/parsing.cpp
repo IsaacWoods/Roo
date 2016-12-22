@@ -1124,49 +1124,43 @@ static void Import(roo_parser& parser)
 static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
 {
   Log(parser, "--> Function(");
-  function_def* definition = static_cast<function_def*>(malloc(sizeof(function_def)));
-  CreateLinkedList<variable_def*>(definition->scope.params);
-  CreateLinkedList<variable_def*>(definition->scope.locals);
-  definition->scope.shouldAutoReturn = true;
-  definition->air = nullptr;
 
-  CreateLinkedList<function_attrib>(definition->attribs);
-  CopyLinkedList<function_attrib>(definition->attribs, attribs);
+  function_def* function = CreateFunctionDef(GetTextFromToken(NextToken(parser)));
+  Log(parser, "%s)\n", function->name);
+  Add<function_def*>(parser.result->functions, function);
+
+  CreateLinkedList<function_attrib>(function->attribs);
+  CopyLinkedList<function_attrib>(function->attribs, attribs);
   FreeLinkedList<function_attrib>(attribs);
 
-  Add<function_def*>(parser.result->functions, definition);
-
-  definition->name = GetTextFromToken(NextToken(parser));
-  Log(parser, "%s)\n", definition->name);
-
-  ParameterList(parser, definition->scope.params);
+  ParameterList(parser, function->scope.params);
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
   {
     Consume(parser, TOKEN_YIELDS);
-    definition->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    definition->returnType->type.name = GetTextFromToken(PeekToken(parser));
-    definition->returnType->isResolved = false;
+    function->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+    function->returnType->type.name = GetTextFromToken(PeekToken(parser));
+    function->returnType->isResolved = false;
     NextToken(parser);
 
-    Log(parser, "Return type: %s\n", definition->returnType->type.name);
+    Log(parser, "Return type: %s\n", function->returnType->type.name);
   }
   else
   {
-    definition->returnType = nullptr;
+    function->returnType = nullptr;
     Log(parser, "Return type: NONE\n");
   }
 
-  if (GetAttrib(definition, function_attrib::attrib_type::PROTOTYPE))
+  if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
   {
-    definition->isPrototype = true;
-    definition->ast = nullptr;
+    function->isPrototype = true;
+    function->ast = nullptr;
   }
   else
   {
-    definition->isPrototype = false;
-    definition->ast = Block(parser, definition->scope);
+    function->isPrototype = false;
+    function->ast = Block(parser, function->scope);
   }
 
   Log(parser, "<-- Function\n");
@@ -1175,40 +1169,34 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
 static void Operator(roo_parser& parser/*, linked_list<operator_attrib>& attribs*/)
 {
   Log(parser, "--> Operator(");
+  operator_def* operatorDef = CreateOperatorDef(NextToken(parser).type);
+  Log(parser, "%s)\n", GetTokenName(operatorDef->op));
+  Add<operator_def*>(parser.result->operators, operatorDef);
 
-  operator_def* definition = static_cast<operator_def*>(malloc(sizeof(operator_def)));
-  CreateLinkedList<variable_def*>(definition->scope.params);
-  CreateLinkedList<variable_def*>(definition->scope.locals);
-  definition->air = nullptr;
-
-/*  CreateLinkedList<operator_attrib>(definition->attribs);
-  CopyLinkedList<operator_attrib>(definition->attribs, attribs);
+  // TODO: validate the operator token to make sure it's a valid overloadable operator
+  
+/*  CreateLinkedList<operator_attrib>(operatorDef->attribs);
+  CopyLinkedList<operator_attrib>(operatorDef->attribs, attribs);
   FreeLinkedList<operator_attrib>(attribs);*/
 
-  Add<operator_def*>(parser.result->operators, definition);
-
-  definition->op = NextToken(parser).type;
-  // TODO: validate the operator to make sure it's actually an operator
-  Log(parser, "%s)\n", GetTokenName(definition->op));
-
-  ParameterList(parser, definition->scope.params);
+  ParameterList(parser, operatorDef->scope.params);
 
   Consume(parser, TOKEN_YIELDS);
-  definition->returnType.type.name = GetTextFromToken(PeekToken(parser));
-  definition->returnType.isResolved = false;
+  operatorDef->returnType.type.name = GetTextFromToken(PeekToken(parser));
+  operatorDef->returnType.isResolved = false;
   NextToken(parser);
-  Log(parser, "Return type: %s\n", definition->returnType.type.name);
+  Log(parser, "Return type: %s\n", operatorDef->returnType.type.name);
 
-/*  if (GetAttrib(definition, operator_attrib::attrib_type::PROTOTYPE))
+/*  if (GetAttrib(operatorDef, operator_attrib::attrib_type::PROTOTYPE))
   {
-    definition->isPrototype = true;
-    definition->ast = nullptr;
+    operatorDef->isPrototype = true;
+    operatorDef->ast = nullptr;
   }
   else
   {*/
-    definition->isPrototype = false;
-    definition->ast = Block(parser, definition->scope);
-    assert(!(definition->scope.shouldAutoReturn));
+    operatorDef->isPrototype = false;
+    operatorDef->ast = Block(parser, operatorDef->scope);
+    assert(!(operatorDef->scope.shouldAutoReturn));
   /*}*/
 
   Log(parser, "<-- Operator\n");

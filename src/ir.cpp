@@ -10,6 +10,12 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+template<>
+void Free<slot_def*>(slot_def*& slot)
+{
+  free(slot);
+}
+
 program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type)
 {
   for (auto* attribIt = result.attribs.first;
@@ -62,9 +68,43 @@ variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node
   var->type.isResolved  = false;
   var->type.isMutable   = isMutable;
   var->initValue        = initValue;
-  var->mostRecentSlot   = nullptr;
+
+  // TODO: create an empty slot
+  var->slot             = nullptr;
 
   return var;
+}
+
+function_def* CreateFunctionDef(char* name)
+{
+  function_def* function = static_cast<function_def*>(malloc(sizeof(function_def)));
+  function->name = name;
+  CreateLinkedList<variable_def*>(function->scope.params);
+  CreateLinkedList<variable_def*>(function->scope.locals);
+  function->scope.shouldAutoReturn = false;
+  CreateLinkedList<slot_def*>(function->slots);
+  function->airHead = nullptr;
+  function->airTail = nullptr;
+  function->numTemporaries = 0u;
+  function->symbol = nullptr;
+
+  return function;
+}
+
+operator_def* CreateOperatorDef(token_type op)
+{
+  operator_def* operatorDef = static_cast<operator_def*>(malloc(sizeof(operator_def)));
+  operatorDef->op = op;
+  CreateLinkedList<variable_def*>(operatorDef->scope.params);
+  CreateLinkedList<variable_def*>(operatorDef->scope.locals);
+  operatorDef->scope.shouldAutoReturn = false;
+  CreateLinkedList<slot_def*>(operatorDef->slots);
+  operatorDef->airHead = nullptr;
+  operatorDef->airTail = nullptr;
+  operatorDef->numTemporaries = 0u;
+  operatorDef->symbol = nullptr;
+
+  return operatorDef;
 }
 
 function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
@@ -217,10 +257,9 @@ void Free<function_def*>(function_def*& function)
     Free<node*>(function->ast);
   }
 
-  if (function->air)
-  {
-    Free<air_function*>(function->air);
-  }
+  FreeLinkedList<slot_def*>(function->slots);
+  Free<air_instruction*>(function->airHead);
+  Free<air_instruction*>(function->airTail);
 
   free(function);
 }
@@ -235,10 +274,9 @@ void Free<operator_def*>(operator_def*& operatorDef)
     Free<node*>(operatorDef->ast);
   }
 
-  if (operatorDef->air)
-  {
-    Free<air_function*>(operatorDef->air);
-  }
+  FreeLinkedList<slot_def*>(operatorDef->slots);
+  Free<air_instruction*>(operatorDef->airHead);
+  Free<air_instruction*>(operatorDef->airTail);
 
   free(operatorDef);
 }

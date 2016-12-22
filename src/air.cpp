@@ -12,6 +12,7 @@
 #include <common.hpp>
 #include <ast.hpp>
 
+/*
 slot* CreateSlot(air_function* function, slot::slot_type type, ...)
 {
   va_list args;
@@ -81,13 +82,7 @@ slot* CreateSlot(air_function* function, slot::slot_type type, ...)
   Add<slot*>(function->slots, s);
   va_end(args);
   return s;
-}
-
-template<>
-void Free<slot*>(slot*& slot)
-{
-  free(slot);
-}
+}*/
 
 instruction_label* CreateInstructionLabel()
 {
@@ -97,7 +92,7 @@ instruction_label* CreateInstructionLabel()
   return label;
 }
 
-static air_instruction* PushInstruction(air_function* function, instruction_type type, ...)
+static air_instruction* PushInstruction(function_def* function, instruction_type type, ...)
 {
   va_list args;
   va_start(args, type);
@@ -118,7 +113,7 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
 
     case I_RETURN:
     {
-      i->payload.s                    = va_arg(args, slot*);
+      i->payload.s                    = va_arg(args, slot_def*);
     } break;
 
     case I_JUMP:
@@ -129,23 +124,23 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
 
     case I_MOV:
     {
-      i->payload.mov.dest             = va_arg(args, slot*);
-      i->payload.mov.src              = va_arg(args, slot*);
+      i->payload.mov.dest             = va_arg(args, slot_def*);
+      i->payload.mov.src              = va_arg(args, slot_def*);
     } break;
 
     case I_CMP:
     {
-      i->payload.slotTriple.left      = va_arg(args, slot*);
-      i->payload.slotTriple.right     = va_arg(args, slot*);
-      i->payload.slotTriple.result    = va_arg(args, slot*);
+      i->payload.slotTriple.left      = va_arg(args, slot_def*);
+      i->payload.slotTriple.right     = va_arg(args, slot_def*);
+      i->payload.slotTriple.result    = va_arg(args, slot_def*);
     } break;
 
     case I_BINARY_OP:
     {
       i->payload.binaryOp.operation   = static_cast<binary_op_i::op>(va_arg(args, int));
-      i->payload.binaryOp.left        = va_arg(args, slot*);
-      i->payload.binaryOp.right       = va_arg(args, slot*);
-      i->payload.binaryOp.result      = va_arg(args, slot*);
+      i->payload.binaryOp.left        = va_arg(args, slot_def*);
+      i->payload.binaryOp.right       = va_arg(args, slot_def*);
+      i->payload.binaryOp.result      = va_arg(args, slot_def*);
     } break;
 
     case I_CALL:
@@ -165,17 +160,17 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
     }
   }
 
-  if (function->code)
+  if (function->airHead)
   {
-    i->index = function->tail->index + 1u;
-    function->tail->next = i;
-    function->tail = i;
+    i->index = function->airTail->index + 1u;
+    function->airTail->next = i;
+    function->airTail = i;
   }
   else
   {
     i->index = 0u;
-    function->code = i;
-    function->tail = i;
+    function->airHead = i;
+    function->airTail = i;
   }
 
   va_end(args);
@@ -196,12 +191,11 @@ static air_instruction* PushInstruction(air_function* function, instruction_type
  * VARIABLE_ASSIGN_NODE:    `Nothing
  */
 template<typename T = void>
-T GenNodeAIR(codegen_target& target, air_function* function, node* n);
+T GenNodeAIR(codegen_target& target, function_def* function, node* n);
 
 template<>
-slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
+slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, node* n)
 {
-  assert(function->tail);
   assert(n);
 
   switch (n->type)
@@ -322,9 +316,8 @@ slot* GenNodeAIR<slot*>(codegen_target& target, air_function* function, node* n)
 }
 
 template<>
-jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, air_function* function, node* n)
+jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, function_def* function, node* n)
 {
-  assert(function->tail);
   assert(n);
 
   switch (n->type)
@@ -399,9 +392,8 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, air_func
 }
 
 template<>
-void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
+void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
 {
-  assert(function->tail);
   assert(n);
 
   switch (n->type)
@@ -509,9 +501,8 @@ void GenNodeAIR<void>(codegen_target& target, air_function* function, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, air_function* function, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, function_def* function, node* n)
 {
-  assert(function->tail);
   assert(n);
 
   switch (n->type)
@@ -535,17 +526,18 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, ai
   return nullptr;
 }
 
-static void GenerateInterferences(air_function* function)
+#if 0
+static void GenerateInterferences(function_def* function)
 {
   for (auto* itA = function->slots.first;
        itA;
        itA = itA->next)
   {
-    slot* a = **itA;
+    slot_def* a = **itA;
 
-    if (a->type == slot::slot_type::INT_CONSTANT ||
-        a->type == slot::slot_type::FLOAT_CONSTANT ||
-        a->type == slot::slot_type::STRING_CONSTANT)
+    if (a->type == slot_type::INT_CONSTANT    ||
+        a->type == slot_type::FLOAT_CONSTANT  ||
+        a->type == slot_type::STRING_CONSTANT   )
     {
       continue;
     }
@@ -554,11 +546,11 @@ static void GenerateInterferences(air_function* function)
          itB;
          itB = itB->next)
     {
-      slot* b = **itB;
+      slot_def* b = **itB;
 
-      if (b->type == slot::slot_type::INT_CONSTANT ||
-          b->type == slot::slot_type::FLOAT_CONSTANT ||
-          b->type == slot::slot_type::STRING_CONSTANT)
+      if (b->type == slot_type::INT_CONSTANT    ||
+          b->type == slot_type::FLOAT_CONSTANT  ||
+          b->type == slot_type::STRING_CONSTANT   )
       {
         continue;
       }
@@ -581,11 +573,12 @@ static void GenerateInterferences(air_function* function)
     }
   }
 }
+#endif
 
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-static void ColorSlots(codegen_target& /*target*/, air_function* function)
+static void ColorSlots(codegen_target& /*target*/, function_def* function)
 {
   const unsigned int numGeneralRegisters = 14u;
 
@@ -605,12 +598,15 @@ static void ColorSlots(codegen_target& /*target*/, air_function* function)
   }*/
 
   // --- Color other slots ---
-  for (auto* slotIt = function->slots.first;
-       slotIt;
-       slotIt = slotIt->next)
+  for (auto* it = function->slots.first;
+       it;
+       it = it->next)
   {
+    slot_def* slot = **it;
+
     // Skip if uncolorable or already colored
-    if ((!(**slotIt)->shouldBeColored) || (**slotIt)->color != -1)
+    if ((slot->type != slot_type::VARIABLE && slot->type != slot_type::TEMPORARY) ||
+        (slot->color != -1))
     {
       continue;
     }
@@ -618,10 +614,10 @@ static void ColorSlots(codegen_target& /*target*/, air_function* function)
     // Find colors already used by interferring nodes
     bool usedColors[numGeneralRegisters] = {0};
     for (unsigned int i = 0u;
-         i < (**slotIt)->numInterferences;
+         i < slot->numInterferences;
          i++)
     {
-      signed int interference = (**slotIt)->interferences[i]->color;
+      signed int interference = slot->interferences[i]->color;
 
       if (interference != -1)
       {
@@ -636,12 +632,12 @@ static void ColorSlots(codegen_target& /*target*/, air_function* function)
     {
       if (!usedColors[i])
       {
-        (**slotIt)->color = static_cast<signed int>(i);
+        slot->color = static_cast<signed int>(i);
         break;
       }
     }
 
-    if ((**slotIt)->color == -1)
+    if (slot->color == -1)
     {
       // TODO: spill something instead of crashing
       fprintf(stderr, "FATAL: failed to find valid k-coloring of interference graph!\n");
@@ -650,38 +646,34 @@ static void ColorSlots(codegen_target& /*target*/, air_function* function)
   }
 }
 
-void GenFunctionAIR(codegen_target& target, function_def* functionDef)
+void GenFunctionAIR(codegen_target& target, function_def* function)
 {
-  assert(functionDef->air == nullptr);
-
-  air_function* function = functionDef->air = static_cast<air_function*>(malloc(sizeof(air_function)));
-  function->code = nullptr;
-  function->tail = nullptr;
-  CreateLinkedList<slot*>(function->slots);
-  function->numIntermediates = 0;
-
+  assert(!(function->airHead));
   PushInstruction(function, I_ENTER_STACK_FRAME);
 
   // NOTE(Isaac): this prints all the nodes in the function's outermost scope
-  GenNodeAIR(target, function, functionDef->ast);
+  GenNodeAIR(target, function);
 
-  if (functionDef->scope.shouldAutoReturn)
+  if (function->scope.shouldAutoReturn)
   {
     PushInstruction(function, I_LEAVE_STACK_FRAME);
     PushInstruction(function, I_RETURN, nullptr);
   }
 
   // Color the interference graph
-  GenerateInterferences(functionDef->air);
-  ColorSlots(target, functionDef->air);
+  // TODO
+//  GenerateInterferences(function);
+  ColorSlots(target, function);
 
-  CreateInterferenceDOT(function, functionDef->name);
+#ifdef OUTPUT_DOT
+  CreateInterferenceDOT(function);
+#endif
 
 #if 1
   // Print all the instructions
-  printf("--- AIR instruction listing for function: %s\n", functionDef->name);
+  printf("--- AIR instruction listing for function: %s\n", function->name);
 
-  for (air_instruction* i = function->code;
+  for (air_instruction* i = function->airHead;
        i;
        i = i->next)
   {
@@ -690,66 +682,23 @@ void GenFunctionAIR(codegen_target& target, function_def* functionDef)
 #endif
 }
 
-template<>
-void Free<air_function*>(air_function*& function)
+static char* GetSlotString(slot_def* slot)
 {
-  FreeLinkedList<slot*>(function->slots);
+  #define SLOT_STR(slotType, format, arg) \
+    case slotType: \
+    { \
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, format, arg) + 1u)); \
+      sprintf(result, format, arg); \
+      return result; \
+    }
 
-  while (function->code)
+  switch (slot->type)
   {
-    air_instruction* temp = function->code;
-    function->code = function->code->next;
-    free(temp);
-  }
-
-  free(function);
-}
-
-static char* GetSlotString(slot* s)
-{
-  switch (s->type)
-  {
-    case slot::slot_type::VARIABLE:
-    {
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%s(V)", s->payload.variable->name) + 1u));
-      sprintf(result, "%s(V)", s->payload.variable->name);
-      return result;
-    }
-
-    case slot::slot_type::IN_PARAM:
-    {
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "%d(IN)", s->color) + 1u));
-      sprintf(result, "%d(IN)", s->color);
-      return result;
-    }
-
-    case slot::slot_type::INTERMEDIATE:
-    {
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "i%u", s->tag) + 1u));
-      sprintf(result, "i%u", s->tag);
-      return result;
-    }
-
-    case slot::slot_type::INT_CONSTANT:
-    {
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%d", s->payload.i) + 1u));
-      sprintf(result, "#%d", s->payload.i);
-      return result;
-    }
-
-    case slot::slot_type::FLOAT_CONSTANT:
-    {
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "#%f", s->payload.f) + 1u));
-      sprintf(result, "#%f", s->payload.f);
-      return result;
-    }
-
-    case slot::slot_type::STRING_CONSTANT:
-    {
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, "\"%s\"", s->payload.string->string) + 1u));
-      sprintf(result, "\"%s\"", s->payload.string->string);
-      return result;
-    }
+    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->payload.variable->name)
+    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->payload.tag)
+    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->payload.i)
+    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->payload.f)
+    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->payload.string->string)
   }
 
   return nullptr;
@@ -769,9 +718,9 @@ void PrintInstruction(air_instruction* instruction)
     {
       char* returnValue = nullptr;
 
-      if (instruction->payload.s)
+      if (instruction->payload.slot)
       {
-        returnValue = GetSlotString(instruction->payload.s);
+        returnValue = GetSlotString(instruction->payload.slot);
       }
 
       printf("%u: RETURN %s\n", instruction->index, returnValue);
@@ -943,16 +892,17 @@ const char* GetInstructionName(air_instruction* instruction)
   return nullptr;
 }
 
-void CreateInterferenceDOT(air_function* function, const char* functionName)
+#ifdef OUTPUT_DOT
+void CreateInterferenceDOT(function_def* function)
 {
   // Check if the function's empty
-  if (function->code == nullptr)
+  if (function->airHead == nullptr)
   {
     return;
   }
 
   char fileName[128u] = {0};
-  strcpy(fileName, functionName);
+  strcpy(fileName, function->name);
   strcat(fileName, "_interference.dot");
   FILE* f = fopen(fileName, "w");
 
@@ -976,10 +926,10 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
        it;
        it = it->next)
   {
-    slot* slot = **it;
+    slot_def* slot = **it;
     const char* color = "black";
 
-    if (!(slot->shouldBeColored))
+    if (slot->type != slot_type::VARIABLE && slot->type != slot_type::TEMPORARY)
     {
       continue;
     }
@@ -1009,6 +959,35 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
 
     char* liveRange = nullptr;
 
+    switch (slot->type)
+    {
+      case slot_type::VARIABLE:
+      {
+        PRINT_SLOT("%s : VAR", slot->payload.variable->name);
+      } break;
+
+      case slot_type::TEMPORARY:
+      {
+        PRINT_SLOT("t%u : TMP", slot->payload.tag);
+      } break;
+
+      case slot_type::INT_CONSTANT:
+      {
+        PRINT_SLOT("%d : INT", slot->payload.i);
+      } break;
+
+      case slot_type::FLOAT_CONSTANT:
+      {
+        PRINT_SLOT("%f : FLOAT", slot->payload.f);
+      } break;
+
+      case slot_type::STRING_CONSTANT:
+      {
+        PRINT_SLOT("\\\"%s\\\" : STRING", slot->payload.string->string);
+      } break;
+    }
+
+#if 0
     switch (slot->type)
     {
       case slot::slot_type::VARIABLE:
@@ -1046,37 +1025,8 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
         PRINT_SLOT("t%d : INTERMEDIATE", slot->tag);
       } break;
 
-      case slot::slot_type::IN_PARAM:
-      {
-        assert(slot->range.definer);
-
-        if (slot->range.lastUser)
-        {
-          MAKE_LIVE_RANGE("(%u...%u)", slot->range.definer->index, slot->range.lastUser->index);
-        }
-        else
-        {
-          MAKE_LIVE_RANGE("(%u...?\?)", slot->range.definer->index);
-        }
-
-        PRINT_SLOT("%u : IN", i);
-      } break;
-
-      case slot::slot_type::INT_CONSTANT:
-      {
-        PRINT_SLOT("%d : INT", slot->payload.i);
-      } break;
-
-      case slot::slot_type::FLOAT_CONSTANT:
-      {
-        PRINT_SLOT("%f : FLOAT", slot->payload.f);
-      } break;
-
-      case slot::slot_type::STRING_CONSTANT:
-      {
-        PRINT_SLOT("\\\"%s\\\" : STRING", slot->payload.string->string);
-      } break;
     }
+#endif
 
     free(liveRange);
     slot->dotTag = i;
@@ -1088,7 +1038,7 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
        it;
        it = it->next)
   {
-    slot* slot = **it;
+    slot_def* slot = **it;
 
     for (unsigned int i = 0u;
          i < slot->numInterferences;
@@ -1105,3 +1055,4 @@ void CreateInterferenceDOT(air_function* function, const char* functionName)
   fprintf(f, "}\n");
   fclose(f);
 }
+#endif

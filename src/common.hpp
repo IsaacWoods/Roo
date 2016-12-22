@@ -9,6 +9,9 @@
 #include <cstdio>
 #include <linked_list.hpp>
 
+// NOTE(Isaac): Define this to output .dot files of the AST and interference graph of each function
+#define OUTPUT_DOT
+
 // --- Ameanable crashes ---
 [[noreturn]] void Crash();
 

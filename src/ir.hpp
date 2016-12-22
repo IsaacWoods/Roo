@@ -8,10 +8,6 @@
 #include <linked_list.hpp>
 #include <common.hpp>
 
-struct node;
-struct air_instruction;
-struct elf_symbol;
-
 /*
  * NOTE(Isaac): This allows the codegen module to store platform-dependent
  * information about each register.
@@ -44,9 +40,47 @@ struct function_def;
 struct operator_def;
 struct type_def;
 struct string_constant;
+struct air_instruction;
+struct node;
+struct elf_symbol;
 
-struct air_function;
-struct slot;
+enum slot_type
+{
+  VARIABLE,         // `var` field of payload is valid
+  TEMPORARY,        // `tag` field of payload is valid
+  INT_CONSTANT,     // `i` field of payload is valid
+  FLOAT_CONSTANT,   // `f` field of payload is valid
+  STRING_CONSTANT,  // `string` field of payload is valid
+};
+
+struct live_range
+{
+  // TODO
+};
+
+#define MAX_SLOT_INTERFERENCES 32u
+struct variable_def;
+struct slot_def
+{
+  union
+  {
+    variable_def*     variable;
+    unsigned int      tag;
+    int               i;
+    float             f;
+    string_constant*  string;
+  }               payload;
+  slot_type       type;
+  signed int      color;  // NOTE(Isaac): -1 means it hasn't been colored
+  unsigned int    numInterferences;
+  slot_def*       interferences[MAX_SLOT_INTERFERENCES];
+
+  // TODO: collection of live ranges
+
+#ifdef OUTPUT_DOT
+  unsigned int dotTag;
+#endif
+};
 
 struct program_attrib
 {
@@ -121,7 +155,7 @@ struct variable_def
   char*         name;
   type_ref      type;
   node*         initValue;
-  slot*         mostRecentSlot;
+  slot_def*     slot;
 };
 
 variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node* initValue);
@@ -151,7 +185,10 @@ struct function_def
   linked_list<function_attrib>  attribs;
 
   node*                         ast;
-  air_function*                 air;
+  linked_list<slot_def*>        slots;
+  air_instruction*              airHead;
+  air_instruction*              airTail;
+  unsigned int                  numTemporaries;
   elf_symbol*                   symbol;
 };
 
@@ -172,7 +209,10 @@ struct operator_def
 //  linked_list<operator_attrib>  attribs;
 
   node*                         ast;
-  air_function*                 air;
+  linked_list<slot_def*>        slots;
+  air_instruction*              airHead;
+  air_instruction*              airTail;
+  unsigned int                  numTemporaries;
   elf_symbol*                   symbol;
 };
 
@@ -204,4 +244,7 @@ struct type_def
 };
 
 type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
+
+function_def* CreateFunctionDef(char* name);
+operator_def* CreateOperatorDef(token_type op);
 void CompleteIR(parse_result& parse);
