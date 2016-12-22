@@ -55,7 +55,7 @@ static compile_result Compile(parse_result& result, const char* directoryPath)
 int main()
 {
 #ifdef TIME_EXECUTION
-  auto begin = std::chrono::high_resolution_clock::now();
+  auto beginTime = std::chrono::high_resolution_clock::now();
 #endif
 
   InitParseletMaps();
@@ -148,9 +148,9 @@ int main()
   Free<codegen_target>(target);
 
 #ifdef TIME_EXECUTION
-  auto end = std::chrono::high_resolution_clock::now();
-  // NOTE(Isaac): chrono uses integer types to represent ticks, so we use microseconds then convert ourselves.
-  double elapsed = (double)(std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()) / 1000.0;
-  printf("Time taken to compile: %g ms\n", elapsed);
+  auto endTime = std::chrono::high_resolution_clock::now();
+//  std::cout << "Begin time: " << beginTime.count() << " // end time: " << endTime.count() << std::endl;
+  std::cout << "Time taken to compile: " << std::chrono::duration_cast<std::chrono::microseconds>(endTime-beginTime).count() << " micros" << std::endl;
+//  printf("Time taken to compile: %ld ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(endTime-beginTime).count());
 #endif
 }
