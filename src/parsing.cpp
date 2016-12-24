@@ -784,6 +784,22 @@ prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
 unsigned int    g_precedenceTable[NUM_TOKENS];
 
+static type_ref TypeRef(roo_parser& parser)
+{
+  type_ref ref;
+  ref.isMutable = false;
+  ref.isResolved = false;
+  
+  if (Match(parser, TOKEN_MUT))
+  {
+    ref.isMutable = true;
+    NextToken(parser);
+  }
+
+  ref.type.name = GetTextFromToken(PeekToken(parser));
+  return ref;
+}
+
 static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
@@ -799,10 +815,9 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
   {
     char* varName = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
-    // TODO: parse a full type reference here (mutability, ownership, all that jazz)
-    char* typeName = GetTextFromToken(PeekToken(parser));
 
-    variable_def* param = CreateVariableDef(varName, typeName, false, nullptr);
+    type_ref typeRef = TypeRef(parser);
+    variable_def* param = CreateVariableDef(varName, typeRef, nullptr);
 
     Log(parser, "Param: %s of type %s\n", param->name, param->type.type.name);
     Add<variable_def*>(params, param);
@@ -855,14 +870,7 @@ static variable_def* VariableDef(roo_parser& parser)
   char* name = GetTextFromToken(PeekToken(parser));
   ConsumeNext(parser, TOKEN_COLON);
 
-  bool isMutable = false;
-  if (Match(parser, TOKEN_MUT))
-  {
-    isMutable = true;
-    NextToken(parser);
-  }
-
-  char* typeName = GetTextFromToken(PeekToken(parser));
+  type_ref typeRef = TypeRef(parser);
   node* initValue;
 
   if (MatchNext(parser, TOKEN_EQUALS))
@@ -876,13 +884,12 @@ static variable_def* VariableDef(roo_parser& parser)
     NextToken(parser);
   }
 
-  variable_def* variable = CreateVariableDef(name, typeName, isMutable, initValue);
-  Log(parser, "Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.type.name, (isMutable ? "is mutable" : "is immutable"));
+  variable_def* variable = CreateVariableDef(name, typeRef, initValue);
+  Log(parser, "Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.type.name, (variable->type.isMutable ? "is mutable" : "is immutable"));
   return variable;
 }
 
 static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop = false);
-
 static node* Block(roo_parser& parser, block_def& scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");

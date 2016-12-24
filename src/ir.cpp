@@ -134,13 +134,11 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
   return constant;
 }
 
-variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node* initValue)
+variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue)
 {
   variable_def* var     = static_cast<variable_def*>(malloc(sizeof(variable_def)));
   var->name             = name;
-  var->type.type.name   = typeName;
-  var->type.isResolved  = false;
-  var->type.isMutable   = isMutable;
+  var->type             = typeRef;
   var->initValue        = initValue;
   var->slot             = nullptr;
 

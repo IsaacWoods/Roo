@@ -158,7 +158,7 @@ struct variable_def
   slot_def*     slot;
 };
 
-variable_def* CreateVariableDef(char* name, char* typeName, bool isMutable, node* initValue);
+variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 
 struct function_attrib
 {
