@@ -120,14 +120,15 @@ void Free<codegen_target>(codegen_target& target)
  */
 enum class i
 {
-  ADD_REG_REG,      // [opcodeSize] (ModR/M)
-  SUB_REG_REG,      // [opcodeSize] (ModR/M)
-  MUL_REG_REG,      // [opcodeSize] (ModR/M)
-  DIV_REG_REG,      // [opcodeSize] (ModR/M)
   CMP_REG_REG,      // (ModR/M)
   CMP_RAX_IMM32,    // (4-byte immediate)
   PUSH_REG,         // +r
   POP_REG,          // +r
+  ADD_REG_REG,      // [opcodeSize] (ModR/M)
+  SUB_REG_REG,      // [opcodeSize] (ModR/M)
+  MUL_REG_REG,      // [opcodeSize] (ModR/M)
+  DIV_REG_REG,      // [opcodeSize] (ModR/M)
+  XOR_REG_REG,      // [opcodeSize] (ModR/M)
   ADD_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   SUB_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MUL_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
@@ -138,6 +139,7 @@ enum class i
   INC_REG,          // (ModR/M [extension])
   DEC_REG,          // (ModR/M [extension])
   CALL32,           // (4-byte offset to RIP)
+  INT_IMM8,         // (1-byte immediate)
   LEAVE,
   RET,
   JMP,              // (4-byte offset to RIP)
@@ -191,6 +193,35 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
   switch (instruction)
   {
+    case i::CMP_REG_REG:
+    {
+      reg op1 = static_cast<reg>(va_arg(args, int));
+      reg op2 = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0x39);
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, op1, op2));
+    } break;
+
+    case i::CMP_RAX_IMM32:
+    {
+      uint32_t imm = va_arg(args, uint32_t);
+
+      Emit<uint8_t>(thing, 0x3D);
+      Emit<uint32_t>(thing, imm);
+    } break;
+
+    case i::PUSH_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+      Emit<uint8_t>(thing, 0x50 + target.registerSet[r].pimpl->opcodeOffset);
+    } break;
+
+    case i::POP_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+      Emit<uint8_t>(thing, 0x58 + target.registerSet[r].pimpl->opcodeOffset);
+    } break;
+
     case i::ADD_REG_REG:
     {
       reg dest  = static_cast<reg>(va_arg(args, int));
@@ -229,33 +260,14 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Crash();
     } break;
 
-    case i::CMP_REG_REG:
+    case i::XOR_REG_REG:
     {
-      reg op1 = static_cast<reg>(va_arg(args, int));
-      reg op2 = static_cast<reg>(va_arg(args, int));
+      reg dest = static_cast<reg>(va_arg(args, int));
+      reg src  = static_cast<reg>(va_arg(args, int));
 
-      Emit<uint8_t>(thing, 0x39);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, op1, op2));
-    } break;
-
-    case i::CMP_RAX_IMM32:
-    {
-      uint32_t imm = va_arg(args, uint32_t);
-
-      Emit<uint8_t>(thing, 0x3D);
-      Emit<uint32_t>(thing, imm);
-    } break;
-
-    case i::PUSH_REG:
-    {
-      reg r = static_cast<reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, 0x50 + target.registerSet[r].pimpl->opcodeOffset);
-    } break;
-
-    case i::POP_REG:
-    {
-      reg r = static_cast<reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, 0x58 + target.registerSet[r].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x31);
+      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
     } break;
 
     case i::ADD_REG_IMM32:
@@ -356,6 +368,14 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Emit<uint32_t>(thing, offset);
     } break;
 
+    case i::INT_IMM8:
+    {
+      uint8_t intNumber = static_cast<uint8_t>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0xCD);
+      Emit<uint8_t>(thing, intNumber);
+    } break;
+
     case i::LEAVE:
     {
       Emit<uint8_t>(thing, 0xC9);
@@ -400,19 +420,49 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
   va_end(args);
 }
 
+#define E(...) \
+  Emit(thing, target, __VA_ARGS__);
+
+static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* thing,  parse_result& parse)
+{
+  elf_symbol* entrySymbol = nullptr;
+
+  for (auto* it = parse.functions.first;
+       it;
+       it = it->next)
+  {
+    function_def* function = **it;
+
+    if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
+    {
+      entrySymbol = function->symbol;
+      break;
+    }
+  }
+
+  if (!entrySymbol)
+  {
+    fprintf(stderr, "FATAL: Failed to find entry point!\n");
+    exit(1);
+  }
+
+  // Clearly mark the outermost stack frame
+  E(i::XOR_REG_REG, RBP, RBP);
+
+  // Call the entry point
+  E(i::CALL32, 0x0);
+  CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, entrySymbol, -0x4);
+
+  // Call the SYS_EXIT system call
+  E(i::MOV_REG_IMM32, RAX, 1u);
+  E(i::XOR_REG_REG, RBX, RBX);
+  E(i::INT_IMM8, 0x80);
+}
+
 elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def* function)
 {
   assert(function->airHead);
-
-  #define E(...) \
-    Emit(thing, target, __VA_ARGS__);
-
   elf_thing* thing = CreateThing(elf, function->symbol);
-
-  if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
-  {
-    // TODO: yeah this doesn't actually do anything yet
-  }
 
   for (air_instruction* instruction = function->airHead;
        instruction;
@@ -645,7 +695,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf.rodataThing = CreateRodataThing(elf);
 
   // --- TEMPORARY TESTING STUFF AND THINGS ---
-  LinkObject(elf, "./std/bootstrap.o");
   LinkObject(elf, "./std/io.o");
   // ---
  
@@ -711,6 +760,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
     free(mangledName);
   }
+
+  // Create a thing for the bootstrap
+  elf_symbol* bootstrapSymbol = CreateSymbol(elf, "_start", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+  elf_thing* bootstrapThing = CreateThing(elf, bootstrapSymbol);
+  GenerateBootstrap(elf, target, bootstrapThing, result);
 
   // Generate an `elf_thing` for each function
   for (auto* it = result.functions.first;

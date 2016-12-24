@@ -21,7 +21,6 @@ AST_PASSES = \
 	src/pass_typeChecker.hpp \
 
 STD_OBJECTS = \
-	std/bootstrap.o \
 	std/io.o \
 
 .PHONY: clean install
