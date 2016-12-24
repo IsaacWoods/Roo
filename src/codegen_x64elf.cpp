@@ -560,47 +560,46 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       case I_CALL:
       {
 
-        // Save any in-use registers that should be saved by the caller
-        #define SAVE_REGISTER(reg) \
+        #define SAVE_REG(reg) \
           if (IsColorInUseAtPoint(function, instruction, reg)) \
           { \
-            printf("Saving register before calling function: %d\n", reg); \
             E(i::PUSH_REG, reg); \
           }
 
-        SAVE_REGISTER(RAX)
-        SAVE_REGISTER(RCX)
-        SAVE_REGISTER(RDX)
-        SAVE_REGISTER(RSI)
-        SAVE_REGISTER(RDI)
-        // NOTE(Isaac): we don't care about RSP
-        SAVE_REGISTER(R8)
-        SAVE_REGISTER(R9)
-        SAVE_REGISTER(R10)
-        SAVE_REGISTER(R11)
-
-        E(i::CALL32, 0x0);
-        // NOTE(Isaac): yeah I don't know why we need an addend of -0x4, but we do (probably should work that out)
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->payload.function->symbol, -0x4);
-
-        #define RESTORE_REGISTER(reg) \
+        #define RESTORE_REG(reg) \
           if (IsColorInUseAtPoint(function, instruction, reg)) \
           { \
             E(i::POP_REG, reg); \
           }
 
-        // NOTE(Isaac): We do this in the reverse order to match the stack layout
-        RESTORE_REGISTER(R11)
-        RESTORE_REGISTER(R10)
-        RESTORE_REGISTER(R9)
-        RESTORE_REGISTER(R8)
-        // NOTE(Isaac: we didn't push RSP, don't try and pop it
-        RESTORE_REGISTER(RDI)
-        RESTORE_REGISTER(RSI)
-        RESTORE_REGISTER(RDX)
-        RESTORE_REGISTER(RCX)
-        RESTORE_REGISTER(RAX)
-        
+        /*
+         * These are the registers that must be saved a function's caller if it cares about their contents
+         * NOTE(Isaac): While RSP is caller-saved, we don't care about its contents
+         */
+        SAVE_REG(RAX)
+        SAVE_REG(RCX)
+        SAVE_REG(RDX)
+        SAVE_REG(RSI)
+        SAVE_REG(RDI)
+        SAVE_REG(R8)
+        SAVE_REG(R9)
+        SAVE_REG(R10)
+        SAVE_REG(R11)
+
+        // NOTE(Isaac): yeah I don't know why we need an addend of -0x4 in the relocation, but we do (probably should work that out)
+        E(i::CALL32, 0x0);
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->payload.function->symbol, -0x4);
+
+        // NOTE(Isaac): We restore the saved registers in the reverse order to match the stack's layout
+        RESTORE_REG(R11)
+        RESTORE_REG(R10)
+        RESTORE_REG(R9)
+        RESTORE_REG(R8)
+        RESTORE_REG(RDI)
+        RESTORE_REG(RSI)
+        RESTORE_REG(RDX)
+        RESTORE_REG(RCX)
+        RESTORE_REG(RAX)
 
         #undef SAVE_REGISTER
         #undef RESTORE_REGISTER
