@@ -457,25 +457,52 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
     case FUNCTION_CALL_NODE:
     {
       // TODO: don't assume everything will fit in a general register
-/*      unsigned int numGeneralParams = 0u;
+      unsigned int numGeneralParams = 0u;
+      linked_list<slot_def*> params;
+      CreateLinkedList<slot_def*>(params);
+
       for (auto* paramIt = n->payload.functionCall.params.first;
            paramIt;
            paramIt = paramIt->next)
       {
-        slot* param = CreateSlot(function, slot::slot_type::IN_PARAM, target.intParamColors[numGeneralParams++]);
-        slot* value = GenNodeAIR<slot*>(target, function, **paramIt);
+        slot_def* paramSlot = GenNodeAIR<slot_def*>(target, function, **paramIt);
 
-        air_instruction* iMov = PushInstruction(function, I_MOV, param, value);
-        param->range.definer = iMov;
-        value->range.lastUser = iMov;
+        switch (paramSlot->type)
+        {
+          case slot_type::VARIABLE:
+          case slot_type::TEMPORARY:
+          {
+            // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
+            paramSlot->color = target.intParamColors[numGeneralParams++];
+            Add<slot_def*>(params, paramSlot);
+          } break;
+
+          case slot_type::INT_CONSTANT:
+          case slot_type::FLOAT_CONSTANT:
+          case slot_type::STRING_CONSTANT:
+          {
+            // NOTE(Isaac): we create a temporary to move the constant into, then color that
+            slot_def* temporary = CreateSlot(function, slot_type::TEMPORARY);
+            temporary->color = target.intParamColors[numGeneralParams++];
+            air_instruction* movInstruction = PushInstruction(function, I_MOV, temporary, paramSlot);
+            Add<slot_def*>(params, temporary);
+
+            UseSlot(paramSlot, movInstruction);
+            ChangeSlotValue(temporary, movInstruction);
+          } break;
+        }
       }
 
       assert(n->payload.functionCall.isResolved);
-      PushInstruction(function, I_CALL, n->payload.functionCall.function.def);*/
+      air_instruction* callInstruction = PushInstruction(function, I_CALL, n->payload.functionCall.function.def);
 
-      // TODO: do this properly:
-      //   * Save and restore caller-saved registers (that are in use)
-      //   * Mark registers used by params
+      for (auto* paramIt = params.first;
+           paramIt;
+           paramIt = paramIt->next)
+      {
+        UseSlot(**paramIt, callInstruction);
+      }
+      UnlinkLinkedList<slot_def*>(params);
     } break;
 
     case IF_NODE:
@@ -561,6 +588,35 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, fu
   }
 
   return nullptr;
+}
+
+bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, signed int color)
+{
+  for (auto* slotIt = function->slots.first;
+       slotIt;
+       slotIt = slotIt->next)
+  {
+    slot_def* slot = **slotIt;
+
+    if (slot->color != color)
+    {
+      continue;
+    }
+
+    for (auto* rangeIt = slot->liveRanges.first;
+         rangeIt;
+         rangeIt = rangeIt->next)
+    {
+      live_range& range = **rangeIt;
+
+      if ((instruction->index >= range.definition->index) && (instruction->index <= range.lastUse->index))
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 static void GenerateInterferences(function_def* function)
@@ -922,7 +978,7 @@ void PrintInstruction(air_instruction* instruction)
     case I_LABEL:
     {
       printf("LABEL\n");
-      // TODO: be more helpful to the poor sod debugginh here
+      // TODO: be more helpful to the poor sod debugging here
     } break;
 
     case I_NUM_INSTRUCTIONS:

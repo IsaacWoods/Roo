@@ -127,6 +127,7 @@ enum class i
   CMP_REG_REG,      // (ModR/M)
   CMP_RAX_IMM32,    // (4-byte immediate)
   PUSH_REG,         // +r
+  POP_REG,          // +r
   ADD_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   SUB_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
   MUL_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
@@ -249,6 +250,12 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     {
       reg r = static_cast<reg>(va_arg(args, int));
       Emit<uint8_t>(thing, 0x50 + target.registerSet[r].pimpl->opcodeOffset);
+    } break;
+
+    case i::POP_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+      Emit<uint8_t>(thing, 0x58 + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::ADD_REG_IMM32:
@@ -552,10 +559,51 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_CALL:
       {
-        E(i::CALL32, 0x0);
 
+        // Save any in-use registers that should be saved by the caller
+        #define SAVE_REGISTER(reg) \
+          if (IsColorInUseAtPoint(function, instruction, reg)) \
+          { \
+            printf("Saving register before calling function: %d\n", reg); \
+            E(i::PUSH_REG, reg); \
+          }
+
+        SAVE_REGISTER(RAX)
+        SAVE_REGISTER(RCX)
+        SAVE_REGISTER(RDX)
+        SAVE_REGISTER(RSI)
+        SAVE_REGISTER(RDI)
+        // NOTE(Isaac): we don't care about RSP
+        SAVE_REGISTER(R8)
+        SAVE_REGISTER(R9)
+        SAVE_REGISTER(R10)
+        SAVE_REGISTER(R11)
+
+        E(i::CALL32, 0x0);
         // NOTE(Isaac): yeah I don't know why we need an addend of -0x4, but we do (probably should work that out)
         CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->payload.function->symbol, -0x4);
+
+        #define RESTORE_REGISTER(reg) \
+          if (IsColorInUseAtPoint(function, instruction, reg)) \
+          { \
+            E(i::POP_REG, reg); \
+          }
+
+        // NOTE(Isaac): We do this in the reverse order to match the stack layout
+        RESTORE_REGISTER(R11)
+        RESTORE_REGISTER(R10)
+        RESTORE_REGISTER(R9)
+        RESTORE_REGISTER(R8)
+        // NOTE(Isaac: we didn't push RSP, don't try and pop it
+        RESTORE_REGISTER(RDI)
+        RESTORE_REGISTER(RSI)
+        RESTORE_REGISTER(RDX)
+        RESTORE_REGISTER(RCX)
+        RESTORE_REGISTER(RAX)
+        
+
+        #undef SAVE_REGISTER
+        #undef RESTORE_REGISTER
       } break;
 
       case I_LABEL:

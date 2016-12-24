@@ -33,17 +33,22 @@ import "https://github.com/IsaacWoods/SomeRooLibrary.git"
 Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their
 members. The trait can then be used as an alias for any type that implements it.
 
-### Register Allocation - Function Level
-For each function, a register state should be constructed. This is a table of registers and their states at each
-point in the program.
-
-A register can be:
-* Free for general use
-* Usuable, but for a specific purpose (RAX for returning things)
-* In use - already in use by another variable
-* Reserved
-
-On entering a function, a initial register state should be constructed. This must mark registers being used by
-parameters and those reserved by the stack frame. A register allocation algorithm can then be run over the AST to
-add register states at different points in the function. The algorithm should take into account:
-* Does something need to be returned? What's closest to the thing being returned, that should start in RAX?
+### Calling Convention - System V
+| Register | Usage   | Saved By |
+|:--------:|:-------:|:--------:|
+| RAX      | General | Caller   |
+| RBX      | General | Callee   |
+| RCX      | General | Caller   |
+| RDX      | General | Caller   |
+| RSI      | General | Caller   |
+| RDI      | General | Caller   |
+| RSP      | General | Caller   |
+| RBP      | General | Callee   |
+| R8       | General | Caller   |
+| R9       | General | Caller   |
+| R10      | General | Caller   |
+| R11      | General | Caller   |
+| R12      | General | Callee   |
+| R13      | General | Callee   |
+| R14      | General | Callee   |
+| R15      | General | Callee   |

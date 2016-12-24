@@ -112,6 +112,7 @@ struct air_instruction
   } payload;
 };
 
+bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, signed int color);
 void GenFunctionAIR(codegen_target& target, function_def* function);
 const char* GetInstructionName(air_instruction* instruction);
 void PrintInstruction(air_instruction* instruction);

@@ -7,11 +7,10 @@ fn Print(str : string)
 fn Main() -> int
 {
   i : mut int = 5
-  counter : mut int = 0
 
   while (i > 0)
   {
-    counter++
+    Print("Loop\n")
     i--
   }
 
