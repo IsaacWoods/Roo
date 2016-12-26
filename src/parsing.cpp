@@ -27,7 +27,7 @@ struct token
   union
   {
     int   asInt;    // Valid if token type is TOKEN_NUMBER_INT
-    float asFloat;    // Valid if token type is TOKEN_NUMBER_FLOAT
+    float asFloat;  // Valid if token type is TOKEN_NUMBER_FLOAT
   };
 };
 
@@ -42,7 +42,6 @@ struct roo_parser
   token           nextToken;
 
   parse_result*   result;
-//  function_def*   currentFunction;
 };
 
 static inline char* GetTextFromToken(const token& tkn)
@@ -151,29 +150,12 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-/*static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
-{
-  const int ERROR_MESSAGE_LENGTH = 1024;
-
-  va_list args;
-  va_start(args, messageFmt);
-
-  char message[ERROR_MESSAGE_LENGTH];
-  int length = vsprintf(message, messageFmt, args);
-  assert(length < ERROR_MESSAGE_LENGTH);
-
-  fprintf(stderr, "SYNTAX ERROR(%u:%u): %s\n", parser.currentLine, parser.currentLineOffset, message);
-
-  va_end(args);
-  Crash();
-}*/
-
 static void Log(roo_parser& /*parser*/, const char* fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
 
-#if 0
+#if 1
   vprintf(fmt, args);
 #endif
 
@@ -796,7 +778,7 @@ static type_ref TypeRef(roo_parser& parser)
     NextToken(parser);
   }
 
-  ref.type.name = GetTextFromToken(PeekToken(parser));
+  ref.name = GetTextFromToken(PeekToken(parser));
   return ref;
 }
 
@@ -819,7 +801,7 @@ static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params
     type_ref typeRef = TypeRef(parser);
     variable_def* param = CreateVariableDef(varName, typeRef, nullptr);
 
-    Log(parser, "Param: %s of type %s\n", param->name, param->type.type.name);
+    Log(parser, "Param: %s of type %s\n", param->name, param->type.name);
     Add<variable_def*>(params, param);
 
     if (MatchNext(parser, TOKEN_COMMA))
@@ -884,7 +866,7 @@ static variable_def* VariableDef(roo_parser& parser)
   }
 
   variable_def* variable = CreateVariableDef(name, typeRef, initValue);
-  Log(parser, "Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.type.name, (variable->type.isMutable ? "is mutable" : "is immutable"));
+  Log(parser, "Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.name, (variable->type.isMutable ? "is mutable" : "is immutable"));
   return variable;
 }
 
@@ -1062,7 +1044,7 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
   return result;
 }
 
-static void TypeDef(roo_parser& parser/*, linked_list<type_attrib>& attribs*/)
+static void TypeDef(roo_parser& parser, linked_list<attribute>& attribs)
 {
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
@@ -1070,8 +1052,9 @@ static void TypeDef(roo_parser& parser/*, linked_list<type_attrib>& attribs*/)
   CreateLinkedList<variable_def*>(type->members);
   type->size = UINT_MAX;
 
-/*  CreateLinkedList<type_attrib>(type->attribs);
-  CopyLinkedList<type_attrib>(type->attribs, attribs);*/
+  CreateLinkedList<attribute>(type->attribs);
+  CopyLinkedList<attribute>(type->attribs, attribs);
+  FreeLinkedList<attribute>(attribs);
 
   type->name = GetTextFromToken(PeekToken(parser));
   Log(parser, "%s)\n", type->name);
@@ -1117,8 +1100,7 @@ static void Import(roo_parser& parser)
 
     default:
     {
-      RaiseError(ERROR_EXPECTED_BUT_GOT, "string-literal or dotted-identifier",
-          GetTokenName(PeekToken(parser).type));
+      RaiseError(ERROR_EXPECTED_BUT_GOT, "string-literal or dotted-identifier", GetTokenName(PeekToken(parser).type));
     }
   }
 
@@ -1127,7 +1109,7 @@ static void Import(roo_parser& parser)
   Log(parser, "<-- Import\n");
 }
 
-static void Function(roo_parser& parser/*, linked_list<function_attrib>& attribs*/)
+static void Function(roo_parser& parser, linked_list<attribute>& attribs)
 {
   Log(parser, "--> Function(");
 
@@ -1135,9 +1117,9 @@ static void Function(roo_parser& parser/*, linked_list<function_attrib>& attribs
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
 
-/*  CreateLinkedList<function_attrib>(function->attribs);
-  CopyLinkedList<function_attrib>(function->attribs, attribs);
-  FreeLinkedList<function_attrib>(attribs);*/
+  CreateLinkedList<attribute>(function->attribs);
+  CopyLinkedList<attribute>(function->attribs, attribs);
+  FreeLinkedList<attribute>(attribs);
 
   ParameterList(parser, function->scope.params);
 
@@ -1146,11 +1128,11 @@ static void Function(roo_parser& parser/*, linked_list<function_attrib>& attribs
   {
     Consume(parser, TOKEN_YIELDS);
     function->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    function->returnType->type.name = GetTextFromToken(PeekToken(parser));
+    function->returnType->name = GetTextFromToken(PeekToken(parser));
     function->returnType->isResolved = false;
     NextToken(parser);
 
-    Log(parser, "Return type: %s\n", function->returnType->type.name);
+    Log(parser, "Return type: %s\n", function->returnType->name);
   }
   else
   {
@@ -1158,21 +1140,21 @@ static void Function(roo_parser& parser/*, linked_list<function_attrib>& attribs
     Log(parser, "Return type: NONE\n");
   }
 
-/*  if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
+  if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
   {
     function->isPrototype = true;
     function->ast = nullptr;
   }
   else
-  {*/
+  {
     function->isPrototype = false;
     function->ast = Block(parser, function->scope);
-//  }
+  }
 
   Log(parser, "<-- Function\n");
 }
 
-static void Operator(roo_parser& parser/*, linked_list<operator_attrib>& attribs*/)
+static void Operator(roo_parser& parser, linked_list<attribute>& attribs)
 {
   Log(parser, "--> Operator(");
   operator_def* operatorDef = CreateOperatorDef(NextToken(parser).type);
@@ -1181,59 +1163,42 @@ static void Operator(roo_parser& parser/*, linked_list<operator_attrib>& attribs
 
   // TODO: validate the operator token to make sure it's a valid overloadable operator
   
-/*  CreateLinkedList<operator_attrib>(operatorDef->attribs);
-  CopyLinkedList<operator_attrib>(operatorDef->attribs, attribs);
-  FreeLinkedList<operator_attrib>(attribs);*/
+  CreateLinkedList<attribute>(operatorDef->attribs);
+  CopyLinkedList<attribute>(operatorDef->attribs, attribs);
+  FreeLinkedList<attribute>(attribs);
 
   ParameterList(parser, operatorDef->scope.params);
 
   Consume(parser, TOKEN_YIELDS);
-  operatorDef->returnType.type.name = GetTextFromToken(PeekToken(parser));
+  operatorDef->returnType.name = GetTextFromToken(PeekToken(parser));
   operatorDef->returnType.isResolved = false;
   NextToken(parser);
-  Log(parser, "Return type: %s\n", operatorDef->returnType.type.name);
+  Log(parser, "Return type: %s\n", operatorDef->returnType.name);
 
-/*  if (GetAttrib(operatorDef, operator_attrib::attrib_type::PROTOTYPE))
+  if (GetAttrib(operatorDef->attribs, attrib_type::PROTOTYPE))
   {
     operatorDef->isPrototype = true;
     operatorDef->ast = nullptr;
   }
   else
-  {*/
+  {
     operatorDef->isPrototype = false;
     operatorDef->ast = Block(parser, operatorDef->scope);
     assert(!(operatorDef->scope.shouldAutoReturn));
-  /*}*/
+  }
 
   Log(parser, "<-- Operator\n");
 }
 
-enum class attrib_type
+static void Attribute(roo_parser& parser, linked_list<attribute>& attribs)
 {
-  NONE,
-  FUNCTION,
-  TYPE,
-  STATEMENT,
-  PROGRAM
-};
-
-/*
- * NOTE(Isaac): this will parse all types of attribute, and then return the type of the attrib parsed
- */
-/*static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& programAttribs,
-                                                 linked_list<function_attrib>& functionAttribs,
-                                                 linked_list<type_attrib>& typeAttribs)
-{
-  attrib_type type = attrib_type::NONE;
   char* attribName = GetTextFromToken(NextToken(parser));
 
   if (strcmp(attribName, "Entry") == 0)
   {
-    function_attrib attrib;
-    attrib.type = function_attrib::attrib_type::ENTRY;
-
-    Add<function_attrib>(functionAttribs, attrib);
-    type = attrib_type::FUNCTION;
+    attribute attrib;
+    attrib.type = attrib_type::ENTRY;
+    Add<attribute>(attribs, attrib);
     NextToken(parser);
   }
   else if (strcmp(attribName, "Name") == 0)
@@ -1242,36 +1207,28 @@ enum class attrib_type
 
     if (!Match(parser, TOKEN_IDENTIFIER))
     {
-      SyntaxError(parser, "Expected identifier as program name!");
+      RaiseError(ERROR_EXPECTED, "identifier as program / library name");
     }
 
-    program_attrib attrib;
-    attrib.type = program_attrib::attrib_type::NAME;
-    attrib.payload.name = GetTextFromToken(PeekToken(parser));
-
+    // NOTE(Isaac): while this is parsed like an attribute, it isn't created like one
+    parser.result->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
-
-    Add<program_attrib>(programAttribs, attrib);
-    type = attrib_type::PROGRAM;
   }
   else if (strcmp(attribName, "Prototype") == 0)
   {
-    function_attrib attrib;
-    attrib.type = function_attrib::attrib_type::PROTOTYPE;
-
-    Add<function_attrib>(functionAttribs, attrib);
-    type = attrib_type::FUNCTION;
+    attribute attrib;
+    attrib.type = attrib_type::PROTOTYPE;
+    Add<attribute>(attribs, attrib);
     NextToken(parser);
   }
   else
   {
-    SyntaxError(parser, "Unrecognised attribute: '%s'!", attribName);
+    RaiseError(ERROR_ILLEGAL_ATTRIBUTE, attribName);
   }
 
   Consume(parser, TOKEN_RIGHT_BLOCK);
   free(attribName);
-  return type;
-}*/
+}
 
 void Parse(parse_result* result, const char* sourcePath)
 {
@@ -1285,12 +1242,8 @@ void Parse(parse_result* result, const char* sourcePath)
   parser.currentToken = LexNext(parser);
   parser.nextToken    = LexNext(parser);
 
-/*  linked_list<function_attrib> functionAttribs;
-  linked_list<type_attrib> typeAttribs;
-  CreateLinkedList<function_attrib>(functionAttribs);
-  CreateLinkedList<type_attrib>(typeAttribs);
-
-  attrib_type parsedAttribType = attrib_type::NONE;*/
+  linked_list<attribute> attribs;
+  CreateLinkedList<attribute>(attribs);
 
   while (!Match(parser, TOKEN_INVALID))
   {
@@ -1300,54 +1253,25 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else if (Match(parser, TOKEN_FN))
     {
-/*      if (parsedAttribType != attrib_type::NONE &&
-          parsedAttribType != attrib_type::FUNCTION)
-      {
-        SyntaxError(parser, "Unexpected attribute to be applied to a function!");
-      }*/
-
-      Function(parser/*, functionAttribs*/);
-/*      UnlinkLinkedList<function_attrib>(functionAttribs);
-      parsedAttribType = attrib_type::NONE;*/
+      Function(parser, attribs);
     }
     else if (Match(parser, TOKEN_OPERATOR))
     {
-/*      if (parsedAttribType != attrib_type::NONE &&
-          parsedAttribType != attrib_type::FUNCTION)
-      {
-        SyntaxError(parser, "Unexpected attribute to be applied to an operator!");
-      }*/
-
-      Operator(parser/*, functionAttribs*/);
-/*      UnlinkLinkedList<function_attrib>(functionAttribs);
-      parsedAttribType = attrib_type::NONE;*/
+      Operator(parser, attribs);
     }
     else if (Match(parser, TOKEN_TYPE))
     {
-/*      if (parsedAttribType != attrib_type::NONE &&
-          parsedAttribType != attrib_type::TYPE)
-      {
-        SyntaxError(parser, "Unexpected attibute to be applied to a type!");
-      }*/
-
-      TypeDef(parser/*, typeAttribs*/);
-/*      UnlinkLinkedList<type_attrib>(typeAttribs);
-      parsedAttribType = attrib_type::NONE;*/
+      TypeDef(parser, attribs);
     }
-/*    else if (Match(parser, TOKEN_START_ATTRIBUTE))
+    else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
-      Attribute(parser, result->attribs, functionAttribs, typeAttribs);
-    }*/
+      Attribute(parser, attribs);
+    }
     else
     {
       RaiseError(ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
     }
   }
-
-/*  if (parsedAttribType != attrib_type::NONE)
-  {
-    SyntaxError(parser, "Trailing attribute not applied to anything!");
-  }*/
 
   free(parser.source);
   parser.source = nullptr;

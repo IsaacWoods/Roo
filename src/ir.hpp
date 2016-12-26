@@ -83,33 +83,27 @@ struct slot_def
 #endif
 };
 
-/*struct program_attrib
-{
-  enum attrib_type
-  {
-    NAME,
-  } type;
-
-  union
-  {
-    char* name;
-  } payload;
-};*/
-
 struct parse_result
 {
+  char* name;
   linked_list<dependency_def*>  dependencies;
   linked_list<function_def*>    functions;
   linked_list<operator_def*>    operators;
   linked_list<type_def*>        types;
   linked_list<string_constant*> strings;
-//  linked_list<program_attrib>   attribs;
 };
 
-//program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type);
+enum attrib_type
+{
+  ENTRY,
+  PROTOTYPE,
+};
 
-void CreateParseResult(parse_result& result);
-void FreeParseResult(parse_result& result);
+struct attribute
+{
+  attrib_type type;
+  char*       payload;
+};
 
 struct dependency_def
 {
@@ -137,7 +131,6 @@ struct string_constant
   uint64_t offset;
 };
 
-string_constant* CreateStringConstant(parse_result* result, char* string);
 
 struct type_ref
 {
@@ -145,9 +138,9 @@ struct type_ref
   {
     char*     name;
     type_def* def;
-  }     type;
-  bool  isResolved;
+  };
 
+  bool  isResolved;
   bool  isMutable;
 };
 
@@ -159,18 +152,6 @@ struct variable_def
   slot_def*     slot;
 };
 
-variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
-
-/*
-struct function_attrib
-{
-  enum attrib_type
-  {
-    ENTRY,
-    PROTOTYPE,
-  } type;
-};*/
-
 struct block_def
 {
   linked_list<variable_def*>  params;
@@ -180,60 +161,41 @@ struct block_def
 
 struct function_def
 {
-  char*                         name;
-  bool                          isPrototype;
-  block_def                     scope;
-  type_ref*                     returnType; // NOTE(Isaac): `nullptr` when function returns nothing
-//  linked_list<function_attrib>  attribs;
+  char*                     name;
+  bool                      isPrototype;
+  block_def                 scope;
+  type_ref*                 returnType; // NOTE(Isaac): `nullptr` when function returns nothing
+  linked_list<attribute>    attribs;
 
-  node*                         ast;
-  linked_list<slot_def*>        slots;
-  air_instruction*              airHead;
-  air_instruction*              airTail;
-  unsigned int                  numTemporaries;
-  elf_symbol*                   symbol;
+  node*                     ast;
+  linked_list<slot_def*>    slots;
+  air_instruction*          airHead;
+  air_instruction*          airTail;
+  unsigned int              numTemporaries;
+  elf_symbol*               symbol;
 };
-
-/*struct operator_attrib
-{
-  enum attrib_type
-  {
-    PROTOTYPE,
-  } type;
-};*/
 
 struct operator_def
 {
-  token_type                    op;
-  bool                          isPrototype;
-  block_def                     scope;
-  type_ref                      returnType; // NOTE(Isaac): operators have to return something
-//  linked_list<operator_attrib>  attribs;
+  token_type                op;
+  bool                      isPrototype;
+  block_def                 scope;
+  type_ref                  returnType; // NOTE(Isaac): operators have to return something
+  linked_list<attribute>    attribs;
 
-  node*                         ast;
-  linked_list<slot_def*>        slots;
-  air_instruction*              airHead;
-  air_instruction*              airTail;
-  unsigned int                  numTemporaries;
-  elf_symbol*                   symbol;
+  node*                     ast;
+  linked_list<slot_def*>    slots;
+  air_instruction*          airHead;
+  air_instruction*          airTail;
+  unsigned int              numTemporaries;
+  elf_symbol*               symbol;
 };
-
-//function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type);
-char* MangleFunctionName(function_def* function);
-
-/*struct type_attrib
-{
-  enum attrib_type
-  {
-
-  } type;
-};*/
 
 struct type_def
 {
   char*                       name;
   linked_list<variable_def*>  members;
-//  linked_list<type_attrib>    attribs;
+  linked_list<attribute>      attribs;
 
   /*
    * Size of this structure in bytes.
@@ -242,10 +204,14 @@ struct type_def
   unsigned int                size;
 };
 
-//type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
+attribute* GetAttrib(linked_list<attribute>& attribs, attrib_type type);
 
 slot_def* CreateSlot(function_def* function, slot_type type, ...);
 char* SlotAsString(slot_def* slot);
+void CreateParseResult(parse_result& result);
+string_constant* CreateStringConstant(parse_result* result, char* string);
+variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 function_def* CreateFunctionDef(char* name);
+char* MangleFunctionName(function_def* function);
 operator_def* CreateOperatorDef(token_type op);
 void CompleteIR(parse_result& parse);

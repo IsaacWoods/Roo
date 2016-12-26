@@ -11,6 +11,23 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+attribute* GetAttrib(linked_list<attribute>& attribs, attrib_type type)
+{
+  for (auto* it = attribs.first;
+       it;
+       it = it->next)
+  {
+    attribute& attrib = **it;
+
+    if (attrib.type == type)
+    {
+      return &attrib;
+    }
+  }
+
+  return nullptr;
+}
+
 template<>
 void Free<live_range>(live_range& /*range*/)
 {
@@ -90,29 +107,30 @@ void Free<slot_def*>(slot_def*& slot)
   free(slot);
 }
 
-/*program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type)
+template<>
+void Free<attribute>(attribute& attrib)
 {
-  for (auto* attribIt = result.attribs.first;
-       attribIt;
-       attribIt = attribIt->next)
-  {
-    if ((**attribIt).type == type)
-    {
-      return &(**attribIt);
-    }
-  }
-
-  return nullptr;
-}*/
+  free(attrib.payload);
+}
 
 void CreateParseResult(parse_result& result)
 {
+  result.name = nullptr;
   CreateLinkedList<dependency_def*>(result.dependencies);
   CreateLinkedList<function_def*>(result.functions);
   CreateLinkedList<operator_def*>(result.operators);
   CreateLinkedList<type_def*>(result.types);
   CreateLinkedList<string_constant*>(result.strings);
-//  CreateLinkedList<program_attrib>(result.attribs);
+}
+
+template<>
+void Free<parse_result>(parse_result& result)
+{
+  free(result.name);
+  FreeLinkedList<dependency_def*>(result.dependencies);
+  FreeLinkedList<function_def*>(result.functions);
+  FreeLinkedList<type_def*>(result.types);
+  FreeLinkedList<string_constant*>(result.strings);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)
@@ -152,6 +170,9 @@ function_def* CreateFunctionDef(char* name)
   CreateLinkedList<variable_def*>(function->scope.params);
   CreateLinkedList<variable_def*>(function->scope.locals);
   function->scope.shouldAutoReturn = false;
+  function->returnType = nullptr;
+  CreateLinkedList<attribute>(function->attribs);
+
   CreateLinkedList<slot_def*>(function->slots);
   function->airHead = nullptr;
   function->airTail = nullptr;
@@ -168,6 +189,8 @@ operator_def* CreateOperatorDef(token_type op)
   CreateLinkedList<variable_def*>(operatorDef->scope.params);
   CreateLinkedList<variable_def*>(operatorDef->scope.locals);
   operatorDef->scope.shouldAutoReturn = false;
+  CreateLinkedList<attribute>(operatorDef->attribs);
+
   CreateLinkedList<slot_def*>(operatorDef->slots);
   operatorDef->airHead = nullptr;
   operatorDef->airTail = nullptr;
@@ -176,21 +199,6 @@ operator_def* CreateOperatorDef(token_type op)
 
   return operatorDef;
 }
-
-/*function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
-{
-  for (auto* attribIt = function->attribs.first;
-       attribIt;
-       attribIt = attribIt->next)
-  {
-    if ((**attribIt).type == type)
-    {
-      return &(**attribIt);
-    }
-  }
-
-  return nullptr;
-}*/
 
 char* MangleFunctionName(function_def* function)
 {
@@ -202,43 +210,6 @@ char* MangleFunctionName(function_def* function)
   strcat(mangled, function->name);
 
   return mangled;
-}
-
-/*type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type)
-{
-  for (auto* attribIt = typeDef->attribs.first;
-       attribIt;
-       attribIt = attribIt->next)
-  {
-    if ((**attribIt).type == type)
-    {
-      return &(**attribIt);
-    }
-  }
-
-  return nullptr; 
-}
-
-template<>
-void Free<program_attrib>(program_attrib& attrib)
-{
-  switch (attrib.type)
-  {
-    case program_attrib::attrib_type::NAME:
-    {
-      free(attrib.name);
-    } break;
-  }
-}*/
-
-template<>
-void Free<parse_result>(parse_result& result)
-{
-  FreeLinkedList<dependency_def*>(result.dependencies);
-  FreeLinkedList<function_def*>(result.functions);
-  FreeLinkedList<type_def*>(result.types);
-  FreeLinkedList<string_constant*>(result.strings);
-//  FreeLinkedList<program_attrib>(result.attribs);
 }
 
 template<>
@@ -254,18 +225,13 @@ void Free<string_constant*>(string_constant*& string)
   free(string->string);
   free(string);
 }
-/*
-template<>
-void Free<type_attrib>(type_attrib& attrib)
-{
-}*/
 
 template<>
 void Free<type_def*>(type_def*& type)
 {
   free(type->name);
   FreeLinkedList<variable_def*>(type->members);
-//  FreeLinkedList<type_attrib>(type->attribs);
+  FreeLinkedList<attribute>(type->attribs);
   free(type);
 }
 
@@ -274,11 +240,11 @@ void Free<type_ref>(type_ref& ref)
 {
   if (ref.isResolved)
   {
-    Free<type_def*>(ref.type.def);
+    // TODO: don't free the type_def
   }
   else
   {
-    free(ref.type.name);
+    free(ref.name);
   }
 }
 
@@ -295,12 +261,6 @@ void Free<variable_def*>(variable_def*& variable)
 
   free(variable);
 }
-
-/*
-template<>
-void Free<function_attrib>(function_attrib& attrib)
-{
-}*/
 
 template<>
 void Free<block_def>(block_def& scope)
@@ -321,7 +281,7 @@ void Free<function_def*>(function_def*& function)
     free(function->returnType);
   }
 
-//  FreeLinkedList<function_attrib>(function->attribs);
+  FreeLinkedList<attribute>(function->attribs);
 
   if (function->ast)
   {
@@ -350,6 +310,7 @@ void Free<operator_def*>(operator_def*& operatorDef)
     Free<node*>(operatorDef->ast);
   }
 
+  FreeLinkedList<attribute>(operatorDef->attribs);
   FreeLinkedList<slot_def*>(operatorDef->slots);
   Free<air_instruction*>(operatorDef->airHead);
   Free<air_instruction*>(operatorDef->airTail);
@@ -365,11 +326,11 @@ static void ResolveTypeRef(type_ref& ref, parse_result& parse)
        typeIt;
        typeIt = typeIt->next)
   {
-    if ((**typeIt)->name == ref.type.name)
+    if ((**typeIt)->name == ref.name)
     {
       // TODO(Isaac): would be a good place to increment a usage counter on `typeIt`, if we ever needed one
       ref.isResolved = true;
-      ref.type.def = (**typeIt);
+      ref.def = (**typeIt);
       return;
     }
   }
@@ -394,7 +355,7 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
        memberIt = memberIt->next)
   {
     assert((**memberIt)->type.isResolved);
-    type->size += CalculateSizeOfType((**memberIt)->type.type.def);
+    type->size += CalculateSizeOfType((**memberIt)->type.def);
   }
 
   return type->size;
@@ -409,10 +370,10 @@ void CompleteIR(parse_result& parse)
   {
     function_def* function = **functionIt;
 
-/*    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
+    if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {
       continue;
-    }*/
+    }
 
     if (function->returnType)
     {

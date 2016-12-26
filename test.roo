@@ -1,3 +1,6 @@
+#[Name(test)]
+
+#[Entry]
 fn Main() -> int
 {
   i : mut int = 5
