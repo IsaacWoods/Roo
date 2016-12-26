@@ -10,6 +10,8 @@ enum error
   ERROR_EXPECTED_BUT_GOT,   // "Expected {string} but got {string} instead"
   ERROR_UNEXPECTED,         // "Unexpected token in {string} position: {string}"
   ERROR_ILLEGAL_ATTRIBUTE,  // "Unrecognised attribute '{string}'"
+  ERROR_UNDEFINED_VARIABLE, // "Failed to resolve variable called '{string}'"
+  ERROR_UNDEFINED_FUNCTION, // "Failed to resolve function called '{string'"
 
   FATAL_NO_PROGRAM_NAME,    // "A program name must be specified using the '#[Name(...)]' attribute"
 

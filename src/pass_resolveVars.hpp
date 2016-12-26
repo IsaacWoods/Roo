@@ -8,6 +8,7 @@
 #include <cstring>
 #include <cassert>
 #include <ast.hpp>
+#include <error.hpp>
 
 ast_passlet PASS_resolveVars[NUM_AST_NODES] = {};
 
@@ -52,8 +53,7 @@ void InitResolveVarsPass()
         }
       }
 
-      // TODO: use fancy-ass error system (when it's built)
-      fprintf(stderr, "Failed to resolve variable: '%s'!\n", n->variable.var.name);
+      RaiseError(ERROR_UNDEFINED_VARIABLE, n->variable.var.name);
     };
 
   PASS_resolveVars[MEMBER_ACCESS_NODE] =

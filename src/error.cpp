@@ -46,6 +46,8 @@ void InitErrorDefs()
   E(ERROR_EXPECTED_BUT_GOT,   TO_END_OF_STATEMENT,    "Expected %s but got %s instead");
   E(ERROR_UNEXPECTED,         TO_END_OF_STATEMENT,    "Unexpected token in %s position: %s");
   E(ERROR_ILLEGAL_ATTRIBUTE,  TO_END_OF_ATTRIBUTE,    "Unrecognised attribute '%s'");
+  E(ERROR_UNDEFINED_VARIABLE, TO_END_OF_STATEMENT,    "Failed to resolve variable called '%s'");
+  E(ERROR_UNDEFINED_FUNCTION, TO_END_OF_STATEMENT,    "Failed to resolve function called '%s'");
 
   F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
 
