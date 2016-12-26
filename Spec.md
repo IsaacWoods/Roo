@@ -33,6 +33,16 @@ import "https://github.com/IsaacWoods/SomeRooLibrary.git"
 Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their
 members. The trait can then be used as an alias for any type that implements it.
 
+### Range Syntaxic Sugar
+A range can be created with the syntax `(a..b)`. This can be used to iterate from `a` (inclusive) and `b` (exclusive).
+They implement the `Iterable` trait, and so can be iterated over like so, where the type of `n` is inferred from the range.
+``` roo
+for (n : <uint>(1..10))
+{
+  PrintFmt("%u", n);
+}
+```
+
 ### Calling Convention - System V
 | Register | Usage   | Saved By |
 |:--------:|:-------:|:--------:|

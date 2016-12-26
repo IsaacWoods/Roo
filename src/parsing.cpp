@@ -12,6 +12,7 @@
 #include <cassert>
 #include <ir.hpp>
 #include <ast.hpp>
+#include <error.hpp>
 
 struct token
 {
@@ -1292,6 +1293,9 @@ void Parse(parse_result* result, const char* sourcePath)
   CreateLinkedList<type_attrib>(typeAttribs);
 
   attrib_type parsedAttribType = attrib_type::NONE;
+
+  // TEMP TESTING STUFF AND THINGS
+  RaiseError(error::TEST_ERROR_OH_NO_POTATO);
 
   while (!Match(parser, TOKEN_INVALID))
   {

@@ -8,6 +8,7 @@ LFLAGS = -Wall -Wextra -pedantic -O2 -std=c++14 -g -Isrc
 OBJS = \
   src/main.o \
 	src/common.o \
+	src/error.o \
 	src/ir.o \
   src/parsing.o \
 	src/ast.o \
