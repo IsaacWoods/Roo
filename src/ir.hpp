@@ -82,7 +82,7 @@ struct slot_def
 #endif
 };
 
-struct program_attrib
+/*struct program_attrib
 {
   enum attrib_type
   {
@@ -93,7 +93,7 @@ struct program_attrib
   {
     char* name;
   } payload;
-};
+};*/
 
 struct parse_result
 {
@@ -102,10 +102,10 @@ struct parse_result
   linked_list<operator_def*>    operators;
   linked_list<type_def*>        types;
   linked_list<string_constant*> strings;
-  linked_list<program_attrib>   attribs;
+//  linked_list<program_attrib>   attribs;
 };
 
-program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type);
+//program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type);
 
 void CreateParseResult(parse_result& result);
 void FreeParseResult(parse_result& result);
@@ -160,6 +160,7 @@ struct variable_def
 
 variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 
+/*
 struct function_attrib
 {
   enum attrib_type
@@ -167,7 +168,7 @@ struct function_attrib
     ENTRY,
     PROTOTYPE,
   } type;
-};
+};*/
 
 struct block_def
 {
@@ -182,7 +183,7 @@ struct function_def
   bool                          isPrototype;
   block_def                     scope;
   type_ref*                     returnType; // NOTE(Isaac): `nullptr` when function returns nothing
-  linked_list<function_attrib>  attribs;
+//  linked_list<function_attrib>  attribs;
 
   node*                         ast;
   linked_list<slot_def*>        slots;
@@ -216,25 +217,22 @@ struct operator_def
   elf_symbol*                   symbol;
 };
 
-/*
- * NOTE(Isaac): returns `nullptr` if the function doesn't have the specified attribute
- */
-function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type);
+//function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type);
 char* MangleFunctionName(function_def* function);
 
-struct type_attrib
+/*struct type_attrib
 {
   enum attrib_type
   {
 
   } type;
-};
+};*/
 
 struct type_def
 {
   char*                       name;
   linked_list<variable_def*>  members;
-  linked_list<type_attrib>    attribs;
+//  linked_list<type_attrib>    attribs;
 
   /*
    * Size of this structure in bytes.
@@ -243,7 +241,7 @@ struct type_def
   unsigned int                size;
 };
 
-type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
+//type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type);
 
 slot_def* CreateSlot(function_def* function, slot_type type, ...);
 char* SlotAsString(slot_def* slot);

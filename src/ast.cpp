@@ -374,10 +374,10 @@ void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
   {
     function_def* function = **it;
 
-    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
+/*    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
     {
       continue;
-    }
+    }*/
 
     if (function->ast)
     {

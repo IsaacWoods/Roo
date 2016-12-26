@@ -1,24 +1,12 @@
-#[Name(test)]
-
-#[Prototype]
-fn Print(str : string)
-
-#[Entry]
 fn Main() -> int
 {
   i : mut int = 5
+  8 = 4
 
   while (i > 0)
   {
-    Print("Loop\n")
     i--
   }
 
-  return 0
-}
-
-fn Potato() -> int
-{
-  Print("Hello, World!\n")
   return 0
 }

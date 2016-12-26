@@ -6,7 +6,9 @@
 
 enum error
 {
-  TEST_ERROR_OH_NO_POTATO,
+  ERROR_EXPECTED,           // "Expected {string}"
+  ERROR_EXPECTED_BUT_GOT,   // "Expected {string} but got {string} instead"
+  ERROR_UNEXPECTED,         // "Unexpected token in {string} position: {string}"
 
   NUM_ERRORS
 };

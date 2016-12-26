@@ -151,8 +151,7 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-__attribute__((noreturn))
-static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
+/*static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
 {
   const int ERROR_MESSAGE_LENGTH = 1024;
 
@@ -167,7 +166,7 @@ static void SyntaxError(roo_parser& parser, const char* messageFmt, ...)
 
   va_end(args);
   Crash();
-}
+}*/
 
 static void Log(roo_parser& /*parser*/, const char* fmt, ...)
 {
@@ -335,7 +334,7 @@ static token LexCharConstant(roo_parser& parser)
 
   if (*(parser.currentChar) != '\'')
   {
-    SyntaxError(parser, "Expected ' to end the char constant!\n");
+    RaiseError(ERROR_EXPECTED, "a ' to end the char constant");
   }
 
   return MakeToken(parser, TOKEN_CHAR_CONSTANT, (unsigned int)((uintptr_t)c - (uintptr_t)parser.source), c, 1u);
@@ -749,7 +748,7 @@ static inline void Consume(roo_parser& parser, token_type expectedType, bool ign
 {
   if (PeekToken(parser, ignoreLines).type != expectedType)
   {
-    SyntaxError(parser, "Expected %s, but got %s!", GetTokenName(expectedType), GetTokenName(parser.currentToken.type));
+    RaiseError(ERROR_EXPECTED_BUT_GOT, GetTokenName(expectedType), GetTokenName(parser.currentToken.type));
   }
 
   NextToken(parser, ignoreLines);
@@ -761,7 +760,7 @@ static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool
   
   if (next != expectedType)
   {
-    SyntaxError(parser, "Expected %s, but got %s!", GetTokenName(expectedType), GetTokenName(next));
+    RaiseError(ERROR_EXPECTED_BUT_GOT, GetTokenName(expectedType), GetTokenName(next));
   }
 
   NextToken(parser, ignoreLines);
@@ -842,8 +841,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   if (!prefixParselet)
   {
-    SyntaxError(parser, "Unexpected token in expression(PREFIX) position: %s!\n",
-                GetTokenName(PeekToken(parser).type));
+    RaiseError(ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
   }
 
   node* expression = prefixParselet(parser);
@@ -937,7 +935,7 @@ static node* Condition(roo_parser& parser, bool reverseOnJump)
       (condition != TOKEN_LESS_THAN)              &&
       (condition != TOKEN_LESS_THAN_EQUAL_TO))
   {
-    SyntaxError(parser, "Expected [CONDITION], got %s instead!", GetTokenName(condition));
+    RaiseError(ERROR_EXPECTED_BUT_GOT, "condition", GetTokenName(condition));
   }
 
   NextToken(parser);
@@ -995,7 +993,7 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
     {
       if (!isInLoop)
       {
-        SyntaxError(parser, "`break` only makes sense in a loop!\n");
+        RaiseError(ERROR_UNEXPECTED, "not-in-a-loop", "break");
       }
 
       result = CreateNode(BREAK_NODE);
@@ -1064,7 +1062,7 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
   return result;
 }
 
-static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
+static void TypeDef(roo_parser& parser/*, linked_list<type_attrib>& attribs*/)
 {
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
@@ -1072,8 +1070,8 @@ static void TypeDef(roo_parser& parser, linked_list<type_attrib>& attribs)
   CreateLinkedList<variable_def*>(type->members);
   type->size = UINT_MAX;
 
-  CreateLinkedList<type_attrib>(type->attribs);
-  CopyLinkedList<type_attrib>(type->attribs, attribs);
+/*  CreateLinkedList<type_attrib>(type->attribs);
+  CopyLinkedList<type_attrib>(type->attribs, attribs);*/
 
   type->name = GetTextFromToken(PeekToken(parser));
   Log(parser, "%s)\n", type->name);
@@ -1119,8 +1117,8 @@ static void Import(roo_parser& parser)
 
     default:
     {
-      SyntaxError(parser, "Expected [STRING LITERAL] or [DOTTED IDENTIFIER] after `import`, got %s!",
-                  GetTokenName(PeekToken(parser).type));
+      RaiseError(ERROR_EXPECTED_BUT_GOT, "string-literal or dotted-identifier",
+          GetTokenName(PeekToken(parser).type));
     }
   }
 
@@ -1129,7 +1127,7 @@ static void Import(roo_parser& parser)
   Log(parser, "<-- Import\n");
 }
 
-static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
+static void Function(roo_parser& parser/*, linked_list<function_attrib>& attribs*/)
 {
   Log(parser, "--> Function(");
 
@@ -1137,9 +1135,9 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
 
-  CreateLinkedList<function_attrib>(function->attribs);
+/*  CreateLinkedList<function_attrib>(function->attribs);
   CopyLinkedList<function_attrib>(function->attribs, attribs);
-  FreeLinkedList<function_attrib>(attribs);
+  FreeLinkedList<function_attrib>(attribs);*/
 
   ParameterList(parser, function->scope.params);
 
@@ -1160,16 +1158,16 @@ static void Function(roo_parser& parser, linked_list<function_attrib>& attribs)
     Log(parser, "Return type: NONE\n");
   }
 
-  if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
+/*  if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
   {
     function->isPrototype = true;
     function->ast = nullptr;
   }
   else
-  {
+  {*/
     function->isPrototype = false;
     function->ast = Block(parser, function->scope);
-  }
+//  }
 
   Log(parser, "<-- Function\n");
 }
@@ -1222,7 +1220,7 @@ enum class attrib_type
 /*
  * NOTE(Isaac): this will parse all types of attribute, and then return the type of the attrib parsed
  */
-static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& programAttribs,
+/*static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& programAttribs,
                                                  linked_list<function_attrib>& functionAttribs,
                                                  linked_list<type_attrib>& typeAttribs)
 {
@@ -1273,7 +1271,7 @@ static attrib_type Attribute(roo_parser& parser, linked_list<program_attrib>& pr
   Consume(parser, TOKEN_RIGHT_BLOCK);
   free(attribName);
   return type;
-}
+}*/
 
 void Parse(parse_result* result, const char* sourcePath)
 {
@@ -1287,15 +1285,12 @@ void Parse(parse_result* result, const char* sourcePath)
   parser.currentToken = LexNext(parser);
   parser.nextToken    = LexNext(parser);
 
-  linked_list<function_attrib> functionAttribs;
+/*  linked_list<function_attrib> functionAttribs;
   linked_list<type_attrib> typeAttribs;
   CreateLinkedList<function_attrib>(functionAttribs);
   CreateLinkedList<type_attrib>(typeAttribs);
 
-  attrib_type parsedAttribType = attrib_type::NONE;
-
-  // TEMP TESTING STUFF AND THINGS
-  RaiseError(error::TEST_ERROR_OH_NO_POTATO);
+  attrib_type parsedAttribType = attrib_type::NONE;*/
 
   while (!Match(parser, TOKEN_INVALID))
   {
@@ -1305,54 +1300,54 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else if (Match(parser, TOKEN_FN))
     {
-      if (parsedAttribType != attrib_type::NONE &&
+/*      if (parsedAttribType != attrib_type::NONE &&
           parsedAttribType != attrib_type::FUNCTION)
       {
         SyntaxError(parser, "Unexpected attribute to be applied to a function!");
-      }
+      }*/
 
-      Function(parser, functionAttribs);
-      UnlinkLinkedList<function_attrib>(functionAttribs);
-      parsedAttribType = attrib_type::NONE;
+      Function(parser/*, functionAttribs*/);
+/*      UnlinkLinkedList<function_attrib>(functionAttribs);
+      parsedAttribType = attrib_type::NONE;*/
     }
     else if (Match(parser, TOKEN_OPERATOR))
     {
-      if (parsedAttribType != attrib_type::NONE &&
+/*      if (parsedAttribType != attrib_type::NONE &&
           parsedAttribType != attrib_type::FUNCTION)
       {
         SyntaxError(parser, "Unexpected attribute to be applied to an operator!");
-      }
+      }*/
 
       Operator(parser/*, functionAttribs*/);
-      UnlinkLinkedList<function_attrib>(functionAttribs);
-      parsedAttribType = attrib_type::NONE;
+/*      UnlinkLinkedList<function_attrib>(functionAttribs);
+      parsedAttribType = attrib_type::NONE;*/
     }
     else if (Match(parser, TOKEN_TYPE))
     {
-      if (parsedAttribType != attrib_type::NONE &&
+/*      if (parsedAttribType != attrib_type::NONE &&
           parsedAttribType != attrib_type::TYPE)
       {
         SyntaxError(parser, "Unexpected attibute to be applied to a type!");
-      }
+      }*/
 
-      TypeDef(parser, typeAttribs);
-      UnlinkLinkedList<type_attrib>(typeAttribs);
-      parsedAttribType = attrib_type::NONE;
+      TypeDef(parser/*, typeAttribs*/);
+/*      UnlinkLinkedList<type_attrib>(typeAttribs);
+      parsedAttribType = attrib_type::NONE;*/
     }
-    else if (Match(parser, TOKEN_START_ATTRIBUTE))
+/*    else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
       Attribute(parser, result->attribs, functionAttribs, typeAttribs);
-    }
+    }*/
     else
     {
-      SyntaxError(parser, "Unexpected token at top-level: %s!", GetTokenName(PeekToken(parser).type));
+      RaiseError(ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
     }
   }
 
-  if (parsedAttribType != attrib_type::NONE)
+/*  if (parsedAttribType != attrib_type::NONE)
   {
     SyntaxError(parser, "Trailing attribute not applied to anything!");
-  }
+  }*/
 
   free(parser.source);
   parser.source = nullptr;
@@ -1495,7 +1490,7 @@ void InitParseletMaps()
 
       if (left->type != VARIABLE_NODE)
       {
-        SyntaxError(parser, "Unrecognised function name!");
+        RaiseError(ERROR_EXPECTED_BUT_GOT, "function-name", GetNodeName(left->type));
       }
 
       char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->payload.variable.var.name) + 1u)));
@@ -1524,7 +1519,7 @@ void InitParseletMaps()
       if (left->type != VARIABLE_NODE &&
           left->type != MEMBER_ACCESS_NODE)
       {
-        SyntaxError(parser, "Can only access members of existing variables or their members!");
+        RaiseError(ERROR_EXPECTED_BUT_GOT, "variable-binding or member-binding", GetNodeName(left->type));
       }
 
       char* memberName = GetTextFromToken(PeekToken(parser));
@@ -1543,7 +1538,7 @@ void InitParseletMaps()
       if (left->type != VARIABLE_NODE &&
           left->type != MEMBER_ACCESS_NODE)
       {
-        SyntaxError(parser, "Expected variable name before '=' token!");
+        RaiseError(ERROR_EXPECTED, "variable-binding before '=' token");
       }
 
       NextToken(parser);

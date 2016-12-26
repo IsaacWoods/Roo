@@ -90,7 +90,7 @@ void Free<slot_def*>(slot_def*& slot)
   free(slot);
 }
 
-program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type)
+/*program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type)
 {
   for (auto* attribIt = result.attribs.first;
        attribIt;
@@ -103,7 +103,7 @@ program_attrib* GetAttrib(parse_result& result, program_attrib::attrib_type type
   }
 
   return nullptr;
-}
+}*/
 
 void CreateParseResult(parse_result& result)
 {
@@ -112,7 +112,7 @@ void CreateParseResult(parse_result& result)
   CreateLinkedList<operator_def*>(result.operators);
   CreateLinkedList<type_def*>(result.types);
   CreateLinkedList<string_constant*>(result.strings);
-  CreateLinkedList<program_attrib>(result.attribs);
+//  CreateLinkedList<program_attrib>(result.attribs);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)
@@ -177,7 +177,7 @@ operator_def* CreateOperatorDef(token_type op)
   return operatorDef;
 }
 
-function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
+/*function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type type)
 {
   for (auto* attribIt = function->attribs.first;
        attribIt;
@@ -190,7 +190,7 @@ function_attrib* GetAttrib(function_def* function, function_attrib::attrib_type 
   }
 
   return nullptr;
-}
+}*/
 
 char* MangleFunctionName(function_def* function)
 {
@@ -204,7 +204,7 @@ char* MangleFunctionName(function_def* function)
   return mangled;
 }
 
-type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type)
+/*type_attrib* GetAttrib(type_def* typeDef, type_attrib::attrib_type type)
 {
   for (auto* attribIt = typeDef->attribs.first;
        attribIt;
@@ -229,7 +229,7 @@ void Free<program_attrib>(program_attrib& attrib)
       free(attrib.payload.name);
     } break;
   }
-}
+}*/
 
 template<>
 void Free<parse_result>(parse_result& result)
@@ -238,7 +238,7 @@ void Free<parse_result>(parse_result& result)
   FreeLinkedList<function_def*>(result.functions);
   FreeLinkedList<type_def*>(result.types);
   FreeLinkedList<string_constant*>(result.strings);
-  FreeLinkedList<program_attrib>(result.attribs);
+//  FreeLinkedList<program_attrib>(result.attribs);
 }
 
 template<>
@@ -254,18 +254,18 @@ void Free<string_constant*>(string_constant*& string)
   free(string->string);
   free(string);
 }
-
+/*
 template<>
-void Free<type_attrib>(type_attrib& /*attrib*/)
+void Free<type_attrib>(type_attrib& attrib)
 {
-}
+}*/
 
 template<>
 void Free<type_def*>(type_def*& type)
 {
   free(type->name);
   FreeLinkedList<variable_def*>(type->members);
-  FreeLinkedList<type_attrib>(type->attribs);
+//  FreeLinkedList<type_attrib>(type->attribs);
   free(type);
 }
 
@@ -296,10 +296,11 @@ void Free<variable_def*>(variable_def*& variable)
   free(variable);
 }
 
+/*
 template<>
-void Free<function_attrib>(function_attrib& /*attrib*/)
+void Free<function_attrib>(function_attrib& attrib)
 {
-}
+}*/
 
 template<>
 void Free<block_def>(block_def& scope)
@@ -320,7 +321,7 @@ void Free<function_def*>(function_def*& function)
     free(function->returnType);
   }
 
-  FreeLinkedList<function_attrib>(function->attribs);
+//  FreeLinkedList<function_attrib>(function->attribs);
 
   if (function->ast)
   {
@@ -408,10 +409,10 @@ void CompleteIR(parse_result& parse)
   {
     function_def* function = **functionIt;
 
-    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
+/*    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
     {
       continue;
-    }
+    }*/
 
     if (function->returnType)
     {

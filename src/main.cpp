@@ -126,23 +126,24 @@ int main()
        functionIt;
        functionIt = functionIt->next)
   {
-    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+/*    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
     {
       continue;
-    }
+    }*/
 
     GenFunctionAIR(target, **functionIt);
   }
 
   // Check the `Name` attribute has been given
-  if (!GetAttrib(result, program_attrib::attrib_type::NAME))
+/*  if (!GetAttrib(result, program_attrib::attrib_type::NAME))
   {
     fprintf(stderr, "FATAL: A program name must be given using the #[Name(...)] attribute!\n");
     Crash();
-  }
+  }*/
 
   // Generate the code into a final executable!
-  Generate(GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name, target, result);
+//  Generate(GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name, target, result);
+  Generate("test", target, result);
 
   Free<parse_result>(result);
   Free<codegen_target>(target);
