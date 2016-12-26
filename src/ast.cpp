@@ -18,8 +18,6 @@ node* CreateNode(node_type type, ...)
   result->type = type;
   result->next = nullptr;
 
-  node::node_payload& payload = result->payload;
-
   switch (type)
   {
     case BREAK_NODE:
@@ -28,64 +26,64 @@ node* CreateNode(node_type type, ...)
 
     case RETURN_NODE:
     {
-      payload.expression                      = va_arg(args, node*);
+      result->expression                      = va_arg(args, node*);
     } break;
 
     case BINARY_OP_NODE:
     {
       // NOTE(Isaac): enum types are promoted to `int`s on the stack
-      payload.binaryOp.op                     = static_cast<token_type>(va_arg(args, int));
-      payload.binaryOp.left                   = va_arg(args, node*);
-      payload.binaryOp.right                  = va_arg(args, node*);
+      result->binaryOp.op                     = static_cast<token_type>(va_arg(args, int));
+      result->binaryOp.left                   = va_arg(args, node*);
+      result->binaryOp.right                  = va_arg(args, node*);
     } break;
 
     case PREFIX_OP_NODE:
     {
-      payload.prefixOp.op                     = static_cast<token_type>(va_arg(args, int));
-      payload.prefixOp.right                  = va_arg(args, node*);
+      result->prefixOp.op                     = static_cast<token_type>(va_arg(args, int));
+      result->prefixOp.right                  = va_arg(args, node*);
     } break;
 
     case VARIABLE_NODE:
     {
-      payload.variable.var.name               = va_arg(args, char*);
-      payload.variable.isResolved             = false;
+      result->variable.var.name               = va_arg(args, char*);
+      result->variable.isResolved             = false;
     } break;
 
     case CONDITION_NODE:
     {
-      payload.condition.condition             = static_cast<token_type>(va_arg(args, int));
-      payload.condition.left                  = va_arg(args, node*);
-      payload.condition.right                 = va_arg(args, node*);
-      payload.condition.reverseOnJump         = static_cast<bool>(va_arg(args, int));
+      result->condition.condition             = static_cast<token_type>(va_arg(args, int));
+      result->condition.left                  = va_arg(args, node*);
+      result->condition.right                 = va_arg(args, node*);
+      result->condition.reverseOnJump         = static_cast<bool>(va_arg(args, int));
     } break;
 
     case IF_NODE:
     {
-      payload.ifThing.condition               = va_arg(args, node*);
-      payload.ifThing.thenCode                = va_arg(args, node*);
-      payload.ifThing.elseCode                = va_arg(args, node*);
+      result->ifThing.condition               = va_arg(args, node*);
+      result->ifThing.thenCode                = va_arg(args, node*);
+      result->ifThing.elseCode                = va_arg(args, node*);
     } break;
 
     case WHILE_NODE:
     {
-      payload.whileThing.condition            = va_arg(args, node*);
-      payload.whileThing.code                 = va_arg(args, node*);
+      result->whileThing.condition            = va_arg(args, node*);
+      result->whileThing.code                 = va_arg(args, node*);
     } break;
 
     case NUMBER_CONSTANT_NODE:
     {
-      payload.numberConstant.type = static_cast<number_constant_part::constant_type>(va_arg(args, int));
+      result->numberConstant.type = static_cast<number_constant_part::constant_type>(va_arg(args, int));
 
-      switch (payload.numberConstant.type)
+      switch (result->numberConstant.type)
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          payload.numberConstant.constant.i   = va_arg(args, int);
+          result->numberConstant.constant.i   = va_arg(args, int);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          payload.numberConstant.constant.f   = static_cast<float>(va_arg(args, double));
+          result->numberConstant.constant.f   = static_cast<float>(va_arg(args, double));
         } break;
 
         default:
@@ -98,28 +96,28 @@ node* CreateNode(node_type type, ...)
 
     case STRING_CONSTANT_NODE:
     {
-      payload.stringConstant                  = va_arg(args, string_constant*);
+      result->stringConstant                  = va_arg(args, string_constant*);
     } break;
 
     case FUNCTION_CALL_NODE:
     {
-      payload.functionCall.isResolved         = false;
-      payload.functionCall.function.name      = va_arg(args, char*);
-      CreateLinkedList<node*>(payload.functionCall.params);
+      result->functionCall.isResolved         = false;
+      result->functionCall.function.name      = va_arg(args, char*);
+      CreateLinkedList<node*>(result->functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      payload.variableAssignment.variable     = va_arg(args, node*);
-      payload.variableAssignment.newValue     = va_arg(args, node*);
-      payload.variableAssignment.ignoreImmutability = static_cast<bool>(va_arg(args, int));
+      result->variableAssignment.variable     = va_arg(args, node*);
+      result->variableAssignment.newValue     = va_arg(args, node*);
+      result->variableAssignment.ignoreImmutability = static_cast<bool>(va_arg(args, int));
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
-      payload.memberAccess.parent             = va_arg(args, node*);
-      payload.memberAccess.member.name        = va_arg(args, char*);
-      payload.memberAccess.isResolved         = false;
+      result->memberAccess.parent             = va_arg(args, node*);
+      result->memberAccess.member.name        = va_arg(args, char*);
+      result->memberAccess.isResolved         = false;
     } break;
 
     default:
@@ -146,57 +144,57 @@ void Free<node*>(node*& n)
 
     case RETURN_NODE:
     {
-      if (n->payload.expression)
+      if (n->expression)
       {
-        Free<node*>(n->payload.expression);
+        Free<node*>(n->expression);
       }
     } break;
 
     case BINARY_OP_NODE:
     {
-      Free<node*>(n->payload.binaryOp.left);
+      Free<node*>(n->binaryOp.left);
 
-      if (n->payload.binaryOp.op != TOKEN_DOUBLE_PLUS &&
-          n->payload.binaryOp.op != TOKEN_DOUBLE_MINUS)
+      if (n->binaryOp.op != TOKEN_DOUBLE_PLUS &&
+          n->binaryOp.op != TOKEN_DOUBLE_MINUS)
       {
-        Free<node*>(n->payload.binaryOp.right);
+        Free<node*>(n->binaryOp.right);
       }
     } break;
 
     case PREFIX_OP_NODE:
     {
-      Free<node*>(n->payload.prefixOp.right);
+      Free<node*>(n->prefixOp.right);
     } break;
 
     case VARIABLE_NODE:
     {
-      if (n->payload.variable.isResolved)
+      if (n->variable.isResolved)
       {
         // NOTE(Isaac): Don't free the variable_def*; it's not ours
       }
       else
       {
-        free(n->payload.variable.var.name);
+        free(n->variable.var.name);
       }
     } break;
 
     case CONDITION_NODE:
     {
-      Free<node*>(n->payload.condition.left);
-      Free<node*>(n->payload.condition.right);
+      Free<node*>(n->condition.left);
+      Free<node*>(n->condition.right);
     } break;
 
     case IF_NODE:
     {
-      Free<node*>(n->payload.ifThing.condition);
-      Free<node*>(n->payload.ifThing.thenCode);
-      Free<node*>(n->payload.ifThing.elseCode);
+      Free<node*>(n->ifThing.condition);
+      Free<node*>(n->ifThing.thenCode);
+      Free<node*>(n->ifThing.elseCode);
     } break;
 
     case WHILE_NODE:
     {
-      Free<node*>(n->payload.whileThing.condition);
-      Free<node*>(n->payload.whileThing.code);
+      Free<node*>(n->whileThing.condition);
+      Free<node*>(n->whileThing.code);
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -210,35 +208,35 @@ void Free<node*>(node*& n)
 
     case FUNCTION_CALL_NODE:
     {
-      if (n->payload.functionCall.isResolved)
+      if (n->functionCall.isResolved)
       {
         // NOTE(Isaac): Don't free the function_def*; it belongs to someone else
       }
       else
       {
-        free(n->payload.functionCall.function.name);
+        free(n->functionCall.function.name);
       }
 
-      FreeLinkedList<node*>(n->payload.functionCall.params);
+      FreeLinkedList<node*>(n->functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      Free<node*>(n->payload.variableAssignment.variable);
-      Free<node*>(n->payload.variableAssignment.newValue);
+      Free<node*>(n->variableAssignment.variable);
+      Free<node*>(n->variableAssignment.newValue);
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
-      Free<node*>(n->payload.memberAccess.parent);
+      Free<node*>(n->memberAccess.parent);
 
-      if (n->payload.memberAccess.isResolved)
+      if (n->memberAccess.isResolved)
       {
         // TODO: don't free the variable
       }
       else
       {
-        free(n->payload.memberAccess.member.name);
+        free(n->memberAccess.member.name);
       }
     } break;
 
@@ -275,26 +273,26 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case RETURN_NODE:
     {
-      if (n->payload.expression)
+      if (n->expression)
       {
-        ApplyPassToNode(n->payload.expression, function, pass, parse);
+        ApplyPassToNode(n->expression, function, pass, parse);
       }
     } break;
 
     case BINARY_OP_NODE:
     {
-      ApplyPassToNode(n->payload.binaryOp.left, function, pass, parse);
+      ApplyPassToNode(n->binaryOp.left, function, pass, parse);
       
-      if (n->payload.binaryOp.op != TOKEN_DOUBLE_PLUS &&
-          n->payload.binaryOp.op != TOKEN_DOUBLE_MINUS)
+      if (n->binaryOp.op != TOKEN_DOUBLE_PLUS &&
+          n->binaryOp.op != TOKEN_DOUBLE_MINUS)
       {
-        ApplyPassToNode(n->payload.binaryOp.right, function, pass, parse);
+        ApplyPassToNode(n->binaryOp.right, function, pass, parse);
       }
     } break;
 
     case PREFIX_OP_NODE:
     {
-      ApplyPassToNode(n->payload.prefixOp.right, function, pass, parse);
+      ApplyPassToNode(n->prefixOp.right, function, pass, parse);
     } break;
 
     case VARIABLE_NODE:
@@ -303,25 +301,25 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case CONDITION_NODE:
     {
-      ApplyPassToNode(n->payload.condition.left, function, pass, parse);
-      ApplyPassToNode(n->payload.condition.right, function, pass, parse);
+      ApplyPassToNode(n->condition.left, function, pass, parse);
+      ApplyPassToNode(n->condition.right, function, pass, parse);
     } break;
 
     case IF_NODE:
     {
-      ApplyPassToNode(n->payload.ifThing.condition, function, pass, parse);
-      ApplyPassToNode(n->payload.ifThing.thenCode, function, pass, parse);
+      ApplyPassToNode(n->ifThing.condition, function, pass, parse);
+      ApplyPassToNode(n->ifThing.thenCode, function, pass, parse);
 
-      if (n->payload.ifThing.elseCode)
+      if (n->ifThing.elseCode)
       {
-        ApplyPassToNode(n->payload.ifThing.elseCode, function, pass, parse);
+        ApplyPassToNode(n->ifThing.elseCode, function, pass, parse);
       }
     } break;
 
     case WHILE_NODE:
     {
-      ApplyPassToNode(n->payload.whileThing.condition, function, pass, parse);
-      ApplyPassToNode(n->payload.whileThing.code, function, pass, parse);
+      ApplyPassToNode(n->whileThing.condition, function, pass, parse);
+      ApplyPassToNode(n->whileThing.code, function, pass, parse);
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -334,7 +332,7 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case FUNCTION_CALL_NODE:
     {
-      for (auto* paramIt = n->payload.functionCall.params.first;
+      for (auto* paramIt = n->functionCall.params.first;
            paramIt;
            paramIt = paramIt->next)
       {
@@ -344,8 +342,8 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case VARIABLE_ASSIGN_NODE:
     {
-      ApplyPassToNode(n->payload.variableAssignment.variable, function, pass, parse);
-      ApplyPassToNode(n->payload.variableAssignment.newValue, function, pass, parse);
+      ApplyPassToNode(n->variableAssignment.variable, function, pass, parse);
+      ApplyPassToNode(n->variableAssignment.newValue, function, pass, parse);
     } break;
 
     case MEMBER_ACCESS_NODE:
@@ -479,14 +477,14 @@ void OutputDOTOfAST(function_def* function)
         {
           fprintf(f, "\t%s[label=\"Return\"];\n", name);
 
-          char* expressionName = EmitNode(n->payload.expression);
+          char* expressionName = EmitNode(n->expression);
           fprintf(f, "\t%s -> %s;\n", name, expressionName);
           free(expressionName);
         } break;
 
         case BINARY_OP_NODE:
         {
-          switch (n->payload.binaryOp.op)
+          switch (n->binaryOp.op)
           {
             case TOKEN_PLUS:          fprintf(f, "\t%s[label=\"+\"];\n",  name); break;
             case TOKEN_MINUS:         fprintf(f, "\t%s[label=\"-\"];\n",  name); break;
@@ -502,13 +500,13 @@ void OutputDOTOfAST(function_def* function)
             }
           }
 
-          char* leftName = EmitNode(n->payload.binaryOp.left);
+          char* leftName = EmitNode(n->binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, leftName);
           free(leftName);
 
-          if (n->payload.binaryOp.right)
+          if (n->binaryOp.right)
           {
-            char* rightName = EmitNode(n->payload.binaryOp.right);
+            char* rightName = EmitNode(n->binaryOp.right);
             fprintf(f, "\t%s -> %s;\n", name, rightName);
             free(rightName);
           }
@@ -516,7 +514,7 @@ void OutputDOTOfAST(function_def* function)
 
         case PREFIX_OP_NODE:
         {
-          switch (n->payload.prefixOp.op)
+          switch (n->prefixOp.op)
           {
             case TOKEN_PLUS:  fprintf(f, "\t%s[label=\"+\"];\n", name); break;
             case TOKEN_MINUS: fprintf(f, "\t%s[label=\"-\"];\n", name); break;
@@ -529,26 +527,26 @@ void OutputDOTOfAST(function_def* function)
             }
           }
 
-          char* rightName = EmitNode(n->payload.binaryOp.left);
+          char* rightName = EmitNode(n->binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, rightName);
           free(rightName);
         } break;
 
         case VARIABLE_NODE:
         {
-          if (n->payload.variable.isResolved)
+          if (n->variable.isResolved)
           {
-            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.var.def->name);
+            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->variable.var.def->name);
           }
           else
           {
-            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->payload.variable.var.name);
+            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->variable.var.name);
           }
         } break;
 
         case CONDITION_NODE:
         {
-          switch (n->payload.binaryOp.op)
+          switch (n->binaryOp.op)
           {
             case TOKEN_EQUALS_EQUALS:           fprintf(f, "\t%s[label=\"==\"];\n", name); break;
             case TOKEN_BANG_EQUALS:             fprintf(f, "\t%s[label=\"!=\"];\n", name); break;
@@ -563,11 +561,11 @@ void OutputDOTOfAST(function_def* function)
             }
           }
 
-          char* leftName = EmitNode(n->payload.binaryOp.left);
+          char* leftName = EmitNode(n->binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, leftName);
           free(leftName);
 
-          char* rightName = EmitNode(n->payload.binaryOp.right);
+          char* rightName = EmitNode(n->binaryOp.right);
           fprintf(f, "\t%s -> %s;\n", name, rightName);
           free(rightName);
         } break;
@@ -581,51 +579,51 @@ void OutputDOTOfAST(function_def* function)
         {
           fprintf(f, "\t%s[label=\"While\"];\n", name);
 
-          char* conditionName = EmitNode(n->payload.whileThing.condition);
+          char* conditionName = EmitNode(n->whileThing.condition);
           fprintf(f, "\t%s -> %s;\n", name, conditionName);
           free(conditionName);
 
-          char* codeName = EmitNode(n->payload.whileThing.code);
+          char* codeName = EmitNode(n->whileThing.code);
           fprintf(f, "\t%s -> %s;\n", name, codeName);
           free(codeName);
         } break;
 
         case NUMBER_CONSTANT_NODE:
         {
-          switch (n->payload.numberConstant.type)
+          switch (n->numberConstant.type)
           {
             case number_constant_part::constant_type::CONSTANT_TYPE_INT:
             {
-              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->payload.numberConstant.constant.i);
+              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->numberConstant.constant.i);
             } break;
 
             case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
             {
-              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->payload.numberConstant.constant.f);
+              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->numberConstant.constant.f);
             } break;
           }
         } break;
 
         case STRING_CONSTANT_NODE:
         {
-          fprintf(f, "\t%s[label=\"\"%s\"\"];\n", name, n->payload.stringConstant->string);
+          fprintf(f, "\t%s[label=\"\"%s\"\"];\n", name, n->stringConstant->string);
         } break;
 
         case FUNCTION_CALL_NODE:
         {
-          fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->payload.functionCall.function.def->name);
+          fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->functionCall.function.def->name);
         } break;
 
         case VARIABLE_ASSIGN_NODE:
         {
           fprintf(f, "\t%s[label=\"=\"];\n", name);
 
-          assert(n->payload.variableAssignment.variable);
-          char* variableName = EmitNode(n->payload.variableAssignment.variable);
+          assert(n->variableAssignment.variable);
+          char* variableName = EmitNode(n->variableAssignment.variable);
           fprintf(f, "\t%s -> %s;\n", name, variableName);
           free(variableName);
 
-          char* newValueName = EmitNode(n->payload.variableAssignment.newValue);
+          char* newValueName = EmitNode(n->variableAssignment.newValue);
           fprintf(f, "\t%s -> %s;\n", name, newValueName);
           free(newValueName);
         } break;

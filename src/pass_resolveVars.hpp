@@ -17,7 +17,7 @@ void InitResolveVarsPass()
   PASS_resolveVars[VARIABLE_NODE] =
     [](parse_result& /*parse*/, function_def* function, node* n)
     {
-      if (n->payload.variable.isResolved)
+      if (n->variable.isResolved)
       {
         return;
       }
@@ -28,11 +28,11 @@ void InitResolveVarsPass()
       {
         variable_def* local = **localIt;
 
-        if (strcmp(local->name, n->payload.variable.var.name) == 0)
+        if (strcmp(local->name, n->variable.var.name) == 0)
         {
-          free(n->payload.variable.var.name);
-          n->payload.variable.isResolved = true;
-          n->payload.variable.var.def = local;
+          free(n->variable.var.name);
+          n->variable.isResolved = true;
+          n->variable.var.def = local;
           return;
         }
       }
@@ -43,17 +43,17 @@ void InitResolveVarsPass()
       {
         variable_def* param = **paramIt;
 
-        if (strcmp(param->name, n->payload.variable.var.name) == 0)
+        if (strcmp(param->name, n->variable.var.name) == 0)
         {
-          free(n->payload.variable.var.name);
-          n->payload.variable.isResolved = true;
-          n->payload.variable.var.def = param;
+          free(n->variable.var.name);
+          n->variable.isResolved = true;
+          n->variable.var.def = param;
           return;
         }
       }
 
       // TODO: use fancy-ass error system (when it's built)
-      fprintf(stderr, "Failed to resolve variable: '%s'!\n", n->payload.variable.var.name);
+      fprintf(stderr, "Failed to resolve variable: '%s'!\n", n->variable.var.name);
     };
 
   PASS_resolveVars[MEMBER_ACCESS_NODE] =

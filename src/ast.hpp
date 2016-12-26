@@ -155,7 +155,7 @@ struct node
   node_type type;
   node*     next;
 
-  union node_payload
+  union
   {
     node*                   expression;
     binary_op_node_part     binaryOp;
@@ -169,7 +169,7 @@ struct node
     function_call_part      functionCall;
     variable_assign_part    variableAssignment;
     member_access_part      memberAccess;
-  } payload;
+  };
 };
 
 const char* GetNodeName(node_type type);

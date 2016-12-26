@@ -18,24 +18,24 @@ void InitFunctionCallsPass()
   PASS_resolveFunctionCalls[FUNCTION_CALL_NODE] =
     [](parse_result& parse, function_def* /*function*/, node* n)
     {
-      assert(!n->payload.functionCall.isResolved);
+      assert(!n->functionCall.isResolved);
 
       for (auto* functionIt = parse.functions.first;
            functionIt;
            functionIt = functionIt->next)
       {
         // TODO: be cleverer here - compare mangled names or something (functions can have the same basic name)
-        if (strcmp((**functionIt)->name, n->payload.functionCall.function.name) == 0)
+        if (strcmp((**functionIt)->name, n->functionCall.function.name) == 0)
         {
-          free(n->payload.functionCall.function.name);
-          n->payload.functionCall.isResolved = true;
-          n->payload.functionCall.function.def = **functionIt;
+          free(n->functionCall.function.name);
+          n->functionCall.isResolved = true;
+          n->functionCall.function.def = **functionIt;
           return;
         }
       }
 
       // TODO: use fancy-ass error system (when it's built)
-      fprintf(stderr, "FATAL: Failed to resolve function call to '%s'!\n", n->payload.functionCall.function.name);
+      fprintf(stderr, "FATAL: Failed to resolve function call to '%s'!\n", n->functionCall.function.name);
       Crash();
     };
 }

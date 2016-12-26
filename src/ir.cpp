@@ -32,27 +32,27 @@ slot_def* CreateSlot(function_def* function, slot_type type, ...)
   {
     case slot_type::VARIABLE:
     {
-      slot->payload.variable = va_arg(args, variable_def*);
+      slot->variable = va_arg(args, variable_def*);
     } break;
 
     case slot_type::TEMPORARY:
     {
-      slot->payload.tag = function->numTemporaries++;
+      slot->tag = function->numTemporaries++;
     } break;
 
     case slot_type::INT_CONSTANT:
     {
-      slot->payload.i = va_arg(args, int);
+      slot->i = va_arg(args, int);
     } break;
 
     case slot_type::FLOAT_CONSTANT:
     {
-      slot->payload.f = static_cast<float>(va_arg(args, double));
+      slot->f = static_cast<float>(va_arg(args, double));
     } break;
 
     case slot_type::STRING_CONSTANT:
     {
-      slot->payload.string = va_arg(args, string_constant*);
+      slot->string = va_arg(args, string_constant*);
     } break;
   }
 
@@ -73,11 +73,11 @@ char* SlotAsString(slot_def* slot)
 
   switch (slot->type)
   {
-    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->payload.variable->name)
-    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->payload.tag)
-    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->payload.i)
-    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->payload.f)
-    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->payload.string->string)
+    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->variable->name)
+    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->tag)
+    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->i)
+    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->f)
+    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->string->string)
   }
 
   return nullptr;
@@ -226,7 +226,7 @@ void Free<program_attrib>(program_attrib& attrib)
   {
     case program_attrib::attrib_type::NAME:
     {
-      free(attrib.payload.name);
+      free(attrib.name);
     } break;
   }
 }*/

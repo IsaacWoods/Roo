@@ -16,24 +16,24 @@ void InitTypeCheckerPass()
   PASS_typeChecker[VARIABLE_ASSIGN_NODE] =
     [](parse_result& /*parse*/, function_def* /*function*/, node* n)
     {
-      if (n->payload.variableAssignment.ignoreImmutability)
+      if (n->variableAssignment.ignoreImmutability)
       {
         return;
       }
 
-      node* variableNode = n->payload.variableAssignment.variable;
+      node* variableNode = n->variableAssignment.variable;
       variable_def* variable;
 
       if (variableNode->type == VARIABLE_NODE)
       {
-        assert(variableNode->payload.variable.isResolved);
-        variable = variableNode->payload.variable.var.def;
+        assert(variableNode->variable.isResolved);
+        variable = variableNode->variable.var.def;
       }
       else
       {
         assert(variableNode->type == MEMBER_ACCESS_NODE);
-        assert(variableNode->payload.memberAccess.isResolved);
-        variable = variableNode->payload.memberAccess.member.def;
+        assert(variableNode->memberAccess.isResolved);
+        variable = variableNode->memberAccess.member.def;
       }
 
       if (!(variable->type.isMutable))
@@ -45,22 +45,22 @@ void InitTypeCheckerPass()
   PASS_typeChecker[BINARY_OP_NODE] =
     [](parse_result& /*parse*/, function_def* /*function*/, node* n)
     {
-      if (n->payload.binaryOp.op == TOKEN_DOUBLE_PLUS ||
-          n->payload.binaryOp.op == TOKEN_DOUBLE_MINUS  )
+      if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
+          n->binaryOp.op == TOKEN_DOUBLE_MINUS  )
       {
-        node* variableNode = n->payload.binaryOp.left;
+        node* variableNode = n->binaryOp.left;
         variable_def* variable;
 
         if (variableNode->type == VARIABLE_NODE)
         {
-          assert(variableNode->payload.variable.isResolved);
-          variable = variableNode->payload.variable.var.def;
+          assert(variableNode->variable.isResolved);
+          variable = variableNode->variable.var.def;
         }
         else
         {
           assert(variableNode->type == MEMBER_ACCESS_NODE);
-          assert(variableNode->payload.memberAccess.isResolved);
-          variable = variableNode->payload.memberAccess.member.def;
+          assert(variableNode->memberAccess.isResolved);
+          variable = variableNode->memberAccess.member.def;
         }
   
         if (!(variable->type.isMutable))

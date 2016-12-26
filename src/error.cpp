@@ -35,14 +35,19 @@ error_def errors[NUM_ERRORS] = {};
 __attribute__((constructor))
 void InitErrorDefs()
 {
-#define N(tag, message)    errors[tag] = error_def{error_level::NOTE, poison_strategy::DO_NOTHING, message};
-#define W(tag, message) errors[tag] = error_def{error_level::WARNING, poison_strategy::DO_NOTHING, message};
-#define E(tag, poisoning, message) errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, message};
-#define F(tag, message)   errors[tag] = error_def{error_level::FATAL, poison_strategy::GIVE_UP, message};
+#define N(tag, message)             errors[tag] = error_def{error_level::NOTE, poison_strategy::DO_NOTHING, message};
+#define W(tag, message)             errors[tag] = error_def{error_level::WARNING, poison_strategy::DO_NOTHING, message};
+#define E(tag, poisoning, message)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, message};
+#define F(tag, message)             errors[tag] = error_def{error_level::FATAL, poison_strategy::GIVE_UP, message};
 
   E(ERROR_EXPECTED,           TO_END_OF_STATEMENT,    "Expected %s");
   E(ERROR_EXPECTED_BUT_GOT,   TO_END_OF_STATEMENT,    "Expected %s but got %s instead");
   E(ERROR_UNEXPECTED,         TO_END_OF_STATEMENT,    "Unexpected token in %s position: %s");
+
+#undef N
+#undef W
+#undef E
+#undef F
 }
 
 void RaiseError(error e, ...)

@@ -26,9 +26,9 @@ struct token
 
   union
   {
-    int   i;    // Valid if token type is TOKEN_NUMBER_INT
-    float f;    // Valid if token type is TOKEN_NUMBER_FLOAT
-  } payload;
+    int   asInt;    // Valid if token type is TOKEN_NUMBER_INT
+    float asFloat;    // Valid if token type is TOKEN_NUMBER_FLOAT
+  };
 };
 
 struct roo_parser
@@ -248,12 +248,12 @@ static token LexNumber(roo_parser& parser)
   {
     case TOKEN_NUMBER_INT:
     {
-      tkn.payload.i = strtol(text, nullptr, 10);
+      tkn.asInt = strtol(text, nullptr, 10);
     } break;
 
     case TOKEN_NUMBER_FLOAT:
     {
-      tkn.payload.f = strtof(text, nullptr);
+      tkn.asFloat = strtof(text, nullptr);
     } break;
 
     default:
@@ -281,7 +281,7 @@ static token LexHexNumber(roo_parser& parser)
 
   token tkn = MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
   char* text = GetTextFromToken(tkn);
-  tkn.payload.i = strtol(text, nullptr, 16);
+  tkn.asInt = strtol(text, nullptr, 16);
   free(text);
 
   return tkn;
@@ -303,7 +303,7 @@ static token LexBinaryNumber(roo_parser& parser)
 
   token tkn = MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
   char* text = GetTextFromToken(tkn);
-  tkn.payload.i = strtol(text, nullptr, 2);
+  tkn.asInt = strtol(text, nullptr, 2);
   free(text);
 
   return tkn;
@@ -1041,8 +1041,8 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
         node* variableNode = static_cast<node*>(malloc(sizeof(node)));
         variableNode->type = VARIABLE_NODE;
         variableNode->next = nullptr;
-        variableNode->payload.variable.var.def = variable;
-        variableNode->payload.variable.isResolved = true;
+        variableNode->variable.var.def = variable;
+        variableNode->variable.isResolved = true;
 
         result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
 
@@ -1413,7 +1413,7 @@ void InitParseletMaps()
     [](roo_parser& parser) -> node*
     {
       Log(parser, "--> [PARSELET] Number constant (integer)\n");
-      int value = PeekToken(parser).payload.i;
+      int value = PeekToken(parser).asInt;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (integer)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
@@ -1423,7 +1423,7 @@ void InitParseletMaps()
     [](roo_parser& parser) -> node*
     {
       Log(parser, "--> [PARSELET] Number constant (floating point)\n");
-      float value = PeekToken(parser).payload.f;
+      float value = PeekToken(parser).asFloat;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
@@ -1493,8 +1493,8 @@ void InitParseletMaps()
         RaiseError(ERROR_EXPECTED_BUT_GOT, "function-name", GetNodeName(left->type));
       }
 
-      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->payload.variable.var.name) + 1u)));
-      strcpy(functionName, left->payload.variable.var.name);
+      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->variable.var.name) + 1u)));
+      strcpy(functionName, left->variable.var.name);
       Free<node*>(left);
 
       node* result = CreateNode(FUNCTION_CALL_NODE, functionName);
@@ -1502,7 +1502,7 @@ void InitParseletMaps()
 
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        Add<node*>(result->payload.functionCall.params, Expression(parser));
+        Add<node*>(result->functionCall.params, Expression(parser));
       }
 
       Consume(parser, TOKEN_RIGHT_PAREN);

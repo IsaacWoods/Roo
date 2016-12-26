@@ -70,7 +70,8 @@ struct slot_def
     int               i;
     float             f;
     string_constant*  string;
-  }                       payload;
+  };
+
   slot_type               type;
   signed int              color;  // NOTE(Isaac): -1 means it hasn't been colored
   unsigned int            numInterferences;

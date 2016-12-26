@@ -489,7 +489,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_JUMP:
       {
-        jump_i& jump = instruction->payload.jump;
+        jump_i& jump = instruction->jump;
 
         switch (jump.cond)
         {
@@ -515,21 +515,21 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
           case jump_i::condition::IF_PARITY_ODD:        E(i::JPO,   0x00); break;
         }
 
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, thing->symbol, -0x4, instruction->payload.jump.label);
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, thing->symbol, -0x4, instruction->jump.label);
       } break;
 
       case I_MOV:
       {
-        mov_i& mov = instruction->payload.mov;
+        mov_i& mov = instruction->mov;
 
         if (mov.src->type == slot_type::INT_CONSTANT)
         {
-          E(i::MOV_REG_IMM32, mov.dest->color, mov.src->payload.i);
+          E(i::MOV_REG_IMM32, mov.dest->color, mov.src->i);
         }
         else if (mov.src->type == slot_type::STRING_CONSTANT)
         {
           E(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-          CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, mov.src->payload.string->offset);
+          CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, mov.src->string->offset);
         }
         else
         {
@@ -542,7 +542,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_CMP:
       {
-        slot_pair& pair = instruction->payload.slotPair;
+        slot_pair& pair = instruction->slotPair;
 
         if ((pair.left->color != -1) && (pair.right->color != -1))
         {
@@ -555,14 +555,14 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
           {
             // NOTE(Isaac): there's only an x86 instruction for comparing an immediate with RAX
             assert(pair.left->color == RAX);
-            E(i::CMP_RAX_IMM32, pair.right->payload.i);
+            E(i::CMP_RAX_IMM32, pair.right->i);
           }
         }
       } break;
 
       case I_BINARY_OP:
       {
-        binary_op_i& op = instruction->payload.binaryOp;
+        binary_op_i& op = instruction->binaryOp;
 
         if (op.left->color != -1)
         {
@@ -570,7 +570,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         }
         else
         {
-          E(i::MOV_REG_IMM32, op.result->color, op.left->payload.i);
+          E(i::MOV_REG_IMM32, op.result->color, op.left->i);
         }
 
         if (op.right->color != -1)
@@ -587,24 +587,24 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         {
           switch (op.operation)
           {
-            case binary_op_i::op::ADD_I: E(i::ADD_REG_IMM32, op.result->color, op.right->payload.i); break;
-            case binary_op_i::op::SUB_I: E(i::SUB_REG_IMM32, op.result->color, op.right->payload.i); break;
-            case binary_op_i::op::MUL_I: E(i::MUL_REG_IMM32, op.result->color, op.right->payload.i); break;
-            case binary_op_i::op::DIV_I: E(i::DIV_REG_IMM32, op.result->color, op.right->payload.i); break;
+            case binary_op_i::op::ADD_I: E(i::ADD_REG_IMM32, op.result->color, op.right->i); break;
+            case binary_op_i::op::SUB_I: E(i::SUB_REG_IMM32, op.result->color, op.right->i); break;
+            case binary_op_i::op::MUL_I: E(i::MUL_REG_IMM32, op.result->color, op.right->i); break;
+            case binary_op_i::op::DIV_I: E(i::DIV_REG_IMM32, op.result->color, op.right->i); break;
           }
         }
       } break;
 
       case I_INC:
       {
-        assert(instruction->payload.slot->color != -1);
-        E(i::INC_REG, instruction->payload.slot->color);
+        assert(instruction->slot->color != -1);
+        E(i::INC_REG, instruction->slot->color);
       } break;
 
       case I_DEC:
       {
-        assert(instruction->payload.slot->color != -1);
-        E(i::DEC_REG, instruction->payload.slot->color);
+        assert(instruction->slot->color != -1);
+        E(i::DEC_REG, instruction->slot->color);
       } break;
 
       case I_CALL:
@@ -638,7 +638,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
         // NOTE(Isaac): yeah I don't know why we need an addend of -0x4 in the relocation, but we do (probably should work that out)
         E(i::CALL32, 0x0);
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->payload.function->symbol, -0x4);
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->function->symbol, -0x4);
 
         // NOTE(Isaac): We restore the saved registers in the reverse order to match the stack's layout
         RESTORE_REG(R11)
@@ -657,7 +657,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
       case I_LABEL:
       {
-        instruction->payload.label->offset = thing->length;
+        instruction->label->offset = thing->length;
       } break;
 
       case I_NUM_INSTRUCTIONS:

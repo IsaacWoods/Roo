@@ -1,7 +1,6 @@
 fn Main() -> int
 {
   i : mut int = 5
-  8 = 4
 
   while (i > 0)
   {

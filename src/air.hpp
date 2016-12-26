@@ -99,7 +99,7 @@ struct air_instruction
   air_instruction*      next;
   instruction_type      type;
 
-  union instruction_payload
+  union
   {
     jump_i              jump;
     mov_i               mov;
@@ -109,7 +109,7 @@ struct air_instruction
     slot_triple         slotTriple;
     function_def*       function;
     instruction_label*  label;
-  } payload;
+  };
 };
 
 bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, signed int color);
