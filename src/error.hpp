@@ -11,6 +11,8 @@ enum error
   ERROR_UNEXPECTED,         // "Unexpected token in {string} position: {string}"
   ERROR_ILLEGAL_ATTRIBUTE,  // "Unrecognised attribute '{string}'"
 
+  FATAL_NO_PROGRAM_NAME,    // "A program name must be specified using the '#[Name(...)]' attribute"
+
   NUM_ERRORS
 };
 

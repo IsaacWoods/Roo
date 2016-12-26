@@ -433,11 +433,11 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   {
     function_def* function = **it;
 
-/*    if (GetAttrib(function, function_attrib::attrib_type::ENTRY))
+    if (GetAttrib(function->attribs, attrib_type::ENTRY))
     {
       entrySymbol = function->symbol;
       break;
-    }*/
+    }
   }
 
   if (!entrySymbol)
@@ -773,10 +773,10 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   {
     function_def* function = **it;
 
-/*    if (GetAttrib(function, function_attrib::attrib_type::PROTOTYPE))
+    if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {
       continue;
-    }*/
+    }
 
     GenerateFunction(elf, target, function);
   }

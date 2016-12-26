@@ -8,6 +8,7 @@
 #include <ir.hpp>
 #include <ast.hpp>
 #include <air.hpp>
+#include <error.hpp>
 
 // AST Passes
 #include <pass_resolveVars.hpp>
@@ -122,28 +123,27 @@ int main()
 
   // Generate AIR instructions from the AST
   // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-  for (auto* functionIt = result.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
+  for (auto* it = result.functions.first;
+       it;
+       it = it->next)
   {
-/*    if (GetAttrib(**functionIt, function_attrib::attrib_type::PROTOTYPE))
+    function_def* function = **it;
+
+    if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {
       continue;
-    }*/
+    }
 
-    GenFunctionAIR(target, **functionIt);
+    GenFunctionAIR(target, function);
   }
 
-  // Check the `Name` attribute has been given
-/*  if (!GetAttrib(result, program_attrib::attrib_type::NAME))
+  if (!(result.name))
   {
-    fprintf(stderr, "FATAL: A program name must be given using the #[Name(...)] attribute!\n");
-    Crash();
-  }*/
+    RaiseError(FATAL_NO_PROGRAM_NAME);
+  }
 
   // Generate the code into a final executable!
-//  Generate(GetAttrib(result, program_attrib::attrib_type::NAME)->payload.name, target, result);
-  Generate("test", target, result);
+  Generate(result.name, target, result);
 
   Free<parse_result>(result);
   Free<codegen_target>(target);

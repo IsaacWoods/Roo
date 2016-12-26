@@ -8,7 +8,11 @@ fn Main() -> int
   while (i > 0)
   {
     i--
+    Print("Hello, World!\n")
   }
 
   return 0
 }
+
+#[Prototype]
+fn Print(str : string)

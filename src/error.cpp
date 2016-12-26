@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
+#include <common.hpp>
 
 enum error_level
 {
@@ -21,7 +22,7 @@ enum poison_strategy
   TO_END_OF_STATEMENT,
   TO_END_OF_ATTRIBUTE,
   TO_END_OF_BLOCK,
-  JUST_GIVE_UP
+  GIVE_UP
 };
 
 struct error_def
@@ -45,6 +46,8 @@ void InitErrorDefs()
   E(ERROR_EXPECTED_BUT_GOT,   TO_END_OF_STATEMENT,    "Expected %s but got %s instead");
   E(ERROR_UNEXPECTED,         TO_END_OF_STATEMENT,    "Unexpected token in %s position: %s");
   E(ERROR_ILLEGAL_ATTRIBUTE,  TO_END_OF_ATTRIBUTE,    "Unrecognised attribute '%s'");
+
+  F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
 
 #undef N
 #undef W
@@ -73,4 +76,32 @@ void RaiseError(error e, ...)
 
   fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
   va_end(args);
+
+  switch (def.poisonStrategy)
+  {
+    case DO_NOTHING:
+    {
+      // TODO
+    } break;
+
+    case TO_END_OF_STATEMENT:
+    {
+      // TODO
+    } break;
+
+    case TO_END_OF_ATTRIBUTE:
+    {
+      // TODO
+    } break;
+
+    case TO_END_OF_BLOCK:
+    {
+      // TODO
+    } break;
+
+    case GIVE_UP:
+    {
+      Crash();
+    } break;
+  }
 }
