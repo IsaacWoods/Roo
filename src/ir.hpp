@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cstdint>
-#include <linked_list.hpp>
+#include <vector.hpp>
 #include <common.hpp>
 
 /*
@@ -72,11 +72,11 @@ struct slot_def
     string_constant*  string;
   };
 
-  slot_type               type;
-  signed int              color;  // NOTE(Isaac): -1 means it hasn't been colored
-  unsigned int            numInterferences;
-  slot_def*               interferences[MAX_SLOT_INTERFERENCES];
-  linked_list<live_range> liveRanges;
+  slot_type           type;
+  signed int          color;  // NOTE(Isaac): -1 means it hasn't been colored
+  unsigned int        numInterferences;
+  slot_def*           interferences[MAX_SLOT_INTERFERENCES];
+  vector<live_range>  liveRanges;
 
 #ifdef OUTPUT_DOT
   unsigned int dotTag;
@@ -85,12 +85,12 @@ struct slot_def
 
 struct parse_result
 {
-  char* name;
-  linked_list<dependency_def*>  dependencies;
-  linked_list<function_def*>    functions;
-  linked_list<operator_def*>    operators;
-  linked_list<type_def*>        types;
-  linked_list<string_constant*> strings;
+  char*                     name;
+  vector<dependency_def*>   dependencies;
+  vector<function_def*>     functions;
+  vector<operator_def*>     operators;
+  vector<type_def*>         types;
+  vector<string_constant*>  strings;
 };
 
 enum attrib_type
@@ -154,57 +154,57 @@ struct variable_def
 
 struct block_def
 {
-  linked_list<variable_def*>  params;
-  linked_list<variable_def*>  locals;
-  bool                        shouldAutoReturn;
+  vector<variable_def*> params;
+  vector<variable_def*> locals;
+  bool                  shouldAutoReturn;
 };
 
 struct function_def
 {
-  char*                     name;
-  bool                      isPrototype;
-  block_def                 scope;
-  type_ref*                 returnType; // NOTE(Isaac): `nullptr` when function returns nothing
-  linked_list<attribute>    attribs;
+  char*             name;
+  bool              isPrototype;
+  block_def         scope;
+  type_ref*         returnType; // NOTE(Isaac): `nullptr` when function returns nothing
+  vector<attribute> attribs;
 
-  node*                     ast;
-  linked_list<slot_def*>    slots;
-  air_instruction*          airHead;
-  air_instruction*          airTail;
-  unsigned int              numTemporaries;
-  elf_symbol*               symbol;
+  node*             ast;
+  vector<slot_def*> slots;
+  air_instruction*  airHead;
+  air_instruction*  airTail;
+  unsigned int      numTemporaries;
+  elf_symbol*       symbol;
 };
 
 struct operator_def
 {
-  token_type                op;
-  bool                      isPrototype;
-  block_def                 scope;
-  type_ref                  returnType; // NOTE(Isaac): operators have to return something
-  linked_list<attribute>    attribs;
+  token_type        op;
+  bool              isPrototype;
+  block_def         scope;
+  type_ref          returnType; // NOTE(Isaac): operators have to return something
+  vector<attribute> attribs;
 
-  node*                     ast;
-  linked_list<slot_def*>    slots;
-  air_instruction*          airHead;
-  air_instruction*          airTail;
-  unsigned int              numTemporaries;
-  elf_symbol*               symbol;
+  node*             ast;
+  vector<slot_def*> slots;
+  air_instruction*  airHead;
+  air_instruction*  airTail;
+  unsigned int      numTemporaries;
+  elf_symbol*       symbol;
 };
 
 struct type_def
 {
-  char*                       name;
-  linked_list<variable_def*>  members;
-  linked_list<attribute>      attribs;
+  char*                 name;
+  vector<variable_def*> members;
+  vector<attribute>     attribs;
 
   /*
    * Size of this structure in bytes.
    * NOTE(Isaac): provided for inbuilt types, calculated for composite types by `CalculateTypeSizes`.
    */
-  unsigned int                size;
+  unsigned int          size;
 };
 
-attribute* GetAttrib(linked_list<attribute>& attribs, attrib_type type);
+attribute* GetAttrib(vector<attribute>& attribs, attrib_type type);
 
 slot_def* CreateSlot(function_def* function, slot_type type, ...);
 char* SlotAsString(slot_def* slot);

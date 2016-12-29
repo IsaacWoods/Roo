@@ -21,20 +21,22 @@ void InitFunctionCallsPass()
     {
       assert(!n->functionCall.isResolved);
 
-      for (auto* functionIt = parse.functions.first;
-           functionIt;
-           functionIt = functionIt->next)
+      for (auto* it = parse.functions.head;
+           it < parse.functions.tail;
+           it++)
       {
+        function_def* function = *it;
+
         // TODO: be cleverer here - compare mangled names or something (functions can have the same basic name)
-        if (strcmp((**functionIt)->name, n->functionCall.function.name) == 0)
+        if (strcmp(function->name, n->functionCall.name) == 0)
         {
-          free(n->functionCall.function.name);
+          free(n->functionCall.name);
           n->functionCall.isResolved = true;
-          n->functionCall.function.def = **functionIt;
+          n->functionCall.function = function;
           return;
         }
       }
 
-      RaiseError(ERROR_UNDEFINED_FUNCTION, n->functionCall.function.name);
+      RaiseError(ERROR_UNDEFINED_FUNCTION, n->functionCall.name);
     };
 }

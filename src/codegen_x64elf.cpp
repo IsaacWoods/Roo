@@ -44,6 +44,8 @@ static type_def* CreateInbuiltType(const char* name, unsigned int size)
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
   type->name = static_cast<char*>(malloc(sizeof(char) * strlen(name) + 1u));
   strcpy(type->name, name);
+  InitVector<variable_def*>(type->members);
+  InitVector<attribute>(type->attribs);
   type->size = size;
 
   return type;
@@ -427,11 +429,11 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 {
   elf_symbol* entrySymbol = nullptr;
 
-  for (auto* it = parse.functions.first;
-       it;
-       it = it->next)
+  for (auto* it = parse.functions.head;
+       it < parse.functions.tail;
+       it++)
   {
-    function_def* function = **it;
+    function_def* function = *it;
 
     if (GetAttrib(function->attribs, attrib_type::ENTRY))
     {
@@ -702,11 +704,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
   // Emit string constants into the .rodata thing
   unsigned int tail = 0u;
-  for (auto* it = result.strings.first;
-       it;
-       it = it->next)
+  for (auto* it = result.strings.head;
+       it < result.strings.tail;
+       it++)
   {
-    string_constant* constant = **it;
+    string_constant* constant = *it;
     constant->offset = tail;
 
     for (char* c = constant->string;
@@ -723,11 +725,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   }
 
   // Generate the symbol for each function
-  for (auto* it = result.functions.first;
-       it;
-       it = it->next)
+  for (auto* it = result.functions.head;
+       it < result.functions.tail;
+       it++)
   {
-    function_def* function = **it;
+    function_def* function = *it;
     char* mangledName = MangleFunctionName(function);
 
     /*
@@ -735,11 +737,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
      */
     if (function->isPrototype)
     {
-      for (auto* thingIt = elf.things.first;
-           thingIt;
-           thingIt = thingIt->next)
+      for (auto* thingIt = elf.things.head;
+           thingIt < elf.things.tail;
+           thingIt++)
       {
-        elf_thing* thing = **thingIt;
+        elf_thing* thing = *thingIt;
 
         if (strcmp(thing->symbol->name->str, mangledName) == 0)
         {
@@ -767,11 +769,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   GenerateBootstrap(elf, target, bootstrapThing, result);
 
   // Generate an `elf_thing` for each function
-  for (auto* it = result.functions.first;
-       it;
-       it = it->next)
+  for (auto* it = result.functions.head;
+       it < result.functions.tail;
+       it++)
   {
-    function_def* function = **it;
+    function_def* function = *it;
 
     if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {

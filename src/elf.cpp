@@ -71,15 +71,15 @@ void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocati
 
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly)
 {
-  elf_segment* segment = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
-  segment->type = type;
-  segment->flags = flags;
-  segment->offset = 0u;
-  segment->virtualAddress = address;
-  segment->physicalAddress = address;
-  segment->alignment = alignment;
-  segment->size.map = {};  // NOTE(Isaac): `map` is biggest, so this will correctly zero-initialise the union
-  segment->isMappedDirectly = isMappedDirectly;
+  elf_segment* segment        = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
+  segment->type               = type;
+  segment->flags              = flags;
+  segment->offset             = 0u;
+  segment->virtualAddress     = address;
+  segment->physicalAddress    = address;
+  segment->alignment          = alignment;
+  segment->size.map           = {};  // NOTE(Isaac): this will zero-initialise the whole union
+  segment->isMappedDirectly   = isMappedDirectly;
 
   elf.header.numProgramHeaderEntries++;
   Add<elf_segment*>(elf.segments, segment);
@@ -88,20 +88,20 @@ elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uin
 
 elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment)
 {
-  elf_section* section = static_cast<elf_section*>(malloc(sizeof(elf_section)));
-  section->name = CreateString(elf, name);
-  section->type = type;
-  section->flags = 0u;
-  section->address = 0u;
-  section->offset = 0u;
-  section->size = 0u;
-  section->link = 0u;
-  section->info = 0u;
-  section->alignment = alignment;
-  section->entrySize = 0u;
+  elf_section* section  = static_cast<elf_section*>(malloc(sizeof(elf_section)));
+  section->name         = CreateString(elf, name);
+  section->type         = type;
+  section->flags        = 0u;
+  section->address      = 0u;
+  section->offset       = 0u;
+  section->size         = 0u;
+  section->link         = 0u;
+  section->info         = 0u;
+  section->alignment    = alignment;
+  section->entrySize    = 0u;
 
   // NOTE(Isaac): section indices begin at 1
-  section->index = (elf.sections.tail ? (**elf.sections.tail)->index + 1u : 1u);
+  section->index = (elf.sections.size > 0u ? elf.sections[elf.sections.size - 1u]->index + 1u : 1u);
 
   elf.header.numSectionHeaderEntries++;
   Add<elf_section*>(elf.sections, section);
@@ -111,13 +111,13 @@ elf_section* CreateSection(elf_file& elf, const char* name, section_type type, u
 #define INITIAL_DATA_SIZE 256u
 elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol)
 {
-  elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
-  thing->symbol = symbol;
-  thing->length = 0u;
-  thing->capacity = INITIAL_DATA_SIZE;
-  thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * INITIAL_DATA_SIZE));
-  thing->fileOffset = 0u;
-  thing->address = 0x0;
+  elf_thing* thing    = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
+  thing->symbol       = symbol;
+  thing->length       = 0u;
+  thing->capacity     = INITIAL_DATA_SIZE;
+  thing->data         = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * INITIAL_DATA_SIZE));
+  thing->fileOffset   = 0u;
+  thing->address      = 0x0;
 
   Add<elf_thing*>(elf.things, thing);
   return thing;
@@ -125,13 +125,13 @@ elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol)
 
 elf_thing* CreateRodataThing(elf_file& elf)
 {
-  elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
-  thing->symbol = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x00);
-  thing->length = 0u;
-  thing->capacity = INITIAL_DATA_SIZE;
-  thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * INITIAL_DATA_SIZE));
-  thing->fileOffset = 0u;
-  thing->address = 0x0;
+  elf_thing* thing    = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
+  thing->symbol       = CreateSymbol(elf, nullptr, SYM_BIND_GLOBAL, SYM_TYPE_SECTION, GetSection(elf, ".rodata")->index, 0x00);
+  thing->length       = 0u;
+  thing->capacity     = INITIAL_DATA_SIZE;
+  thing->data         = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * INITIAL_DATA_SIZE));
+  thing->fileOffset   = 0u;
+  thing->address      = 0x0;
 
   return thing;
 }
@@ -139,13 +139,14 @@ elf_thing* CreateRodataThing(elf_file& elf)
 
 elf_section* GetSection(elf_file& elf, const char* name)
 {
-  for (auto* sectionIt = elf.sections.first;
-       sectionIt;
-       sectionIt = sectionIt->next)
+  for (auto* it = elf.sections.head;
+       it < elf.sections.tail;
+       it++)
   {
-    if (strcmp((**sectionIt)->name->str, name) == 0)
+    elf_section* section = *it;
+    if (strcmp(section->name->str, name) == 0)
     {
-      return **sectionIt;
+      return section;
     }
   }
 
@@ -155,11 +156,11 @@ elf_section* GetSection(elf_file& elf, const char* name)
 
 elf_symbol* GetSymbol(elf_file& elf, const char* name)
 {
-  for (auto* it = elf.symbols.first;
-       it;
-       it = it->next)
+  for (auto* it = elf.symbols.head;
+       it < elf.symbols.tail;
+       it++)
   {
-    elf_symbol* symbol = **it;
+    elf_symbol* symbol = *it;
 
     if (!(symbol->name))
     {
@@ -188,10 +189,10 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
 struct elf_object
 {
   FILE*                         f;
-  linked_list<elf_section*>     sections;
-  linked_list<elf_symbol*>      symbols;      // NOTE(Isaac): should be *unlinked*
-  linked_list<elf_relocation*>  relocations;  // NOTE(Isaac): should be *unlinked*
-  linked_list<elf_thing*>       things;       // NOTE(Isaac): should be *unlinked*
+  vector<elf_section*>     sections;
+  vector<elf_symbol*>      symbols;      // NOTE(Isaac): should be *unlinked*
+  vector<elf_relocation*>  relocations;  // NOTE(Isaac): should be *unlinked*
+  vector<elf_thing*>       things;       // NOTE(Isaac): should be *unlinked*
 
   elf_symbol**                  symbolRemaps;
   unsigned int                  numRemaps;
@@ -201,10 +202,10 @@ template<>
 void Free<elf_object>(elf_object& object)
 {
   fclose(object.f);
-  FreeLinkedList<elf_section*>(object.sections);
-  UnlinkLinkedList<elf_symbol*>(object.symbols);
-  UnlinkLinkedList<elf_relocation*>(object.relocations);
-  UnlinkLinkedList<elf_thing*>(object.things);
+  FreeVector<elf_section*>(object.sections);
+  DetachVector<elf_symbol*>(object.symbols);
+  DetachVector<elf_relocation*>(object.relocations);
+  DetachVector<elf_thing*>(object.things);
   free(object.symbolRemaps);
 }
 
@@ -281,11 +282,12 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
   fread(&sectionWithNames, sizeof(uint16_t), 1, object.f);
   elf_section* stringTable = object.sections[sectionWithNames];
 
-  for (auto* sectionIt = object.sections.first;
-       sectionIt;
-       sectionIt = sectionIt->next)
+  for (auto* it = object.sections.head;
+       it < object.sections.tail;
+       it++)
   {
-    (**sectionIt)->name = ExtractString(elf, object, stringTable, (**sectionIt)->nameOffset);
+    elf_section* section = *it;
+    section->name = ExtractString(elf, object, stringTable, section->nameOffset);
   }
 }
 
@@ -386,10 +388,10 @@ void LinkObject(elf_file& elf, const char* objectPath)
 {
   elf_object object;
   object.f = fopen(objectPath, "rb");
-  CreateLinkedList<elf_section*>(object.sections);
-  CreateLinkedList<elf_symbol*>(object.symbols);
-  CreateLinkedList<elf_relocation*>(object.relocations);
-  CreateLinkedList<elf_thing*>(object.things);
+  InitVector<elf_section*>(object.sections);
+  InitVector<elf_symbol*>(object.symbols);
+  InitVector<elf_relocation*>(object.relocations);
+  InitVector<elf_thing*>(object.things);
 
   if (!(object.f))
   {
@@ -422,15 +424,17 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   // Parse the section header
   ParseSectionHeader(elf, object);
-  for (auto* sectionIt = object.sections.first;
-       sectionIt;
-       sectionIt = sectionIt->next)
+  for (auto* it = object.sections.head;
+       it < object.sections.tail;
+       it++)
   {
-    switch ((**sectionIt)->type)
+    elf_section* section = *it;
+
+    switch (section->type)
     {
       case SHT_SYMTAB:
       {
-        ParseSymbolTable(elf, object, **sectionIt);
+        ParseSymbolTable(elf, object, section);
       } break;
 
       case SHT_REL:
@@ -441,7 +445,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
       case SHT_RELA:
       {
-        ParseRelocationSection(elf, object, **sectionIt);
+        ParseRelocationSection(elf, object, section);
       } break;
 
       default:
@@ -452,18 +456,19 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   // Find the .text section
   elf_section* text = nullptr;
-  for (auto* sectionIt = object.sections.first;
-       sectionIt;
-       sectionIt = sectionIt->next)
+  for (auto* it = object.sections.head;
+       it < object.sections.tail;
+       it++)
   {
-    if (!((**sectionIt)->name))
+    elf_section* section = *it;
+    if (!(section->name))
     {
       continue;
     }
 
-    if (strcmp((**sectionIt)->name->str, ".text") == 0)
+    if (strcmp(section->name->str, ".text") == 0)
     {
-      text = **sectionIt;
+      text = section;
       break;
     }
   }
@@ -471,44 +476,44 @@ void LinkObject(elf_file& elf, const char* objectPath)
   /*
    * NOTE(Isaac): this *borrows* symbols from the actual symbol table - don't free it, just unlink it!
    */
-  linked_list<elf_symbol*> functionSymbols;
-  CreateLinkedList<elf_symbol*>(functionSymbols);
+  vector<elf_symbol*> functionSymbols;
+  InitVector<elf_symbol*>(functionSymbols);
 
   // Extract functions from the symbol table and their code from .text
-  for (auto* symbolIt = object.symbols.first;
-       symbolIt;
-       symbolIt = symbolIt->next)
+  for (auto* it = object.symbols.head;
+       it < object.symbols.tail;
+       it++)
   {
-    elf_symbol* symbol = **symbolIt;
+    elf_symbol* symbol = *it;;
 
     /*
      * NOTE(Isaac): NASM refuses to emit symbols for functions with the correct type,
      * so assume that symbols with no type that are in .text are also functions
      */
-    if ((symbol->info & 0xf) == SYM_TYPE_FUNCTION ||
+    if (((symbol->info & 0xf) == SYM_TYPE_FUNCTION) ||
         ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
     {
       Add<elf_symbol*>(functionSymbols, symbol);
     }
   }
 
-  // Sort the linked list by the symbols' values (offsets into .text)
-  SortLinkedList<elf_symbol*>(functionSymbols, [](elf_symbol*& a, elf_symbol*& b)
+  // Sort the linked list by the symbols' offsets into .text
+  SortVector<elf_symbol*>(functionSymbols, [](elf_symbol*& a, elf_symbol*& b)
     {
       return (a->value < b->value);
     });
 
   // Extract functions from the external object and link them into ourselves
-  for (auto* symbolIt = functionSymbols.first;
-       symbolIt;
-       symbolIt = symbolIt->next)
+  for (auto* it = functionSymbols.head;
+       it < functionSymbols.tail;
+       it++)
   {
-    elf_symbol* symbol = **symbolIt;
+    elf_symbol* symbol = *it;
     assert(symbol->name); // NOTE(Isaac): functions should probably always have names
 
-    if (symbolIt->next)
+    if ((it + 1) < functionSymbols.tail)
     {
-      symbol->size = (**(symbolIt->next))->value - symbol->value;
+      symbol->size = (*(it + 1))->value - symbol->value;
     }
     else
     {
@@ -516,13 +521,13 @@ void LinkObject(elf_file& elf, const char* objectPath)
     }
 
     // Create a thing for the extracted function
-    elf_thing* thing = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
-    thing->symbol = CreateSymbol(elf, symbol->name->str, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
-    thing->length = symbol->size;
-    thing->capacity = symbol->size;
-    thing->data = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * symbol->size));
+    elf_thing* thing  = static_cast<elf_thing*>(malloc(sizeof(elf_thing)));
+    thing->symbol     = CreateSymbol(elf, symbol->name->str, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0u);
+    thing->length     = symbol->size;
+    thing->capacity   = symbol->size;
+    thing->data       = static_cast<uint8_t*>(malloc(sizeof(uint8_t) * symbol->size));
     thing->fileOffset = 0u;
-    thing->address = symbol->value;  // NOTE(Isaac): Before it's linked, this is the original offset from the file
+    thing->address    = symbol->value;  // NOTE(Isaac): this is the original offset from the file
 
     /*
      * NOTE(Isaac): The symbol's value currently points to the offset in the external object's .text section
@@ -535,21 +540,21 @@ void LinkObject(elf_file& elf, const char* objectPath)
     /*
      * We create a new symbol for the function, so remove the old one
      */
-    Remove<elf_symbol*>(elf.symbols, symbol);
+    StableRemove<elf_symbol*>(elf.symbols, symbol);
   }
 
   // Complete the relocations loaded from the external object
-  for (auto* it = object.relocations.first;
-       it;
-       it = it->next)
+  for (auto* it = object.relocations.head;
+       it < object.relocations.tail;
+       it++)
   {
-    elf_relocation* relocation = **it;
+    elf_relocation* relocation = *it;
 
-    for (auto* thingIt = object.things.first;
-         thingIt;
-         thingIt = thingIt->next)
+    for (auto* thingIt = object.things.head;
+         thingIt < object.things.tail;
+         thingIt++)
     {
-      elf_thing* thing = **thingIt;
+      elf_thing* thing = *thingIt;
 
       // NOTE(Isaac): the address should still be the offset in the external object's .text section
       if ((relocation->offset >= thing->address) &&
@@ -561,7 +566,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
     }
   }
 
-  UnlinkLinkedList<elf_symbol*>(functionSymbols);
+  DetachVector<elf_symbol*>(functionSymbols);
   Free<elf_object>(object);
   #undef CONSUME
 }
@@ -678,7 +683,7 @@ static void EmitSectionEntry(FILE* f, elf_section* section)
 /*0x40*/
 }
 
-static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& symbols)
+static void EmitSymbolTable(FILE* f, elf_file& elf, vector<elf_symbol*>& symbols)
 {
   // Emit an empty symbol table entry, because the standard says so
   GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
@@ -689,11 +694,11 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
     fputc(0x0, f);
   }
 
-  for (auto* symbolIt = symbols.first;
-       symbolIt;
-       symbolIt = symbolIt->next)
+  for (auto* symbolIt = symbols.head;
+       symbolIt < symbols.tail;
+       symbolIt++)
   {
-    elf_symbol* symbol = **symbolIt;
+    elf_symbol* symbol = *symbolIt;
     GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
 
 /*n + */
@@ -717,17 +722,17 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, linked_list<elf_symbol*>& sy
   }
 }
 
-static void EmitStringTable(FILE* f, elf_file& elf, linked_list<elf_string*>& strings)
+static void EmitStringTable(FILE* f, elf_file& elf, vector<elf_string*>& strings)
 {
   // Lead with a null terminator to mark the null-string
   fputc('\0', f);
   GetSection(elf, ".strtab")->size = 1u;
 
-  for (auto* it = strings.first;
-       it;
-       it = it->next)
+  for (auto* it = strings.head;
+       it < strings.tail;
+       it++)
   {
-    const char* string = (**it)->str;
+    const char* string = (*it)->str;
     GetSection(elf, ".strtab")->size += strlen(string) + 1u;
 
     // NOTE(Isaac): add 1 to also write the included null-terminator
@@ -761,46 +766,47 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* sec
  */
 static void ResolveUndefinedSymbols(elf_file& elf)
 {
-  for (auto* symbolIt = elf.symbols.first;
-       symbolIt;
-       symbolIt = symbolIt->next)
+  for (auto* it = elf.symbols.head;
+       it < elf.symbols.tail;
+       it++)
   {
-    // No work needs to be done for defined
-    if (!((**symbolIt)->name) || (**symbolIt)->sectionIndex != 0u)
+    elf_symbol* symbol = *it;
+    bool symbolResolved = false;
+
+    // No work needs to be done for defined symbols
+    if (!(symbol->name) || symbol->sectionIndex != 0u)
     {
       continue;
     }
 
-    elf_symbol* undefinedSymbol = **symbolIt;
-    bool symbolResolved = false;
-
-    for (auto* otherSymbolIt = elf.symbols.first;
-         otherSymbolIt;
-         otherSymbolIt = otherSymbolIt->next)
+    for (auto* otherIt = elf.symbols.head;
+         otherIt < elf.symbols.tail;
+         otherIt++)
     {
-      // NOTE(Isaac): don't try and coalesce with yourself!
-      if ((undefinedSymbol == **otherSymbolIt) || !((**otherSymbolIt)->name))
+      elf_symbol* otherSymbol = *otherIt;
+
+      // NOTE(Isaac): don't coalesce with yourself!
+      if ((symbol == otherSymbol) || !(otherSymbol->name))
       {
         continue;
       }
 
-      if (strcmp(undefinedSymbol->name->str, (**otherSymbolIt)->name->str) == 0u)
+      if (strcmp(symbol->name->str, otherSymbol->name->str) == 0u)
       {
         // Coalesce the symbols!
-        elf_symbol* partner = **otherSymbolIt;
-        Remove<elf_symbol*>(elf.symbols, undefinedSymbol);
+        StableRemove<elf_symbol*>(elf.symbols, symbol);
         symbolResolved = true;
 
         // Point relocations that refer to the undefined symbol to its defined partner
-        for (auto* relocationIt = elf.relocations.first;
-             relocationIt;
-             relocationIt = relocationIt->next)
+        for (auto* relocationIt = elf.relocations.head;
+             relocationIt < elf.relocations.tail;
+             relocationIt++)
         {
-          elf_relocation* relocation = **relocationIt;
+          elf_relocation* relocation = *relocationIt;
 
-          if (relocation->symbol->index == undefinedSymbol->index)
+          if (relocation->symbol->index == symbol->index)
           {
-            relocation->symbol = partner;
+            relocation->symbol = otherSymbol;
           }
         }
 
@@ -811,7 +817,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
     if (!symbolResolved)
     {
       // We can't find a matching symbol - throw an error
-      fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", undefinedSymbol->name->str);
+      fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", symbol->name->str);
       Crash();
     }
   }
@@ -847,11 +853,11 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
 {
   long int currentPosition = ftell(f);
 
-  for (auto* relocationIt = elf.relocations.first;
-       relocationIt;
-       relocationIt = relocationIt->next)
+  for (auto* it = elf.relocations.head;
+       it < elf.relocations.tail;
+       it++)
   {
-    elf_relocation* relocation = **relocationIt;
+    elf_relocation* relocation = *it;
     assert(relocation->thing);
     assert(relocation->symbol);
 
@@ -900,12 +906,12 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
 
 static void MapSectionsToSegments(elf_file& elf)
 {
-  for (auto* mappingIt = elf.mappings.first;
-       mappingIt;
-       mappingIt = mappingIt->next)
+  for (auto* it = elf.mappings.head;
+       it < elf.mappings.tail;
+       it++)
   {
-    elf_segment* segment = (**mappingIt).segment;
-    elf_section* section = (**mappingIt).section;
+    elf_segment* segment = it->segment;
+    elf_section* section = it->section;
 
     /*
      * Atm, we can't tell the size of a SHT_NOBITS section, because it's size in the file is a lie
@@ -929,13 +935,13 @@ static void MapSectionsToSegments(elf_file& elf)
 void CreateElf(elf_file& elf, codegen_target& target)
 {
   elf.target = &target;
-  CreateLinkedList<elf_thing*>(elf.things);
-  CreateLinkedList<elf_symbol*>(elf.symbols);
-  CreateLinkedList<elf_segment*>(elf.segments);
-  CreateLinkedList<elf_section*>(elf.sections);
-  CreateLinkedList<elf_string*>(elf.strings);
-  CreateLinkedList<elf_mapping>(elf.mappings);
-  CreateLinkedList<elf_relocation*>(elf.relocations);
+  InitVector<elf_thing*>(elf.things);
+  InitVector<elf_symbol*>(elf.symbols);
+  InitVector<elf_segment*>(elf.segments);
+  InitVector<elf_section*>(elf.sections);
+  InitVector<elf_string*>(elf.strings);
+  InitVector<elf_mapping>(elf.mappings);
+  InitVector<elf_relocation*>(elf.relocations);
   elf.stringTableTail = 1u;
   elf.numSymbols = 0u;
   elf.rodataThing = nullptr;
@@ -971,11 +977,11 @@ void WriteElf(elf_file& elf, const char* path)
   // --- Emit all the things ---
   GetSection(elf, ".text")->offset = ftell(f);
 
-  for (auto* thingIt = elf.things.first;
-       thingIt;
-       thingIt = thingIt->next)
+  for (auto* it = elf.things.head;
+       it < elf.things.tail;
+       it++)
   {
-    EmitThing(f, elf, **thingIt);
+    EmitThing(f, elf, *it);
   }
 
   // Manually emit the .rodata thing
@@ -985,16 +991,15 @@ void WriteElf(elf_file& elf, const char* path)
     EmitThing(f, elf, elf.rodataThing, GetSection(elf, ".rodata"));
   }
 
-  // --- Map sections to segments ---
   MapSectionsToSegments(elf);
 
   // Recalculate symbol values
   uint64_t textAddress = GetSection(elf, ".text")->address;
-  for (auto* it = elf.things.first;
-       it;
-       it = it->next)
+  for (auto* it = elf.things.head;
+       it < elf.things.tail;
+       it++)
   {
-    (**it)->symbol->value += textAddress;
+    (*it)->symbol->value += textAddress;
   }
 
   // Calculate virtual address of .rodata symbol
@@ -1032,21 +1037,20 @@ void WriteElf(elf_file& elf, const char* path)
     fputc(0x00, f);
   }
 
-  for (auto* sectionIt = elf.sections.first;
-       sectionIt;
-       sectionIt = sectionIt->next)
+  for (auto* it = elf.sections.head;
+       it < elf.sections.tail;
+       it++)
   {
-    EmitSectionEntry(f, **sectionIt);
+    EmitSectionEntry(f, *it);
   }
 
   // --- Emit the program header ---
   elf.header.programHeaderOffset = ftell(f);
-
-  for (auto* segmentIt = elf.segments.first;
-       segmentIt;
-       segmentIt = segmentIt->next)
+  for (auto* it = elf.segments.head;
+       it < elf.segments.tail;
+       it++)
   {
-    EmitProgramEntry(f, **segmentIt);
+    EmitProgramEntry(f, *it);
   }
 
   // --- Emit the ELF header ---
@@ -1104,12 +1108,12 @@ void Free<elf_section*>(elf_section*& section)
 template<>
 void Free<elf_file>(elf_file& elf)
 {
-  FreeLinkedList<elf_segment*>(elf.segments);
-  FreeLinkedList<elf_section*>(elf.sections);
-  FreeLinkedList<elf_thing*>(elf.things);
-  FreeLinkedList<elf_symbol*>(elf.symbols);
-  FreeLinkedList<elf_string*>(elf.strings);
-  FreeLinkedList<elf_mapping>(elf.mappings);
-  FreeLinkedList<elf_relocation*>(elf.relocations);
+  FreeVector<elf_segment*>(elf.segments);
+  FreeVector<elf_section*>(elf.sections);
+  FreeVector<elf_thing*>(elf.things);
+  FreeVector<elf_symbol*>(elf.symbols);
+  FreeVector<elf_string*>(elf.strings);
+  FreeVector<elf_mapping>(elf.mappings);
+  FreeVector<elf_relocation*>(elf.relocations);
   Free<elf_thing*>(elf.rodataThing);
 }

@@ -120,9 +120,9 @@ static void UseSlot(slot_def* slot, air_instruction* user)
     return;
   }
 
-  if (slot->liveRanges.tail)
+  if (slot->liveRanges.size >= 1u)
   {
-    live_range& lastRange = **(slot->liveRanges.tail);
+    live_range& lastRange = slot->liveRanges[slot->liveRanges.size - 1u];
     assert(lastRange.definition->index < user->index);
     lastRange.lastUse = user;
   }
@@ -280,7 +280,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
     case VARIABLE_NODE:
     {
       assert(n->variable.isResolved);
-      variable_def* variable = n->variable.var.def;
+      variable_def* variable = n->variable.var;
 
       if (!(variable->slot))
       {
@@ -296,12 +296,12 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          return CreateSlot(function, slot_type::INT_CONSTANT, n->numberConstant.constant.i);
+          return CreateSlot(function, slot_type::INT_CONSTANT, n->numberConstant.asInt);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          return CreateSlot(function, slot_type::FLOAT_CONSTANT, n->numberConstant.constant.f);
+          return CreateSlot(function, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
         } break;
       }
     };
@@ -458,14 +458,14 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
     {
       // TODO: don't assume everything will fit in a general register
       unsigned int numGeneralParams = 0u;
-      linked_list<slot_def*> params;
-      CreateLinkedList<slot_def*>(params);
+      vector<slot_def*> params;
+      InitVector<slot_def*>(params);
 
-      for (auto* paramIt = n->functionCall.params.first;
-           paramIt;
-           paramIt = paramIt->next)
+      for (auto* paramIt = n->functionCall.params.head;
+           paramIt < n->functionCall.params.tail;
+           paramIt++)
       {
-        slot_def* paramSlot = GenNodeAIR<slot_def*>(target, function, **paramIt);
+        slot_def* paramSlot = GenNodeAIR<slot_def*>(target, function, *paramIt);
 
         switch (paramSlot->type)
         {
@@ -494,15 +494,15 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
       }
 
       assert(n->functionCall.isResolved);
-      air_instruction* callInstruction = PushInstruction(function, I_CALL, n->functionCall.function.def);
+      air_instruction* callInstruction = PushInstruction(function, I_CALL, n->functionCall.function);
 
-      for (auto* paramIt = params.first;
-           paramIt;
-           paramIt = paramIt->next)
+      for (auto* paramIt = params.head;
+           paramIt < params.tail;
+           paramIt++)
       {
-        UseSlot(**paramIt, callInstruction);
+        UseSlot(*paramIt, callInstruction);
       }
-      UnlinkLinkedList<slot_def*>(params);
+      DetachVector<slot_def*>(params);
     } break;
 
     case IF_NODE:
@@ -592,22 +592,22 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, fu
 
 bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, signed int color)
 {
-  for (auto* slotIt = function->slots.first;
-       slotIt;
-       slotIt = slotIt->next)
+  for (auto* it = function->slots.head;
+       it < function->slots.tail;
+       it++)
   {
-    slot_def* slot = **slotIt;
+    slot_def* slot = *it;
 
     if (slot->color != color)
     {
       continue;
     }
 
-    for (auto* rangeIt = slot->liveRanges.first;
-         rangeIt;
-         rangeIt = rangeIt->next)
+    for (auto* rangeIt = slot->liveRanges.head;
+         rangeIt < slot->liveRanges.tail;
+         rangeIt++)
     {
-      live_range& range = **rangeIt;
+      live_range& range = *rangeIt;
 
       if ((instruction->index >= range.definition->index) && (instruction->index <= range.lastUse->index))
       {
@@ -621,11 +621,11 @@ bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, s
 
 static void GenerateInterferences(function_def* function)
 {
-  for (auto* itA = function->slots.first;
-       itA;
-       itA = itA->next)
+  for (auto* itA = function->slots.head;
+       itA < function->slots.tail;
+       itA++)
   {
-    slot_def* a = **itA;
+    slot_def* a = *itA;
 
     if (a->type == slot_type::INT_CONSTANT    ||
         a->type == slot_type::FLOAT_CONSTANT  ||
@@ -634,11 +634,11 @@ static void GenerateInterferences(function_def* function)
       continue;
     }
 
-    for (auto* itB = itA->next;
-         itB;
-         itB = itB->next)
+    for (auto* itB = (itA + 1u);
+         itB < function->slots.tail;
+         itB++)
     {
-      slot_def* b = **itB;
+      slot_def* b = *itB;
 
       if (b->type == slot_type::INT_CONSTANT    ||
           b->type == slot_type::FLOAT_CONSTANT  ||
@@ -647,17 +647,17 @@ static void GenerateInterferences(function_def* function)
         continue;
       }
 
-      for (auto* aRangeIt = a->liveRanges.first;
-           aRangeIt;
-           aRangeIt = aRangeIt->next)
+      for (auto* aRangeIt = a->liveRanges.head;
+           aRangeIt < a->liveRanges.tail;
+           aRangeIt++)
       {
-        live_range& rangeA = **aRangeIt;
+        live_range& rangeA = *aRangeIt;
 
-        for (auto* bRangeIt = b->liveRanges.first;
-             bRangeIt;
-             bRangeIt = bRangeIt->next)
+        for (auto* bRangeIt = b->liveRanges.head;
+             bRangeIt < b->liveRanges.tail;
+             bRangeIt++)
         {
-          live_range& rangeB = **bRangeIt;
+          live_range& rangeB = *bRangeIt;
           unsigned int useA = (rangeA.lastUse ? rangeA.lastUse->index : UINT_MAX);
           unsigned int useB = (rangeB.lastUse ? rangeB.lastUse->index : UINT_MAX);
 
@@ -704,11 +704,11 @@ static void ColorSlots(codegen_target& /*target*/, function_def* function)
   }*/
 
   // --- Color other slots ---
-  for (auto* it = function->slots.first;
-       it;
-       it = it->next)
+  for (auto* it = function->slots.head;
+       it < function->slots.tail;
+       it++)
   {
-    slot_def* slot = **it;
+    slot_def* slot = *it;
 
     // Skip if uncolorable or already colored
     if ((slot->type != slot_type::VARIABLE && slot->type != slot_type::TEMPORARY) ||
@@ -784,11 +784,11 @@ void GenFunctionAIR(codegen_target& target, function_def* function)
   }
 
   printf("\n--- Slot listing for function: %s ---\n", function->name);
-  for (auto* it = function->slots.first;
-       it;
-       it = it->next)
+  for (auto* it = function->slots.head;
+       it < function->slots.tail;
+       it++)
   {
-    slot_def* slot = **it;
+    slot_def* slot = *it;
 
     if (slot->type == slot_type::INT_CONSTANT   ||
         slot->type == slot_type::FLOAT_CONSTANT ||
@@ -801,11 +801,11 @@ void GenFunctionAIR(codegen_target& target, function_def* function)
     printf("%-15s ", slotString);
     free(slotString);
 
-    for (auto* rangeIt = slot->liveRanges.first;
-         rangeIt;
-         rangeIt = rangeIt->next)
+    for (auto* rangeIt = slot->liveRanges.head;
+         rangeIt < slot->liveRanges.tail;
+         rangeIt++)
     {
-      live_range& range = **rangeIt;
+      live_range& range = *rangeIt;
 
       if (range.lastUse)
       {
@@ -1059,11 +1059,11 @@ void CreateInterferenceDOT(function_def* function)
     "steelblue2", "blue", "lightseagreen"
   };
 
-  for (auto* it = function->slots.first;
-       it;
-       it = it->next)
+  for (auto* it = function->slots.head;
+       it < function->slots.tail;
+       it++)
   {
-    slot_def* slot = **it;
+    slot_def* slot = *it;
     const char* color = "black";
 
     if (slot->type != slot_type::VARIABLE && slot->type != slot_type::TEMPORARY)
@@ -1123,11 +1123,11 @@ void CreateInterferenceDOT(function_def* function)
   }
 
   // Emit the interferences between them
-  for (auto* it = function->slots.first;
-       it;
-       it = it->next)
+  for (auto* it = function->slots.head;
+       it < function->slots.tail;
+       it++)
   {
-    slot_def* slot = **it;
+    slot_def* slot = *it;
 
     for (unsigned int i = 0u;
          i < slot->numInterferences;

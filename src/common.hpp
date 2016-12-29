@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
-#include <linked_list.hpp>
+#include <vector.hpp>
 
 // NOTE(Isaac): Define this to output .dot files of the AST and interference graph of each function
 #define OUTPUT_DOT
@@ -30,7 +30,7 @@ struct file
 struct directory
 {
   char* path;
-  linked_list<file*> files;
+  vector<file> files;
 };
 
 void OpenDirectory(directory& dir, const char* path);

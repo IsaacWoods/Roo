@@ -37,12 +37,10 @@ static compile_result Compile(parse_result& result, const char* directoryPath)
   directory dir;
   OpenDirectory(dir, directoryPath);
 
-  for (auto* it = dir.files.first;
-       it;
-       it = it->next)
+  for (auto* f = dir.files.head;
+       f < dir.files.tail;
+       f++)
   {
-    file* f = **it;
-
     if (f->extension && strcmp(f->extension, "roo") == 0)
     {
       Parse(&result, f->name); 
@@ -76,12 +74,12 @@ int main()
   }
 
   // Compile the dependencies
-  for (auto* dependencyIt = result.dependencies.first;
-       dependencyIt;
-       dependencyIt = dependencyIt->next)
+  for (auto* it = result.dependencies.head;
+       it < result.dependencies.tail;
+       it++)
   {
+    dependency_def* dependency = *it;
     char* dependencyDirectory = nullptr;
-    dependency_def* dependency = **dependencyIt;
 
     switch (dependency->type)
     {
@@ -114,20 +112,22 @@ int main()
   ApplyASTPass(result, PASS_typeChecker);
 
   // Emit DOT files for function ASTs
-  for (auto* functionIt = result.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
+#ifdef OUTPUT_DOT
+  for (auto* it = result.functions.head;
+       it < result.functions.tail;
+       it++)
   {
-    OutputDOTOfAST(**functionIt);
+    OutputDOTOfAST(*it);
   }
+#endif
 
   // Generate AIR instructions from the AST
   // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-  for (auto* it = result.functions.first;
-       it;
-       it = it->next)
+  for (auto* it = result.functions.head;
+       it < result.functions.tail;
+       it++)
   {
-    function_def* function = **it;
+    function_def* function = *it;
 
     if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {

@@ -23,37 +23,37 @@ void InitResolveVarsPass()
         return;
       }
 
-      for (auto* localIt = function->scope.locals.first;
-           localIt;
-           localIt = localIt->next)
+      for (auto* it = function->scope.locals.head;
+           it < function->scope.locals.tail;
+           it++)
       {
-        variable_def* local = **localIt;
+        variable_def* local = *it;
 
-        if (strcmp(local->name, n->variable.var.name) == 0)
+        if (strcmp(local->name, n->variable.name) == 0)
         {
-          free(n->variable.var.name);
+          free(n->variable.name);
           n->variable.isResolved = true;
-          n->variable.var.def = local;
+          n->variable.var = local;
           return;
         }
       }
 
-      for (auto* paramIt = function->scope.params.first;
-           paramIt;
-           paramIt = paramIt->next)
+      for (auto* it = function->scope.params.head;
+           it < function->scope.params.tail;
+           it++)
       {
-        variable_def* param = **paramIt;
+        variable_def* param = *it;
 
-        if (strcmp(param->name, n->variable.var.name) == 0)
+        if (strcmp(param->name, n->variable.name) == 0)
         {
-          free(n->variable.var.name);
+          free(n->variable.name);
           n->variable.isResolved = true;
-          n->variable.var.def = param;
+          n->variable.var = param;
           return;
         }
       }
 
-      RaiseError(ERROR_UNDEFINED_VARIABLE, n->variable.var.name);
+      RaiseError(ERROR_UNDEFINED_VARIABLE, n->variable.name);
     };
 
   PASS_resolveVars[MEMBER_ACCESS_NODE] =

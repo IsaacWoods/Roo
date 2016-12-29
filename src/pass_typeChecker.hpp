@@ -27,13 +27,13 @@ void InitTypeCheckerPass()
       if (variableNode->type == VARIABLE_NODE)
       {
         assert(variableNode->variable.isResolved);
-        variable = variableNode->variable.var.def;
+        variable = variableNode->variable.var;
       }
       else
       {
         assert(variableNode->type == MEMBER_ACCESS_NODE);
         assert(variableNode->memberAccess.isResolved);
-        variable = variableNode->memberAccess.member.def;
+        variable = variableNode->memberAccess.member;
       }
 
       if (!(variable->type.isMutable))
@@ -54,13 +54,13 @@ void InitTypeCheckerPass()
         if (variableNode->type == VARIABLE_NODE)
         {
           assert(variableNode->variable.isResolved);
-          variable = variableNode->variable.var.def;
+          variable = variableNode->variable.var;
         }
         else
         {
           assert(variableNode->type == MEMBER_ACCESS_NODE);
           assert(variableNode->memberAccess.isResolved);
-          variable = variableNode->memberAccess.member.def;
+          variable = variableNode->memberAccess.member;
         }
   
         if (!(variable->type.isMutable))

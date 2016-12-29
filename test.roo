@@ -1,5 +1,8 @@
 #[Name(test)]
 
+#[Prototype]
+fn Print(str : string)
+
 #[Entry]
 fn Main() -> int
 {
@@ -13,6 +16,3 @@ fn Main() -> int
 
   return 0
 }
-
-#[Prototype]
-fn Print(str : string)

@@ -11,13 +11,13 @@
 #include <ast.hpp>
 #include <air.hpp>
 
-attribute* GetAttrib(linked_list<attribute>& attribs, attrib_type type)
+attribute* GetAttrib(vector<attribute>& attribs, attrib_type type)
 {
-  for (auto* it = attribs.first;
-       it;
-       it = it->next)
+  for (auto* it = attribs.head;
+       it < attribs.tail;
+       it++)
   {
-    attribute& attrib = **it;
+    attribute& attrib = *it;
 
     if (attrib.type == type)
     {
@@ -43,7 +43,7 @@ slot_def* CreateSlot(function_def* function, slot_type type, ...)
   slot->color = -1;
   slot->numInterferences = 0u;
   memset(slot->interferences, 0, sizeof(slot_def*) * MAX_SLOT_INTERFERENCES);
-  CreateLinkedList<live_range>(slot->liveRanges);
+  InitVector<live_range>(slot->liveRanges);
 
   switch (type)
   {
@@ -103,34 +103,35 @@ char* SlotAsString(slot_def* slot)
 template<>
 void Free<slot_def*>(slot_def*& slot)
 {
-  FreeLinkedList<live_range>(slot->liveRanges);
+  FreeVector<live_range>(slot->liveRanges);
   free(slot);
 }
 
 template<>
 void Free<attribute>(attribute& attrib)
 {
+  printf("Attrib payload to free: %p\n", (void*)attrib.payload);
   free(attrib.payload);
 }
 
 void CreateParseResult(parse_result& result)
 {
   result.name = nullptr;
-  CreateLinkedList<dependency_def*>(result.dependencies);
-  CreateLinkedList<function_def*>(result.functions);
-  CreateLinkedList<operator_def*>(result.operators);
-  CreateLinkedList<type_def*>(result.types);
-  CreateLinkedList<string_constant*>(result.strings);
+  InitVector<dependency_def*>(result.dependencies);
+  InitVector<function_def*>(result.functions);
+  InitVector<operator_def*>(result.operators);
+  InitVector<type_def*>(result.types);
+  InitVector<string_constant*>(result.strings);
 }
 
 template<>
 void Free<parse_result>(parse_result& result)
 {
   free(result.name);
-  FreeLinkedList<dependency_def*>(result.dependencies);
-  FreeLinkedList<function_def*>(result.functions);
-  FreeLinkedList<type_def*>(result.types);
-  FreeLinkedList<string_constant*>(result.strings);
+  FreeVector<dependency_def*>(result.dependencies);
+  FreeVector<function_def*>(result.functions);
+  FreeVector<type_def*>(result.types);
+  FreeVector<string_constant*>(result.strings);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)
@@ -138,10 +139,10 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
   string_constant* constant = static_cast<string_constant*>(malloc(sizeof(string_constant)));
   constant->string = string;
 
-  if (result->strings.tail)
+  if (result->strings.size > 0u)
   {
     // NOTE(Isaac): get the current tail's handle before adding to the list
-    constant->handle = (**result->strings.tail)->handle + 1u;
+    constant->handle = result->strings[result->strings.size - 1u]->handle + 1u;
   }
   else
   {
@@ -167,13 +168,13 @@ function_def* CreateFunctionDef(char* name)
 {
   function_def* function = static_cast<function_def*>(malloc(sizeof(function_def)));
   function->name = name;
-  CreateLinkedList<variable_def*>(function->scope.params);
-  CreateLinkedList<variable_def*>(function->scope.locals);
+  InitVector<variable_def*>(function->scope.params);
+  InitVector<variable_def*>(function->scope.locals);
   function->scope.shouldAutoReturn = false;
   function->returnType = nullptr;
-  CreateLinkedList<attribute>(function->attribs);
+  InitVector<attribute>(function->attribs);
 
-  CreateLinkedList<slot_def*>(function->slots);
+  InitVector<slot_def*>(function->slots);
   function->airHead = nullptr;
   function->airTail = nullptr;
   function->numTemporaries = 0u;
@@ -186,12 +187,12 @@ operator_def* CreateOperatorDef(token_type op)
 {
   operator_def* operatorDef = static_cast<operator_def*>(malloc(sizeof(operator_def)));
   operatorDef->op = op;
-  CreateLinkedList<variable_def*>(operatorDef->scope.params);
-  CreateLinkedList<variable_def*>(operatorDef->scope.locals);
+  InitVector<variable_def*>(operatorDef->scope.params);
+  InitVector<variable_def*>(operatorDef->scope.locals);
   operatorDef->scope.shouldAutoReturn = false;
-  CreateLinkedList<attribute>(operatorDef->attribs);
+  InitVector<attribute>(operatorDef->attribs);
 
-  CreateLinkedList<slot_def*>(operatorDef->slots);
+  InitVector<slot_def*>(operatorDef->slots);
   operatorDef->airHead = nullptr;
   operatorDef->airTail = nullptr;
   operatorDef->numTemporaries = 0u;
@@ -230,8 +231,8 @@ template<>
 void Free<type_def*>(type_def*& type)
 {
   free(type->name);
-  FreeLinkedList<variable_def*>(type->members);
-  FreeLinkedList<attribute>(type->attribs);
+  FreeVector<variable_def*>(type->members);
+  FreeVector<attribute>(type->attribs);
   free(type);
 }
 
@@ -265,8 +266,8 @@ void Free<variable_def*>(variable_def*& variable)
 template<>
 void Free<block_def>(block_def& scope)
 {
-  FreeLinkedList<variable_def*>(scope.params);
-  FreeLinkedList<variable_def*>(scope.locals);
+  FreeVector<variable_def*>(scope.params);
+  FreeVector<variable_def*>(scope.locals);
 }
 
 template<>
@@ -281,14 +282,15 @@ void Free<function_def*>(function_def*& function)
     free(function->returnType);
   }
 
-  FreeLinkedList<attribute>(function->attribs);
+  // TODO: fix
+//  FreeVector<attribute>(function->attribs);
 
   if (function->ast)
   {
     Free<node*>(function->ast);
   }
 
-  FreeLinkedList<slot_def*>(function->slots);
+  FreeVector<slot_def*>(function->slots);
 
   while (function->airHead)
   {
@@ -310,8 +312,8 @@ void Free<operator_def*>(operator_def*& operatorDef)
     Free<node*>(operatorDef->ast);
   }
 
-  FreeLinkedList<attribute>(operatorDef->attribs);
-  FreeLinkedList<slot_def*>(operatorDef->slots);
+  FreeVector<attribute>(operatorDef->attribs);
+  FreeVector<slot_def*>(operatorDef->slots);
   Free<air_instruction*>(operatorDef->airHead);
   Free<air_instruction*>(operatorDef->airTail);
 
@@ -322,15 +324,17 @@ static void ResolveTypeRef(type_ref& ref, parse_result& parse)
 {
   assert(!(ref.isResolved));
 
-  for (auto* typeIt = parse.types.first;
-       typeIt;
-       typeIt = typeIt->next)
+  for (auto* it = parse.types.head;
+       it < parse.types.tail;
+       it++)
   {
-    if ((**typeIt)->name == ref.name)
+    type_def* type = *it;
+
+    if (type->name == ref.name)
     {
       // TODO(Isaac): would be a good place to increment a usage counter on `typeIt`, if we ever needed one
       ref.isResolved = true;
-      ref.def = (**typeIt);
+      ref.def = type;
       return;
     }
   }
@@ -350,12 +354,13 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
 
   type->size = 0u;
 
-  for (auto* memberIt = type->members.first;
-       memberIt;
-       memberIt = memberIt->next)
+  for (auto* it = type->members.head;
+       it < type->members.tail;
+       it++)
   {
-    assert((**memberIt)->type.isResolved);
-    type->size += CalculateSizeOfType((**memberIt)->type.def);
+    variable_def* member = *it;
+    assert(member->type.isResolved);
+    type->size += CalculateSizeOfType(member->type.def);
   }
 
   return type->size;
@@ -364,11 +369,11 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
 void CompleteIR(parse_result& parse)
 {
   // --- Resolve `variable_def`s everywhere ---
-  for (auto* functionIt = parse.functions.first;
-       functionIt;
-       functionIt = functionIt->next)
+  for (auto* it = parse.functions.head;
+       it < parse.functions.tail;
+       it++)
   {
-    function_def* function = **functionIt;
+    function_def* function = *it;
 
     if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {
@@ -380,28 +385,28 @@ void CompleteIR(parse_result& parse)
       ResolveTypeRef(*(function->returnType), parse);
     }
 
-    for (auto* paramIt = function->scope.params.first;
-         paramIt;
-         paramIt = paramIt->next)
+    for (auto* paramIt = function->scope.params.head;
+         paramIt < function->scope.params.tail;
+         paramIt++)
     {
-      variable_def* param = **paramIt;
+      variable_def* param = *paramIt;
       ResolveTypeRef(param->type, parse);
     }
 
-    for (auto* localIt = function->scope.locals.first;
-         localIt;
-         localIt = localIt->next)
+    for (auto* localIt = function->scope.locals.head;
+         localIt < function->scope.locals.tail;
+         localIt++)
     {
-      variable_def* local = **localIt;
+      variable_def* local = *localIt;
       ResolveTypeRef(local->type, parse);
     }
   }
 
   // --- Calculate the sizes of composite types ---
-  for (auto* typeIt = parse.types.first;
-       typeIt;
-       typeIt = typeIt->next)
+  for (auto* typeIt = parse.types.head;
+       typeIt < parse.types.tail;
+       typeIt++)
   {
-    CalculateSizeOfType(**typeIt);
+    CalculateSizeOfType(*typeIt);
   }
 }

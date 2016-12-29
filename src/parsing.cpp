@@ -155,7 +155,7 @@ static void Log(roo_parser& /*parser*/, const char* fmt, ...)
   va_list args;
   va_start(args, fmt);
 
-#if 0
+#if 1
   vprintf(fmt, args);
 #endif
 
@@ -782,7 +782,7 @@ static type_ref TypeRef(roo_parser& parser)
   return ref;
 }
 
-static void ParameterList(roo_parser& parser, linked_list<variable_def*>& params)
+static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
 {
   ConsumeNext(parser, TOKEN_LEFT_PAREN);
 
@@ -1023,7 +1023,7 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
         node* variableNode = static_cast<node*>(malloc(sizeof(node)));
         variableNode->type = VARIABLE_NODE;
         variableNode->next = nullptr;
-        variableNode->variable.var.def = variable;
+        variableNode->variable.var = variable;
         variableNode->variable.isResolved = true;
 
         result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
@@ -1044,17 +1044,14 @@ static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
   return result;
 }
 
-static void TypeDef(roo_parser& parser, linked_list<attribute>& attribs)
+static void TypeDef(roo_parser& parser, vector<attribute>& attribs)
 {
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
-  CreateLinkedList<variable_def*>(type->members);
+  InitVector<variable_def*>(type->members);
   type->size = UINT_MAX;
-
-  CreateLinkedList<attribute>(type->attribs);
-  CopyLinkedList<attribute>(type->attribs, attribs);
-  FreeLinkedList<attribute>(attribs);
+  type->attribs = attribs;
 
   type->name = GetTextFromToken(PeekToken(parser));
   Log(parser, "%s)\n", type->name);
@@ -1109,17 +1106,14 @@ static void Import(roo_parser& parser)
   Log(parser, "<-- Import\n");
 }
 
-static void Function(roo_parser& parser, linked_list<attribute>& attribs)
+static void Function(roo_parser& parser, vector<attribute>& attribs)
 {
   Log(parser, "--> Function(");
 
   function_def* function = CreateFunctionDef(GetTextFromToken(NextToken(parser)));
+  function->attribs = attribs;
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
-
-  CreateLinkedList<attribute>(function->attribs);
-  CopyLinkedList<attribute>(function->attribs, attribs);
-  FreeLinkedList<attribute>(attribs);
 
   ParameterList(parser, function->scope.params);
 
@@ -1142,11 +1136,13 @@ static void Function(roo_parser& parser, linked_list<attribute>& attribs)
 
   if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
   {
+    Log(parser, "Not parsing block - prototype\n");
     function->isPrototype = true;
     function->ast = nullptr;
   }
   else
   {
+    Log(parser, "Parsing block\n");
     function->isPrototype = false;
     function->ast = Block(parser, function->scope);
   }
@@ -1154,18 +1150,15 @@ static void Function(roo_parser& parser, linked_list<attribute>& attribs)
   Log(parser, "<-- Function\n");
 }
 
-static void Operator(roo_parser& parser, linked_list<attribute>& attribs)
+static void Operator(roo_parser& parser, vector<attribute>& attribs)
 {
   Log(parser, "--> Operator(");
   operator_def* operatorDef = CreateOperatorDef(NextToken(parser).type);
+  operatorDef->attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
   Add<operator_def*>(parser.result->operators, operatorDef);
 
   // TODO: validate the operator token to make sure it's a valid overloadable operator
-  
-  CreateLinkedList<attribute>(operatorDef->attribs);
-  CopyLinkedList<attribute>(operatorDef->attribs, attribs);
-  FreeLinkedList<attribute>(attribs);
 
   ParameterList(parser, operatorDef->scope.params);
 
@@ -1190,15 +1183,15 @@ static void Operator(roo_parser& parser, linked_list<attribute>& attribs)
   Log(parser, "<-- Operator\n");
 }
 
-static void Attribute(roo_parser& parser, linked_list<attribute>& attribs)
+static void Attribute(roo_parser& parser, vector<attribute>& attribs)
 {
   char* attribName = GetTextFromToken(NextToken(parser));
+  attribute attrib;
+  attrib.payload = nullptr;
 
   if (strcmp(attribName, "Entry") == 0)
   {
-    attribute attrib;
     attrib.type = attrib_type::ENTRY;
-    Add<attribute>(attribs, attrib);
     NextToken(parser);
   }
   else if (strcmp(attribName, "Name") == 0)
@@ -1213,19 +1206,21 @@ static void Attribute(roo_parser& parser, linked_list<attribute>& attribs)
     // NOTE(Isaac): while this is parsed like an attribute, it isn't created like one
     parser.result->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+    goto DontEmitAttrib;
   }
   else if (strcmp(attribName, "Prototype") == 0)
   {
-    attribute attrib;
     attrib.type = attrib_type::PROTOTYPE;
-    Add<attribute>(attribs, attrib);
     NextToken(parser);
   }
   else
   {
     RaiseError(ERROR_ILLEGAL_ATTRIBUTE, attribName);
+    goto DontEmitAttrib;
   }
 
+  Add<attribute>(attribs, attrib);
+DontEmitAttrib:
   Consume(parser, TOKEN_RIGHT_BLOCK);
   free(attribName);
 }
@@ -1233,17 +1228,16 @@ static void Attribute(roo_parser& parser, linked_list<attribute>& attribs)
 void Parse(parse_result* result, const char* sourcePath)
 {
   roo_parser parser;
-  parser.source = ReadFile(sourcePath);
-  parser.currentChar = parser.source;
-  parser.currentLine = 0u;
-  parser.currentLineOffset = 0u;
-  parser.result = result;
+  parser.source             = ReadFile(sourcePath);
+  parser.currentChar        = parser.source;
+  parser.currentLine        = 0u;
+  parser.currentLineOffset  = 0u;
+  parser.result             = result;
+  parser.currentToken       = LexNext(parser);
+  parser.nextToken          = LexNext(parser);
 
-  parser.currentToken = LexNext(parser);
-  parser.nextToken    = LexNext(parser);
-
-  linked_list<attribute> attribs;
-  CreateLinkedList<attribute>(attribs);
+  vector<attribute> attribs;
+  InitVector<attribute>(attribs);
 
   while (!Match(parser, TOKEN_INVALID))
   {
@@ -1254,14 +1248,17 @@ void Parse(parse_result* result, const char* sourcePath)
     else if (Match(parser, TOKEN_FN))
     {
       Function(parser, attribs);
+      InitVector<attribute>(attribs);
     }
     else if (Match(parser, TOKEN_OPERATOR))
     {
       Operator(parser, attribs);
+      InitVector<attribute>(attribs);
     }
     else if (Match(parser, TOKEN_TYPE))
     {
       TypeDef(parser, attribs);
+      InitVector<attribute>(attribs);
     }
     else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
@@ -1272,6 +1269,8 @@ void Parse(parse_result* result, const char* sourcePath)
       RaiseError(ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
     }
   }
+
+  // TODO: Complain about trailing attributes
 
   free(parser.source);
   parser.source = nullptr;
@@ -1417,8 +1416,8 @@ void InitParseletMaps()
         RaiseError(ERROR_EXPECTED_BUT_GOT, "function-name", GetNodeName(left->type));
       }
 
-      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->variable.var.name) + 1u)));
-      strcpy(functionName, left->variable.var.name);
+      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->variable.name) + 1u)));
+      strcpy(functionName, left->variable.name);
       Free<node*>(left);
 
       node* result = CreateNode(FUNCTION_CALL_NODE, functionName);

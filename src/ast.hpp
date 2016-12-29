@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <linked_list.hpp>
 #include <common.hpp>
 #include <ir.hpp>
 
@@ -64,8 +63,8 @@ struct variable_node_part
   union
   {
     char*         name;
-    variable_def* def;
-  }    var;
+    variable_def* var;
+  };
   bool isResolved;
 };
 
@@ -109,9 +108,9 @@ struct number_constant_part
 
   union
   {
-    int   i;
-    float f;
-  } constant;
+    int   asInt;
+    float asFloat;
+  };
 };
 
 struct function_call_part
@@ -119,10 +118,11 @@ struct function_call_part
   union
   {
     char*         name;
-    function_def* def;
-  }                   function;
-  bool                isResolved;
-  linked_list<node*>  params;
+    function_def* function;
+  };
+
+  bool          isResolved;
+  vector<node*> params;
 };
 
 struct variable_assign_part
@@ -141,13 +141,13 @@ struct member_access_part
    * NOTE(Isaac): Parent may either be another MEMBER_ACCESS_NODE, or a VARIABLE_NODE
    */
   node*   parent;
+  bool    isResolved;
 
   union
   {
     char*         name;
-    variable_def* def;
-  }       member;
-  bool    isResolved;
+    variable_def* member;
+  };
 };
 
 struct node

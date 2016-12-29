@@ -30,21 +30,20 @@ template<>
 void Free<directory>(directory& dir)
 {
   free(dir.path);
-  FreeLinkedList<file*>(dir.files);
+  FreeVector<file>(dir.files);
 }
 
 template<>
-void Free<file*>(file*& f)
+void Free<file>(file& f)
 {
-  free(f->name);
+  free(f.name);
   // NOTE(Isaac): don't free the extension string, it shares memory with the path
-  free(f);
 }
 
 void OpenDirectory(directory& dir, const char* path)
 {
   dir.path = strdup(path);
-  CreateLinkedList<file*>(dir.files);
+  InitVector<file>(dir.files);
 
   DIR* d;
   struct dirent* dirent;
@@ -57,21 +56,20 @@ void OpenDirectory(directory& dir, const char* path)
 
   while ((dirent = readdir(d)))
   {
-    file* f = static_cast<file*>(malloc(sizeof(file)));
-    f->name = strdup(dirent->d_name);
-    f->extension = nullptr;
+    file f;
+    f.name = strdup(dirent->d_name);
+    f.extension = nullptr;
 
     /*
      * NOTE(Isaac): if the path is of the form '~/.test', the extension may actually be the base name
      */
-    char* dotIndex = strchr(f->name, '.');
-
+    char* dotIndex = strchr(f.name, '.');
     if (dotIndex)
     {
-      f->extension = dotIndex + (uintptr_t)1u;
+      f.extension = dotIndex + (ptrdiff_t)1u;
     }
 
-    Add<file*>(dir.files, f);
+    Add<file>(dir.files, f);
   }
 
   closedir(d);

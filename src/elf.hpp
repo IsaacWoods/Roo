@@ -232,18 +232,18 @@ struct elf_symbol;
 
 struct elf_file
 {
-  codegen_target*               target;
-  elf_header                    header;
-  linked_list<elf_segment*>     segments;
-  linked_list<elf_section*>     sections;
-  linked_list<elf_thing*>       things;
-  linked_list<elf_symbol*>      symbols;
-  linked_list<elf_string*>      strings;
-  linked_list<elf_mapping>      mappings;
-  linked_list<elf_relocation*>  relocations;
-  unsigned int                  stringTableTail; // Tail of the string table, relative to the start of the table
-  unsigned int                  numSymbols;
-  elf_thing*                    rodataThing;
+  codegen_target*         target;
+  elf_header              header;
+  vector<elf_segment*>    segments;
+  vector<elf_section*>    sections;
+  vector<elf_thing*>      things;
+  vector<elf_symbol*>     symbols;
+  vector<elf_string*>     strings;
+  vector<elf_mapping>     mappings;
+  vector<elf_relocation*> relocations;
+  unsigned int            stringTableTail; // Tail of the string table, relative to the start of the table
+  unsigned int            numSymbols;
+  elf_thing*              rodataThing;
 };
 
 void CreateElf(elf_file& elf, codegen_target& target);

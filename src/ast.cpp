@@ -45,7 +45,7 @@ node* CreateNode(node_type type, ...)
 
     case VARIABLE_NODE:
     {
-      result->variable.var.name               = va_arg(args, char*);
+      result->variable.name                   = va_arg(args, char*);
       result->variable.isResolved             = false;
     } break;
 
@@ -78,12 +78,12 @@ node* CreateNode(node_type type, ...)
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          result->numberConstant.constant.i   = va_arg(args, int);
+          result->numberConstant.asInt   = va_arg(args, int);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          result->numberConstant.constant.f   = static_cast<float>(va_arg(args, double));
+          result->numberConstant.asFloat   = static_cast<float>(va_arg(args, double));
         } break;
 
         default:
@@ -102,8 +102,8 @@ node* CreateNode(node_type type, ...)
     case FUNCTION_CALL_NODE:
     {
       result->functionCall.isResolved         = false;
-      result->functionCall.function.name      = va_arg(args, char*);
-      CreateLinkedList<node*>(result->functionCall.params);
+      result->functionCall.name               = va_arg(args, char*);
+      InitVector<node*>(result->functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -116,7 +116,7 @@ node* CreateNode(node_type type, ...)
     case MEMBER_ACCESS_NODE:
     {
       result->memberAccess.parent             = va_arg(args, node*);
-      result->memberAccess.member.name        = va_arg(args, char*);
+      result->memberAccess.name               = va_arg(args, char*);
       result->memberAccess.isResolved         = false;
     } break;
 
@@ -174,7 +174,7 @@ void Free<node*>(node*& n)
       }
       else
       {
-        free(n->variable.var.name);
+        free(n->variable.name);
       }
     } break;
 
@@ -214,10 +214,10 @@ void Free<node*>(node*& n)
       }
       else
       {
-        free(n->functionCall.function.name);
+        free(n->functionCall.name);
       }
 
-      FreeLinkedList<node*>(n->functionCall.params);
+      FreeVector<node*>(n->functionCall.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -236,7 +236,7 @@ void Free<node*>(node*& n)
       }
       else
       {
-        free(n->memberAccess.member.name);
+        free(n->memberAccess.name);
       }
     } break;
 
@@ -332,11 +332,11 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
     case FUNCTION_CALL_NODE:
     {
-      for (auto* paramIt = n->functionCall.params.first;
-           paramIt;
-           paramIt = paramIt->next)
+      for (auto* it = n->functionCall.params.head;
+           it < n->functionCall.params.tail;
+           it++)
       {
-        ApplyPassToNode(**paramIt, function, pass, parse);
+        ApplyPassToNode(*it, function, pass, parse);
       }
     } break;
 
@@ -366,11 +366,11 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
 
 void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
 {
-  for (auto* it = parse.functions.first;
-       it;
-       it = it->next)
+  for (auto* it = parse.functions.head;
+       it < parse.functions.tail;
+       it++)
   {
-    function_def* function = **it;
+    function_def* function = *it;
 
     if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
     {
@@ -536,11 +536,11 @@ void OutputDOTOfAST(function_def* function)
         {
           if (n->variable.isResolved)
           {
-            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->variable.var.def->name);
+            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->variable.var->name);
           }
           else
           {
-            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->variable.var.name);
+            fprintf(f, "\t%s[label=\"`%s`\"];\n", name, n->variable.name);
           }
         } break;
 
@@ -594,12 +594,12 @@ void OutputDOTOfAST(function_def* function)
           {
             case number_constant_part::constant_type::CONSTANT_TYPE_INT:
             {
-              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->numberConstant.constant.i);
+              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->numberConstant.asInt);
             } break;
 
             case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
             {
-              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->numberConstant.constant.f);
+              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->numberConstant.asFloat);
             } break;
           }
         } break;
@@ -611,7 +611,7 @@ void OutputDOTOfAST(function_def* function)
 
         case FUNCTION_CALL_NODE:
         {
-          fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->functionCall.function.def->name);
+          fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->functionCall.function->name);
         } break;
 
         case VARIABLE_ASSIGN_NODE:
