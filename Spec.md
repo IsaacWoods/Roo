@@ -29,6 +29,49 @@ A remote Git repository (automatically cloned to latest commit):
 import "https://github.com/IsaacWoods/SomeRooLibrary.git"
 ```
 
+### Primitives and Literals
+Roo defines the following primitives:
+| Name      | Description                                               | Example Literal   |
+|:---------:|:---------------------------------------------------------:|:-----------------:|
+| uint      | Generic unsigned integer                                  | `14u`             |
+| int       | Generic signed integer                                    | `-7`              |
+| u8 / i8   | 1-byte wide integers (unsigned and signed, respectively)  | `4`               |
+| u16 / i16 | 2-byte wide integers (unsigned and signed, respectively)  | `255`             |
+| u32 / i32 | 4-byte wide integers (unsigned and signed, respectively)  | `836234`          |
+| u64 / i64 | 8-byte wide integers (unsigned and signed, respectively)  | `1e14`            |
+| float     | floating-pointer number (can either be set as SP or DP)   | `2.76`            |
+| char      | unsigned integer to represent characters (UTF-8 probably) | `'a'`             |
+
+### Types
+A custom type can be defined like:
+``` roo
+type Color
+{
+  r : u8
+  g : u8
+  b : u8
+}
+```
+
+Types can be constructed and their members accessed like:
+``` roo
+Color cyan(0, 255, 255)
+amountOfGreenInCyan : u8 = cyan.g
+```
+
+### References
+A reference to type `T` is a `T&`. References actually have two levels of mutablility, one that talks about the reference,
+and another that talks about the thing being  referenced. A mutable reference can be used to change the thing it points to (as long as
+that thing is mutable itself).
+
+* An immutable reference to an immutable thing is a `T&`
+* A mutable reference to an immutable thing is a `mut T&`
+* An immutable reference to a mutable thing is a `T mut&`
+* A mutable reference to a mutable thing is a `mut T mut&`
+
+A variable may be referenced by as many immutable references as the programmer sees fit, **or** a single mutable reference. This, similiarly
+to how Rust's borrowing system does so, prevents any chance or race conditions and increases safety.
+
 ### Traits
 Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their
 members. The trait can then be used as an alias for any type that implements it.
