@@ -474,7 +474,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
   }
 
   /*
-   * NOTE(Isaac): this *borrows* symbols from the actual symbol table - don't free it, just unlink it!
+   * NOTE(Isaac): this *borrows* symbols from the actual symbol table - don't free it, just detach it!
    */
   vector<elf_symbol*> functionSymbols;
   InitVector<elf_symbol*>(functionSymbols);
@@ -493,7 +493,6 @@ void LinkObject(elf_file& elf, const char* objectPath)
     if (((symbol->info & 0xf) == SYM_TYPE_FUNCTION) ||
         ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
     {
-      printf("Extracting symbol %s from external object\n", symbol->name->str);
       Add<elf_symbol*>(functionSymbols, symbol);
     }
   }
@@ -746,11 +745,6 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* sec
   if (!section)
   {
     section = GetSection(elf, ".text");
-  }
-
-  if (thing->symbol->name)
-  {
-    printf("Emitting thing: %s\n", thing->symbol->name->str);
   }
 
   section->size += thing->length;
