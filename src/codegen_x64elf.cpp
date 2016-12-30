@@ -437,7 +437,7 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
     if (GetAttrib(function->attribs, attrib_type::ENTRY))
     {
-      entrySymbol = function->symbol;
+      entrySymbol = function->code.symbol;
       break;
     }
   }
@@ -463,10 +463,10 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
 elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def* function)
 {
-  assert(function->airHead);
-  elf_thing* thing = CreateThing(elf, function->symbol);
+  assert(function->code.airHead);
+  elf_thing* thing = CreateThing(elf, function->code.symbol);
 
-  for (air_instruction* instruction = function->airHead;
+  for (air_instruction* instruction = function->code.airHead;
        instruction;
        instruction = instruction->next)
   {
@@ -613,13 +613,13 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
 
         #define SAVE_REG(reg) \
-          if (IsColorInUseAtPoint(function, instruction, reg)) \
+          if (IsColorInUseAtPoint(function->code, instruction, reg)) \
           { \
             E(i::PUSH_REG, reg); \
           }
 
         #define RESTORE_REG(reg) \
-          if (IsColorInUseAtPoint(function, instruction, reg)) \
+          if (IsColorInUseAtPoint(function->code, instruction, reg)) \
           { \
             E(i::POP_REG, reg); \
           }
@@ -640,7 +640,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
         // NOTE(Isaac): yeah I don't know why we need an addend of -0x4 in the relocation, but we do (probably should work that out)
         E(i::CALL32, 0x0);
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->function->symbol, -0x4);
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->function->code.symbol, -0x4);
 
         // NOTE(Isaac): We restore the saved registers in the reverse order to match the stack's layout
         RESTORE_REG(R11)
@@ -745,11 +745,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
         if (strcmp(thing->symbol->name->str, mangledName) == 0)
         {
-          function->symbol = thing->symbol;
+          function->code.symbol = thing->symbol;
         }
       }
 
-      if (!function->symbol)
+      if (!function->code.symbol)
       {
         fprintf(stderr, "FATAL: Prototyped function '%s' is missing definition!\n", function->name);
         Crash();
@@ -757,7 +757,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     }
     else
     {
-      function->symbol = CreateSymbol(elf, mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+      function->code.symbol = CreateSymbol(elf, mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
     }
 
     free(mangledName);

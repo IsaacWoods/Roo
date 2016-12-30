@@ -112,8 +112,12 @@ struct air_instruction
   };
 };
 
-bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, signed int color);
-void GenFunctionAIR(codegen_target& target, function_def* function);
+#ifdef OUTPUT_DOT
+void OutputInterferenceDOT(thing_of_code& code, const char* name);
+#endif
+
+bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color);
+void GenerateAIR(codegen_target& target, thing_of_code& code);
 const char* GetInstructionName(air_instruction* instruction);
 void PrintInstruction(air_instruction* instruction);
 void CreateInterferenceDOT(function_def* function);

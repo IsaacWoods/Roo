@@ -15,7 +15,9 @@
 #include <pass_resolveFunctionCalls.hpp>
 #include <pass_typeChecker.hpp>
 
-#define TIME_EXECUTION
+// NOTE(Isaac): turning this on causes a segfault in the printf call (or the one printing "Hello, World!").
+// Fuck knows what's going on there
+//#define TIME_EXECUTION
 
 #ifdef TIME_EXECUTION
   #include <chrono>
@@ -111,16 +113,6 @@ int main()
   ApplyASTPass(result, PASS_resolveFunctionCalls);
   ApplyASTPass(result, PASS_typeChecker);
 
-  // Emit DOT files for function ASTs
-#ifdef OUTPUT_DOT
-  for (auto* it = result.functions.head;
-       it < result.functions.tail;
-       it++)
-  {
-    OutputDOTOfAST(*it);
-  }
-#endif
-
   // Generate AIR instructions from the AST
   // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
   for (auto* it = result.functions.head;
@@ -134,8 +126,19 @@ int main()
       continue;
     }
 
-    GenFunctionAIR(target, function);
+    GenerateAIR(target, function->code);
   }
+
+  #ifdef OUTPUT_DOT
+  for (auto* it = result.functions.head;
+       it < result.functions.tail;
+       it++)
+  {
+    function_def* function = *it;
+    OutputDOTOfAST(function);
+    OutputInterferenceDOT(function->code, function->name);
+  }
+  #endif
 
   if (!(result.name))
   {
@@ -149,9 +152,12 @@ int main()
   Free<codegen_target>(target);
 
 #ifdef TIME_EXECUTION
-  auto end = std::chrono::high_resolution_clock::now();
+//  auto end = std::chrono::high_resolution_clock::now();
   // NOTE(Isaac): chrono uses integer types to represent ticks, so we use microseconds then convert ourselves.
-  double elapsed = (double)(std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()) / 1000.0;
-  printf("Time taken to compile: %g ms\n", elapsed);
+//  double elapsed = (double)(std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()) / 1000.0;
+//  printf("Time taken to compile: %f ms\n", 4.3);
+//  printf("Hello, World!\n");
 #endif
+
+  return 0;
 }

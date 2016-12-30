@@ -870,8 +870,8 @@ static variable_def* VariableDef(roo_parser& parser)
   return variable;
 }
 
-static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop = false);
-static node* Block(roo_parser& parser, block_def& scope, bool isInLoop = false)
+static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop = false);
+static node* Block(roo_parser& parser, thing_of_code& scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -927,7 +927,7 @@ static node* Condition(roo_parser& parser, bool reverseOnJump)
   return CreateNode(CONDITION_NODE, condition, left, right, reverseOnJump);
 }
 
-static node* If(roo_parser& parser, block_def& scope)
+static node* If(roo_parser& parser, thing_of_code& scope)
 {
   Log(parser, "--> If\n");
 
@@ -949,7 +949,7 @@ static node* If(roo_parser& parser, block_def& scope)
   return CreateNode(IF_NODE, condition, thenCode, elseCode);
 }
 
-static node* While(roo_parser& parser, block_def& scope)
+static node* While(roo_parser& parser, thing_of_code& scope)
 {
   Log(parser, "--> While\n");
 
@@ -964,7 +964,7 @@ static node* While(roo_parser& parser, block_def& scope)
   return CreateNode(WHILE_NODE, condition, code);
 }
 
-static node* Statement(roo_parser& parser, block_def& scope, bool isInLoop)
+static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
   node* result = nullptr;
@@ -1115,7 +1115,7 @@ static void Function(roo_parser& parser, vector<attribute>& attribs)
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
 
-  ParameterList(parser, function->scope.params);
+  ParameterList(parser, function->code.params);
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
@@ -1138,13 +1138,13 @@ static void Function(roo_parser& parser, vector<attribute>& attribs)
   {
     Log(parser, "Not parsing block - prototype\n");
     function->isPrototype = true;
-    function->ast = nullptr;
+    function->code.ast = nullptr;
   }
   else
   {
     Log(parser, "Parsing block\n");
     function->isPrototype = false;
-    function->ast = Block(parser, function->scope);
+    function->code.ast = Block(parser, function->code);
   }
 
   Log(parser, "<-- Function\n");
@@ -1160,7 +1160,7 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
 
   // TODO: validate the operator token to make sure it's a valid overloadable operator
 
-  ParameterList(parser, operatorDef->scope.params);
+  ParameterList(parser, operatorDef->code.params);
 
   Consume(parser, TOKEN_YIELDS);
   operatorDef->returnType.name = GetTextFromToken(PeekToken(parser));
@@ -1171,13 +1171,13 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
   if (GetAttrib(operatorDef->attribs, attrib_type::PROTOTYPE))
   {
     operatorDef->isPrototype = true;
-    operatorDef->ast = nullptr;
+    operatorDef->code.ast = nullptr;
   }
   else
   {
     operatorDef->isPrototype = false;
-    operatorDef->ast = Block(parser, operatorDef->scope);
-    assert(!(operatorDef->scope.shouldAutoReturn));
+    operatorDef->code.ast = Block(parser, operatorDef->code);
+    assert(!(operatorDef->code.shouldAutoReturn));
   }
 
   Log(parser, "<-- Operator\n");

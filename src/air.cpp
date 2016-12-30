@@ -12,6 +12,12 @@
 #include <common.hpp>
 #include <ast.hpp>
 
+template<>
+void Free<air_instruction*>(air_instruction*& instruction)
+{
+  free(instruction);
+}
+
 instruction_label* CreateInstructionLabel()
 {
   instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
@@ -20,7 +26,7 @@ instruction_label* CreateInstructionLabel()
   return label;
 }
 
-static air_instruction* PushInstruction(function_def* function, instruction_type type, ...)
+static air_instruction* PushInstruction(thing_of_code& code, instruction_type type, ...)
 {
   va_list args;
   va_start(args, type);
@@ -94,17 +100,17 @@ static air_instruction* PushInstruction(function_def* function, instruction_type
     }
   }
 
-  if (function->airHead)
+  if (code.airHead)
   {
-    i->index = function->airTail->index + 1u;
-    function->airTail->next = i;
-    function->airTail = i;
+    i->index = code.airTail->index + 1u;
+    code.airTail->next = i;
+    code.airTail = i;
   }
   else
   {
     i->index = 0u;
-    function->airHead = i;
-    function->airTail = i;
+    code.airHead = i;
+    code.airTail = i;
   }
 
   va_end(args);
@@ -165,10 +171,10 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
  * VARIABLE_ASSIGN_NODE:    `Nothing
  */
 template<typename T = void>
-T GenNodeAIR(codegen_target& target, function_def* function, node* n);
+T GenNodeAIR(codegen_target& target, thing_of_code& code, node* n);
 
 template<>
-slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, node* n)
+slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, node* n)
 {
   assert(n);
 
@@ -176,41 +182,41 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
   {
     case BINARY_OP_NODE:
     {
-      slot_def* left = GenNodeAIR<slot_def*>(target, function, n->binaryOp.left);
-      slot_def* right = GenNodeAIR<slot_def*>(target, function, n->binaryOp.right);
-      slot_def* result = CreateSlot(function, slot_type::TEMPORARY);
+      slot_def* left = GenNodeAIR<slot_def*>(target, code, n->binaryOp.left);
+      slot_def* right = GenNodeAIR<slot_def*>(target, code, n->binaryOp.right);
+      slot_def* result = CreateSlot(code, slot_type::TEMPORARY);
       air_instruction* instruction;
 
       switch (n->binaryOp.op)
       {
         case TOKEN_PLUS:
         {
-          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::ADD_I, left, right, result);
+          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::ADD_I, left, right, result);
         } break;
 
         case TOKEN_MINUS:
         {
-          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::SUB_I, left, right, result);
+          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::SUB_I, left, right, result);
         } break;
 
         case TOKEN_ASTERIX:
         {
-          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::MUL_I, left, right, result);
+          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::MUL_I, left, right, result);
         } break;
 
         case TOKEN_SLASH:
         {
-          instruction = PushInstruction(function, I_BINARY_OP, binary_op_i::op::DIV_I, left, right, result);
+          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::DIV_I, left, right, result);
         } break;
 
         case TOKEN_DOUBLE_PLUS:
         {
-          instruction = PushInstruction(function, I_INC, left);
+          instruction = PushInstruction(code, I_INC, left);
         } break;
 
         case TOKEN_DOUBLE_MINUS:
         {
-          instruction = PushInstruction(function, I_DEC, left);
+          instruction = PushInstruction(code, I_DEC, left);
         } break;
 
         default:
@@ -238,8 +244,8 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
 
     case PREFIX_OP_NODE:
     {
-      slot_def* right = GenNodeAIR<slot_def*>(target, function, n->prefixOp.right);
-      slot_def* result = CreateSlot(function, slot_type::TEMPORARY);
+      slot_def* right = GenNodeAIR<slot_def*>(target, code, n->prefixOp.right);
+      slot_def* result = CreateSlot(code, slot_type::TEMPORARY);
       air_instruction* instruction = nullptr;
 
       switch (n->prefixOp.op)
@@ -284,7 +290,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
 
       if (!(variable->slot))
       {
-        variable->slot = CreateSlot(function, slot_type::VARIABLE, variable);
+        variable->slot = CreateSlot(code, slot_type::VARIABLE, variable);
       }
       
       return variable->slot;
@@ -296,19 +302,19 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
       {
         case number_constant_part::constant_type::CONSTANT_TYPE_INT:
         {
-          return CreateSlot(function, slot_type::INT_CONSTANT, n->numberConstant.asInt);
+          return CreateSlot(code, slot_type::INT_CONSTANT, n->numberConstant.asInt);
         } break;
 
         case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
         {
-          return CreateSlot(function, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
+          return CreateSlot(code, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
         } break;
       }
     };
 
     case STRING_CONSTANT_NODE:
     {
-      return CreateSlot(function, slot_type::STRING_CONSTANT, n->stringConstant);
+      return CreateSlot(code, slot_type::STRING_CONSTANT, n->stringConstant);
     } break;
 
     default:
@@ -320,7 +326,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, function_def* function, 
 }
 
 template<>
-jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, function_def* function, node* n)
+jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of_code& code, node* n)
 {
   assert(n);
 
@@ -328,10 +334,10 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, function
   {
     case CONDITION_NODE:
     {
-      slot_def* a = GenNodeAIR<slot_def*>(target, function, n->condition.left);
-      slot_def* b = GenNodeAIR<slot_def*>(target, function, n->condition.right);
+      slot_def* a = GenNodeAIR<slot_def*>(target, code, n->condition.left);
+      slot_def* b = GenNodeAIR<slot_def*>(target, code, n->condition.right);
 
-      air_instruction* instruction = PushInstruction(function, I_CMP, a, b);
+      air_instruction* instruction = PushInstruction(code, I_CMP, a, b);
       UseSlot(a, instruction);
       UseSlot(a, instruction);
 
@@ -396,7 +402,7 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, function
 }
 
 template<>
-void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
+void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 {
   assert(n);
 
@@ -408,39 +414,39 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
 
       if (n->expression)
       {
-        returnValue = GenNodeAIR<slot_def*>(target, function, n->expression);
+        returnValue = GenNodeAIR<slot_def*>(target, code, n->expression);
       }
 
-      PushInstruction(function, I_LEAVE_STACK_FRAME);
-      air_instruction* retInstruction = PushInstruction(function, I_RETURN, returnValue);
+      PushInstruction(code, I_LEAVE_STACK_FRAME);
+      air_instruction* retInstruction = PushInstruction(code, I_RETURN, returnValue);
       UseSlot(returnValue, retInstruction);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      slot_def* variable= GenNodeAIR<slot_def*>(target, function, n->variableAssignment.variable);
-      slot_def* newValue= GenNodeAIR<slot_def*>(target, function, n->variableAssignment.newValue);
+      slot_def* variable= GenNodeAIR<slot_def*>(target, code, n->variableAssignment.variable);
+      slot_def* newValue= GenNodeAIR<slot_def*>(target, code, n->variableAssignment.newValue);
 
-      air_instruction* instruction = PushInstruction(function, I_MOV, variable, newValue);
+      air_instruction* instruction = PushInstruction(code, I_MOV, variable, newValue);
       ChangeSlotValue(variable, instruction);
       UseSlot(newValue, instruction);
     } break;
 
     case BINARY_OP_NODE:
     {
-      slot_def* left = GenNodeAIR<slot_def*>(target, function, n->binaryOp.left);
+      slot_def* left = GenNodeAIR<slot_def*>(target, code, n->binaryOp.left);
       air_instruction* instruction;
 
       switch (n->binaryOp.op)
       {
         case TOKEN_DOUBLE_PLUS:
         {
-          instruction = PushInstruction(function, I_INC, left);
+          instruction = PushInstruction(code, I_INC, left);
         } break;
 
         case TOKEN_DOUBLE_MINUS:
         {
-          instruction = PushInstruction(function, I_DEC, left);
+          instruction = PushInstruction(code, I_DEC, left);
         } break;
 
         default:
@@ -465,7 +471,7 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
            paramIt < n->functionCall.params.tail;
            paramIt++)
       {
-        slot_def* paramSlot = GenNodeAIR<slot_def*>(target, function, *paramIt);
+        slot_def* paramSlot = GenNodeAIR<slot_def*>(target, code, *paramIt);
 
         switch (paramSlot->type)
         {
@@ -482,9 +488,9 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
           case slot_type::STRING_CONSTANT:
           {
             // NOTE(Isaac): we create a temporary to move the constant into, then color that
-            slot_def* temporary = CreateSlot(function, slot_type::TEMPORARY);
+            slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
             temporary->color = target.intParamColors[numGeneralParams++];
-            air_instruction* movInstruction = PushInstruction(function, I_MOV, temporary, paramSlot);
+            air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, paramSlot);
             Add<slot_def*>(params, temporary);
 
             UseSlot(paramSlot, movInstruction);
@@ -494,7 +500,7 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
       }
 
       assert(n->functionCall.isResolved);
-      air_instruction* callInstruction = PushInstruction(function, I_CALL, n->functionCall.function);
+      air_instruction* callInstruction = PushInstruction(code, I_CALL, n->functionCall.function);
 
       for (auto* paramIt = params.head;
            paramIt < params.tail;
@@ -509,7 +515,7 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
     {
       assert(n->ifThing.condition->type == CONDITION_NODE);
       assert(n->ifThing.condition->condition.reverseOnJump);
-      jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, function, n->ifThing.condition);
+      jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->ifThing.condition);
 
       instruction_label* elseLabel = nullptr;
       instruction_label* endLabel = CreateInstructionLabel();
@@ -519,18 +525,18 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
         elseLabel = CreateInstructionLabel();
       }
 
-      PushInstruction(function, I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
-      GenNodeAIR(target, function, n->ifThing.thenCode);
+      PushInstruction(code, I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
+      GenNodeAIR(target, code, n->ifThing.thenCode);
 
       if (n->ifThing.elseCode)
       {
-        PushInstruction(function, I_JUMP, jump_i::condition::UNCONDITIONAL, endLabel);
+        PushInstruction(code, I_JUMP, jump_i::condition::UNCONDITIONAL, endLabel);
 
-        PushInstruction(function, I_LABEL, elseLabel);
-        GenNodeAIR(target, function, n->ifThing.elseCode);
+        PushInstruction(code, I_LABEL, elseLabel);
+        GenNodeAIR(target, code, n->ifThing.elseCode);
       }
 
-      PushInstruction(function, I_LABEL, endLabel);
+      PushInstruction(code, I_LABEL, endLabel);
     } break;
 
     case WHILE_NODE:
@@ -539,12 +545,12 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
       assert(!(n->whileThing.condition->condition.reverseOnJump));
 
       instruction_label* label = CreateInstructionLabel();
-      PushInstruction(function, I_LABEL, label);
+      PushInstruction(code, I_LABEL, label);
 
-      GenNodeAIR(target, function, n->whileThing.code);
+      GenNodeAIR(target, code, n->whileThing.code);
 
-      jump_i::condition loopCondition = GenNodeAIR<jump_i::condition>(target, function, n->whileThing.condition);
-      PushInstruction(function, I_JUMP, loopCondition, label);
+      jump_i::condition loopCondition = GenNodeAIR<jump_i::condition>(target, code, n->whileThing.condition);
+      PushInstruction(code, I_JUMP, loopCondition, label);
     } break;
 
     default:
@@ -560,12 +566,12 @@ void GenNodeAIR<void>(codegen_target& target, function_def* function, node* n)
    */
   if (n->next)
   {
-    GenNodeAIR(target, function, n->next);
+    GenNodeAIR(target, code, n->next);
   }
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, function_def* function, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, thing_of_code& code, node* n)
 {
   assert(n);
 
@@ -574,7 +580,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, fu
     case BREAK_NODE:
     {
       instruction_label* label = static_cast<instruction_label*>(malloc(sizeof(instruction_label)));
-      PushInstruction(function, I_JUMP, jump_i::condition::UNCONDITIONAL, label);
+      PushInstruction(code, I_JUMP, jump_i::condition::UNCONDITIONAL, label);
       // TODO
 
       return label;
@@ -590,10 +596,10 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, fu
   return nullptr;
 }
 
-bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, signed int color)
+bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color)
 {
-  for (auto* it = function->slots.head;
-       it < function->slots.tail;
+  for (auto* it = code.slots.head;
+       it < code.slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -619,10 +625,10 @@ bool IsColorInUseAtPoint(function_def* function, air_instruction* instruction, s
   return false;
 }
 
-static void GenerateInterferences(function_def* function)
+static void GenerateInterferences(thing_of_code& code)
 {
-  for (auto* itA = function->slots.head;
-       itA < function->slots.tail;
+  for (auto* itA = code.slots.head;
+       itA < code.slots.tail;
        itA++)
   {
     slot_def* a = *itA;
@@ -635,7 +641,7 @@ static void GenerateInterferences(function_def* function)
     }
 
     for (auto* itB = (itA + 1u);
-         itB < function->slots.tail;
+         itB < code.slots.tail;
          itB++)
     {
       slot_def* b = *itB;
@@ -684,7 +690,7 @@ FoundInterference:
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-static void ColorSlots(codegen_target& /*target*/, function_def* function)
+static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
 {
   const unsigned int numGeneralRegisters = 14u;
 
@@ -692,7 +698,7 @@ static void ColorSlots(codegen_target& /*target*/, function_def* function)
   // TODO: color incoming parameters to this function
 /*  unsigned int intParamCounter = 0u;
 
-  for (auto* slotIt = function->slots.first;
+  for (auto* slotIt = function->code.slots.first;
        slotIt;
        slotIt = slotIt->next)
   {
@@ -704,8 +710,8 @@ static void ColorSlots(codegen_target& /*target*/, function_def* function)
   }*/
 
   // --- Color other slots ---
-  for (auto* it = function->slots.head;
-       it < function->slots.tail;
+  for (auto* it = code.slots.head;
+       it < code.slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -752,31 +758,27 @@ static void ColorSlots(codegen_target& /*target*/, function_def* function)
   }
 }
 
-void GenFunctionAIR(codegen_target& target, function_def* function)
+void GenerateAIR(codegen_target& target, thing_of_code& code)
 {
-  assert(!(function->airHead));
-  PushInstruction(function, I_ENTER_STACK_FRAME);
+  assert(!(code.airHead));
+  PushInstruction(code, I_ENTER_STACK_FRAME);
 
   // NOTE(Isaac): this prints all the nodes in the function's outermost scope
-  GenNodeAIR(target, function, function->ast);
+  GenNodeAIR(target, code, code.ast);
 
-  if (function->scope.shouldAutoReturn)
+  if (code.shouldAutoReturn)
   {
-    PushInstruction(function, I_LEAVE_STACK_FRAME);
-    PushInstruction(function, I_RETURN, nullptr);
+    PushInstruction(code, I_LEAVE_STACK_FRAME);
+    PushInstruction(code, I_RETURN, nullptr);
   }
 
   // Color the interference graph
-  GenerateInterferences(function);
-  ColorSlots(target, function);
+  GenerateInterferences(code);
+  ColorSlots(target, code);
 
-#ifdef OUTPUT_DOT
-  CreateInterferenceDOT(function);
-#endif
-
-#if 1
+#if 0
   printf("--- AIR instruction listing for function: %s\n", function->name);
-  for (air_instruction* i = function->airHead;
+  for (air_instruction* i = function->code.airHead;
        i;
        i = i->next)
   {
@@ -784,8 +786,8 @@ void GenFunctionAIR(codegen_target& target, function_def* function)
   }
 
   printf("\n--- Slot listing for function: %s ---\n", function->name);
-  for (auto* it = function->slots.head;
-       it < function->slots.tail;
+  for (auto* it = function->code.slots.head;
+       it < function->code.slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -1030,16 +1032,15 @@ const char* GetInstructionName(air_instruction* instruction)
 }
 
 #ifdef OUTPUT_DOT
-void CreateInterferenceDOT(function_def* function)
+void OutputInterferenceDOT(thing_of_code& code, const char* name)
 {
-  // Check if the function's empty
-  if (function->airHead == nullptr)
+  if (code.airHead == nullptr)
   {
     return;
   }
 
   char fileName[128u] = {0};
-  strcpy(fileName, function->name);
+  strcpy(fileName, name);
   strcat(fileName, "_interference.dot");
   FILE* f = fopen(fileName, "w");
 
@@ -1059,8 +1060,8 @@ void CreateInterferenceDOT(function_def* function)
     "steelblue2", "blue", "lightseagreen"
   };
 
-  for (auto* it = function->slots.head;
-       it < function->slots.tail;
+  for (auto* it = code.slots.head;
+       it < code.slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -1123,8 +1124,8 @@ void CreateInterferenceDOT(function_def* function)
   }
 
   // Emit the interferences between them
-  for (auto* it = function->slots.head;
-       it < function->slots.tail;
+  for (auto* it = code.slots.head;
+       it < code.slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -1145,9 +1146,3 @@ void CreateInterferenceDOT(function_def* function)
   fclose(f);
 }
 #endif
-
-template<>
-void Free<air_instruction*>(air_instruction*& instruction)
-{
-  free(instruction);
-}

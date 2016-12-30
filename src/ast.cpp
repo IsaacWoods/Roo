@@ -377,9 +377,9 @@ void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
       continue;
     }
 
-    if (function->ast)
+    if (function->code.ast)
     {
-      ApplyPassToNode(function->ast, function, pass, parse);
+      ApplyPassToNode(function->code.ast, function, pass, parse);
     }
   }
 }
@@ -433,7 +433,7 @@ const char* GetNodeName(node_type type)
 void OutputDOTOfAST(function_def* function)
 {
   // Check if the function's empty
-  if (function->ast == nullptr)
+  if (function->code.ast == nullptr)
   {
     return;
   }
@@ -651,7 +651,7 @@ void OutputDOTOfAST(function_def* function)
       return name;
     };
 
-  free(EmitNode(function->ast));
+  free(EmitNode(function->code.ast));
 
   fprintf(f, "}\n");
   fclose(f);

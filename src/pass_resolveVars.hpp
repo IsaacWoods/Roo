@@ -23,8 +23,8 @@ void InitResolveVarsPass()
         return;
       }
 
-      for (auto* it = function->scope.locals.head;
-           it < function->scope.locals.tail;
+      for (auto* it = function->code.locals.head;
+           it < function->code.locals.tail;
            it++)
       {
         variable_def* local = *it;
@@ -38,8 +38,8 @@ void InitResolveVarsPass()
         }
       }
 
-      for (auto* it = function->scope.params.head;
-           it < function->scope.params.tail;
+      for (auto* it = function->code.params.head;
+           it < function->code.params.tail;
            it++)
       {
         variable_def* param = *it;

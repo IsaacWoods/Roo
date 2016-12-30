@@ -152,43 +152,36 @@ struct variable_def
   slot_def*     slot;
 };
 
-struct block_def
+struct thing_of_code
 {
   vector<variable_def*> params;
   vector<variable_def*> locals;
   bool                  shouldAutoReturn;
+
+  node*                 ast;
+  vector<slot_def*>     slots;
+  air_instruction*      airHead;
+  air_instruction*      airTail;
+  unsigned int          numTemporaries;
+  elf_symbol*           symbol;
 };
 
 struct function_def
 {
   char*             name;
   bool              isPrototype;
-  block_def         scope;
   type_ref*         returnType; // NOTE(Isaac): `nullptr` when function returns nothing
   vector<attribute> attribs;
-
-  node*             ast;
-  vector<slot_def*> slots;
-  air_instruction*  airHead;
-  air_instruction*  airTail;
-  unsigned int      numTemporaries;
-  elf_symbol*       symbol;
+  thing_of_code     code;
 };
 
 struct operator_def
 {
   token_type        op;
   bool              isPrototype;
-  block_def         scope;
   type_ref          returnType; // NOTE(Isaac): operators have to return something
   vector<attribute> attribs;
-
-  node*             ast;
-  vector<slot_def*> slots;
-  air_instruction*  airHead;
-  air_instruction*  airTail;
-  unsigned int      numTemporaries;
-  elf_symbol*       symbol;
+  thing_of_code     code;
 };
 
 struct type_def
@@ -206,7 +199,7 @@ struct type_def
 
 attribute* GetAttrib(vector<attribute>& attribs, attrib_type type);
 
-slot_def* CreateSlot(function_def* function, slot_type type, ...);
+slot_def* CreateSlot(thing_of_code& code, slot_type type, ...);
 char* SlotAsString(slot_def* slot);
 void CreateParseResult(parse_result& result);
 string_constant* CreateStringConstant(parse_result* result, char* string);

@@ -33,7 +33,7 @@ void Free<live_range>(live_range& /*range*/)
 {
 }
 
-slot_def* CreateSlot(function_def* function, slot_type type, ...)
+slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
 {
   va_list args;
   va_start(args, type);
@@ -54,7 +54,7 @@ slot_def* CreateSlot(function_def* function, slot_type type, ...)
 
     case slot_type::TEMPORARY:
     {
-      slot->tag = function->numTemporaries++;
+      slot->tag = code.numTemporaries++;
     } break;
 
     case slot_type::INT_CONSTANT:
@@ -73,7 +73,7 @@ slot_def* CreateSlot(function_def* function, slot_type type, ...)
     } break;
   }
 
-  Add<slot_def*>(function->slots, slot);
+  Add<slot_def*>(code.slots, slot);
   va_end(args);
   return slot;
 }
@@ -110,7 +110,6 @@ void Free<slot_def*>(slot_def*& slot)
 template<>
 void Free<attribute>(attribute& attrib)
 {
-  printf("Attrib payload to free: %p\n", (void*)attrib.payload);
   free(attrib.payload);
 }
 
@@ -164,21 +163,26 @@ variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue)
   return var;
 }
 
+static void InitThingOfCode(thing_of_code& code)
+{
+  InitVector<variable_def*>(code.params);
+  InitVector<variable_def*>(code.locals);
+  code.shouldAutoReturn = false;
+  code.ast = nullptr;
+  InitVector<slot_def*>(code.slots);
+  code.airHead = nullptr;
+  code.airTail = nullptr;
+  code.numTemporaries = 0u;
+  code.symbol = nullptr;
+}
+
 function_def* CreateFunctionDef(char* name)
 {
   function_def* function = static_cast<function_def*>(malloc(sizeof(function_def)));
   function->name = name;
-  InitVector<variable_def*>(function->scope.params);
-  InitVector<variable_def*>(function->scope.locals);
-  function->scope.shouldAutoReturn = false;
   function->returnType = nullptr;
   InitVector<attribute>(function->attribs);
-
-  InitVector<slot_def*>(function->slots);
-  function->airHead = nullptr;
-  function->airTail = nullptr;
-  function->numTemporaries = 0u;
-  function->symbol = nullptr;
+  InitThingOfCode(function->code);
 
   return function;
 }
@@ -187,16 +191,8 @@ operator_def* CreateOperatorDef(token_type op)
 {
   operator_def* operatorDef = static_cast<operator_def*>(malloc(sizeof(operator_def)));
   operatorDef->op = op;
-  InitVector<variable_def*>(operatorDef->scope.params);
-  InitVector<variable_def*>(operatorDef->scope.locals);
-  operatorDef->scope.shouldAutoReturn = false;
   InitVector<attribute>(operatorDef->attribs);
-
-  InitVector<slot_def*>(operatorDef->slots);
-  operatorDef->airHead = nullptr;
-  operatorDef->airTail = nullptr;
-  operatorDef->numTemporaries = 0u;
-  operatorDef->symbol = nullptr;
+  InitThingOfCode(operatorDef->code);
 
   return operatorDef;
 }
@@ -264,17 +260,30 @@ void Free<variable_def*>(variable_def*& variable)
 }
 
 template<>
-void Free<block_def>(block_def& scope)
+void Free<thing_of_code>(thing_of_code& code)
 {
-  FreeVector<variable_def*>(scope.params);
-  FreeVector<variable_def*>(scope.locals);
+  FreeVector<variable_def*>(code.params);
+  FreeVector<variable_def*>(code.locals);
+
+  if (code.ast)
+  {
+    Free<node*>(code.ast);
+  }
+
+  FreeVector<slot_def*>(code.slots);
+
+  while (code.airHead)
+  {
+    air_instruction* temp = code.airHead;
+    code.airHead = code.airHead->next;
+    Free<air_instruction*>(temp);
+  }
 }
 
 template<>
 void Free<function_def*>(function_def*& function)
 {
   free(function->name);
-  Free<block_def>(function->scope);
 
   if (function->returnType)
   {
@@ -282,41 +291,16 @@ void Free<function_def*>(function_def*& function)
     free(function->returnType);
   }
 
-  // TODO: fix
-//  FreeVector<attribute>(function->attribs);
-
-  if (function->ast)
-  {
-    Free<node*>(function->ast);
-  }
-
-  FreeVector<slot_def*>(function->slots);
-
-  while (function->airHead)
-  {
-    air_instruction* temp = function->airHead;
-    function->airHead = function->airHead->next;
-    Free<air_instruction*>(temp);
-  }
-
+  FreeVector<attribute>(function->attribs);
+  Free<thing_of_code>(function->code);
   free(function);
 }
 
 template<>
 void Free<operator_def*>(operator_def*& operatorDef)
 {
-  Free<block_def>(operatorDef->scope);
-
-  if (operatorDef->ast)
-  {
-    Free<node*>(operatorDef->ast);
-  }
-
   FreeVector<attribute>(operatorDef->attribs);
-  FreeVector<slot_def*>(operatorDef->slots);
-  Free<air_instruction*>(operatorDef->airHead);
-  Free<air_instruction*>(operatorDef->airTail);
-
+  Free<thing_of_code>(operatorDef->code);
   free(operatorDef);
 }
 
@@ -385,16 +369,16 @@ void CompleteIR(parse_result& parse)
       ResolveTypeRef(*(function->returnType), parse);
     }
 
-    for (auto* paramIt = function->scope.params.head;
-         paramIt < function->scope.params.tail;
+    for (auto* paramIt = function->code.params.head;
+         paramIt < function->code.params.tail;
          paramIt++)
     {
       variable_def* param = *paramIt;
       ResolveTypeRef(param->type, parse);
     }
 
-    for (auto* localIt = function->scope.locals.head;
-         localIt < function->scope.locals.tail;
+    for (auto* localIt = function->code.locals.head;
+         localIt < function->code.locals.tail;
          localIt++)
     {
       variable_def* local = *localIt;
