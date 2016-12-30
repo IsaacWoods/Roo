@@ -6,7 +6,7 @@ fn Print(str : string)
 #[Entry]
 fn Main() -> int
 {
-  i : mut int = 5
+  i : mut int = 5 * 2 + 3
 
   while (i > 0)
   {

@@ -168,7 +168,7 @@ void StableRemove(vector<T>& v, const T& thing)
         {
           /*
            *  NOTE(Isaac): changing `current` more than once between sequence points is UB, so this
-           *  must be split into two instructions.
+           *  must be split into two statements.
            */
           *current = *(current + 1);
           current++;
@@ -188,19 +188,22 @@ void SortVector(vector<T>& v, bool (*evaluationFn)(T& a, T& b))
     return;
   }
 
-  for (unsigned int i = 0u;
-       i < v.size;
-       i++)
+  for (auto* itA = v.head;
+       itA < v.tail;
+       itA++)
   {
-    for (unsigned int j = i + 1u;
-         j < v.size;
-         j++)
+    for (auto* itB = v.head;
+         itB < v.tail;
+         itB++)
     {
-      if ((*evaluationFn)(v[i], v[j]))
+      if ((*evaluationFn)(*itA, *itB))
       {
-        T& temp = v[i];
-        v[i] = v[j];
-        v[j] = temp;
+        /*
+         * NOTE(Isaac): This can't be a reference, because then it would change after the copy into itB
+         */
+        T temp = *itB;
+        *itB = *itA;
+        *itA = temp;
       }
     }
   }

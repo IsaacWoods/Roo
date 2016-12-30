@@ -155,7 +155,7 @@ static void Log(roo_parser& /*parser*/, const char* fmt, ...)
   va_list args;
   va_start(args, fmt);
 
-#if 1
+#if 0
   vprintf(fmt, args);
 #endif
 
