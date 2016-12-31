@@ -137,6 +137,8 @@ int main()
     function_def* function = *it;
     OutputDOTOfAST(function);
     OutputInterferenceDOT(function->code, function->name);
+
+    printf("Cost of function '%s': %u\n", function->name, GetCodeCost(function->code));
   }
   #endif
 

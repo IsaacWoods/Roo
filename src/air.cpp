@@ -596,6 +596,120 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, th
   return nullptr;
 }
 
+static unsigned int GetSlotAccessCost(slot_def* slot)
+{
+  switch (slot->type)
+  {
+    case VARIABLE:
+    {
+      // TODO: think about more expensive addressing modes for things not in variables
+      return 1u;
+    }
+
+    case TEMPORARY:
+    {
+      // NOTE(Isaac): these will always be in a register
+      return 1u;
+    }
+
+    case INT_CONSTANT:
+    case FLOAT_CONSTANT:
+    case STRING_CONSTANT:
+    {
+      return 0u;
+    }
+  }
+
+  return 0u;
+}
+
+// TODO: these are just made-up bullshit values for instruction costs
+// A) It depends on the microarchitecture on how much these cost - (how) do we take that into consideration?
+// B) There isn't really a good modern model of the x64 to base this off
+// C) We should look into how GCC, Clang etc. do this
+unsigned int GetInstructionCost(air_instruction* instruction)
+{
+  switch (instruction->type)
+  {
+    // All functions have a stack frame, and labels aren't actually emitted, so they don't cost anything
+    case I_ENTER_STACK_FRAME:
+    case I_LEAVE_STACK_FRAME:
+    case I_LABEL:
+    {
+      return 0u;
+    }
+
+    case I_RETURN:
+    {
+      if (instruction->slot)
+      {
+        return GetSlotAccessCost(instruction->slot);
+      }
+
+      return 0u;
+    }
+
+    case I_JUMP:
+    {
+      return 2u;
+    }
+
+    case I_MOV:
+    {
+      return  GetSlotAccessCost(instruction->slotPair.left) +
+              GetSlotAccessCost(instruction->slotPair.right);
+    }
+
+    case I_CMP:
+    {
+      return  GetSlotAccessCost(instruction->slotPair.left) +
+              GetSlotAccessCost(instruction->slotPair.right);
+    }
+
+    case I_BINARY_OP:
+    {
+      //                          ADD_I   SUB_I   MUL_I   DIV_I
+      unsigned int baseCost[] = { 1u,     1u,     2u,     4u};
+      return  baseCost[instruction->binaryOp.operation]     +
+              GetSlotAccessCost(instruction->binaryOp.left) +
+              GetSlotAccessCost(instruction->binaryOp.right);
+    }
+    
+    case I_INC:
+    case I_DEC:
+    {
+      return 1u;
+    }
+
+    case I_CALL:
+    {
+      return 2u;
+    }
+
+    case I_NUM_INSTRUCTIONS:
+    {
+      fprintf(stderr, "ICE: Tried to get cost of instruction with type I_NUM_INSTRUCTIONS\n");
+      exit(1);
+    }
+  }
+
+  return 0u;
+}
+
+unsigned int GetCodeCost(thing_of_code& code)
+{
+  unsigned int cost = 0u;
+
+  for (auto* instruction = code.airHead;
+       instruction;
+       instruction = instruction->next)
+  {
+    cost += GetInstructionCost(instruction);
+  }
+
+  return cost;
+}
+
 bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color)
 {
   for (auto* it = code.slots.head;

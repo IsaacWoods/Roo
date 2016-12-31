@@ -116,6 +116,8 @@ struct air_instruction
 void OutputInterferenceDOT(thing_of_code& code, const char* name);
 #endif
 
+unsigned int GetInstructionCost(air_instruction* instruction);
+unsigned int GetCodeCost(thing_of_code& code);
 bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color);
 void GenerateAIR(codegen_target& target, thing_of_code& code);
 const char* GetInstructionName(air_instruction* instruction);
