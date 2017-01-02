@@ -3,10 +3,15 @@
 #[Prototype]
 fn Print(str : string)
 
+fn GetTheNumberFour() -> int
+{
+  return 4
+}
+
 #[Entry]
 fn Main() -> int
 {
-  i : mut int = 5 * 2 + 3
+  i : mut int = 5 * 2 + GetTheNumberFour()
 
   while (i > 0)
   {

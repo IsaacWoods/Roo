@@ -121,7 +121,7 @@ int main()
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
+    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
     {
       continue;
     }

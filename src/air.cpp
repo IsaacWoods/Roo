@@ -11,6 +11,7 @@
 #include <climits>
 #include <common.hpp>
 #include <ast.hpp>
+#include <ir.hpp>
 
 template<>
 void Free<air_instruction*>(air_instruction*& instruction)
@@ -157,6 +158,57 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
   Add<live_range>(slot->liveRanges, range);
 }
 
+static void DoFunctionCall(function_call_part& call)
+{
+  // TODO: don't assume everything will fit in a general register
+  unsigned int numGeneralParams = 0u;
+  vector<slot_def*> params;
+  InitVector<slot_def*>(params);
+
+  for (auto* paramIt = n->functionCall.params.head;
+       paramIt < n->functionCall.params.tail;
+       paramIt++)
+  {
+    slot_def* paramSlot = GenNodeAIR<slot_def*>(target, code, *paramIt);
+
+    switch (paramSlot->type)
+    {
+      case slot_type::VARIABLE:
+      case slot_type::TEMPORARY:
+      {
+        // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
+        paramSlot->color = target.intParamColors[numGeneralParams++];
+        Add<slot_def*>(params, paramSlot);
+      } break;
+
+      case slot_type::INT_CONSTANT:
+      case slot_type::FLOAT_CONSTANT:
+      case slot_type::STRING_CONSTANT:
+      {
+        // NOTE(Isaac): we create a temporary to move the constant into, then color that
+        slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
+        temporary->color = target.intParamColors[numGeneralParams++];
+        air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, paramSlot);
+        Add<slot_def*>(params, temporary);
+
+        UseSlot(paramSlot, movInstruction);
+        ChangeSlotValue(temporary, movInstruction);
+      } break;
+    }
+  }
+
+  assert(n->functionCall.isResolved);
+  air_instruction* callInstruction = PushInstruction(code, I_CALL, n->functionCall.function);
+
+  for (auto* paramIt = params.head;
+       paramIt < params.tail;
+       paramIt++)
+  {
+    UseSlot(*paramIt, callInstruction);
+  }
+  DetachVector<slot_def*>(params);
+}
+
 /*
  * BREAK_NODE:              `
  * RETURN_NODE:             `Nothing
@@ -283,6 +335,11 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
       return result;
     } break;
 
+    case FUNCTION_CALL_NODE:
+    {
+      
+    } break;
+
     case VARIABLE_NODE:
     {
       assert(n->variable.isResolved);
@@ -319,7 +376,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning a `slot*` in GenNodeAIR: %s\n", GetNodeName(n->type));
+      fprintf(stderr, "Unhandled node for returning a `slot_def*` in GenNodeAIR: %s\n", GetNodeName(n->type));
       Crash();
     }
   }
@@ -462,53 +519,6 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
     case FUNCTION_CALL_NODE:
     {
-      // TODO: don't assume everything will fit in a general register
-      unsigned int numGeneralParams = 0u;
-      vector<slot_def*> params;
-      InitVector<slot_def*>(params);
-
-      for (auto* paramIt = n->functionCall.params.head;
-           paramIt < n->functionCall.params.tail;
-           paramIt++)
-      {
-        slot_def* paramSlot = GenNodeAIR<slot_def*>(target, code, *paramIt);
-
-        switch (paramSlot->type)
-        {
-          case slot_type::VARIABLE:
-          case slot_type::TEMPORARY:
-          {
-            // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
-            paramSlot->color = target.intParamColors[numGeneralParams++];
-            Add<slot_def*>(params, paramSlot);
-          } break;
-
-          case slot_type::INT_CONSTANT:
-          case slot_type::FLOAT_CONSTANT:
-          case slot_type::STRING_CONSTANT:
-          {
-            // NOTE(Isaac): we create a temporary to move the constant into, then color that
-            slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
-            temporary->color = target.intParamColors[numGeneralParams++];
-            air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, paramSlot);
-            Add<slot_def*>(params, temporary);
-
-            UseSlot(paramSlot, movInstruction);
-            ChangeSlotValue(temporary, movInstruction);
-          } break;
-        }
-      }
-
-      assert(n->functionCall.isResolved);
-      air_instruction* callInstruction = PushInstruction(code, I_CALL, n->functionCall.function);
-
-      for (auto* paramIt = params.head;
-           paramIt < params.tail;
-           paramIt++)
-      {
-        UseSlot(*paramIt, callInstruction);
-      }
-      DetachVector<slot_def*>(params);
     } break;
 
     case IF_NODE:
@@ -710,6 +720,16 @@ unsigned int GetCodeCost(thing_of_code& code)
   return cost;
 }
 
+// TODO: maybe this could take more context into account?
+bool ShouldCodeBeInlined(thing_of_code& code)
+{
+  static const unsigned int INLINE_THRESHOLD = 16u;
+
+  return   ((GetAttrib(code, attrib_type::INLINE)) &&
+           !(GetAttrib(code, attrib_type::NO_INLINE) || GetAttrib(code, attrib_type::ENTRY))) ||
+            (GetCodeCost(code) < INLINE_THRESHOLD);
+}
+
 bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color)
 {
   for (auto* it = code.slots.head;
@@ -808,22 +828,6 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
 {
   const unsigned int numGeneralRegisters = 14u;
 
-  // --- Color params ---
-  // TODO: color incoming parameters to this function
-/*  unsigned int intParamCounter = 0u;
-
-  for (auto* slotIt = function->code.slots.first;
-       slotIt;
-       slotIt = slotIt->next)
-  {
-    if ((**slotIt)->type == slot::slot_type::PARAM)
-    {
-      printf("Coloring param slot: %s\n", (**slotIt)->variable->name);
-      (**slotIt)->color = target.intParamColors[intParamCounter++];
-    }
-  }*/
-
-  // --- Color other slots ---
   for (auto* it = code.slots.head;
        it < code.slots.tail;
        it++)

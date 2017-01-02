@@ -97,6 +97,8 @@ enum attrib_type
 {
   ENTRY,
   PROTOTYPE,
+  INLINE,
+  NO_INLINE,
 };
 
 struct attribute
@@ -157,6 +159,7 @@ struct thing_of_code
   vector<variable_def*> params;
   vector<variable_def*> locals;
   bool                  shouldAutoReturn;
+  vector<attribute>     attribs;
 
   node*                 ast;
   vector<slot_def*>     slots;
@@ -171,7 +174,6 @@ struct function_def
   char*             name;
   bool              isPrototype;
   type_ref*         returnType; // NOTE(Isaac): `nullptr` when function returns nothing
-  vector<attribute> attribs;
   thing_of_code     code;
 };
 
@@ -180,7 +182,6 @@ struct operator_def
   token_type        op;
   bool              isPrototype;
   type_ref          returnType; // NOTE(Isaac): operators have to return something
-  vector<attribute> attribs;
   thing_of_code     code;
 };
 
@@ -197,7 +198,7 @@ struct type_def
   unsigned int          size;
 };
 
-attribute* GetAttrib(vector<attribute>& attribs, attrib_type type);
+attribute* GetAttrib(thing_of_code& thing, attrib_type type);
 
 slot_def* CreateSlot(thing_of_code& code, slot_type type, ...);
 char* SlotAsString(slot_def* slot);

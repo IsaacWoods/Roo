@@ -22,7 +22,7 @@ enum node_type
   WHILE_NODE,             // `while_node_part`
   NUMBER_CONSTANT_NODE,   // `number_constant_part`
   STRING_CONSTANT_NODE,   // `string_constant*`
-  FUNCTION_CALL_NODE,     // `function_call_node_part`
+  FUNCTION_CALL_NODE,     // `function_call_part
   VARIABLE_ASSIGN_NODE,   // `variable_assign_part`
   MEMBER_ACCESS_NODE,     // `member_access_part`
 

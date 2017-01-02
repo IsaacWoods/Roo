@@ -1111,7 +1111,7 @@ static void Function(roo_parser& parser, vector<attribute>& attribs)
   Log(parser, "--> Function(");
 
   function_def* function = CreateFunctionDef(GetTextFromToken(NextToken(parser)));
-  function->attribs = attribs;
+  function->code.attribs = attribs;
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
 
@@ -1134,7 +1134,7 @@ static void Function(roo_parser& parser, vector<attribute>& attribs)
     Log(parser, "Return type: NONE\n");
   }
 
-  if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
+  if (GetAttrib(function->code, attrib_type::PROTOTYPE))
   {
     Log(parser, "Not parsing block - prototype\n");
     function->isPrototype = true;
@@ -1154,7 +1154,7 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
 {
   Log(parser, "--> Operator(");
   operator_def* operatorDef = CreateOperatorDef(NextToken(parser).type);
-  operatorDef->attribs = attribs;
+  operatorDef->code.attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
   Add<operator_def*>(parser.result->operators, operatorDef);
 
@@ -1168,7 +1168,7 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
   NextToken(parser);
   Log(parser, "Return type: %s\n", operatorDef->returnType.name);
 
-  if (GetAttrib(operatorDef->attribs, attrib_type::PROTOTYPE))
+  if (GetAttrib(operatorDef->code, attrib_type::PROTOTYPE))
   {
     operatorDef->isPrototype = true;
     operatorDef->code.ast = nullptr;
@@ -1211,6 +1211,16 @@ static void Attribute(roo_parser& parser, vector<attribute>& attribs)
   else if (strcmp(attribName, "Prototype") == 0)
   {
     attrib.type = attrib_type::PROTOTYPE;
+    NextToken(parser);
+  }
+  else if (strcmp(attribName, "Inline") == 0)
+  {
+    attrib.type = attrib_type::INLINE;
+    NextToken(parser);
+  }
+  else if (strcmp(attribName, "NoInline") == 0)
+  {
+    attrib.type = attrib_type::NO_INLINE;
     NextToken(parser);
   }
   else

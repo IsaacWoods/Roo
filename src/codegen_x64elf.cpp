@@ -435,7 +435,7 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->attribs, attrib_type::ENTRY))
+    if (GetAttrib(function->code, attrib_type::ENTRY))
     {
       entrySymbol = function->code.symbol;
       break;
@@ -775,7 +775,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
+    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
     {
       continue;
     }

@@ -11,10 +11,10 @@
 #include <ast.hpp>
 #include <air.hpp>
 
-attribute* GetAttrib(vector<attribute>& attribs, attrib_type type)
+attribute* GetAttrib(thing_of_code& thing, attrib_type type)
 {
-  for (auto* it = attribs.head;
-       it < attribs.tail;
+  for (auto* it = thing.attribs.head;
+       it < thing.attribs.tail;
        it++)
   {
     attribute& attrib = *it;
@@ -168,6 +168,7 @@ static void InitThingOfCode(thing_of_code& code)
   InitVector<variable_def*>(code.params);
   InitVector<variable_def*>(code.locals);
   code.shouldAutoReturn = false;
+  InitVector<attribute>(code.attribs);
   code.ast = nullptr;
   InitVector<slot_def*>(code.slots);
   code.airHead = nullptr;
@@ -181,7 +182,6 @@ function_def* CreateFunctionDef(char* name)
   function_def* function = static_cast<function_def*>(malloc(sizeof(function_def)));
   function->name = name;
   function->returnType = nullptr;
-  InitVector<attribute>(function->attribs);
   InitThingOfCode(function->code);
 
   return function;
@@ -191,7 +191,6 @@ operator_def* CreateOperatorDef(token_type op)
 {
   operator_def* operatorDef = static_cast<operator_def*>(malloc(sizeof(operator_def)));
   operatorDef->op = op;
-  InitVector<attribute>(operatorDef->attribs);
   InitThingOfCode(operatorDef->code);
 
   return operatorDef;
@@ -264,6 +263,7 @@ void Free<thing_of_code>(thing_of_code& code)
 {
   FreeVector<variable_def*>(code.params);
   FreeVector<variable_def*>(code.locals);
+  FreeVector<attribute>(code.attribs);
 
   if (code.ast)
   {
@@ -291,7 +291,6 @@ void Free<function_def*>(function_def*& function)
     free(function->returnType);
   }
 
-  FreeVector<attribute>(function->attribs);
   Free<thing_of_code>(function->code);
   free(function);
 }
@@ -299,7 +298,6 @@ void Free<function_def*>(function_def*& function)
 template<>
 void Free<operator_def*>(operator_def*& operatorDef)
 {
-  FreeVector<attribute>(operatorDef->attribs);
   Free<thing_of_code>(operatorDef->code);
   free(operatorDef);
 }
@@ -359,7 +357,7 @@ void CompleteIR(parse_result& parse)
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->attribs, attrib_type::PROTOTYPE))
+    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
     {
       continue;
     }
