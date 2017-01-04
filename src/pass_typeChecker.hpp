@@ -14,7 +14,7 @@ void InitTypeCheckerPass()
 {
   // NOTE(Isaac): This complains if we are assigning to a immutable variable
   PASS_typeChecker[VARIABLE_ASSIGN_NODE] =
-    [](parse_result& /*parse*/, function_def* /*function*/, node* n)
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
       if (n->variableAssignment.ignoreImmutability)
       {
@@ -43,7 +43,7 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker[BINARY_OP_NODE] =
-    [](parse_result& /*parse*/, function_def* /*function*/, node* n)
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
       if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
           n->binaryOp.op == TOKEN_DOUBLE_MINUS  )

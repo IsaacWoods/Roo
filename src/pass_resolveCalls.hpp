@@ -17,7 +17,7 @@ __attribute__((constructor))
 void InitFunctionCallsPass()
 {
   PASS_resolveCalls[CALL_NODE] =
-    [](parse_result& parse, function_def* /*function*/, node* n)
+    [](parse_result& parse, thing_of_code* /*code*/, node* n)
     {
       assert(!n->call.isResolved);
 
@@ -31,7 +31,7 @@ void InitFunctionCallsPass()
           {
             function_def* function = *it;
    
-            // TODO: be cleverer here - compare mangled names or something (functions can have the same basic name)
+            // TODO: do this betterer - take into account params and stuff
             if (strcmp(function->name, n->call.name) == 0)
             {
               free(n->call.name);

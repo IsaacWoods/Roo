@@ -8,7 +8,7 @@
 #include <ir.hpp>
 
 struct node;
-typedef void(*ast_passlet)(parse_result&, function_def*, node*);
+typedef void(*ast_passlet)(parse_result&, thing_of_code*, node*);
 
 enum node_type
 {

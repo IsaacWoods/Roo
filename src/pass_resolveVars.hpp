@@ -16,15 +16,15 @@ __attribute__((constructor))
 void InitResolveVarsPass()
 {
   PASS_resolveVars[VARIABLE_NODE] =
-    [](parse_result& /*parse*/, function_def* function, node* n)
+    [](parse_result& /*parse*/, thing_of_code* code, node* n)
     {
       if (n->variable.isResolved)
       {
         return;
       }
 
-      for (auto* it = function->code.locals.head;
-           it < function->code.locals.tail;
+      for (auto* it = code->locals.head;
+           it < code->locals.tail;
            it++)
       {
         variable_def* local = *it;
@@ -38,8 +38,8 @@ void InitResolveVarsPass()
         }
       }
 
-      for (auto* it = function->code.params.head;
-           it < function->code.params.tail;
+      for (auto* it = code->params.head;
+           it < code->params.tail;
            it++)
       {
         variable_def* param = *it;
@@ -57,7 +57,7 @@ void InitResolveVarsPass()
     };
 
   PASS_resolveVars[MEMBER_ACCESS_NODE] =
-    [](parse_result& /*parse*/, function_def* /*function*/, node* /*n*/)
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* /*n*/)
     {
       // TODO: actually implement this maybes
       fprintf(stderr, "WE HAVEN'T IMPLEMENTED VARIABLE RESOLUTION FOR `MEMBER_ACCESS_NODE`S YET\n");

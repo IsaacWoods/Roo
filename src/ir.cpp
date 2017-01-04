@@ -345,7 +345,7 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
   return type->size;
 }
 
-static char* MangleFunctionName(function_def* function)
+char* MangleFunctionName(function_def* function)
 {
   const char* base = "_R_";
 
