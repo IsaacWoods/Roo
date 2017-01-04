@@ -12,7 +12,7 @@
 
 // AST Passes
 #include <pass_resolveVars.hpp>
-#include <pass_resolveFunctionCalls.hpp>
+#include <pass_resolveCalls.hpp>
 #include <pass_typeChecker.hpp>
 
 // NOTE(Isaac): turning this on causes a segfault in the printf call (or the one printing "Hello, World!").
@@ -110,7 +110,7 @@ int main()
   // Complete the AST and apply all the passes
   CompleteIR(result);
   ApplyASTPass(result, PASS_resolveVars);
-  ApplyASTPass(result, PASS_resolveFunctionCalls);
+  ApplyASTPass(result, PASS_resolveCalls);
   ApplyASTPass(result, PASS_typeChecker);
 
   // Generate AIR instructions from the AST

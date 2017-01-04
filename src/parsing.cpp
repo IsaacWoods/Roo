@@ -1121,28 +1121,25 @@ static void Function(roo_parser& parser, vector<attribute>& attribs)
   if (Match(parser, TOKEN_YIELDS))
   {
     Consume(parser, TOKEN_YIELDS);
-    function->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    function->returnType->name = GetTextFromToken(PeekToken(parser));
-    function->returnType->isResolved = false;
+    function->code.returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+    function->code.returnType->name = GetTextFromToken(PeekToken(parser));
+    function->code.returnType->isResolved = false;
     NextToken(parser);
 
-    Log(parser, "Return type: %s\n", function->returnType->name);
+    Log(parser, "Function returns a: %s\n", function->code.returnType->name);
   }
   else
   {
-    function->returnType = nullptr;
-    Log(parser, "Return type: NONE\n");
+    function->code.returnType = nullptr;
   }
 
   if (GetAttrib(function->code, attrib_type::PROTOTYPE))
   {
-    Log(parser, "Not parsing block - prototype\n");
     function->isPrototype = true;
     function->code.ast = nullptr;
   }
   else
   {
-    Log(parser, "Parsing block\n");
     function->isPrototype = false;
     function->code.ast = Block(parser, function->code);
   }
@@ -1163,10 +1160,11 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
   ParameterList(parser, operatorDef->code.params);
 
   Consume(parser, TOKEN_YIELDS);
-  operatorDef->returnType.name = GetTextFromToken(PeekToken(parser));
-  operatorDef->returnType.isResolved = false;
+  operatorDef->code.returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+  operatorDef->code.returnType->name = GetTextFromToken(PeekToken(parser));
+  operatorDef->code.returnType->isResolved = false;
   NextToken(parser);
-  Log(parser, "Return type: %s\n", operatorDef->returnType.name);
+  Log(parser, "Return type: %s\n", operatorDef->code.returnType->name);
 
   if (GetAttrib(operatorDef->code, attrib_type::PROTOTYPE))
   {
@@ -1430,12 +1428,12 @@ void InitParseletMaps()
       strcpy(functionName, left->variable.name);
       Free<node*>(left);
 
-      node* result = CreateNode(FUNCTION_CALL_NODE, functionName);
+      node* result = CreateNode(CALL_NODE, call_part::call_type::FUNCTION, functionName);
       Consume(parser, TOKEN_LEFT_PAREN);
 
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        Add<node*>(result->functionCall.params, Expression(parser));
+        Add<node*>(result->call.params, Expression(parser));
       }
 
       Consume(parser, TOKEN_RIGHT_PAREN);

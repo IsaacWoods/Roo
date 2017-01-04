@@ -9,8 +9,6 @@
 
 enum instruction_type
 {
-  I_ENTER_STACK_FRAME,
-  I_LEAVE_STACK_FRAME,
   I_RETURN,
   I_JUMP,
   I_MOV,
@@ -107,7 +105,7 @@ struct air_instruction
     slot_def*           slot;
     slot_pair           slotPair;
     slot_triple         slotTriple;
-    function_def*       function;
+    thing_of_code*      call;
     instruction_label*  label;
   };
 };

@@ -11,7 +11,7 @@ fn GetTheNumberFour() -> int
 #[Entry]
 fn Main() -> int
 {
-  i : mut int = 5 * 2 + GetTheNumberFour()
+  i : mut int = 3 + GetTheNumberFour()
 
   while (i > 0)
   {

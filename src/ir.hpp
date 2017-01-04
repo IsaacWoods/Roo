@@ -33,6 +33,8 @@ struct codegen_target
 
   unsigned int  numIntParamColors;
   unsigned int* intParamColors;
+
+  unsigned int  functionReturnColor;
 };
 
 struct dependency_def;
@@ -49,6 +51,7 @@ enum slot_type
 {
   VARIABLE,         // `var` field of payload is valid
   TEMPORARY,        // `tag` field of payload is valid
+  RETURN_RESULT,    // `tag` field of payload is valid
   INT_CONSTANT,     // `i` field of payload is valid
   FLOAT_CONSTANT,   // `f` field of payload is valid
   STRING_CONSTANT,  // `string` field of payload is valid
@@ -156,16 +159,19 @@ struct variable_def
 
 struct thing_of_code
 {
+  char*                 mangledName;
   vector<variable_def*> params;
   vector<variable_def*> locals;
   bool                  shouldAutoReturn;
   vector<attribute>     attribs;
+  type_ref*             returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
 
   node*                 ast;
   vector<slot_def*>     slots;
   air_instruction*      airHead;
   air_instruction*      airTail;
   unsigned int          numTemporaries;
+  unsigned int          numReturnResults;
   elf_symbol*           symbol;
 };
 
@@ -173,7 +179,6 @@ struct function_def
 {
   char*             name;
   bool              isPrototype;
-  type_ref*         returnType; // NOTE(Isaac): `nullptr` when function returns nothing
   thing_of_code     code;
 };
 
@@ -181,7 +186,6 @@ struct operator_def
 {
   token_type        op;
   bool              isPrototype;
-  type_ref          returnType; // NOTE(Isaac): operators have to return something
   thing_of_code     code;
 };
 
@@ -206,6 +210,5 @@ void CreateParseResult(parse_result& result);
 string_constant* CreateStringConstant(parse_result* result, char* string);
 variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 function_def* CreateFunctionDef(char* name);
-char* MangleFunctionName(function_def* function);
 operator_def* CreateOperatorDef(token_type op);
 void CompleteIR(parse_result& parse);

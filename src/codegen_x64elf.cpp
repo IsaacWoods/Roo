@@ -66,6 +66,8 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   target.intParamColors[4] = R8;
   target.intParamColors[5] = R9;
 
+  target.functionReturnColor = RAX;
+
   #define REGISTER(index, name, usage, modRMOffset) \
     target.registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))}; \
     target.registerSet[index].pimpl->opcodeOffset = modRMOffset;
@@ -466,27 +468,39 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
   assert(function->code.airHead);
   elf_thing* thing = CreateThing(elf, function->code.symbol);
 
+  // Enter a new stack frame
+  E(i::PUSH_REG, RBP);
+  E(i::MOV_REG_REG, RBP, RSP);
+
   for (air_instruction* instruction = function->code.airHead;
        instruction;
        instruction = instruction->next)
   {
     switch (instruction->type)
     {
-      case I_ENTER_STACK_FRAME:
-      {
-        E(i::PUSH_REG, RBP);
-        E(i::MOV_REG_REG, RBP, RSP);
-      } break;
-
-      case I_LEAVE_STACK_FRAME:
-      {
-        E(i::LEAVE);
-        E(i::RET);
-      } break;
-
       case I_RETURN:
       {
+        if (instruction->slot)
+        {
+          if (instruction->slot->type == slot_type::INT_CONSTANT)
+          {
+            E(i::MOV_REG_IMM32, RAX, instruction->slot->i);
+          }
+          else if (instruction->slot->type == slot_type::STRING_CONSTANT)
+          {
+            E(i::MOV_REG_IMM64, RAX, 0x0);
+            CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, instruction->slot->string->offset);
+          }
+          else
+          {
+            // NOTE(Isaac): if we're here, `src` should be colored
+            assert(instruction->slot->color != -1);
+            E(i::MOV_REG_REG, RAX, instruction->slot->color);
+          }
+        }
 
+        E(i::LEAVE);
+        E(i::RET);
       } break;
 
       case I_JUMP:
@@ -640,7 +654,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
 
         // NOTE(Isaac): yeah I don't know why we need an addend of -0x4 in the relocation, but we do (probably should work that out)
         E(i::CALL32, 0x0);
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->function->code.symbol, -0x4);
+        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->call->symbol, -0x4);
 
         // NOTE(Isaac): We restore the saved registers in the reverse order to match the stack's layout
         RESTORE_REG(R11)
@@ -668,6 +682,13 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
         Crash();
       }
     }
+  }
+
+  // If we should auto-return, leave the stack frame and return
+  if (function->code.shouldAutoReturn)
+  {
+    E(i::LEAVE);
+    E(i::RET);
   }
 
   return thing;
@@ -730,7 +751,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        it++)
   {
     function_def* function = *it;
-    char* mangledName = MangleFunctionName(function);
 
     /*
      * If it's a prototype function, we want to reference the symbol of an already loaded (hopefully) function.
@@ -743,7 +763,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
       {
         elf_thing* thing = *thingIt;
 
-        if (strcmp(thing->symbol->name->str, mangledName) == 0)
+        if (strcmp(thing->symbol->name->str, function->code.mangledName) == 0)
         {
           function->code.symbol = thing->symbol;
         }
@@ -757,10 +777,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     }
     else
     {
-      function->code.symbol = CreateSymbol(elf, mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+      function->code.symbol = CreateSymbol(elf, function->code.mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
     }
-
-    free(mangledName);
   }
 
   // Create a thing for the bootstrap

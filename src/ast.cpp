@@ -99,11 +99,25 @@ node* CreateNode(node_type type, ...)
       result->stringConstant                  = va_arg(args, string_constant*);
     } break;
 
-    case FUNCTION_CALL_NODE:
+    case CALL_NODE:
     {
-      result->functionCall.isResolved         = false;
-      result->functionCall.name               = va_arg(args, char*);
-      InitVector<node*>(result->functionCall.params);
+      result->call.isResolved                 = false;
+      result->call.type                       = static_cast<call_part::call_type>(va_arg(args, int));
+      
+      switch (result->call.type)
+      {
+        case call_part::call_type::FUNCTION:
+        {
+          result->call.name                   = va_arg(args, char*);
+        } break;
+
+        case call_part::call_type::OPERATOR:
+        {
+          result->call.op                     = static_cast<token_type>(va_arg(args, int));
+        } break;
+      }
+
+      InitVector<node*>(result->call.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -206,18 +220,24 @@ void Free<node*>(node*& n)
       // NOTE(Isaac): Don't free the string constant here; it might be shared!
     } break;
 
-    case FUNCTION_CALL_NODE:
+    case CALL_NODE:
     {
-      if (n->functionCall.isResolved)
+      if (!(n->call.isResolved))
       {
-        // NOTE(Isaac): Don't free the function_def*; it belongs to someone else
-      }
-      else
-      {
-        free(n->functionCall.name);
+        switch (n->call.type)
+        {
+          case call_part::call_type::FUNCTION:
+          {
+            free(n->call.name);
+          } break;
+
+          case call_part::call_type::OPERATOR:
+          {
+          } break;
+        }
       }
 
-      FreeVector<node*>(n->functionCall.params);
+      FreeVector<node*>(n->call.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
@@ -330,10 +350,10 @@ static void ApplyPassToNode(node* n, function_def* function, ast_passlet pass[NU
     {
     } break;
 
-    case FUNCTION_CALL_NODE:
+    case CALL_NODE:
     {
-      for (auto* it = n->functionCall.params.head;
-           it < n->functionCall.params.tail;
+      for (auto* it = n->call.params.head;
+           it < n->call.params.tail;
            it++)
       {
         ApplyPassToNode(*it, function, pass, parse);
@@ -408,8 +428,8 @@ const char* GetNodeName(node_type type)
       return "NUMBER_CONSTANT_NODE";
     case STRING_CONSTANT_NODE:
       return "STRING_CONSTANT_NODE";
-    case FUNCTION_CALL_NODE:
-      return "FUNCTION_CALL_NODE";
+    case CALL_NODE:
+      return "CALL_NODE";
     case VARIABLE_ASSIGN_NODE:
       return "VARIABLE_ASSIGN_NODE";
     case MEMBER_ACCESS_NODE:
@@ -609,9 +629,21 @@ void OutputDOTOfAST(function_def* function)
           fprintf(f, "\t%s[label=\"\"%s\"\"];\n", name, n->stringConstant->string);
         } break;
 
-        case FUNCTION_CALL_NODE:
+        case CALL_NODE:
         {
-          fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->functionCall.function->name);
+          switch (n->call.type)
+          {
+            case call_part::call_type::FUNCTION:
+            {
+              // TODO
+//              fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->call.function->name);
+            } break;
+
+            case call_part::call_type::OPERATOR:
+            {
+              fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, GetTokenName(n->call.op));
+            } break;
+          }
         } break;
 
         case VARIABLE_ASSIGN_NODE:

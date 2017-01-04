@@ -22,7 +22,7 @@ enum node_type
   WHILE_NODE,             // `while_node_part`
   NUMBER_CONSTANT_NODE,   // `number_constant_part`
   STRING_CONSTANT_NODE,   // `string_constant*`
-  FUNCTION_CALL_NODE,     // `function_call_part
+  CALL_NODE,              // `call_part`
   VARIABLE_ASSIGN_NODE,   // `variable_assign_part`
   MEMBER_ACCESS_NODE,     // `member_access_part`
 
@@ -113,12 +113,19 @@ struct number_constant_part
   };
 };
 
-struct function_call_part
+struct call_part
 {
+  enum call_type
+  {
+    FUNCTION,
+    OPERATOR,
+  } type;
+
   union
   {
-    char*         name;
-    function_def* function;
+    char*           name;
+    token_type      op;
+    thing_of_code*  code;
   };
 
   bool          isResolved;
@@ -166,7 +173,7 @@ struct node
     while_node_part         whileThing;
     number_constant_part    numberConstant;
     string_constant*        stringConstant;
-    function_call_part      functionCall;
+    call_part               call;
     variable_assign_part    variableAssignment;
     member_access_part      memberAccess;
   };

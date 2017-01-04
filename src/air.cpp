@@ -38,14 +38,6 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
   switch (type)
   {
-    case I_ENTER_STACK_FRAME:
-    {
-    } break;
-
-    case I_LEAVE_STACK_FRAME:
-    {
-    } break;
-
     case I_RETURN:
     {
       i->slot                 = va_arg(args, slot_def*);
@@ -86,7 +78,7 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
     case I_CALL:
     {
-      i->function             = va_arg(args, function_def*);
+      i->call                 = va_arg(args, thing_of_code*);
     } break;
 
     case I_LABEL:
@@ -158,56 +150,7 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
   Add<live_range>(slot->liveRanges, range);
 }
 
-static void DoFunctionCall(function_call_part& call)
-{
-  // TODO: don't assume everything will fit in a general register
-  unsigned int numGeneralParams = 0u;
-  vector<slot_def*> params;
-  InitVector<slot_def*>(params);
-
-  for (auto* paramIt = n->functionCall.params.head;
-       paramIt < n->functionCall.params.tail;
-       paramIt++)
-  {
-    slot_def* paramSlot = GenNodeAIR<slot_def*>(target, code, *paramIt);
-
-    switch (paramSlot->type)
-    {
-      case slot_type::VARIABLE:
-      case slot_type::TEMPORARY:
-      {
-        // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
-        paramSlot->color = target.intParamColors[numGeneralParams++];
-        Add<slot_def*>(params, paramSlot);
-      } break;
-
-      case slot_type::INT_CONSTANT:
-      case slot_type::FLOAT_CONSTANT:
-      case slot_type::STRING_CONSTANT:
-      {
-        // NOTE(Isaac): we create a temporary to move the constant into, then color that
-        slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
-        temporary->color = target.intParamColors[numGeneralParams++];
-        air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, paramSlot);
-        Add<slot_def*>(params, temporary);
-
-        UseSlot(paramSlot, movInstruction);
-        ChangeSlotValue(temporary, movInstruction);
-      } break;
-    }
-  }
-
-  assert(n->functionCall.isResolved);
-  air_instruction* callInstruction = PushInstruction(code, I_CALL, n->functionCall.function);
-
-  for (auto* paramIt = params.head;
-       paramIt < params.tail;
-       paramIt++)
-  {
-    UseSlot(*paramIt, callInstruction);
-  }
-  DetachVector<slot_def*>(params);
-}
+static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n);
 
 /*
  * BREAK_NODE:              `
@@ -335,9 +278,9 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
       return result;
     } break;
 
-    case FUNCTION_CALL_NODE:
+    case CALL_NODE:
     {
-      
+      return GenCall(target, code, n);
     } break;
 
     case VARIABLE_NODE:
@@ -474,7 +417,6 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
         returnValue = GenNodeAIR<slot_def*>(target, code, n->expression);
       }
 
-      PushInstruction(code, I_LEAVE_STACK_FRAME);
       air_instruction* retInstruction = PushInstruction(code, I_RETURN, returnValue);
       UseSlot(returnValue, retInstruction);
     } break;
@@ -517,8 +459,10 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
       ChangeSlotValue(left, instruction);
     } break;
 
-    case FUNCTION_CALL_NODE:
+    case CALL_NODE:
     {
+      // NOTE(Isaac): we ignore the result, because this function shouldn't return anything
+      GenCall(target, code, n);
     } break;
 
     case IF_NODE:
@@ -616,6 +560,7 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
       return 1u;
     }
 
+    case RETURN_RESULT:
     case TEMPORARY:
     {
       // NOTE(Isaac): these will always be in a register
@@ -633,6 +578,74 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
   return 0u;
 }
 
+/*
+ * NOTE(Isaac): returns the result of the function call in a *new* slot.
+ */
+static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
+{
+  // TODO: don't assume everything will fit in a general register
+  unsigned int numGeneralParams = 0u;
+  vector<slot_def*> params;
+  InitVector<slot_def*>(params);
+
+  for (auto* paramIt = n->call.params.head;
+       paramIt < n->call.params.tail;
+       paramIt++)
+  {
+    slot_def* paramSlot = GenNodeAIR<slot_def*>(target, code, *paramIt);
+
+    switch (paramSlot->type)
+    {
+      case slot_type::VARIABLE:
+      case slot_type::TEMPORARY:
+      {
+        // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
+        paramSlot->color = target.intParamColors[numGeneralParams++];
+        Add<slot_def*>(params, paramSlot);
+      } break;
+
+      case slot_type::RETURN_RESULT:
+      case slot_type::INT_CONSTANT:
+      case slot_type::FLOAT_CONSTANT:
+      case slot_type::STRING_CONSTANT:
+      {
+        // NOTE(Isaac): we create a temporary to move the constant into, then color that
+        slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
+        temporary->color = target.intParamColors[numGeneralParams++];
+        air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, paramSlot);
+        Add<slot_def*>(params, temporary);
+
+        UseSlot(paramSlot, movInstruction);
+        ChangeSlotValue(temporary, movInstruction);
+      } break;
+    }
+  }
+
+  assert(n->call.isResolved);
+  air_instruction* callInstruction = PushInstruction(code, I_CALL, n->call.code);
+
+  for (auto* paramIt = params.head;
+       paramIt < params.tail;
+       paramIt++)
+  {
+    UseSlot(*paramIt, callInstruction);
+  }
+  DetachVector<slot_def*>(params);
+
+  if (n->call.code->returnType)
+  {
+    slot_def* resultSlot = CreateSlot(code, RETURN_RESULT);
+    ChangeSlotValue(resultSlot, callInstruction);
+    resultSlot->color = target.functionReturnColor;
+    char* slotStr = SlotAsString(resultSlot);
+    printf("Emitting temporary %s for return value of call to: %s\n", slotStr, n->call.code->mangledName);
+    free(slotStr);
+    return resultSlot;
+  }
+
+  return nullptr;
+}
+
 // TODO: these are just made-up bullshit values for instruction costs
 // A) It depends on the microarchitecture on how much these cost - (how) do we take that into consideration?
 // B) There isn't really a good modern model of the x64 to base this off
@@ -641,9 +654,7 @@ unsigned int GetInstructionCost(air_instruction* instruction)
 {
   switch (instruction->type)
   {
-    // All functions have a stack frame, and labels aren't actually emitted, so they don't cost anything
-    case I_ENTER_STACK_FRAME:
-    case I_LEAVE_STACK_FRAME:
+    // NOTE(Isaac): labels aren't emitted and so don't count towards the cost
     case I_LABEL:
     {
       return 0u;
@@ -738,6 +749,14 @@ bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, sign
   {
     slot_def* slot = *it;
 
+    if (slot->type == slot_type::INT_CONSTANT     ||
+        slot->type == slot_type::FLOAT_CONSTANT   ||
+        slot->type == slot_type::STRING_CONSTANT  ||
+        slot->type == slot_type::RETURN_RESULT)
+    {
+      continue;
+    }
+
     if (slot->color != color)
     {
       continue;
@@ -748,8 +767,11 @@ bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, sign
          rangeIt++)
     {
       live_range& range = *rangeIt;
+      // TODO: should this be UINT_MAX or automatically return false because we don't care about the value
+      // of the register??
+      unsigned int lastUse = (range.lastUse ? range.lastUse->index : UINT_MAX);
 
-      if ((instruction->index >= range.definition->index) && (instruction->index <= range.lastUse->index))
+      if ((instruction->index >= range.definition->index) && (instruction->index <= lastUse))
       {
         return true;
       }
@@ -879,33 +901,26 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
 void GenerateAIR(codegen_target& target, thing_of_code& code)
 {
   assert(!(code.airHead));
-  PushInstruction(code, I_ENTER_STACK_FRAME);
 
   // NOTE(Isaac): this prints all the nodes in the function's outermost scope
   GenNodeAIR(target, code, code.ast);
-
-  if (code.shouldAutoReturn)
-  {
-    PushInstruction(code, I_LEAVE_STACK_FRAME);
-    PushInstruction(code, I_RETURN, nullptr);
-  }
 
   // Color the interference graph
   GenerateInterferences(code);
   ColorSlots(target, code);
 
-#if 0
-  printf("--- AIR instruction listing for function: %s\n", function->name);
-  for (air_instruction* i = function->code.airHead;
+#if 1
+  printf("--- AIR instruction listing for function: %s ---\n", code.mangledName);
+  for (air_instruction* i = code.airHead;
        i;
        i = i->next)
   {
     PrintInstruction(i);
   }
 
-  printf("\n--- Slot listing for function: %s ---\n", function->name);
-  for (auto* it = function->code.slots.head;
-       it < function->code.slots.tail;
+  printf("\n--- Slot listing for function: %s ---\n", code.mangledName);
+  for (auto* it = code.slots.head;
+       it < code.slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -947,12 +962,6 @@ void PrintInstruction(air_instruction* instruction)
 {
   switch (instruction->type)
   {
-    case I_ENTER_STACK_FRAME:
-    case I_LEAVE_STACK_FRAME:
-    {
-      printf("%u: %s\n", instruction->index, GetInstructionName(instruction));
-    } break;
-
     case I_RETURN:
     {
       char* returnValue = nullptr;
@@ -1092,7 +1101,7 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_CALL:
     {
-      printf("%u: CALL %s\n", instruction->index, instruction->function->name);
+      printf("%u: CALL %s\n", instruction->index, instruction->call->mangledName);
     } break;
 
     case I_LABEL:
@@ -1112,10 +1121,6 @@ const char* GetInstructionName(air_instruction* instruction)
 {
   switch (instruction->type)
   {
-    case I_ENTER_STACK_FRAME:
-      return "ENTER_STACK_FRAME";
-    case I_LEAVE_STACK_FRAME:
-      return "LEAVE_STACK_FRAME";
     case I_RETURN:
       return "RETURN";
     case I_JUMP:
@@ -1219,6 +1224,11 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
       case slot_type::TEMPORARY:
       {
         PRINT_SLOT("t%u : TMP", slot->tag);
+      } break;
+
+      case slot_type::RETURN_RESULT:
+      {
+        PRINT_SLOT("r%u : RES", slot->tag);
       } break;
 
       case slot_type::INT_CONSTANT:
