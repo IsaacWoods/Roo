@@ -11,6 +11,11 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+// AST Passes
+#include <pass_resolveVars.hpp>
+#include <pass_resolveCalls.hpp>
+#include <pass_typeChecker.hpp>
+
 attribute* GetAttrib(thing_of_code& thing, attrib_type type)
 {
   for (auto* it = thing.attribs.head;
@@ -357,7 +362,7 @@ char* MangleFunctionName(function_def* function)
   return mangled;
 }
 
-void CompleteIR(parse_result& parse)
+void CompleteIR(codegen_target& target, parse_result& parse)
 {
   // Mangle function and operator names
   for (auto* it = parse.functions.head;
@@ -411,4 +416,27 @@ void CompleteIR(parse_result& parse)
   {
     CalculateSizeOfType(*typeIt);
   }
+
+  // --- Apply AST Passes ---
+  ApplyASTPass(parse, PASS_resolveVars);
+  ApplyASTPass(parse, PASS_resolveCalls);
+  ApplyASTPass(parse, PASS_typeChecker);
+
+  // --- Generate AIR for functions and operators ---
+  // TODO: parralelise this with a job server
+  for (auto* it = parse.functions.head;
+       it < parse.functions.tail;
+       it++)
+  {
+    function_def* function = *it;
+
+    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
+    {
+      continue;
+    }
+
+    GenerateAIR(target, function->code);
+  }
+
+  // TODO: generate AIR for operators
 }

@@ -212,4 +212,4 @@ variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
 char* MangleFunctionName(function_def* function);
-void CompleteIR(parse_result& parse);
+void CompleteIR(codegen_target& target, parse_result& parse);

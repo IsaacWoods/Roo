@@ -10,11 +10,6 @@
 #include <air.hpp>
 #include <error.hpp>
 
-// AST Passes
-#include <pass_resolveVars.hpp>
-#include <pass_resolveCalls.hpp>
-#include <pass_typeChecker.hpp>
-
 // NOTE(Isaac): turning this on causes a segfault in the printf call (or the one printing "Hello, World!").
 // Fuck knows what's going on there
 //#define TIME_EXECUTION
@@ -107,27 +102,7 @@ int main()
     free(dependencyDirectory);
   }
 
-  // Complete the AST and apply all the passes
-  CompleteIR(result);
-  ApplyASTPass(result, PASS_resolveVars);
-  ApplyASTPass(result, PASS_resolveCalls);
-  ApplyASTPass(result, PASS_typeChecker);
-
-  // Generate AIR instructions from the AST
-  // TODO(Isaac): function generation should be independent, so parralelise this with a job server system
-  for (auto* it = result.functions.head;
-       it < result.functions.tail;
-       it++)
-  {
-    function_def* function = *it;
-
-    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
-    {
-      continue;
-    }
-
-    GenerateAIR(target, function->code);
-  }
+  CompleteIR(target, result);
 
   #ifdef OUTPUT_DOT
   for (auto* it = result.functions.head;
@@ -147,7 +122,6 @@ int main()
     RaiseError(FATAL_NO_PROGRAM_NAME);
   }
 
-  // Generate the code into a final executable!
   Generate(result.name, target, result);
 
   Free<parse_result>(result);
