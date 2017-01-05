@@ -55,7 +55,7 @@ type Color
 
 Types can be constructed and their members accessed like:
 ``` roo
-Color cyan(0, 255, 255)
+cyan : Color(0, 255, 255)
 amountOfGreenInCyan : u8 = cyan.g
 ```
 
@@ -72,6 +72,11 @@ that thing is mutable itself).
 A variable may be referenced by as many immutable references as the programmer sees fit, **or** a single mutable reference. This, similiarly
 to how Rust's borrowing system does so, prevents any chance or race conditions and increases safety.
 
+### Arrays
+An array of type `T` and size `16` is a `T[16]`. The mutable qualifier in `mut T[16]` references the mutability of the underlying elements.
+An array's size is fixed at compile time and it will be allocated on the stack. Arrays can be indexed with the `[{uint}]` operator and bounds
+checking, if possible, will occur at compile time.
+
 ### Traits
 Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their
 members. The trait can then be used as an alias for any type that implements it.
@@ -80,7 +85,7 @@ members. The trait can then be used as an alias for any type that implements it.
 A range can be created with the syntax `(a..b)`. This can be used to iterate from `a` (inclusive) and `b` (exclusive).
 They implement the `Iterable` trait, and so can be iterated over like so, where the type of `n` is inferred from the range.
 ``` roo
-for (n : <uint>(1..10))
+for (n : uint in <uint>(1..10))
 {
   PrintFmt("%u", n);
 }
