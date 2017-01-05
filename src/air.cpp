@@ -736,9 +736,8 @@ bool ShouldCodeBeInlined(thing_of_code& code)
 {
   static const unsigned int INLINE_THRESHOLD = 16u;
 
-  return   ((GetAttrib(code, attrib_type::INLINE)) &&
-           !(GetAttrib(code, attrib_type::NO_INLINE) || GetAttrib(code, attrib_type::ENTRY))) ||
-            (GetCodeCost(code) < INLINE_THRESHOLD);
+  return ((code.attribs.isInline && !(code.attribs.isNoInline)) ||
+          GetCodeCost(code) < INLINE_THRESHOLD);
 }
 
 bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color)

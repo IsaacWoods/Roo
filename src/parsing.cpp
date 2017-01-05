@@ -1044,14 +1044,13 @@ static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop)
   return result;
 }
 
-static void TypeDef(roo_parser& parser, vector<attribute>& attribs)
+static void TypeDef(roo_parser& parser)
 {
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
   InitVector<variable_def*>(type->members);
   type->size = UINT_MAX;
-  type->attribs = attribs;
 
   type->name = GetTextFromToken(PeekToken(parser));
   Log(parser, "%s)\n", type->name);
@@ -1106,7 +1105,7 @@ static void Import(roo_parser& parser)
   Log(parser, "<-- Import\n");
 }
 
-static void Function(roo_parser& parser, vector<attribute>& attribs)
+static void Function(roo_parser& parser, attrib_set& attribs)
 {
   Log(parser, "--> Function(");
 
@@ -1133,21 +1132,19 @@ static void Function(roo_parser& parser, vector<attribute>& attribs)
     function->code.returnType = nullptr;
   }
 
-  if (GetAttrib(function->code, attrib_type::PROTOTYPE))
+  if (function->code.attribs.isPrototype)
   {
-    function->isPrototype = true;
     function->code.ast = nullptr;
   }
   else
   {
-    function->isPrototype = false;
     function->code.ast = Block(parser, function->code);
   }
 
   Log(parser, "<-- Function\n");
 }
 
-static void Operator(roo_parser& parser, vector<attribute>& attribs)
+static void Operator(roo_parser& parser, attrib_set& attribs)
 {
   Log(parser, "--> Operator(");
   operator_def* operatorDef = CreateOperatorDef(NextToken(parser).type);
@@ -1166,14 +1163,12 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
   NextToken(parser);
   Log(parser, "Return type: %s\n", operatorDef->code.returnType->name);
 
-  if (GetAttrib(operatorDef->code, attrib_type::PROTOTYPE))
+  if (operatorDef->code.attribs.isPrototype)
   {
-    operatorDef->isPrototype = true;
     operatorDef->code.ast = nullptr;
   }
   else
   {
-    operatorDef->isPrototype = false;
     operatorDef->code.ast = Block(parser, operatorDef->code);
     assert(!(operatorDef->code.shouldAutoReturn));
   }
@@ -1181,15 +1176,13 @@ static void Operator(roo_parser& parser, vector<attribute>& attribs)
   Log(parser, "<-- Operator\n");
 }
 
-static void Attribute(roo_parser& parser, vector<attribute>& attribs)
+static void Attribute(roo_parser& parser, attrib_set& attribs)
 {
   char* attribName = GetTextFromToken(NextToken(parser));
-  attribute attrib;
-  attrib.payload = nullptr;
 
   if (strcmp(attribName, "Entry") == 0)
   {
-    attrib.type = attrib_type::ENTRY;
+    attribs.isEntry = true;
     NextToken(parser);
   }
   else if (strcmp(attribName, "Name") == 0)
@@ -1204,31 +1197,27 @@ static void Attribute(roo_parser& parser, vector<attribute>& attribs)
     // NOTE(Isaac): while this is parsed like an attribute, it isn't created like one
     parser.result->name = GetTextFromToken(PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
-    goto DontEmitAttrib;
   }
   else if (strcmp(attribName, "Prototype") == 0)
   {
-    attrib.type = attrib_type::PROTOTYPE;
+    attribs.isPrototype = true;
     NextToken(parser);
   }
   else if (strcmp(attribName, "Inline") == 0)
   {
-    attrib.type = attrib_type::INLINE;
+    attribs.isInline = true;
     NextToken(parser);
   }
   else if (strcmp(attribName, "NoInline") == 0)
   {
-    attrib.type = attrib_type::NO_INLINE;
+    attribs.isNoInline = true;
     NextToken(parser);
   }
   else
   {
     RaiseError(ERROR_ILLEGAL_ATTRIBUTE, attribName);
-    goto DontEmitAttrib;
   }
 
-  Add<attribute>(attribs, attrib);
-DontEmitAttrib:
   Consume(parser, TOKEN_RIGHT_BLOCK);
   free(attribName);
 }
@@ -1244,8 +1233,7 @@ void Parse(parse_result* result, const char* sourcePath)
   parser.currentToken       = LexNext(parser);
   parser.nextToken          = LexNext(parser);
 
-  vector<attribute> attribs;
-  InitVector<attribute>(attribs);
+  attrib_set attribs;
 
   while (!Match(parser, TOKEN_INVALID))
   {
@@ -1256,17 +1244,16 @@ void Parse(parse_result* result, const char* sourcePath)
     else if (Match(parser, TOKEN_FN))
     {
       Function(parser, attribs);
-      InitVector<attribute>(attribs);
+      InitAttribSet(attribs);
     }
     else if (Match(parser, TOKEN_OPERATOR))
     {
       Operator(parser, attribs);
-      InitVector<attribute>(attribs);
+      InitAttribSet(attribs);
     }
     else if (Match(parser, TOKEN_TYPE))
     {
-      TypeDef(parser, attribs);
-      InitVector<attribute>(attribs);
+      TypeDef(parser);
     }
     else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
@@ -1277,8 +1264,6 @@ void Parse(parse_result* result, const char* sourcePath)
       RaiseError(ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
     }
   }
-
-  // TODO: Complain about trailing attributes
 
   free(parser.source);
   parser.source = nullptr;

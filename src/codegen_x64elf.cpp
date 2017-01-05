@@ -45,7 +45,6 @@ static type_def* CreateInbuiltType(const char* name, unsigned int size)
   type->name = static_cast<char*>(malloc(sizeof(char) * strlen(name) + 1u));
   strcpy(type->name, name);
   InitVector<variable_def*>(type->members);
-  InitVector<attribute>(type->attribs);
   type->size = size;
 
   return type;
@@ -437,7 +436,7 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->code, attrib_type::ENTRY))
+    if (function->code.attribs.isEntry)
     {
       entrySymbol = function->code.symbol;
       break;
@@ -755,7 +754,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     /*
      * If it's a prototype function, we want to reference the symbol of an already loaded (hopefully) function.
      */
-    if (function->isPrototype)
+    if (function->code.attribs.isPrototype)
     {
       for (auto* thingIt = elf.things.head;
            thingIt < elf.things.tail;
@@ -793,7 +792,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
+    if (function->code.attribs.isPrototype)
     {
       continue;
     }

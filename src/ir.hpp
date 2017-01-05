@@ -96,20 +96,6 @@ struct parse_result
   vector<string_constant*>  strings;
 };
 
-enum attrib_type
-{
-  ENTRY,
-  PROTOTYPE,
-  INLINE,
-  NO_INLINE,
-};
-
-struct attribute
-{
-  attrib_type type;
-  char*       payload;
-};
-
 struct dependency_def
 {
   enum dependency_type
@@ -157,13 +143,21 @@ struct variable_def
   slot_def*     slot;
 };
 
+struct attrib_set
+{
+  bool isEntry      : 1;
+  bool isPrototype  : 1;
+  bool isInline     : 1;
+  bool isNoInline   : 1;
+};
+
 struct thing_of_code
 {
   char*                 mangledName;
   vector<variable_def*> params;
   vector<variable_def*> locals;
   bool                  shouldAutoReturn;
-  vector<attribute>     attribs;
+  attrib_set            attribs;
   type_ref*             returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
 
   node*                 ast;
@@ -178,14 +172,12 @@ struct thing_of_code
 struct function_def
 {
   char*             name;
-  bool              isPrototype;
   thing_of_code     code;
 };
 
 struct operator_def
 {
   token_type        op;
-  bool              isPrototype;
   thing_of_code     code;
 };
 
@@ -193,7 +185,6 @@ struct type_def
 {
   char*                 name;
   vector<variable_def*> members;
-  vector<attribute>     attribs;
 
   /*
    * Size of this structure in bytes.
@@ -202,11 +193,10 @@ struct type_def
   unsigned int          size;
 };
 
-attribute* GetAttrib(thing_of_code& thing, attrib_type type);
-
 slot_def* CreateSlot(thing_of_code& code, slot_type type, ...);
 char* SlotAsString(slot_def* slot);
 void CreateParseResult(parse_result& result);
+void InitAttribSet(attrib_set& set);
 string_constant* CreateStringConstant(parse_result* result, char* string);
 variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 function_def* CreateFunctionDef(char* name);

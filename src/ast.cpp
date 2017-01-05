@@ -392,7 +392,7 @@ void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
+    if (function->code.attribs.isPrototype)
     {
       continue;
     }
@@ -636,7 +636,7 @@ void OutputDOTOfAST(function_def* function)
             case call_part::call_type::FUNCTION:
             {
               // TODO
-//              fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->call.function->name);
+              fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->call.code->mangledName);
             } break;
 
             case call_part::call_type::OPERATOR:

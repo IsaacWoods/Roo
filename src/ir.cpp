@@ -16,23 +16,6 @@
 #include <pass_resolveCalls.hpp>
 #include <pass_typeChecker.hpp>
 
-attribute* GetAttrib(thing_of_code& thing, attrib_type type)
-{
-  for (auto* it = thing.attribs.head;
-       it < thing.attribs.tail;
-       it++)
-  {
-    attribute& attrib = *it;
-
-    if (attrib.type == type)
-    {
-      return &attrib;
-    }
-  }
-
-  return nullptr;
-}
-
 template<>
 void Free<live_range>(live_range& /*range*/)
 {
@@ -118,12 +101,6 @@ void Free<slot_def*>(slot_def*& slot)
   free(slot);
 }
 
-template<>
-void Free<attribute>(attribute& attrib)
-{
-  free(attrib.payload);
-}
-
 void CreateParseResult(parse_result& result)
 {
   result.name = nullptr;
@@ -174,13 +151,21 @@ variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue)
   return var;
 }
 
+void InitAttribSet(attrib_set& set)
+{
+  set.isEntry     = false;
+  set.isPrototype = false;
+  set.isInline    = false;
+  set.isNoInline  = false;
+}
+
 static void InitThingOfCode(thing_of_code& code)
 {
   code.mangledName      = nullptr;
   InitVector<variable_def*>(code.params);
   InitVector<variable_def*>(code.locals);
   code.shouldAutoReturn = false;
-  InitVector<attribute>(code.attribs);
+  InitAttribSet(code.attribs);
   code.returnType       = nullptr;
 
   code.ast              = nullptr;
@@ -229,7 +214,6 @@ void Free<type_def*>(type_def*& type)
 {
   free(type->name);
   FreeVector<variable_def*>(type->members);
-  FreeVector<attribute>(type->attribs);
   free(type);
 }
 
@@ -266,7 +250,6 @@ void Free<thing_of_code>(thing_of_code& code)
   free(code.mangledName);
   FreeVector<variable_def*>(code.params);
   FreeVector<variable_def*>(code.locals);
-  FreeVector<attribute>(code.attribs);
 
   if (code.returnType)
   {
@@ -382,7 +365,7 @@ void CompleteIR(codegen_target& target, parse_result& parse)
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
+    if (function->code.attribs.isPrototype)
     {
       continue;
     }
@@ -430,7 +413,7 @@ void CompleteIR(codegen_target& target, parse_result& parse)
   {
     function_def* function = *it;
 
-    if (GetAttrib(function->code, attrib_type::PROTOTYPE))
+    if (function->code.attribs.isPrototype)
     {
       continue;
     }
