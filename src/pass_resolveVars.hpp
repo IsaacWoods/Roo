@@ -10,12 +10,14 @@
 #include <ast.hpp>
 #include <error.hpp>
 
-ast_passlet PASS_resolveVars[NUM_AST_NODES] = {};
+ast_pass PASS_resolveVars = {};
 
 __attribute__((constructor))
 void InitResolveVarsPass()
 {
-  PASS_resolveVars[VARIABLE_NODE] =
+  PASS_resolveVars.iteratePolicy = NODE_FIRST;
+
+  PASS_resolveVars.f[VARIABLE_NODE] =
     [](parse_result& /*parse*/, thing_of_code* code, node* n)
     {
       if (n->variable.isResolved)
@@ -56,7 +58,7 @@ void InitResolveVarsPass()
       RaiseError(ERROR_UNDEFINED_VARIABLE, n->variable.name);
     };
 
-  PASS_resolveVars[MEMBER_ACCESS_NODE] =
+  PASS_resolveVars.f[MEMBER_ACCESS_NODE] =
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* /*n*/)
     {
       // TODO: actually implement this maybes

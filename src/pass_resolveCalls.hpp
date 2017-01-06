@@ -11,12 +11,14 @@
 #include <ast.hpp>
 #include <error.hpp>
 
-ast_passlet PASS_resolveCalls[NUM_AST_NODES] = {};
+ast_pass PASS_resolveCalls = {};
 
 __attribute__((constructor))
 void InitFunctionCallsPass()
 {
-  PASS_resolveCalls[CALL_NODE] =
+  PASS_resolveCalls.iteratePolicy = NODE_FIRST;
+
+  PASS_resolveCalls.f[CALL_NODE] =
     [](parse_result& parse, thing_of_code* /*code*/, node* n)
     {
       assert(!n->call.isResolved);

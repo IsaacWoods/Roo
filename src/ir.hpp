@@ -122,7 +122,6 @@ struct string_constant
   uint64_t offset;
 };
 
-
 struct type_ref
 {
   union

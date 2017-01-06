@@ -274,14 +274,16 @@ void Free<node*>(node*& n)
   free(n);
 }
 
-static void ApplyPassToNode(node* n, thing_of_code* code, ast_passlet pass[NUM_AST_NODES], parse_result& parse)
+static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse)
 {
   assert(n->type);
 
-  // Apply the pass to the node
-  if (pass[n->type])
+  if (pass.iteratePolicy == NODE_FIRST)
   {
-    (*pass[n->type])(parse, code, n);
+    if (pass.f[n->type])
+    {
+      (*pass.f[n->type])(parse, code, n);
+    }
   }
 
   // Apply the pass to the children, recursively
@@ -377,6 +379,14 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_passlet pass[NUM_A
     } break;
   }
 
+  if (pass.iteratePolicy == CHILDREN_FIRST)
+  {
+    if (pass.f[n->type])
+    {
+      (*pass.f[n->type])(parse, code, n);
+    }
+  }
+
   // Apply to next node
   if (n->next)
   {
@@ -384,7 +394,7 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_passlet pass[NUM_A
   }
 }
 
-void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES])
+void ApplyASTPass(parse_result& parse, ast_pass& pass)
 {
   for (auto* it = parse.functions.head;
        it < parse.functions.tail;

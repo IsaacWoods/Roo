@@ -7,9 +7,6 @@
 #include <common.hpp>
 #include <ir.hpp>
 
-struct node;
-typedef void(*ast_passlet)(parse_result&, thing_of_code*, node*);
-
 enum node_type
 {
   BREAK_NODE,             // Nothing
@@ -27,6 +24,21 @@ enum node_type
   MEMBER_ACCESS_NODE,     // `member_access_part`
 
   NUM_AST_NODES
+};
+
+struct node;
+typedef void(*ast_passlet)(parse_result&, thing_of_code*, node*);
+
+enum ast_iterate_policy
+{
+  NODE_FIRST,
+  CHILDREN_FIRST,
+};
+
+struct ast_pass
+{
+  ast_passlet         f[NUM_AST_NODES];
+  ast_iterate_policy  iteratePolicy;
 };
 
 /*
@@ -161,6 +173,7 @@ struct node
 {
   node_type type;
   node*     next;
+  type_ref* typeRef;
 
   union
   {
@@ -181,5 +194,5 @@ struct node
 
 const char* GetNodeName(node_type type);
 node* CreateNode(node_type type, ...);
-void ApplyASTPass(parse_result& parse, ast_passlet pass[NUM_AST_NODES]);
+void ApplyASTPass(parse_result& parse, ast_pass& pass);
 void OutputDOTOfAST(function_def* function);

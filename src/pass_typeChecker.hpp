@@ -7,13 +7,15 @@
 #include <cassert>
 #include <ast.hpp>
 
-ast_passlet PASS_typeChecker[NUM_AST_NODES] = {};
+ast_pass PASS_typeChecker = {};
 
 __attribute__((constructor))
 void InitTypeCheckerPass()
 {
+  PASS_typeChecker.iteratePolicy = NODE_FIRST;
+
   // NOTE(Isaac): This complains if we are assigning to a immutable variable
-  PASS_typeChecker[VARIABLE_ASSIGN_NODE] =
+  PASS_typeChecker.f[VARIABLE_ASSIGN_NODE] =
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
       if (n->variableAssignment.ignoreImmutability)
@@ -42,7 +44,7 @@ void InitTypeCheckerPass()
       }
     };
 
-  PASS_typeChecker[BINARY_OP_NODE] =
+  PASS_typeChecker.f[BINARY_OP_NODE] =
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
       if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
