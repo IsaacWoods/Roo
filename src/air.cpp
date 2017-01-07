@@ -300,12 +300,12 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
     {
       switch (n->numberConstant.type)
       {
-        case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+        case number_constant_part::constant_type::INT:
         {
           return CreateSlot(code, slot_type::INT_CONSTANT, n->numberConstant.asInt);
         } break;
 
-        case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+        case number_constant_part::constant_type::FLOAT:
         {
           return CreateSlot(code, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
         } break;

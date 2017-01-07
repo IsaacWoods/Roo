@@ -6,18 +6,56 @@
 
 #include <cassert>
 #include <ast.hpp>
+#include <ir.hpp>
 
 ast_pass PASS_typeChecker = {};
 
 __attribute__((constructor))
 void InitTypeCheckerPass()
 {
-  PASS_typeChecker.iteratePolicy = NODE_FIRST;
+  /*
+   * NOTE(Isaac): this should mean that nodes have already been marked with their types by the time
+   * we try to type check their parents.
+   */
+  PASS_typeChecker.iteratePolicy = CHILDREN_FIRST;
 
-  // NOTE(Isaac): This complains if we are assigning to a immutable variable
+  PASS_typeChecker.f[VARIABLE_NODE] =
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    {
+      assert(n->variable.isResolved);
+      n->typeRef = &(n->variable.var->type);
+      n->shouldFreeTypeRef = false;
+    };
+
+  PASS_typeChecker.f[NUMBER_CONSTANT_NODE] =
+    [](parse_result& parse, thing_of_code* /*code*/, node* n)
+    {
+      n->shouldFreeTypeRef = true;
+
+      switch (n->numberConstant.type)
+      {
+        case number_constant_part::constant_type::INT:
+        {
+          n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+          n->typeRef->def = GetTypeByName(parse, "int");
+          n->typeRef->isResolved = true;
+          n->typeRef->isMutable = false;
+        } break;
+
+        case number_constant_part::constant_type::FLOAT:
+        {
+          n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+          n->typeRef->def = GetTypeByName(parse, "float");
+          n->typeRef->isResolved = true;
+          n->typeRef->isMutable = false;
+        } break;
+      }
+    };
+
   PASS_typeChecker.f[VARIABLE_ASSIGN_NODE] =
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
+      // This complains if we are assigning to a immutable variable
       if (n->variableAssignment.ignoreImmutability)
       {
         return;

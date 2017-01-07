@@ -12,11 +12,13 @@ fn GetTheNumberFour() -> int
 fn Main() -> int
 {
   i : mut int = 3 + GetTheNumberFour()
+  str : string = "Hello, World!\n"
+  j : int = i + str
 
   while (i > 0)
   {
     i--
-    Print("Hello, World!\n")
+    Print(str)
   }
 
   return 0

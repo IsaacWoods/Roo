@@ -200,5 +200,6 @@ string_constant* CreateStringConstant(parse_result* result, char* string);
 variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
+type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* MangleFunctionName(function_def* function);
 void CompleteIR(codegen_target& target, parse_result& parse);

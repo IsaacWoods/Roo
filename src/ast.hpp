@@ -114,8 +114,8 @@ struct number_constant_part
 {
   enum constant_type
   {
-    CONSTANT_TYPE_INT,
-    CONSTANT_TYPE_FLOAT
+    INT,
+    FLOAT
   } type;
 
   union
@@ -173,7 +173,9 @@ struct node
 {
   node_type type;
   node*     next;
+
   type_ref* typeRef;
+  bool      shouldFreeTypeRef;
 
   union
   {

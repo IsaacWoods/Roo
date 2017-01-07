@@ -287,6 +287,23 @@ void Free<operator_def*>(operator_def*& operatorDef)
   free(operatorDef);
 }
 
+type_def* GetTypeByName(parse_result& parse, const char* typeName)
+{
+  for (auto* it = parse.types.head;
+       it < parse.types.tail;
+       it++)
+  {
+    type_def* type = *it;
+
+    if (type->name == typeName)
+    {
+      return type;
+    }
+  }
+
+  return nullptr;
+}
+
 static void ResolveTypeRef(type_ref& ref, parse_result& parse)
 {
   assert(!(ref.isResolved));

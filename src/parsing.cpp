@@ -1332,7 +1332,7 @@ void InitParseletMaps()
       int value = PeekToken(parser).asInt;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (integer)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_INT, value);
+      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::INT, value);
     };
 
   g_prefixMap[TOKEN_NUMBER_FLOAT] =
@@ -1342,7 +1342,7 @@ void InitParseletMaps()
       float value = PeekToken(parser).asFloat;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::CONSTANT_TYPE_FLOAT, value);
+      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::FLOAT, value);
     };
 
   g_prefixMap[TOKEN_STRING] =

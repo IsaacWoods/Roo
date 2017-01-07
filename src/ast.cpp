@@ -76,12 +76,12 @@ node* CreateNode(node_type type, ...)
 
       switch (result->numberConstant.type)
       {
-        case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+        case number_constant_part::constant_type::INT:
         {
           result->numberConstant.asInt   = va_arg(args, int);
         } break;
 
-        case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+        case number_constant_part::constant_type::FLOAT:
         {
           result->numberConstant.asFloat   = static_cast<float>(va_arg(args, double));
         } break;
@@ -149,6 +149,11 @@ template<>
 void Free<node*>(node*& n)
 {
   assert(n);
+
+  if (n->shouldFreeTypeRef)
+  {
+    free(n->typeRef);
+  }
 
   switch (n->type)
   {
@@ -622,12 +627,12 @@ void OutputDOTOfAST(function_def* function)
         {
           switch (n->numberConstant.type)
           {
-            case number_constant_part::constant_type::CONSTANT_TYPE_INT:
+            case number_constant_part::constant_type::INT:
             {
               fprintf(f, "\t%s[label=\"%d\"];\n", name, n->numberConstant.asInt);
             } break;
 
-            case number_constant_part::constant_type::CONSTANT_TYPE_FLOAT:
+            case number_constant_part::constant_type::FLOAT:
             {
               fprintf(f, "\t%s[label=\"%f\"];\n", name, n->numberConstant.asFloat);
             } break;
@@ -636,7 +641,7 @@ void OutputDOTOfAST(function_def* function)
 
         case STRING_CONSTANT_NODE:
         {
-          fprintf(f, "\t%s[label=\"\"%s\"\"];\n", name, n->stringConstant->string);
+          fprintf(f, "\t%s[label=\"\\\"%s\\\"\"];\n", name, n->stringConstant->string);
         } break;
 
         case CALL_NODE:
