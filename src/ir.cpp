@@ -415,6 +415,21 @@ void CompleteIR(codegen_target& target, parse_result& parse)
     }
   }
 
+  for (auto* it = parse.types.head;
+       it < parse.types.tail;
+       it++)
+  {
+    type_def* type = *it;
+
+    for (auto* memberIt = type->members.head;
+         memberIt < type->members.tail;
+         memberIt++)
+    {
+      variable_def* member = *memberIt;
+      ResolveTypeRef(member->type, parse);
+    }
+  }
+
   // --- Calculate the sizes of composite types ---
   for (auto* typeIt = parse.types.head;
        typeIt < parse.types.tail;

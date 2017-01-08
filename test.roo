@@ -3,6 +3,14 @@
 #[Prototype]
 fn Print(str : string)
 
+type Color
+{
+  r : float
+  g : float
+  b : float
+  a : float
+}
+
 #[Entry]
 fn Main() -> int
 {
