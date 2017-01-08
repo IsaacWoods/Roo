@@ -83,29 +83,50 @@ void InitTypeCheckerPass()
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
       // This complains if we are assigning to a immutable variable
-      if (n->variableAssignment.ignoreImmutability)
       {
-        return;
+        if (n->variableAssignment.ignoreImmutability)
+        {
+          goto ImmutabilityCheckDone;
+        }
+  
+        node* variableNode = n->variableAssignment.variable;
+        variable_def* variable;
+  
+        if (variableNode->type == VARIABLE_NODE)
+        {
+          assert(variableNode->variable.isResolved);
+          variable = variableNode->variable.var;
+        }
+        else
+        {
+          assert(variableNode->type == MEMBER_ACCESS_NODE);
+          assert(variableNode->memberAccess.isResolved);
+          variable = variableNode->memberAccess.member;
+        }
+  
+        if (!(variable->type.isMutable))
+        {
+          fprintf(stderr, "ERROR: Cannot assign to an immutable variable: %s\n", variable->name);
+        }
       }
 
-      node* variableNode = n->variableAssignment.variable;
-      variable_def* variable;
+    ImmutabilityCheckDone:
+      // This type-checks the variable's type against the type of the new value
+      {
+        type_ref* varType = n->variableAssignment.variable->typeRef;
+        type_ref* newValueType = n->variableAssignment.newValue->typeRef;
 
-      if (variableNode->type == VARIABLE_NODE)
-      {
-        assert(variableNode->variable.isResolved);
-        variable = variableNode->variable.var;
-      }
-      else
-      {
-        assert(variableNode->type == MEMBER_ACCESS_NODE);
-        assert(variableNode->memberAccess.isResolved);
-        variable = variableNode->memberAccess.member;
-      }
+        assert(varType);
+        assert(varType->isResolved);
+        assert(newValueType);
+        assert(newValueType->isResolved);
 
-      if (!(variable->type.isMutable))
-      {
-        fprintf(stderr, "ERROR: Cannot assign to an immutable variable: %s\n", variable->name);
+        // NOTE(Isaac): We don't care about their mutability
+        printf("A: %s and B: %s\n", varType->def->name, newValueType->def->name);
+        if (varType->def != newValueType->def)
+        {
+          RaiseError(ERROR_INCOMPATIBLE_ASSIGN, varType->def->name, newValueType->def->name);
+        }
       }
     };
 
@@ -172,6 +193,9 @@ void InitTypeCheckerPass()
           {
             RaiseError(ERROR_MISSING_OPERATOR, a->def->name, b->def->name);
           }
+
+          // NOTE(Isaac): this is the shabby way of doing it, use real `operator_def`s instead
+          n->typeRef = a;
         }
       }
     };

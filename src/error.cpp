@@ -42,13 +42,14 @@ void InitErrorDefs()
 #define E(tag, poisoning, message)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, message};
 #define F(tag, message)             errors[tag] = error_def{error_level::FATAL, poison_strategy::GIVE_UP, message};
 
-  E(ERROR_EXPECTED,           TO_END_OF_STATEMENT,    "Expected %s");
-  E(ERROR_EXPECTED_BUT_GOT,   TO_END_OF_STATEMENT,    "Expected %s but got %s instead");
-  E(ERROR_UNEXPECTED,         TO_END_OF_STATEMENT,    "Unexpected token in %s position: %s");
-  E(ERROR_ILLEGAL_ATTRIBUTE,  TO_END_OF_ATTRIBUTE,    "Unrecognised attribute '%s'");
-  E(ERROR_UNDEFINED_VARIABLE, TO_END_OF_STATEMENT,    "Failed to resolve variable called '%s'");
-  E(ERROR_UNDEFINED_FUNCTION, TO_END_OF_STATEMENT,    "Failed to resolve function called '%s'");
-  E(ERROR_MISSING_OPERATOR,   TO_END_OF_STATEMENT,    "Can't find operator for operands of type '%s' and '%s'");
+  E(ERROR_EXPECTED,             TO_END_OF_STATEMENT,  "Expected %s");
+  E(ERROR_EXPECTED_BUT_GOT,     TO_END_OF_STATEMENT,  "Expected %s but got %s instead");
+  E(ERROR_UNEXPECTED,           TO_END_OF_STATEMENT,  "Unexpected token in %s position: %s");
+  E(ERROR_ILLEGAL_ATTRIBUTE,    TO_END_OF_ATTRIBUTE,  "Unrecognised attribute '%s'");
+  E(ERROR_UNDEFINED_VARIABLE,   TO_END_OF_STATEMENT,  "Failed to resolve variable called '%s'");
+  E(ERROR_UNDEFINED_FUNCTION,   TO_END_OF_STATEMENT,  "Failed to resolve function called '%s'");
+  E(ERROR_MISSING_OPERATOR,     TO_END_OF_STATEMENT,  "Can't find operator for operands of type '%s' and '%s'");
+  E(ERROR_INCOMPATIBLE_ASSIGN,  TO_END_OF_STATEMENT,  "Can't assign a '%s' to a variable of type '%s'");
 
   F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
 
