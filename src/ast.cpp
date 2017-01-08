@@ -16,6 +16,8 @@ node* CreateNode(node_type type, ...)
 
   node* result = static_cast<node*>(malloc(sizeof(node)));
   result->type = type;
+  result->typeRef = nullptr;
+  result->shouldFreeTypeRef = false;
   result->next = nullptr;
 
   switch (type)

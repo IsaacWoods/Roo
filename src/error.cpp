@@ -48,6 +48,7 @@ void InitErrorDefs()
   E(ERROR_ILLEGAL_ATTRIBUTE,  TO_END_OF_ATTRIBUTE,    "Unrecognised attribute '%s'");
   E(ERROR_UNDEFINED_VARIABLE, TO_END_OF_STATEMENT,    "Failed to resolve variable called '%s'");
   E(ERROR_UNDEFINED_FUNCTION, TO_END_OF_STATEMENT,    "Failed to resolve function called '%s'");
+  E(ERROR_MISSING_OPERATOR,   TO_END_OF_STATEMENT,    "Can't find operator for operands of type '%s' and '%s'");
 
   F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
 

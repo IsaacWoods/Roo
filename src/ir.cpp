@@ -295,7 +295,7 @@ type_def* GetTypeByName(parse_result& parse, const char* typeName)
   {
     type_def* type = *it;
 
-    if (type->name == typeName)
+    if (strcmp(type->name, typeName) == 0)
     {
       return type;
     }

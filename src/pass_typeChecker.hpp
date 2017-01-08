@@ -7,6 +7,7 @@
 #include <cassert>
 #include <ast.hpp>
 #include <ir.hpp>
+#include <error.hpp>
 
 ast_pass PASS_typeChecker = {};
 
@@ -52,6 +53,23 @@ void InitTypeCheckerPass()
       }
     };
 
+  PASS_typeChecker.f[STRING_CONSTANT_NODE] =
+    [](parse_result& parse, thing_of_code* /*code*/, node* n)
+    {
+      n->shouldFreeTypeRef = true;
+      n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+      n->typeRef->def = GetTypeByName(parse, "string");
+      n->typeRef->isResolved = true;
+      n->typeRef->isMutable = false;
+    };
+
+  PASS_typeChecker.f[CALL_NODE] =
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    {
+      n->shouldFreeTypeRef = false;
+      n->typeRef = n->call.code->returnType;
+    };
+
   PASS_typeChecker.f[VARIABLE_ASSIGN_NODE] =
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
@@ -85,27 +103,52 @@ void InitTypeCheckerPass()
   PASS_typeChecker.f[BINARY_OP_NODE] =
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
-      if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
-          n->binaryOp.op == TOKEN_DOUBLE_MINUS  )
+      // For operators that change the variable, check that they're mutable
       {
-        node* variableNode = n->binaryOp.left;
-        variable_def* variable;
-
-        if (variableNode->type == VARIABLE_NODE)
+        if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
+            n->binaryOp.op == TOKEN_DOUBLE_MINUS  )
         {
-          assert(variableNode->variable.isResolved);
-          variable = variableNode->variable.var;
-        }
-        else
-        {
-          assert(variableNode->type == MEMBER_ACCESS_NODE);
-          assert(variableNode->memberAccess.isResolved);
-          variable = variableNode->memberAccess.member;
-        }
+          node* variableNode = n->binaryOp.left;
+          variable_def* variable;
   
-        if (!(variable->type.isMutable))
+          if (variableNode->type == VARIABLE_NODE)
+          {
+            assert(variableNode->variable.isResolved);
+            variable = variableNode->variable.var;
+          }
+          else
+          {
+            assert(variableNode->type == MEMBER_ACCESS_NODE);
+            assert(variableNode->memberAccess.isResolved);
+            variable = variableNode->memberAccess.member;
+          }
+    
+          if (!(variable->type.isMutable))
+          {
+            fprintf(stderr, "ERROR: Cannot operate on an immutable variable: %s\n", variable->name);
+          }
+        }
+      }
+
+      // Type check the operands
+      {
+        type_ref* a = n->binaryOp.left->typeRef;
+        type_ref* b = n->binaryOp.right->typeRef;
+
+        // NOTE(Isaac): this seems slightly defensive, design flaws showing?
+        assert(a);
+        assert(a->isResolved);
+        assert(b);
+        assert(b->isResolved);
+        assert(a->def);
+        assert(b->def);
+
+        /*
+         * NOTE(Isaac): We don't care about their mutability
+         */
+        if (a->def != b->def)
         {
-          fprintf(stderr, "ERROR: Cannot operate on an immutable variable: %s\n", variable->name);
+          RaiseError(ERROR_MISSING_OPERATOR, a->def->name, b->def->name);
         }
       }
     };
