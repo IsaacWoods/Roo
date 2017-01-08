@@ -264,10 +264,12 @@ const char* GetTokenName(token_type type)
       return "TOKEN_IDENTIFIER";
     case TOKEN_STRING:
       return "TOKEN_STRING";
-    case TOKEN_NUMBER_INT:
-      return "TOKEN_NUMBER_INT";
-    case TOKEN_NUMBER_FLOAT:
-      return "TOKEN_NUMBER_FLOAT";
+    case TOKEN_SIGNED_INT:
+      return "TOKEN_SIGNED_INT";
+    case TOKEN_UNSIGNED_INT:
+      return "TOKEN_UNSIGNED_INT";
+    case TOKEN_FLOAT:
+      return "TOKEN_FLOAT";
     case TOKEN_CHAR_CONSTANT:
       return "TOKEN_CHAR_CONSTANT";
     case TOKEN_LINE:

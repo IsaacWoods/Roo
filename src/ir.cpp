@@ -50,9 +50,14 @@ slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
       slot->tag = code.numReturnResults++;
     } break;
 
-    case slot_type::INT_CONSTANT:
+    case slot_type::SIGNED_INT_CONSTANT:
     {
       slot->i = va_arg(args, int);
+    } break;
+
+    case slot_type::UNSIGNED_INT_CONSTANT:
+    {
+      slot->u = va_arg(args, unsigned int);
     } break;
 
     case slot_type::FLOAT_CONSTANT:
@@ -83,12 +88,13 @@ char* SlotAsString(slot_def* slot)
 
   switch (slot->type)
   {
-    SLOT_STR(slot_type::VARIABLE,         "%s(V)",  slot->variable->name)
-    SLOT_STR(slot_type::TEMPORARY,        "t%u",    slot->tag)
-    SLOT_STR(slot_type::RETURN_RESULT,    "r%u",    slot->tag)
-    SLOT_STR(slot_type::INT_CONSTANT,     "#%d",    slot->i)
-    SLOT_STR(slot_type::FLOAT_CONSTANT,   "#%f",    slot->f)
-    SLOT_STR(slot_type::STRING_CONSTANT,  "\"%s\"", slot->string->string)
+    SLOT_STR(slot_type::VARIABLE,               "%s(V)",  slot->variable->name)
+    SLOT_STR(slot_type::TEMPORARY,              "t%u",    slot->tag)
+    SLOT_STR(slot_type::RETURN_RESULT,          "r%u",    slot->tag)
+    SLOT_STR(slot_type::SIGNED_INT_CONSTANT,    "#%d",    slot->i)
+    SLOT_STR(slot_type::UNSIGNED_INT_CONSTANT,  "#%u",    slot->u)
+    SLOT_STR(slot_type::FLOAT_CONSTANT,         "#%f",    slot->f)
+    SLOT_STR(slot_type::STRING_CONSTANT,        "\"%s\"", slot->string->string)
   }
 
   return nullptr;

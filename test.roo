@@ -11,7 +11,7 @@ fn GetTheNumberFour() -> int
 #[Entry]
 fn Main() -> int
 {
-  i : mut int = 3 + "Hello, World!\n"
+  i : mut int = 3u + 4
 //  str : string = "Hello, World!\n"
 //  j : int = i + 4
 

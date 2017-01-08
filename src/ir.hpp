@@ -49,12 +49,13 @@ struct elf_symbol;
 
 enum slot_type
 {
-  VARIABLE,         // `var` field of payload is valid
-  TEMPORARY,        // `tag` field of payload is valid
-  RETURN_RESULT,    // `tag` field of payload is valid
-  INT_CONSTANT,     // `i` field of payload is valid
-  FLOAT_CONSTANT,   // `f` field of payload is valid
-  STRING_CONSTANT,  // `string` field of payload is valid
+  VARIABLE,               // `var` field of payload is valid
+  TEMPORARY,              // `tag` field of payload is valid
+  RETURN_RESULT,          // `tag` field of payload is valid
+  SIGNED_INT_CONSTANT,    // `i` field of payload is valid
+  UNSIGNED_INT_CONSTANT,  // `u` field of payload is valid
+  FLOAT_CONSTANT,         // `f` field of payload is valid
+  STRING_CONSTANT,        // `string` field of payload is valid
 };
 
 struct live_range
@@ -71,6 +72,7 @@ struct slot_def
     variable_def*     variable;
     unsigned int      tag;
     int               i;
+    unsigned int      u;
     float             f;
     string_constant*  string;
   };

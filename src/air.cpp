@@ -112,9 +112,10 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
 static void UseSlot(slot_def* slot, air_instruction* user)
 {
-  if (slot->type == slot_type::INT_CONSTANT    ||
-      slot->type == slot_type::FLOAT_CONSTANT  ||
-      slot->type == slot_type::STRING_CONSTANT   )
+  if (slot->type == slot_type::SIGNED_INT_CONSTANT    ||
+      slot->type == slot_type::UNSIGNED_INT_CONSTANT  ||
+      slot->type == slot_type::FLOAT_CONSTANT         ||
+      slot->type == slot_type::STRING_CONSTANT)
   {
     return;
   }
@@ -136,9 +137,10 @@ static void UseSlot(slot_def* slot, air_instruction* user)
 
 static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
 {
-  if (slot->type == slot_type::INT_CONSTANT    ||
-      slot->type == slot_type::FLOAT_CONSTANT  ||
-      slot->type == slot_type::STRING_CONSTANT   )
+  if (slot->type == slot_type::SIGNED_INT_CONSTANT    ||
+      slot->type == slot_type::UNSIGNED_INT_CONSTANT  ||
+      slot->type == slot_type::FLOAT_CONSTANT         ||
+      slot->type == slot_type::STRING_CONSTANT)
   {
     return;
   }
@@ -300,9 +302,14 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
     {
       switch (n->numberConstant.type)
       {
-        case number_constant_part::constant_type::INT:
+        case number_constant_part::constant_type::SIGNED_INT:
         {
-          return CreateSlot(code, slot_type::INT_CONSTANT, n->numberConstant.asInt);
+          return CreateSlot(code, slot_type::SIGNED_INT_CONSTANT, n->numberConstant.asSignedInt);
+        } break;
+
+        case number_constant_part::constant_type::UNSIGNED_INT:
+        {
+          return CreateSlot(code, slot_type::UNSIGNED_INT_CONSTANT, n->numberConstant.asUnsignedInt);
         } break;
 
         case number_constant_part::constant_type::FLOAT:
@@ -567,7 +574,8 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
       return 1u;
     }
 
-    case INT_CONSTANT:
+    case SIGNED_INT_CONSTANT:
+    case UNSIGNED_INT_CONSTANT:
     case FLOAT_CONSTANT:
     case STRING_CONSTANT:
     {
@@ -605,7 +613,8 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
       } break;
 
       case slot_type::RETURN_RESULT:
-      case slot_type::INT_CONSTANT:
+      case slot_type::SIGNED_INT_CONSTANT:
+      case slot_type::UNSIGNED_INT_CONSTANT:
       case slot_type::FLOAT_CONSTANT:
       case slot_type::STRING_CONSTANT:
       {
@@ -748,9 +757,10 @@ bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, sign
   {
     slot_def* slot = *it;
 
-    if (slot->type == slot_type::INT_CONSTANT     ||
-        slot->type == slot_type::FLOAT_CONSTANT   ||
-        slot->type == slot_type::STRING_CONSTANT  ||
+    if (slot->type == slot_type::SIGNED_INT_CONSTANT    ||
+        slot->type == slot_type::UNSIGNED_INT_CONSTANT  ||
+        slot->type == slot_type::FLOAT_CONSTANT         ||
+        slot->type == slot_type::STRING_CONSTANT        ||
         slot->type == slot_type::RETURN_RESULT)
     {
       continue;
@@ -788,9 +798,10 @@ static void GenerateInterferences(thing_of_code& code)
   {
     slot_def* a = *itA;
 
-    if (a->type == slot_type::INT_CONSTANT    ||
-        a->type == slot_type::FLOAT_CONSTANT  ||
-        a->type == slot_type::STRING_CONSTANT   )
+    if (a->type == slot_type::SIGNED_INT_CONSTANT   ||
+        a->type == slot_type::UNSIGNED_INT_CONSTANT ||
+        a->type == slot_type::FLOAT_CONSTANT        ||
+        a->type == slot_type::STRING_CONSTANT)
     {
       continue;
     }
@@ -801,9 +812,10 @@ static void GenerateInterferences(thing_of_code& code)
     {
       slot_def* b = *itB;
 
-      if (b->type == slot_type::INT_CONSTANT    ||
-          b->type == slot_type::FLOAT_CONSTANT  ||
-          b->type == slot_type::STRING_CONSTANT   )
+      if (b->type == slot_type::SIGNED_INT_CONSTANT   ||
+          b->type == slot_type::UNSIGNED_INT_CONSTANT ||
+          b->type == slot_type::FLOAT_CONSTANT        ||
+          b->type == slot_type::STRING_CONSTANT)
       {
         continue;
       }
@@ -924,9 +936,10 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
   {
     slot_def* slot = *it;
 
-    if (slot->type == slot_type::INT_CONSTANT   ||
-        slot->type == slot_type::FLOAT_CONSTANT ||
-        slot->type == slot_type::STRING_CONSTANT  )
+    if (slot->type == slot_type::SIGNED_INT_CONSTANT    ||
+        slot->type == slot_type::UNSIGNED_INT_CONSTANT  ||
+        slot->type == slot_type::FLOAT_CONSTANT         ||
+        slot->type == slot_type::STRING_CONSTANT)
     {
       continue;
     }
@@ -1230,9 +1243,14 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
         PRINT_SLOT("r%u : RES", slot->tag);
       } break;
 
-      case slot_type::INT_CONSTANT:
+      case slot_type::SIGNED_INT_CONSTANT:
       {
         PRINT_SLOT("%d : INT", slot->i);
+      } break;
+
+      case slot_type::UNSIGNED_INT_CONSTANT:
+      {
+        PRINT_SLOT("%u : UINT", slot->u);
       } break;
 
       case slot_type::FLOAT_CONSTANT:

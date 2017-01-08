@@ -114,14 +114,16 @@ struct number_constant_part
 {
   enum constant_type
   {
-    INT,
+    SIGNED_INT,
+    UNSIGNED_INT,
     FLOAT
   } type;
 
   union
   {
-    int   asInt;
-    float asFloat;
+    int           asSignedInt;
+    unsigned int  asUnsignedInt;
+    float         asFloat;
   };
 };
 

@@ -482,9 +482,13 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
         if (instruction->slot)
         {
-          if (instruction->slot->type == slot_type::INT_CONSTANT)
+          if (instruction->slot->type == slot_type::SIGNED_INT_CONSTANT)
           {
             E(i::MOV_REG_IMM32, RAX, instruction->slot->i);
+          }
+          else if (instruction->slot->type == slot_type::UNSIGNED_INT_CONSTANT)
+          {
+            E(i::MOV_REG_IMM32, RAX, instruction->slot->u);
           }
           else if (instruction->slot->type == slot_type::STRING_CONSTANT)
           {
@@ -538,9 +542,13 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
         mov_i& mov = instruction->mov;
 
-        if (mov.src->type == slot_type::INT_CONSTANT)
+        if (mov.src->type == slot_type::SIGNED_INT_CONSTANT)
         {
           E(i::MOV_REG_IMM32, mov.dest->color, mov.src->i);
+        }
+        else if (mov.src->type == slot_type::UNSIGNED_INT_CONSTANT)
+        {
+          E(i::MOV_REG_IMM32, mov.dest->color, mov.src->u);
         }
         else if (mov.src->type == slot_type::STRING_CONSTANT)
         {

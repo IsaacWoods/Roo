@@ -26,8 +26,9 @@ struct token
 
   union
   {
-    int   asInt;    // Valid if token type is TOKEN_NUMBER_INT
-    float asFloat;  // Valid if token type is TOKEN_NUMBER_FLOAT
+    int           asSignedInt;    // Valid if token type is TOKEN_SIGNED_INT
+    unsigned int  asUnsignedInt;  // Valid if token type is TOKEN_UNSIGNED_INT
+    float         asFloat;        // Valid if token type is TOKEN_FLOAT
   };
 };
 
@@ -155,7 +156,7 @@ static void Log(roo_parser& /*parser*/, const char* fmt, ...)
   va_list args;
   va_start(args, fmt);
 
-#if 0
+#if 1
   vprintf(fmt, args);
 #endif
 
@@ -201,7 +202,7 @@ static token LexName(roo_parser& parser)
 static token LexNumber(roo_parser& parser)
 {
   const char* startChar = parser.currentChar - 1u;
-  token_type type = TOKEN_NUMBER_INT;
+  token_type type = TOKEN_SIGNED_INT;
 
   while (IsDigit(*(parser.currentChar)))
   {
@@ -212,7 +213,7 @@ static token LexNumber(roo_parser& parser)
   if (*(parser.currentChar) == '.' && IsDigit(*(parser.currentChar + 1u)))
   {
     NextChar(parser);
-    type = TOKEN_NUMBER_FLOAT;
+    type = TOKEN_FLOAT;
 
     while (IsDigit(*(parser.currentChar)))
     {
@@ -223,17 +224,28 @@ static token LexNumber(roo_parser& parser)
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
+  if (type == TOKEN_SIGNED_INT && *(parser.currentChar) == 'u')
+  {
+    NextChar(parser);
+    type = TOKEN_UNSIGNED_INT;
+  }
+
   token tkn = MakeToken(parser, type, tokenOffset, startChar, (unsigned int)length);
   char* text = GetTextFromToken(tkn);
 
   switch (type)
   {
-    case TOKEN_NUMBER_INT:
+    case TOKEN_SIGNED_INT:
     {
-      tkn.asInt = strtol(text, nullptr, 10);
+      tkn.asSignedInt = strtol(text, nullptr, 10);
     } break;
 
-    case TOKEN_NUMBER_FLOAT:
+    case TOKEN_UNSIGNED_INT:
+    {
+      tkn.asUnsignedInt = strtol(text, nullptr, 10);
+    } break;
+
+    case TOKEN_FLOAT:
     {
       tkn.asFloat = strtof(text, nullptr);
     } break;
@@ -261,9 +273,9 @@ static token LexHexNumber(roo_parser& parser)
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
-  token tkn = MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
+  token tkn = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
   char* text = GetTextFromToken(tkn);
-  tkn.asInt = strtol(text, nullptr, 16);
+  tkn.asUnsignedInt = strtol(text, nullptr, 16);
   free(text);
 
   return tkn;
@@ -283,9 +295,9 @@ static token LexBinaryNumber(roo_parser& parser)
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
-  token tkn = MakeToken(parser, TOKEN_NUMBER_INT, tokenOffset, startChar, (unsigned int)length);
+  token tkn = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
   char* text = GetTextFromToken(tkn);
-  tkn.asInt = strtol(text, nullptr, 2);
+  tkn.asUnsignedInt = strtol(text, nullptr, 2);
   free(text);
 
   return tkn;
@@ -697,8 +709,9 @@ static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
   {
     printf("PEEK: (%s)\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
   }
-  else if ((PeekToken(parser, ignoreLines).type == TOKEN_NUMBER_INT) ||
-           (PeekToken(parser, ignoreLines).type == TOKEN_NUMBER_FLOAT))
+  else if ( (PeekToken(parser, ignoreLines).type == TOKEN_SIGNED_INT)   ||
+            (PeekToken(parser, ignoreLines).type == TOKEN_UNSIGNED_INT) ||
+            (PeekToken(parser, ignoreLines).type == TOKEN_FLOAT))
   {
     printf("PEEK: [%s]\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
   }
@@ -714,8 +727,9 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
   {
     printf("PEEK_NEXT: (%s)\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
   }
-  else if ((PeekNextToken(parser, ignoreLines).type == TOKEN_NUMBER_INT) ||
-           (PeekNextToken(parser, ignoreLines).type == TOKEN_NUMBER_FLOAT))
+  else if ( (PeekToken(parser, ignoreLines).type == TOKEN_SIGNED_INT)   ||
+            (PeekToken(parser, ignoreLines).type == TOKEN_UNSIGNED_INT) ||
+            (PeekToken(parser, ignoreLines).type == TOKEN_FLOAT))
   {
     printf("PEEK_NEXT: [%s]\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
   }
@@ -1325,17 +1339,27 @@ void InitParseletMaps()
       return CreateNode(VARIABLE_NODE, name);
     };
 
-  g_prefixMap[TOKEN_NUMBER_INT] =
+  g_prefixMap[TOKEN_SIGNED_INT] =
     [](roo_parser& parser) -> node*
     {
-      Log(parser, "--> [PARSELET] Number constant (integer)\n");
-      int value = PeekToken(parser).asInt;
+      Log(parser, "--> [PARSELET] Number constant (signed integer)\n");
+      int value = PeekToken(parser).asSignedInt;
       NextToken(parser);
-      Log(parser, "<-- [PARSELET] Number constant (integer)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::INT, value);
+      Log(parser, "<-- [PARSELET] Number constant (signed integer)\n");
+      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::SIGNED_INT, value);
     };
 
-  g_prefixMap[TOKEN_NUMBER_FLOAT] =
+  g_prefixMap[TOKEN_UNSIGNED_INT] =
+    [](roo_parser& parser) -> node*
+    {
+      Log(parser, "--> [PARSELET] Number constant (unsigned integer)\n");
+      unsigned int value = PeekToken(parser).asUnsignedInt;
+      NextToken(parser);
+      Log(parser, "<-- [PARSELET] Number constant (unsigned integer)\n");
+      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::UNSIGNED_INT, value);
+    };
+
+  g_prefixMap[TOKEN_FLOAT] =
     [](roo_parser& parser) -> node*
     {
       Log(parser, "--> [PARSELET] Number constant (floating point)\n");

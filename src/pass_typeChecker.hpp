@@ -35,10 +35,18 @@ void InitTypeCheckerPass()
 
       switch (n->numberConstant.type)
       {
-        case number_constant_part::constant_type::INT:
+        case number_constant_part::constant_type::SIGNED_INT:
         {
           n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
           n->typeRef->def = GetTypeByName(parse, "int");
+          n->typeRef->isResolved = true;
+          n->typeRef->isMutable = false;
+        } break;
+
+        case number_constant_part::constant_type::UNSIGNED_INT:
+        {
+          n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+          n->typeRef->def = GetTypeByName(parse, "uint");
           n->typeRef->isResolved = true;
           n->typeRef->isMutable = false;
         } break;
