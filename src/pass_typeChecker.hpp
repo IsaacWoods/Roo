@@ -24,6 +24,7 @@ void InitTypeCheckerPass()
     [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
       assert(n->variable.isResolved);
+      assert(n->variable.var->type.isResolved);
       n->typeRef = &(n->variable.var->type);
       n->shouldFreeTypeRef = false;
     };
@@ -140,23 +141,37 @@ void InitTypeCheckerPass()
 
       // Type check the operands
       {
-        type_ref* a = n->binaryOp.left->typeRef;
-        type_ref* b = n->binaryOp.right->typeRef;
-
-        // NOTE(Isaac): this seems slightly defensive, design flaws showing?
-        assert(a);
-        assert(a->isResolved);
-        assert(b);
-        assert(b->isResolved);
-        assert(a->def);
-        assert(b->def);
-
-        /*
-         * NOTE(Isaac): We don't care about their mutability
-         */
-        if (a->def != b->def)
+        if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
+            n->binaryOp.op == TOKEN_DOUBLE_MINUS  )
         {
-          RaiseError(ERROR_MISSING_OPERATOR, a->def->name, b->def->name);
+          type_ref* a = n->binaryOp.left->typeRef;
+          
+          assert(a);
+          assert(a->isResolved);
+          assert(a->def);
+
+          // TODO: check that the type has the required operator
+        }
+        else
+        {
+          type_ref* a = n->binaryOp.left->typeRef;
+          type_ref* b = n->binaryOp.right->typeRef;
+  
+          // NOTE(Isaac): this seems slightly defensive, design flaws showing?
+          assert(a);
+          assert(a->isResolved);
+          assert(b);
+          assert(b->isResolved);
+          assert(a->def);
+          assert(b->def);
+  
+          /*
+           * NOTE(Isaac): We don't care about their mutability
+           */
+          if (a->def != b->def)
+          {
+            RaiseError(ERROR_MISSING_OPERATOR, a->def->name, b->def->name);
+          }
         }
       }
     };

@@ -320,7 +320,7 @@ static void ResolveTypeRef(type_ref& ref, parse_result& parse)
   {
     type_def* type = *it;
 
-    if (type->name == ref.name)
+    if (strcmp(type->name, ref.name) == 0)
     {
       // TODO(Isaac): would be a good place to increment a usage counter on `typeIt`, if we ever needed one
       ref.isResolved = true;

@@ -3,23 +3,17 @@
 #[Prototype]
 fn Print(str : string)
 
-fn GetTheNumberFour() -> int
-{
-  return 4
-}
-
 #[Entry]
 fn Main() -> int
 {
-  i : mut int = 3u + 4
-//  str : string = "Hello, World!\n"
-//  j : int = i + 4
+  i : int = 3 + 4
+  j : mut int = i + 4
 
-/*  while (i > 0)
+  while (j > 0)
   {
-    i--
-    Print(str)
-  }*/
+    j--
+    Print("Hello, World!\n")
+  }
 
   return 0
 }
