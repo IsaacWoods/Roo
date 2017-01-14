@@ -156,7 +156,7 @@ static void Log(roo_parser& /*parser*/, const char* fmt, ...)
   va_list args;
   va_start(args, fmt);
 
-#if 0
+#if 1
   vprintf(fmt, args);
 #endif
 
@@ -401,7 +401,7 @@ static token LexNext(roo_parser& parser)
         goto EmitSimpleToken;
 
       case '^':
-        type = TOKEN_BITWISE_XOR;
+        type = TOKEN_XOR;
         goto EmitSimpleToken;
 
       case '+':
@@ -513,12 +513,12 @@ static token LexNext(roo_parser& parser)
       {
         if (*(parser.currentChar) == '&')
         {
-          type = TOKEN_LOGICAL_AND;
+          type = TOKEN_DOUBLE_AND;
           NextChar(parser);
         }
         else
         {
-          type = TOKEN_BITWISE_AND;
+          type = TOKEN_AND;
         }
 
         goto EmitSimpleToken;
@@ -528,12 +528,12 @@ static token LexNext(roo_parser& parser)
       {
         if (*(parser.currentChar) == '|')
         {
-          type = TOKEN_LOGICAL_OR;
+          type = TOKEN_DOUBLE_OR;
           NextChar(parser);
         }
         else
         {
-          type = TOKEN_BITWISE_OR;
+          type = TOKEN_OR;
         }
 
         goto EmitSimpleToken;
@@ -783,8 +783,10 @@ unsigned int    g_precedenceTable[NUM_TOKENS];
 static type_ref TypeRef(roo_parser& parser)
 {
   type_ref ref;
-  ref.isMutable = false;
-  ref.isResolved = false;
+  ref.isMutable           = false;
+  ref.isResolved          = false;
+  ref.isReference         = false;
+  ref.isReferenceMutable  = false;
   
   if (Match(parser, TOKEN_MUT))
   {
@@ -793,6 +795,21 @@ static type_ref TypeRef(roo_parser& parser)
   }
 
   ref.name = GetTextFromToken(PeekToken(parser));
+  NextToken(parser);
+
+  if (Match(parser, TOKEN_MUT))
+  {
+    Consume(parser, TOKEN_MUT);
+    Consume(parser, TOKEN_AND);
+    ref.isReference = true;
+    ref.isReferenceMutable = true;
+  }
+  else if (Match(parser, TOKEN_AND))
+  {
+    Consume(parser, TOKEN_AND);
+    ref.isReference = true;
+  }
+
   return ref;
 }
 
@@ -818,13 +835,13 @@ static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
     Log(parser, "Param: %s of type %s\n", param->name, param->type.name);
     Add<variable_def*>(params, param);
 
-    if (MatchNext(parser, TOKEN_COMMA))
+    if (Match(parser, TOKEN_COMMA))
     {
-      ConsumeNext(parser, TOKEN_COMMA);
+      Consume(parser, TOKEN_COMMA);
     }
     else
     {
-      ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+      Consume(parser, TOKEN_RIGHT_PAREN);
       break;
     }
   }
@@ -868,9 +885,9 @@ static variable_def* VariableDef(roo_parser& parser)
   type_ref typeRef = TypeRef(parser);
   node* initValue;
 
-  if (MatchNext(parser, TOKEN_EQUALS))
+  if (Match(parser, TOKEN_EQUALS))
   {
-    ConsumeNext(parser, TOKEN_EQUALS);
+    Consume(parser, TOKEN_EQUALS);
     initValue = Expression(parser);
   }
   else
@@ -880,7 +897,13 @@ static variable_def* VariableDef(roo_parser& parser)
   }
 
   variable_def* variable = CreateVariableDef(name, typeRef, initValue);
-  Log(parser, "Defined variable: '%s' of type: '%s' that %s\n", variable->name, variable->type.name, (variable->type.isMutable ? "is mutable" : "is immutable"));
+
+  Log(parser, "Defined variable: '%s' which is a %s'%s', which is %s\n",
+              variable->name,
+              (variable->type.isReference ? (variable->type.isReferenceMutable ? "mutable reference to a " : "reference to a ") : ""),
+              variable->type.name,
+              (variable->type.isMutable ? "mutable" : "immutable"));
+
   return variable;
 }
 

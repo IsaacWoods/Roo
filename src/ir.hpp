@@ -133,7 +133,9 @@ struct type_ref
   };
 
   bool  isResolved;
-  bool  isMutable;
+  bool  isMutable;          // NOTE(Isaac): for references, this describes the mutability of the reference
+  bool  isReference;
+  bool  isReferenceMutable; // NOTE(Isaac): describes the mutability of the reference's contents
 };
 
 struct variable_def

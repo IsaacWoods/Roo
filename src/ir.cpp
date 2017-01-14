@@ -328,6 +328,8 @@ static void ResolveTypeRef(type_ref& ref, parse_result& parse)
       return;
     }
   }
+
+  RaiseError(ERROR_UNDEFINED_TYPE, ref.name);
 }
 
 /*

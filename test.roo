@@ -3,7 +3,7 @@
 #[Prototype]
 fn Print(str : string)
 
-type Color
+/*type Color
 {
   r : float
   g : float
@@ -23,5 +23,20 @@ fn Main() -> int
     Print("Hello, World!\n")
   }
 
+  PrintFmt("Hello")
+
   return 0
+}*/
+
+fn PrintFmt(format : string)
+{
+  i : uint = 4u
+  formatIt : mut char& = format
+
+/*  while (formatIt != 0)
+  {
+    Print("Iterating over char")
+    formatIt++
+  }*/
 }
+

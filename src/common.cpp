@@ -249,16 +249,16 @@ const char* GetTokenName(token_type type)
       return "TOKEN_LEFT_SHIFT";
     case TOKEN_RIGHT_SHIFT:
       return "TOKEN_RIGHT_SHIFT";
-    case TOKEN_LOGICAL_AND:
-      return "TOKEN_LOGICAL_AND";
-    case TOKEN_LOGICAL_OR:
-      return "TOKEN_LOGICAL_OR";
-    case TOKEN_BITWISE_AND:
-      return "TOKEN_BITWISE_AND";
-    case TOKEN_BITWISE_OR:
-      return "TOKEN_BITWISE_OR";
-    case TOKEN_BITWISE_XOR:
-      return "TOKEN_BITWISE_XOR";
+    case TOKEN_AND:
+      return "TOKEN_AND";
+    case TOKEN_OR:
+      return "TOKEN_OR";
+    case TOKEN_XOR:
+      return "TOKEN_XOR";
+    case TOKEN_DOUBLE_AND:
+      return "TOKEN_DOUBLE_AND";
+    case TOKEN_DOUBLE_OR:
+      return "TOKEN_DOUBLE_OR";
 
     case TOKEN_IDENTIFIER:
       return "TOKEN_IDENTIFIER";

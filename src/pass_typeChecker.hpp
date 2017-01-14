@@ -122,10 +122,9 @@ void InitTypeCheckerPass()
         assert(newValueType->isResolved);
 
         // NOTE(Isaac): We don't care about their mutability
-        printf("A: %s and B: %s\n", varType->def->name, newValueType->def->name);
         if (varType->def != newValueType->def)
         {
-          RaiseError(ERROR_INCOMPATIBLE_ASSIGN, varType->def->name, newValueType->def->name);
+          RaiseError(ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varType->def->name);
         }
       }
     };

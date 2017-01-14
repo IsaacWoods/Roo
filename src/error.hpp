@@ -11,7 +11,8 @@ enum error
   ERROR_UNEXPECTED,               // "Unexpected token in {string} position: {string}"
   ERROR_ILLEGAL_ATTRIBUTE,        // "Unrecognised attribute '{string}'"
   ERROR_UNDEFINED_VARIABLE,       // "Failed to resolve variable called '{string}'"
-  ERROR_UNDEFINED_FUNCTION,       // "Failed to resolve function called '{string'"
+  ERROR_UNDEFINED_FUNCTION,       // "Failed to resolve function called '{string}'"
+  ERROR_UNDEFINED_TYPE,           // "Failed to resolve type with the name '{string}'"
   ERROR_MISSING_OPERATOR,         // "Can't find operator for operands of type '{string}' and '{string}'"
   ERROR_INCOMPATIBLE_ASSIGN,      // "Can't assign a '{string}' to a variable of type '{string}'
 

@@ -100,6 +100,7 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   Add<type_def*>(parseResult.types, CreateInbuiltType("s32",    4u));
   Add<type_def*>(parseResult.types, CreateInbuiltType("u64",    8u));
   Add<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
+  Add<type_def*>(parseResult.types, CreateInbuiltType("char",   1u));
   Add<type_def*>(parseResult.types, CreateInbuiltType("string", 8u)); // NOTE(Isaac): 8-bytes wide because strings are addresses
 }
 
