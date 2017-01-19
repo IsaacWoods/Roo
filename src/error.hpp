@@ -18,6 +18,9 @@ enum error
 
   FATAL_NO_PROGRAM_NAME,          // "A program name must be specified using the '#[Name(...)]' attribute"
 
+  ICE_GENERIC,                    // "{string}"
+  ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type for returning {string} in GenNodeAIR for type: {string|"
+
   NUM_ERRORS
 };
 

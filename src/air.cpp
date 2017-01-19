@@ -12,6 +12,7 @@
 #include <common.hpp>
 #include <ast.hpp>
 #include <ir.hpp>
+#include <error.hpp>
 
 template<>
 void Free<air_instruction*>(air_instruction*& instruction)
@@ -218,8 +219,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
         default:
         {
-          fprintf(stderr, "Unhandled AST binary op in GenNodeAIR<slot_def*>!\n");
-          Crash();
+          RaiseError(ICE_GENERIC, "Unhandled AST binary op in GenNodeAIR<slot_def*>");
         }
       }
 
@@ -269,8 +269,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
         default:
         {
-          fprintf(stderr, "Unhandled AST prefix op in GenNodeAIR!\n");
-          Crash();
+          RaiseError(ICE_GENERIC, "Unhandled AST prefix op in GenNodeAIR<slot_def*>");
         }
       }
 
@@ -326,8 +325,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
     default:
     {
-      fprintf(stderr, "Unhandled node for returning a `slot_def*` in GenNodeAIR: %s\n", GetNodeName(n->type));
-      Crash();
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `slot_def*`", GetNodeName(n->type));
     }
   }
 }
@@ -394,16 +392,14 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 
         default:
         {
-          fprintf(stderr, "Unhandled AST conditional in GenNodeAIR!\n");
-          Crash();
+          RaiseError(ICE_GENERIC, "Unhandled AST conditional in GenNodeAIR<jump_instruction::condition>");
         }
       }
     } break;
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning a `jump_instruction::condition` in GenNodeAIR: %s\n", GetNodeName(n->type));
-      Crash();
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `jump_instruction::condition`", GetNodeName(n->type));
     }
   }
 }
@@ -457,8 +453,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
         default:
         {
-          fprintf(stderr, "ICE: Unhandled AST binary op in GenNodeAIR<void?!\n");
-          Crash();
+          RaiseError(ICE_GENERIC, "Unhandled binary op in GenNodeAIR<void>");
         }
       }
 
@@ -516,8 +511,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning nothing in GenNodeAIR: %s\n", GetNodeName(n->type));
-      Crash();
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "nothing", GetNodeName(n->type));
     }
   }
 
@@ -549,8 +543,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, th
 
     default:
     {
-      fprintf(stderr, "Unhandled node type for returning a `instruction_label*` in GenNodeAIR: %s\n", GetNodeName(n->type));
-      Crash();
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `instruction_label*`", GetNodeName(n->type));
     }
   }
 
@@ -646,9 +639,6 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
     slot_def* resultSlot = CreateSlot(code, RETURN_RESULT);
     ChangeSlotValue(resultSlot, callInstruction);
     resultSlot->color = target.functionReturnColor;
-    char* slotStr = SlotAsString(resultSlot);
-    printf("Emitting temporary %s for return value of call to: %s\n", slotStr, n->call.code->mangledName);
-    free(slotStr);
     return resultSlot;
   }
 
@@ -718,8 +708,7 @@ unsigned int GetInstructionCost(air_instruction* instruction)
 
     case I_NUM_INSTRUCTIONS:
     {
-      fprintf(stderr, "ICE: Tried to get cost of instruction with type I_NUM_INSTRUCTIONS\n");
-      exit(1);
+      RaiseError(ICE_GENERIC, "Tried to get instruction cost of instruction with type I_NUM_INSTRUCTIONS!");
     }
   }
 
@@ -903,8 +892,7 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
     if (slot->color == -1)
     {
       // TODO: spill something instead of crashing
-      fprintf(stderr, "FATAL: failed to find valid k-coloring of interference graph!\n");
-      Crash();
+      RaiseError(ICE_GENERIC, "Failed to find a valid k-coloring of the interference graph!");
     }
   }
 }

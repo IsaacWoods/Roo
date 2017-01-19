@@ -14,6 +14,7 @@ enum error_level
   WARNING,
   ERROR,
   FATAL,
+  ICE,
 };
 
 enum poison_strategy
@@ -37,10 +38,11 @@ error_def errors[NUM_ERRORS] = {};
 __attribute__((constructor))
 void InitErrorDefs()
 {
-#define N(tag, message)             errors[tag] = error_def{error_level::NOTE, poison_strategy::DO_NOTHING, message};
-#define W(tag, message)             errors[tag] = error_def{error_level::WARNING, poison_strategy::DO_NOTHING, message};
-#define E(tag, poisoning, message)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, message};
-#define F(tag, message)             errors[tag] = error_def{error_level::FATAL, poison_strategy::GIVE_UP, message};
+#define N(tag, msg)             errors[tag] = error_def{error_level::NOTE, poison_strategy::DO_NOTHING, msg};
+#define W(tag, msg)             errors[tag] = error_def{error_level::WARNING, poison_strategy::DO_NOTHING, msg};
+#define E(tag, poisoning, msg)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, msg};
+#define F(tag, msg)             errors[tag] = error_def{error_level::FATAL, poison_strategy::GIVE_UP, msg};
+#define I(tag, msg)             errors[tag] = error_def{error_level::ICE, poison_strategy::GIVE_UP, msg};
 
   E(ERROR_EXPECTED,             TO_END_OF_STATEMENT,  "Expected %s");
   E(ERROR_EXPECTED_BUT_GOT,     TO_END_OF_STATEMENT,  "Expected %s but got %s instead");
@@ -54,10 +56,14 @@ void InitErrorDefs()
 
   F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
 
+  I(ICE_GENERIC,              "%s");
+  I(ICE_UNHANDLED_NODE_TYPE,  "Unhandled node type for returning %s in GenNodeAIR for type: %s");
+
 #undef N
 #undef W
 #undef E
 #undef F
+#undef I
 }
 
 void RaiseError(error e, ...)
@@ -68,9 +74,9 @@ void RaiseError(error e, ...)
 
   // TODO: follow the poisoning strategy
 
-  //                                   White          Light Purple    Orange          Red
-  static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[0:31m"};
-  static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "FATAL"};
+  //                                   White          Light Purple    Orange          Red           Cyan
+  static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[0:31m", "\x1B[1;36m"};
+  static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "FATAL",      "ICE"};
 
   /*
    *  NOTE(Isaac): we can't use the vsnprintf trick here to dynamically allocate the string buffer,

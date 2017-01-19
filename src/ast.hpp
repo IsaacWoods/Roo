@@ -49,6 +49,7 @@ struct ast_pass
  *     TOKEN_SLASH
  *     TOKEN_DOUBLE_PLUS (no `right`)
  *     TOKEN_DOUBLE_MINUS (no `right`)
+ *     TOKEN_LEFT_BLOCK (used to index an array)
  */
 struct binary_op_node_part
 {

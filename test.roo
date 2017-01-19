@@ -31,7 +31,7 @@ fn Main() -> int
 fn PrintFmt(format : string)
 {
   i : uint = 4u
-  formatIt : mut char& = format
+  formatIt : mut char& = format[0u]
 
 /*  while (formatIt != 0)
   {

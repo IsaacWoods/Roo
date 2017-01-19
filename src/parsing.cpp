@@ -1331,7 +1331,8 @@ void InitParseletMaps()
     P_BITWISE_SHIFTING,         // >> and <<
     P_ADDITIVE,                 // + and -
     P_MULTIPLICATIVE,           // *, / and %
-    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *, x(...)
+    P_PREFIX,                   // !, ~, +x, -x, ++x, --x, &, *
+    P_PRIMARY,                  // x(...), x[...]
     P_SUFFIX,                   // x++, x--
     P_MEMBER_ACCESS,            // x.y
   };
@@ -1341,7 +1342,8 @@ void InitParseletMaps()
   g_precedenceTable[TOKEN_MINUS]        = P_ADDITIVE;
   g_precedenceTable[TOKEN_ASTERIX]      = P_MULTIPLICATIVE;
   g_precedenceTable[TOKEN_SLASH]        = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_LEFT_PAREN]   = P_PREFIX;
+  g_precedenceTable[TOKEN_LEFT_PAREN]   = P_PRIMARY;
+  g_precedenceTable[TOKEN_LEFT_BLOCK]   = P_PRIMARY;
   g_precedenceTable[TOKEN_DOT]          = P_MEMBER_ACCESS;
   g_precedenceTable[TOKEN_DOUBLE_PLUS]  = P_PREFIX;
   g_precedenceTable[TOKEN_DOUBLE_MINUS] = P_PREFIX;
@@ -1443,6 +1445,19 @@ void InitParseletMaps()
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Binary operator\n");
       return CreateNode(BINARY_OP_NODE, operation, left, nullptr);
+    };
+
+  // NOTE(Isaac): parses an array index
+  g_infixMap[TOKEN_LEFT_BLOCK] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      Log(parser, "--> [PARSELET] Array index\n");
+      Consume(parser, TOKEN_LEFT_BLOCK);
+      node* indexExpression = Expression(parser, 0u);
+      Consume(parser, TOKEN_RIGHT_BLOCK);
+
+      Log(parser, "<-- [PARSELET] Array index\n");
+      return CreateNode(BINARY_OP_NODE, TOKEN_LEFT_BLOCK, left, indexExpression);
     };
 
   // NOTE(Isaac): Parses a function call
