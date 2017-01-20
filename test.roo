@@ -3,40 +3,25 @@
 #[Prototype]
 fn Print(str : string)
 
-/*type Color
+type string
 {
-  r : float
-  g : float
-  b : float
-  a : float
+  head : char&
 }
 
-#[Entry]
-fn Main() -> int
+operator [](s : string, i : uint) -> char
 {
-  i : int = 3 + 4
-  j : mut int = i + 4
+  return &s.head + i
+}
 
-  while (j > 0)
-  {
-    j--
-    Print("Hello, World!\n")
-  }
-
-  PrintFmt("Hello")
-
-  return 0
-}*/
-
+/*
 fn PrintFmt(format : string)
 {
   i : uint = 4u
   formatIt : mut char& = format[0u]
 
-/*  while (formatIt != 0)
+  while (formatIt != 0)
   {
     Print("Iterating over char")
     formatIt++
-  }*/
-}
-
+  }
+}*/

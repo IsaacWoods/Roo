@@ -37,12 +37,14 @@ node* CreateNode(node_type type, ...)
       result->binaryOp.op                     = static_cast<token_type>(va_arg(args, int));
       result->binaryOp.left                   = va_arg(args, node*);
       result->binaryOp.right                  = va_arg(args, node*);
+      result->binaryOp.resolvedOperator       = nullptr;
     } break;
 
     case PREFIX_OP_NODE:
     {
       result->prefixOp.op                     = static_cast<token_type>(va_arg(args, int));
       result->prefixOp.right                  = va_arg(args, node*);
+      result->prefixOp.resolvedOperator       = nullptr;
     } break;
 
     case VARIABLE_NODE:

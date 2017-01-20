@@ -154,6 +154,7 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
 }
 
 static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n);
+static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node* n);
 
 /*
  * BREAK_NODE:              `
@@ -180,63 +181,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
   {
     case BINARY_OP_NODE:
     {
-      slot_def* left = GenNodeAIR<slot_def*>(target, code, n->binaryOp.left);
-      slot_def* right = GenNodeAIR<slot_def*>(target, code, n->binaryOp.right);
-      slot_def* result = CreateSlot(code, slot_type::TEMPORARY);
-      air_instruction* instruction;
-
-      switch (n->binaryOp.op)
-      {
-        case TOKEN_PLUS:
-        {
-          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::ADD_I, left, right, result);
-        } break;
-
-        case TOKEN_MINUS:
-        {
-          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::SUB_I, left, right, result);
-        } break;
-
-        case TOKEN_ASTERIX:
-        {
-          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::MUL_I, left, right, result);
-        } break;
-
-        case TOKEN_SLASH:
-        {
-          instruction = PushInstruction(code, I_BINARY_OP, binary_op_i::op::DIV_I, left, right, result);
-        } break;
-
-        case TOKEN_DOUBLE_PLUS:
-        {
-          instruction = PushInstruction(code, I_INC, left);
-        } break;
-
-        case TOKEN_DOUBLE_MINUS:
-        {
-          instruction = PushInstruction(code, I_DEC, left);
-        } break;
-
-        default:
-        {
-          RaiseError(ICE_GENERIC, "Unhandled AST binary op in GenNodeAIR<slot_def*>");
-        }
-      }
-
-      if (right)
-      {
-        UseSlot(left, instruction);
-        UseSlot(right, instruction);
-        ChangeSlotValue(result, instruction);
-        return result;
-      }
-      else
-      {
-        // NOTE(Isaac): order of these is important, we want to update the old live-range, then create a new one
-        UseSlot(left, instruction);
-        ChangeSlotValue(left, instruction);
-        return left;
-      }
+      return GenOperation(target, n->binaryOp.resolvedOperator->code, n);
     } break;
 
     case PREFIX_OP_NODE:
@@ -326,7 +271,8 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
     default:
     {
       RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `slot_def*`", GetNodeName(n->type));
-    }
+      return nullptr;
+    } break;
   }
 }
 
@@ -393,6 +339,7 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
         default:
         {
           RaiseError(ICE_GENERIC, "Unhandled AST conditional in GenNodeAIR<jump_instruction::condition>");
+          Crash();
         }
       }
     } break;
@@ -400,7 +347,8 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
     default:
     {
       RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `jump_instruction::condition`", GetNodeName(n->type));
-    }
+      Crash();
+    } break;
   }
 }
 
@@ -577,6 +525,86 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
   }
 
   return 0u;
+}
+
+static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node* n)
+{
+  // TODO: don't assume everything will fit in a general register
+  unsigned int numGeneralParams = 0u;
+  vector<slot_def*> params;
+  InitVector<slot_def*>(params);
+
+  auto parameterize = [&](node* param)
+    {
+      slot_def* slot = GenNodeAIR<slot_def*>(target, code, param);
+
+      switch (slot->type)
+      {
+        case slot_type::VARIABLE:
+        case slot_type::TEMPORARY:
+        {
+          // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
+          slot->color = target.intParamColors[numGeneralParams++];
+          Add<slot_def*>(params, slot);
+        } break;
+  
+        case slot_type::RETURN_RESULT:
+        case slot_type::SIGNED_INT_CONSTANT:
+        case slot_type::UNSIGNED_INT_CONSTANT:
+        case slot_type::FLOAT_CONSTANT:
+        case slot_type::STRING_CONSTANT:
+        {
+          // NOTE(Isaac): we create a temporary to move the constant into, then color that
+          slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
+          temporary->color = target.intParamColors[numGeneralParams++];
+          air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, slot);
+          Add<slot_def*>(params, temporary);
+  
+          UseSlot(slot, movInstruction);
+          ChangeSlotValue(temporary, movInstruction);
+        } break;
+      }
+    };
+
+  switch (n->type)
+  {
+    case BINARY_OP_NODE:
+    {
+      parameterize(n->binaryOp.left);
+
+      if (n->binaryOp.op != TOKEN_DOUBLE_PLUS &&
+          n->binaryOp.op != TOKEN_DOUBLE_MINUS)
+      {
+        parameterize(n->binaryOp.right);
+      }
+    } break;
+
+    default:
+    {
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "GenOperation", GetNodeName(n->type));
+    }
+  }
+
+  assert(n->binaryOp.resolvedOperator);
+  air_instruction* callInstruction = PushInstruction(code, I_CALL, n->binaryOp.resolvedOperator->code);
+
+  for (auto* paramIt = params.head;
+       paramIt < params.tail;
+       paramIt++)
+  {
+    UseSlot(*paramIt, callInstruction);
+  }
+  DetachVector<slot_def*>(params);
+
+  if (n->call.code->returnType)
+  {
+    slot_def* resultSlot = CreateSlot(code, RETURN_RESULT);
+    ChangeSlotValue(resultSlot, callInstruction);
+    resultSlot->color = target.functionReturnColor;
+    return resultSlot;
+  }
+
+  return nullptr;
 }
 
 /*

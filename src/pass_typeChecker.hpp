@@ -130,7 +130,7 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[BINARY_OP_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& parse, thing_of_code* /*code*/, node* n)
     {
       // For operators that change the variable, check that they're mutable
       {
@@ -184,17 +184,26 @@ void InitTypeCheckerPass()
           assert(b->isResolved);
           assert(a->def);
           assert(b->def);
-  
-          /*
-           * NOTE(Isaac): We don't care about their mutability
-           */
-          if (a->def != b->def)
+
+          // NOTE(Isaac): this isn't really actually type-checking, but here we resolve the operator_def to use
+          for (auto* it = parse.operators.head;
+               it < parse.operators.tail;
+               it++)
           {
-            RaiseError(ERROR_MISSING_OPERATOR, a->def->name, b->def->name);
+            operator_def* op = *it;
+
+            if ((op->op != n->binaryOp.op)      ||
+                (a->def != op->code.params[0u]->type.def) ||
+                (b->def != op->code.params[1u]->type.def))
+            {
+              continue;
+            }
+
+            n->typeRef = op->code.returnType;
+            break;
           }
 
-          // NOTE(Isaac): this is the shabby way of doing it, use real `operator_def`s instead
-          n->typeRef = a;
+          RaiseError(ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), a->def->name, b->def->name);
         }
       }
     };

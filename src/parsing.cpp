@@ -815,7 +815,7 @@ static type_ref TypeRef(roo_parser& parser)
 
 static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
 {
-  ConsumeNext(parser, TOKEN_LEFT_PAREN);
+  Consume(parser, TOKEN_LEFT_PAREN);
 
   // Check for an empty parameter list
   if (Match(parser, TOKEN_RIGHT_PAREN))
@@ -883,17 +883,12 @@ static variable_def* VariableDef(roo_parser& parser)
   ConsumeNext(parser, TOKEN_COLON);
 
   type_ref typeRef = TypeRef(parser);
-  node* initValue;
+  node* initValue = nullptr;
 
   if (Match(parser, TOKEN_EQUALS))
   {
     Consume(parser, TOKEN_EQUALS);
     initValue = Expression(parser);
-  }
-  else
-  {
-    initValue = nullptr;
-    NextToken(parser);
   }
 
   variable_def* variable = CreateVariableDef(name, typeRef, initValue);
@@ -1151,6 +1146,7 @@ static void Function(roo_parser& parser, attrib_set& attribs)
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
 
+  NextToken(parser);
   ParameterList(parser, function->code.params);
 
   // Optionally parse a return type
@@ -1189,7 +1185,27 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
   Add<operator_def*>(parser.result->operators, operatorDef);
 
-  // TODO: validate the operator token to make sure it's a valid overloadable operator
+  switch (operatorDef->op)
+  {
+    case TOKEN_PLUS:
+    case TOKEN_MINUS:
+    case TOKEN_ASTERIX:
+    case TOKEN_SLASH:
+    case TOKEN_DOUBLE_PLUS:
+    case TOKEN_DOUBLE_MINUS:
+    {
+    } break;
+
+    case TOKEN_LEFT_BLOCK:
+    {
+      ConsumeNext(parser, TOKEN_RIGHT_BLOCK);
+    } break;
+
+    default:
+    {
+      RaiseError(ERROR_INVALID_OPERATOR, GetTokenName(operatorDef->op));
+    } break;
+  }
 
   ParameterList(parser, operatorDef->code.params);
 
@@ -1417,6 +1433,19 @@ void InitParseletMaps()
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Prefix operation\n");
       return CreateNode(PREFIX_OP_NODE, operation, Expression(parser, P_PREFIX));
+    };
+
+  // NOTE(Isaac): this parses taking the reference of another expression
+  g_prefixMap[TOKEN_AND] =
+    [](roo_parser& parser) -> node*
+    {
+      Log(parser, "--> [PARSELET] Reference operator\n");
+
+      NextToken(parser);
+      node* expression = Expression(parser, P_PREFIX);
+
+      Log(parser, "<-- [PARSELET] Reference operator\n");
+      return CreateNode(PREFIX_OP_NODE, TOKEN_AND, expression);
     };
 
   // --- Infix Parselets ---

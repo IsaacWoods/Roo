@@ -53,9 +53,10 @@ struct ast_pass
  */
 struct binary_op_node_part
 {
-  token_type  op;
-  node*       left;
-  node*       right;
+  token_type    op;
+  node*         left;
+  node*         right;
+  operator_def* resolvedOperator;
 };
 
 /*
@@ -64,11 +65,13 @@ struct binary_op_node_part
  *    TOKEN_MINUS
  *    TOKEN_BANG
  *    TOKEN_TILDE
+ *    TOKEN_AND   (Reference operator)
  */
 struct prefix_op_node_part
 {
-  token_type  op;
-  node*       right;
+  token_type    op;
+  node*         right;
+  operator_def* resolvedOperator;
 };
 
 struct variable_node_part

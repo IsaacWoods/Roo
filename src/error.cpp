@@ -51,8 +51,9 @@ void InitErrorDefs()
   E(ERROR_UNDEFINED_VARIABLE,   TO_END_OF_STATEMENT,  "Failed to resolve variable called '%s'");
   E(ERROR_UNDEFINED_FUNCTION,   TO_END_OF_STATEMENT,  "Failed to resolve function called '%s'");
   E(ERROR_UNDEFINED_TYPE,       TO_END_OF_STATEMENT,  "Failed to resolve type with the name '%s'");
-  E(ERROR_MISSING_OPERATOR,     TO_END_OF_STATEMENT,  "Can't find operator for operands of type '%s' and '%s'");
+  E(ERROR_MISSING_OPERATOR,     TO_END_OF_STATEMENT,  "Can't find %s operator for operands of type '%s' and '%s'");
   E(ERROR_INCOMPATIBLE_ASSIGN,  TO_END_OF_STATEMENT,  "Can't assign a '%s' to a variable of type '%s'");
+  E(ERROR_INVALID_OPERATOR,     TO_END_OF_BLOCK,      "Can't overload operator with token %s");
 
   F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
 
