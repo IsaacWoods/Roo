@@ -24,7 +24,7 @@ AST_PASSES = \
 STD_OBJECTS = \
 	std/io.o \
 
-.PHONY: clean install
+.PHONY: clean install lines
 .DEFAULT: roo
 
 roo: $(OBJS) $(STD_OBJECTS) $(AST_PASSES)
@@ -42,3 +42,6 @@ clean:
 install:
 	mkdir -p ~/.vim/syntax
 	cp roo.vim ~/.vim/syntax/roo.vim
+
+lines:
+	cloc --read-lang-def=cloc.cfg .
