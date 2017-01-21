@@ -151,17 +151,19 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-static void Log(roo_parser& /*parser*/, const char* fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-
-#if 0
-  vprintf(fmt, args);
+#if 1
+  // NOTE(Isaac): format must be specified as the first vararg
+  #define Log(parser, ...) Log_(parser, __VA_ARGS__);
+  static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+  }
+#else
+  #define Log(parser, ...)
 #endif
-
-  va_end(args);
-}
 
 static token LexName(roo_parser& parser)
 {
