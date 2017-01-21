@@ -463,16 +463,16 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   E(i::INT_IMM8, 0x80);
 }
 
-elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def* function)
+static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code& code)
 {
-  assert(function->code.airHead);
-  elf_thing* thing = CreateThing(elf, function->code.symbol);
+  assert(code.airHead);
+  elf_thing* thing = CreateThing(elf, code.symbol);
 
   // Enter a new stack frame
   E(i::PUSH_REG, RBP);
   E(i::MOV_REG_REG, RBP, RSP);
 
-  for (air_instruction* instruction = function->code.airHead;
+  for (air_instruction* instruction = code.airHead;
        instruction;
        instruction = instruction->next)
   {
@@ -635,19 +635,19 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
       {
 
         #define SAVE_REG(reg) \
-          if (IsColorInUseAtPoint(function->code, instruction, reg)) \
+          if (IsColorInUseAtPoint(code, instruction, reg)) \
           { \
             E(i::PUSH_REG, reg); \
           }
 
         #define RESTORE_REG(reg) \
-          if (IsColorInUseAtPoint(function->code, instruction, reg)) \
+          if (IsColorInUseAtPoint(code, instruction, reg)) \
           { \
             E(i::POP_REG, reg); \
           }
 
         /*
-         * These are the registers that must be saved a function's caller if it cares about their contents
+         * These are the registers that must be saved by the caller if it cares about their contents
          * NOTE(Isaac): While RSP is caller-saved, we don't care about its contents
          */
         SAVE_REG(RAX)
@@ -693,7 +693,7 @@ elf_thing* GenerateFunction(elf_file& elf, codegen_target& target, function_def*
   }
 
   // If we should auto-return, leave the stack frame and return
-  if (function->code.shouldAutoReturn)
+  if (code.shouldAutoReturn)
   {
     E(i::LEAVE);
     E(i::RET);
@@ -753,40 +753,49 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     tail++;
   }
 
-  // Generate the symbol for each function
+  // --- Generate symbols for functions and operators ---
+  auto generateSymbol = [&](thing_of_code& code)
+    {
+      /*
+       * If it's a prototype, we want to reference the symbol of an already loaded (hopefully) function.
+       */
+      if (code.attribs.isPrototype)
+      {
+        for (auto* thingIt = elf.things.head;
+             thingIt < elf.things.tail;
+             thingIt++)
+        {
+          elf_thing* thing = *thingIt;
+
+          if (strcmp(thing->symbol->name->str, code.mangledName) == 0)
+          {
+            code.symbol = thing->symbol;
+          }
+        }
+
+        if (!code.symbol)
+        {
+          RaiseError(ERROR_UNIMPLEMENTED_PROTOTYPE, code.mangledName);
+        }
+      }
+      else
+      {
+        code.symbol = CreateSymbol(elf, code.mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+      }
+    };
+
   for (auto* it = result.functions.head;
        it < result.functions.tail;
        it++)
   {
-    function_def* function = *it;
+    generateSymbol((*it)->code);
+  }
 
-    /*
-     * If it's a prototype function, we want to reference the symbol of an already loaded (hopefully) function.
-     */
-    if (function->code.attribs.isPrototype)
-    {
-      for (auto* thingIt = elf.things.head;
-           thingIt < elf.things.tail;
-           thingIt++)
-      {
-        elf_thing* thing = *thingIt;
-
-        if (strcmp(thing->symbol->name->str, function->code.mangledName) == 0)
-        {
-          function->code.symbol = thing->symbol;
-        }
-      }
-
-      if (!function->code.symbol)
-      {
-        fprintf(stderr, "FATAL: Prototyped function '%s' is missing definition!\n", function->name);
-        Crash();
-      }
-    }
-    else
-    {
-      function->code.symbol = CreateSymbol(elf, function->code.mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
-    }
+  for (auto* it = result.operators.head;
+       it < result.operators.tail;
+       it++)
+  {
+    generateSymbol((*it)->code);
   }
 
   // Create a thing for the bootstrap
@@ -794,7 +803,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf_thing* bootstrapThing = CreateThing(elf, bootstrapSymbol);
   GenerateBootstrap(elf, target, bootstrapThing, result);
 
-  // Generate an `elf_thing` for each function
+  // --- Generate `elf_thing`s for each function and operator ---
   for (auto* it = result.functions.head;
        it < result.functions.tail;
        it++)
@@ -806,7 +815,21 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
       continue;
     }
 
-    GenerateFunction(elf, target, function);
+    Generate(elf, target, function->code);
+  }
+
+  for (auto* it = result.operators.head;
+       it < result.operators.tail;
+       it++)
+  {
+    operator_def* op = *it;
+
+    if (op->code.attribs.isPrototype)
+    {
+      continue;
+    }
+
+    Generate(elf, target, op->code);
   }
 
   CompleteElf(elf);

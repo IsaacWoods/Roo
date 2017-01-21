@@ -7,7 +7,7 @@ operator +(a : uint, b : uint) -> uint
 {
   return 7u
 }
-/*
+
 #[Entry]
 fn Main() -> int
 {
@@ -15,7 +15,7 @@ fn Main() -> int
   Print("Hello, World!\n")
   return 0
 }
-*/
+
 /*
 type string
 {

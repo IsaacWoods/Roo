@@ -180,7 +180,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
   {
     case BINARY_OP_NODE:
     {
-      return GenOperation(target, n->binaryOp.resolvedOperator->code, n);
+      return GenOperation(target, code, n);
     } break;
 
     case PREFIX_OP_NODE:
@@ -580,7 +580,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
   }
 
   assert(n->binaryOp.resolvedOperator);
-  air_instruction* callInstruction = PushInstruction(code, I_CALL, n->binaryOp.resolvedOperator->code);
+  air_instruction* callInstruction = PushInstruction(code, I_CALL, &(n->binaryOp.resolvedOperator->code));
 
   for (auto* paramIt = params.head;
        paramIt < params.tail;
