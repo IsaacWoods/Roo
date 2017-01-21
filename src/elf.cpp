@@ -9,6 +9,7 @@
 #include <cstdarg>
 #include <climits>
 #include <cassert>
+#include <error.hpp>
 
 #define PROGRAM_HEADER_ENTRY_SIZE 0x38
 #define SECTION_HEADER_ENTRY_SIZE 0x40
@@ -188,14 +189,15 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
 
 struct elf_object
 {
-  FILE*                         f;
-  vector<elf_section*>     sections;
-  vector<elf_symbol*>      symbols;      // NOTE(Isaac): should be *unlinked*
-  vector<elf_relocation*>  relocations;  // NOTE(Isaac): should be *unlinked*
-  vector<elf_thing*>       things;       // NOTE(Isaac): should be *unlinked*
+  const char*               path;
+  FILE*                     f;
+  vector<elf_section*>      sections;
+  vector<elf_symbol*>       symbols;      // NOTE(Isaac): contents should not be freed
+  vector<elf_relocation*>   relocations;  // NOTE(Isaac): contents should not be freed
+  vector<elf_thing*>        things;       // NOTE(Isaac): contents should not be freed
 
-  elf_symbol**                  symbolRemaps;
-  unsigned int                  numRemaps;
+  elf_symbol**              symbolRemaps;
+  unsigned int              numRemaps;
 };
 
 template<>
@@ -350,8 +352,7 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
 
   if (section->entrySize != RELOCATION_ENTRY_SIZE)
   {
-    fprintf(stderr, "FATAL: External object has weirdly-sized relocations!\n");
-    Crash();
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, object.path);
   }
 
   unsigned int numRelocations = section->size / section->entrySize;
@@ -375,8 +376,7 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
 
     if (!(relocation->symbol))
     {
-      printf("FATAL: Failed to find resolve symbol used in an external relocation!\n");
-      Crash();
+      RaiseError(ERROR_UNRESOLVED_SYMBOL, "unknown (from external relocation section)");
     }
 
     Add<elf_relocation*>(elf.relocations, relocation);
@@ -387,6 +387,7 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
 void LinkObject(elf_file& elf, const char* objectPath)
 {
   elf_object object;
+  object.path = objectPath;
   object.f = fopen(objectPath, "rb");
   InitVector<elf_section*>(object.sections);
   InitVector<elf_symbol*>(object.symbols);
@@ -395,14 +396,13 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (!(object.f))
   {
-    fprintf(stderr, "FATAL: failed to open object to link against: '%s'!\n", objectPath);
-    Crash();
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath);
   }
 
   #define CONSUME(byte) \
     if (fgetc(object.f) != byte) \
     { \
-      fprintf(stderr, "FATAL: Object file (%s) does not match expected format!\n", objectPath); \
+      RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath); \
     }
 
   // Check the magic
@@ -418,8 +418,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (fileType != ET_REL)
   {
-    fprintf(stderr, "FATAL: Can only link relocatable object files!\n");
-    Crash();
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath);
   }
 
   // Parse the section header
@@ -439,8 +438,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
       case SHT_REL:
       {
-        fprintf(stderr, "FATAL: SHT_REL sections are not supported, please emit SHT_RELA sections instead!\n");
-        Crash();
+        RaiseError(ICE_GENERIC, "SHT_REL sections are not supported, use SHT_RELA sections instead");
       } break;
 
       case SHT_RELA:
@@ -816,9 +814,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
 
     if (!symbolResolved)
     {
-      // We can't find a matching symbol - throw an error
-      fprintf(stderr, "FATAL: Failed to resolve symbol during linking: '%s'!\n", symbol->name->str);
-      Crash();
+      RaiseError(ERROR_UNRESOLVED_SYMBOL, symbol->name->str);
     }
   }
 }
@@ -895,8 +891,7 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
 
       default:
       {
-        fprintf(stderr, "FATAL: Unhandled relocation->type (%s)!\n", GetRelocationTypeName(relocation->type));
-        Crash();
+        RaiseError(ICE_UNHANDLED_RELOCATION, GetRelocationTypeName(relocation->type));
       }
     }
   }
@@ -967,8 +962,7 @@ void WriteElf(elf_file& elf, const char* path)
 
   if (!f)
   {
-    fprintf(stderr, "FATAL: unable to create executable at path: %s\n", path);
-    Crash();
+    RaiseError(ERROR_INVALID_EXECUTABLE, path);
   }
 
   // Leave space for the ELF header
@@ -1020,8 +1014,7 @@ void WriteElf(elf_file& elf, const char* path)
   elf_symbol* startSymbol = GetSymbol(elf, "_start");
   if (!startSymbol)
   {
-    fprintf(stderr, "FATAL: Can't find a '_start' symbol to enter into!\n");
-    Crash();
+    RaiseError(ERROR_NO_START_SYMBOL);
   }
   elf.header.entryPoint = startSymbol->value;
 

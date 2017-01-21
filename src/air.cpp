@@ -89,8 +89,7 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
     case I_NUM_INSTRUCTIONS:
     {
-      fprintf(stderr, "Tried to push AIR instruction of type I_NUM_INSTRUCTIONS!\n");
-      assert(false);
+      RaiseError(ICE_GENERIC, "Tried to push an AIR instruction of type I_NUM_INSTRUCTIONS!");
     }
   }
 
@@ -124,7 +123,7 @@ static void UseSlot(slot_def* slot, air_instruction* user)
   if (slot->liveRanges.size >= 1u)
   {
     live_range& lastRange = slot->liveRanges[slot->liveRanges.size - 1u];
-    assert(lastRange.definition->index < user->index);
+    if (lastRange.definition) assert(lastRange.definition->index < user->index);
     lastRange.lastUse = user;
   }
   else
@@ -232,14 +231,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
     case VARIABLE_NODE:
     {
       assert(n->variable.isResolved);
-      variable_def* variable = n->variable.var;
-
-      if (!(variable->slot))
-      {
-        variable->slot = CreateSlot(code, slot_type::VARIABLE, variable);
-      }
-      
-      return variable->slot;
+      return n->variable.var->slot;
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -374,8 +366,8 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
     case VARIABLE_ASSIGN_NODE:
     {
-      slot_def* variable= GenNodeAIR<slot_def*>(target, code, n->variableAssignment.variable);
-      slot_def* newValue= GenNodeAIR<slot_def*>(target, code, n->variableAssignment.newValue);
+      slot_def* variable = GenNodeAIR<slot_def*>(target, code, n->variableAssignment.variable);
+      slot_def* newValue = GenNodeAIR<slot_def*>(target, code, n->variableAssignment.newValue);
 
       air_instruction* instruction = PushInstruction(code, I_MOV, variable, newValue);
       ChangeSlotValue(variable, instruction);
@@ -503,6 +495,7 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
   switch (slot->type)
   {
     case VARIABLE:
+    case PARAMETER:
     {
       // TODO: think about more expensive addressing modes for things not in variables
       return 1u;
@@ -541,6 +534,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
       switch (slot->type)
       {
         case slot_type::VARIABLE:
+        case slot_type::PARAMETER:
         case slot_type::TEMPORARY:
         {
           // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
@@ -596,7 +590,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
   }
   DetachVector<slot_def*>(params);
 
-  if (n->call.code->returnType)
+  if (n->binaryOp.resolvedOperator->code.returnType)
   {
     slot_def* resultSlot = CreateSlot(code, RETURN_RESULT);
     ChangeSlotValue(resultSlot, callInstruction);
@@ -626,6 +620,7 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
     switch (paramSlot->type)
     {
       case slot_type::VARIABLE:
+      case slot_type::PARAMETER:
       case slot_type::TEMPORARY:
       {
         // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
@@ -848,11 +843,13 @@ static void GenerateInterferences(thing_of_code& code)
              bRangeIt++)
         {
           live_range& rangeB = *bRangeIt;
-          unsigned int useA = (rangeA.lastUse ? rangeA.lastUse->index : UINT_MAX);
+          unsigned int definitionA = (a->type == slot_type::PARAMETER ? 0u : rangeA.definition->index);
+          unsigned int definitionB = (b->type == slot_type::PARAMETER ? 0u : rangeB.definition->index);
+          unsigned int useA = (rangeA.lastUse ? rangeA.lastUse->index : UINT_MAX);  // TODO: I reckon this should be where it's defined (we don't care about it if it's not used)
           unsigned int useB = (rangeB.lastUse ? rangeB.lastUse->index : UINT_MAX);
 
           // NOTE(Isaac): this checks if the live-ranges intersect
-          if ((rangeA.definition->index <= useB) && (rangeB.definition->index <= useA))
+          if ((definitionA <= useB) && (definitionB <= useA))
           {
             a->interferences[a->numInterferences++] = b;
             b->interferences[b->numInterferences++] = a;
@@ -929,7 +926,22 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
 {
   assert(!(code.airHead));
 
-  // NOTE(Isaac): this prints all the nodes in the function's outermost scope
+  for (auto* it = code.params.head;
+       it < code.params.tail;
+       it++)
+  {
+    variable_def* param = *it;
+    param->slot = CreateSlot(code, slot_type::PARAMETER, param);
+  }
+
+  for (auto* it = code.locals.head;
+       it < code.locals.tail;
+       it++)
+  {
+    variable_def* local = *it;
+    local->slot = CreateSlot(code, slot_type::VARIABLE, local);
+  }
+
   GenNodeAIR(target, code, code.ast);
 
   // Color the interference graph
@@ -972,12 +984,25 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
 
       if (range.lastUse)
       {
-        printf("(%u..%u) ", range.definition->index, range.lastUse->index);
+        if (range.definition)
+        {
+          printf("(%u..%u) ", range.definition->index, range.lastUse->index);
+        }
+        else
+        {
+          printf("(ENTRY..%u) ", range.lastUse->index);
+        }
       }
       else
       {
-        // NOTE(Isaac): `??)` forms a trigraph so escape one of the question marks
-        printf("(%u..?\?) ", range.definition->index);
+        if (range.definition)
+        {
+          printf("(%u..?\?) ", range.definition->index);
+        }
+        else
+        {
+          printf("(ENTRY..?\?) ");
+        }
       }
     }
     printf("\n");
@@ -1247,6 +1272,11 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
       case slot_type::VARIABLE:
       {
         PRINT_SLOT("%s : VAR", slot->variable->name);
+      } break;
+
+      case slot_type::PARAMETER:
+      {
+        PRINT_SLOT("%s : PARAM", slot->variable->name);
       } break;
 
       case slot_type::TEMPORARY:

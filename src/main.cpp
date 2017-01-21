@@ -93,7 +93,7 @@ int main()
       } break;
     }
 
-    if (dependencyDirectory != nullptr && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
+    if (dependencyDirectory && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
     {
       fprintf(stderr, "FATAL: failed to compile dependency: %s\n", dependencyDirectory);
       Crash();
@@ -110,16 +110,52 @@ int main()
        it++)
   {
     function_def* function = *it;
-    OutputDOTOfAST(function);
-    OutputInterferenceDOT(function->code, function->name);
 
-    printf("Cost of function '%s': %u\n", function->name, GetCodeCost(function->code));
+    if (function->code.attribs.isPrototype)
+    {
+      continue;
+    }
+
+    OutputDOTOfAST(function);
   }
   #endif
 
+  // --- Generate AIR for functions and operators ---
+  for (auto* it = result.functions.head;
+       it < result.functions.tail;
+       it++)
+  {
+    function_def* function = *it;
+
+    if (function->code.attribs.isPrototype)
+    {
+      continue;
+    }
+
+    GenerateAIR(target, function->code);
+
+#ifdef OUTPUT_DOT
+    OutputInterferenceDOT(function->code, function->name);
+#endif
+  }
+
+  for (auto* it = result.operators.head;
+       it < result.operators.tail;
+       it++)
+  {
+    operator_def* op = *it;
+
+    if (op->code.attribs.isPrototype)
+    {
+      continue;
+    }
+
+    GenerateAIR(target, op->code);
+  }
+
   if (!(result.name))
   {
-    RaiseError(FATAL_NO_PROGRAM_NAME);
+    RaiseError(ERROR_NO_PROGRAM_NAME);
   }
 
   Generate(result.name, target, result);

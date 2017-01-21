@@ -13,7 +13,6 @@ enum error_level
   NOTE,
   WARNING,
   ERROR,
-  FATAL,
   ICE,
 };
 
@@ -54,8 +53,13 @@ void InitErrorDefs()
   E(ERROR_MISSING_OPERATOR,     TO_END_OF_STATEMENT,  "Can't find %s operator for operands of type '%s' and '%s'");
   E(ERROR_INCOMPATIBLE_ASSIGN,  TO_END_OF_STATEMENT,  "Can't assign a '%s' to a variable of type '%s'");
   E(ERROR_INVALID_OPERATOR,     TO_END_OF_BLOCK,      "Can't overload operator with token %s");
-
-  F(FATAL_NO_PROGRAM_NAME,    "A program name must be specified using the '#[Name(...)]' attribute");
+  E(ERROR_INVALID_OPERATOR,     TO_END_OF_STATEMENT,  "Can't overload operator with token %s");
+  E(ERROR_NO_START_SYMBOL,      GIVE_UP,              "No _start symbol (is this a freestanding environment?\?)");
+  E(ERROR_INVALID_EXECUTABLE,   GIVE_UP,              "Unable to create executable at path: %s");
+  E(ERROR_UNRESOLVED_SYMBOL,    DO_NOTHING,           "Failed to resolve symbol: %s");
+  E(ERROR_NO_PROGRAM_NAME,      GIVE_UP,              "A program name must be specified using the '#[Name(...)]' attribute");
+  E(ERROR_WEIRD_LINKED_OBJECT,  DO_NOTHING,           "'%s' is not a valid ELF64 relocatable");
+  E(ERROR_NO_ENTRY_FUNCTION,    GIVE_UP,              "Failed to find function with #[Entry] attribute");
 
   I(ICE_GENERIC,              "%s");
   I(ICE_UNHANDLED_NODE_TYPE,  "Unhandled node type for returning %s in GenNodeAIR for type: %s");
@@ -75,9 +79,9 @@ void RaiseError(error e, ...)
 
   // TODO: follow the poisoning strategy
 
-  //                                   White          Light Purple    Orange          Red           Cyan
-  static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[0:31m", "\x1B[1;36m"};
-  static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "FATAL",      "ICE"};
+  //                                   White          Light Purple    Orange          Cyan
+  static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};
+  static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "ICE"};
 
   /*
    *  NOTE(Isaac): we can't use the vsnprintf trick here to dynamically allocate the string buffer,
@@ -93,7 +97,6 @@ void RaiseError(error e, ...)
   {
     case DO_NOTHING:
     {
-      // TODO
     } break;
 
     case TO_END_OF_STATEMENT:

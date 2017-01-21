@@ -199,11 +199,15 @@ void InitTypeCheckerPass()
               continue;
             }
 
+            n->binaryOp.resolvedOperator = op;
             n->typeRef = op->code.returnType;
             break;
           }
 
-          RaiseError(ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), a->def->name, b->def->name);
+          if (!(n->typeRef))
+          {
+            RaiseError(ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), a->def->name, b->def->name);
+          }
         }
       }
     };

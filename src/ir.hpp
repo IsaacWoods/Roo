@@ -50,6 +50,7 @@ struct elf_symbol;
 enum slot_type
 {
   VARIABLE,               // `var` field of payload is valid
+  PARAMETER,              // `var` field of payload is valid
   TEMPORARY,              // `tag` field of payload is valid
   RETURN_RESULT,          // `tag` field of payload is valid
   SIGNED_INT_CONSTANT,    // `i` field of payload is valid
@@ -60,6 +61,10 @@ enum slot_type
 
 struct live_range
 {
+  /*
+   * For slots of type `PARAMETER`, the defining instruction may be `nullptr`, as they have a value when coming
+   * into the function.
+   */
   air_instruction* definition;
   air_instruction* lastUse;
 };
@@ -206,4 +211,5 @@ function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* MangleFunctionName(function_def* function);
+char* MangleOperatorName(operator_def* op);
 void CompleteIR(codegen_target& target, parse_result& parse);

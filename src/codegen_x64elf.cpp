@@ -13,6 +13,7 @@
 #include <ir.hpp>
 #include <air.hpp>
 #include <elf.hpp>
+#include <error.hpp>
 
 enum reg
 {
@@ -101,7 +102,6 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   Add<type_def*>(parseResult.types, CreateInbuiltType("u64",    8u));
   Add<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
   Add<type_def*>(parseResult.types, CreateInbuiltType("char",   1u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("string", 8u)); // NOTE(Isaac): 8-bytes wide because strings are addresses
 }
 
 template<>
@@ -447,8 +447,7 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
   if (!entrySymbol)
   {
-    fprintf(stderr, "FATAL: Failed to find entry point!\n");
-    exit(1);
+    RaiseError(ERROR_NO_ENTRY_FUNCTION);
   }
 
   // Clearly mark the outermost stack frame

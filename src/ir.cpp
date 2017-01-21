@@ -40,6 +40,12 @@ slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
       slot->variable = va_arg(args, variable_def*);
     } break;
 
+    case slot_type::PARAMETER:
+    {
+      slot->variable = va_arg(args, variable_def*);
+      Add<live_range>(slot->liveRanges, live_range{nullptr, nullptr});
+    } break;
+
     case slot_type::TEMPORARY:
     {
       slot->tag = code.numTemporaries++;
@@ -89,6 +95,7 @@ char* SlotAsString(slot_def* slot)
   switch (slot->type)
   {
     SLOT_STR(slot_type::VARIABLE,               "%s(V)",  slot->variable->name)
+    SLOT_STR(slot_type::PARAMETER,              "%s(P)",  slot->variable->name)
     SLOT_STR(slot_type::TEMPORARY,              "t%u",    slot->tag)
     SLOT_STR(slot_type::RETURN_RESULT,          "r%u",    slot->tag)
     SLOT_STR(slot_type::SIGNED_INT_CONSTANT,    "#%d",    slot->i)
@@ -360,12 +367,59 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
 
 char* MangleFunctionName(function_def* function)
 {
-  const char* base = "_R_";
+  static const char* base = "_R_";
 
   // NOTE(Isaac): add one to leave space for an added null-terminator
   char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(function->name) + 1u)));
   strcpy(mangled, base);
   strcat(mangled, function->name);
+
+  return mangled;
+}
+
+char* MangleOperatorName(operator_def* op)
+{
+  static const char* base = "_RO_";
+
+  const char* opName = nullptr;
+  switch (op->op)
+  {
+    case TOKEN_PLUS:          opName = "plus";      break;
+    case TOKEN_MINUS:         opName = "minus";     break;
+    case TOKEN_ASTERIX:       opName = "multiply";  break;
+    case TOKEN_SLASH:         opName = "divide";    break;
+    case TOKEN_DOUBLE_PLUS:   opName = "increment"; break;
+    case TOKEN_DOUBLE_MINUS:  opName = "decrement"; break;
+    case TOKEN_LEFT_BLOCK:    opName = "index";     break;
+
+    default:
+    {
+      RaiseError(ICE_UNHANDLED_OPERATOR, GetTokenName(op->op), "MangleOperatorName");
+    } break;
+  }
+
+  size_t length = strlen(base) + strlen(opName);
+  for (auto* it = op->code.params.head;
+       it < op->code.params.tail;
+       it++)
+  {
+    variable_def* param = *it;
+    assert(!(param->type.isResolved));
+    length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
+  }
+
+  char* mangled = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
+  strcpy(mangled, base);
+  strcat(mangled, opName);
+
+  for (auto* it = op->code.params.head;
+       it < op->code.params.tail;
+       it++)
+  {
+    variable_def* param = *it;
+    strcat(mangled, "_");
+    strcat(mangled, param->type.name);
+  }
 
   return mangled;
 }
@@ -381,40 +435,56 @@ void CompleteIR(codegen_target& target, parse_result& parse)
     function->code.mangledName = MangleFunctionName(function);
   }
 
-  // TODO: also mangle operator names
+  for (auto* it = parse.operators.head;
+       it < parse.operators.tail;
+       it++)
+  {
+    operator_def* op = *it;
+    op->code.mangledName = MangleOperatorName(op);
+  }
 
   // --- Resolve `variable_def`s everywhere ---
+  auto resolveThingOfCode = [&](thing_of_code& code)
+    {
+      if (code.attribs.isPrototype)
+      {
+        return;
+      }
+
+      if (code.returnType)
+      {
+        ResolveTypeRef(*(code.returnType), parse);
+      }
+  
+      for (auto* paramIt = code.params.head;
+           paramIt < code.params.tail;
+           paramIt++)
+      {
+        variable_def* param = *paramIt;
+        ResolveTypeRef(param->type, parse);
+      }
+  
+      for (auto* localIt = code.locals.head;
+           localIt < code.locals.tail;
+           localIt++)
+      {
+        variable_def* local = *localIt;
+        ResolveTypeRef(local->type, parse);
+      }
+    };
+  
   for (auto* it = parse.functions.head;
        it < parse.functions.tail;
        it++)
   {
-    function_def* function = *it;
+    resolveThingOfCode((*it)->code);
+  }
 
-    if (function->code.attribs.isPrototype)
-    {
-      continue;
-    }
-
-    if (function->code.returnType)
-    {
-      ResolveTypeRef(*(function->code.returnType), parse);
-    }
-
-    for (auto* paramIt = function->code.params.head;
-         paramIt < function->code.params.tail;
-         paramIt++)
-    {
-      variable_def* param = *paramIt;
-      ResolveTypeRef(param->type, parse);
-    }
-
-    for (auto* localIt = function->code.locals.head;
-         localIt < function->code.locals.tail;
-         localIt++)
-    {
-      variable_def* local = *localIt;
-      ResolveTypeRef(local->type, parse);
-    }
+  for (auto* it = parse.operators.head;
+       it < parse.operators.tail;
+       it++)
+  {
+    resolveThingOfCode((*it)->code);
   }
 
   for (auto* it = parse.types.head;
@@ -444,22 +514,4 @@ void CompleteIR(codegen_target& target, parse_result& parse)
   ApplyASTPass(parse, PASS_resolveVars);
   ApplyASTPass(parse, PASS_resolveCalls);
   ApplyASTPass(parse, PASS_typeChecker);
-
-  // --- Generate AIR for functions and operators ---
-  // TODO: parralelise this with a job server
-  for (auto* it = parse.functions.head;
-       it < parse.functions.tail;
-       it++)
-  {
-    function_def* function = *it;
-
-    if (function->code.attribs.isPrototype)
-    {
-      continue;
-    }
-
-    GenerateAIR(target, function->code);
-  }
-
-  // TODO: generate AIR for operators
 }

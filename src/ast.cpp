@@ -8,6 +8,7 @@
 #include <cstdarg>
 #include <cassert>
 #include <common.hpp>
+#include <error.hpp>
 
 node* CreateNode(node_type type, ...)
 {
@@ -465,9 +466,6 @@ const char* GetNodeName(node_type type)
   return nullptr;
 }
 
-#include <cstring>
-#include <cstdlib>
-#include <cassert>
 #include <functional>
 
 /*
@@ -476,8 +474,8 @@ const char* GetNodeName(node_type type)
  */
 void OutputDOTOfAST(function_def* function)
 {
-  // Check if the function's empty
-  if (function->code.ast == nullptr)
+  // NOTE(Isaac): don't bother for empty functions
+  if (!(function->code.ast))
   {
     return;
   }
@@ -496,10 +494,11 @@ void OutputDOTOfAST(function_def* function)
 
   fprintf(f, "digraph G\n{\n");
 
-  // NOTE(Isaac): yes, this is a recursive lambda
-  // NOTE(Isaac): yeah, this uses disgusting C++ STL stuff, but function pointers aren't powerful enough so
-  std::function<char*(node*)> EmitNode =
-    [&](node* n) -> char*
+  /*
+   * NOTE(Isaac): Trust me, I've tried pretty damn hard to eliminate this capture and use a normal
+   * C function pointer, but I've had to resort to STD stuff because of the capture ¯\_(ツ)_/¯
+   */
+  std::function<char*(FILE*, node*)> emitNode = [&](FILE* f, node* n) -> char*
     {
       assert(n);
 
@@ -521,7 +520,7 @@ void OutputDOTOfAST(function_def* function)
         {
           fprintf(f, "\t%s[label=\"Return\"];\n", name);
 
-          char* expressionName = EmitNode(n->expression);
+          char* expressionName = emitNode(f, n->expression);
           fprintf(f, "\t%s -> %s;\n", name, expressionName);
           free(expressionName);
         } break;
@@ -544,13 +543,13 @@ void OutputDOTOfAST(function_def* function)
             }
           }
 
-          char* leftName = EmitNode(n->binaryOp.left);
+          char* leftName = emitNode(f, n->binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, leftName);
           free(leftName);
 
           if (n->binaryOp.right)
           {
-            char* rightName = EmitNode(n->binaryOp.right);
+            char* rightName = emitNode(f, n->binaryOp.right);
             fprintf(f, "\t%s -> %s;\n", name, rightName);
             free(rightName);
           }
@@ -571,7 +570,7 @@ void OutputDOTOfAST(function_def* function)
             }
           }
 
-          char* rightName = EmitNode(n->binaryOp.left);
+          char* rightName = emitNode(f, n->binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, rightName);
           free(rightName);
         } break;
@@ -605,11 +604,11 @@ void OutputDOTOfAST(function_def* function)
             }
           }
 
-          char* leftName = EmitNode(n->binaryOp.left);
+          char* leftName = emitNode(f, n->binaryOp.left);
           fprintf(f, "\t%s -> %s;\n", name, leftName);
           free(leftName);
 
-          char* rightName = EmitNode(n->binaryOp.right);
+          char* rightName = emitNode(f, n->binaryOp.right);
           fprintf(f, "\t%s -> %s;\n", name, rightName);
           free(rightName);
         } break;
@@ -623,11 +622,11 @@ void OutputDOTOfAST(function_def* function)
         {
           fprintf(f, "\t%s[label=\"While\"];\n", name);
 
-          char* conditionName = EmitNode(n->whileThing.condition);
+          char* conditionName = emitNode(f, n->whileThing.condition);
           fprintf(f, "\t%s -> %s;\n", name, conditionName);
           free(conditionName);
 
-          char* codeName = EmitNode(n->whileThing.code);
+          char* codeName = emitNode(f, n->whileThing.code);
           fprintf(f, "\t%s -> %s;\n", name, codeName);
           free(codeName);
         } break;
@@ -680,11 +679,11 @@ void OutputDOTOfAST(function_def* function)
           fprintf(f, "\t%s[label=\"=\"];\n", name);
 
           assert(n->variableAssignment.variable);
-          char* variableName = EmitNode(n->variableAssignment.variable);
+          char* variableName = emitNode(f, n->variableAssignment.variable);
           fprintf(f, "\t%s -> %s;\n", name, variableName);
           free(variableName);
 
-          char* newValueName = EmitNode(n->variableAssignment.newValue);
+          char* newValueName = emitNode(f, n->variableAssignment.newValue);
           fprintf(f, "\t%s -> %s;\n", name, newValueName);
           free(newValueName);
         } break;
@@ -696,15 +695,14 @@ void OutputDOTOfAST(function_def* function)
 
         case NUM_AST_NODES:
         {
-          fprintf(stderr, "Node of type NUM_AST_NODES found in actual AST!\n");
-          Crash();
+          RaiseError(ICE_GENERIC, "Node of type NUM_AST_NODES found in actual AST!");
         } break;
       }
 
       // Generate the next node, and draw an edge between this node and the next
       if (n->next)
       {
-        char* nextName = EmitNode(n->next);
+        char* nextName = emitNode(f, n->next);
         fprintf(f, "\t%s -> %s[color=blue];\n", name, nextName);
         free(nextName);
       }
@@ -712,7 +710,7 @@ void OutputDOTOfAST(function_def* function)
       return name;
     };
 
-  free(EmitNode(function->code.ast));
+  free(emitNode(f, function->code.ast));
 
   fprintf(f, "}\n");
   fclose(f);
