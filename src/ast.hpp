@@ -167,10 +167,9 @@ struct member_access_part
    */
   node*   parent;
   bool    isResolved;
-
   union
   {
-    char*         name;
+    node*         child;    // Child may be a VARIABLE_NODE or another MEMBER_ACCESS_NODE
     variable_def* member;
   };
 };
@@ -203,4 +202,7 @@ struct node
 const char* GetNodeName(node_type type);
 node* CreateNode(node_type type, ...);
 void ApplyASTPass(parse_result& parse, ast_pass& pass);
-void OutputDOTOfAST(function_def* function);
+
+#ifdef OUTPUT_DOT
+void OutputDOTOfAST(thing_of_code& code);
+#endif

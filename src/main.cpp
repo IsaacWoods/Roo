@@ -102,7 +102,7 @@ int main()
     free(dependencyDirectory);
   }
 
-  CompleteIR(target, result);
+  CompleteIR(result);
 
   #ifdef OUTPUT_DOT
   for (auto* it = result.functions.head;
@@ -116,7 +116,21 @@ int main()
       continue;
     }
 
-    OutputDOTOfAST(function);
+    OutputDOTOfAST(function->code);
+  }
+
+  for (auto* it = result.operators.head;
+       it < result.operators.tail;
+       it++)
+  {
+    operator_def* op = *it;
+
+    if (op->code.attribs.isPrototype)
+    {
+      continue;
+    }
+
+    OutputDOTOfAST(op->code);
   }
   #endif
 
@@ -151,6 +165,10 @@ int main()
     }
 
     GenerateAIR(target, op->code);
+
+#ifdef OUTPUT_DOT
+    OutputInterferenceDOT(op->code, op->code.mangledName);
+#endif
   }
 
   if (!(result.name))

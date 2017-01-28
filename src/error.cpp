@@ -40,7 +40,6 @@ void InitErrorDefs()
 #define N(tag, msg)             errors[tag] = error_def{error_level::NOTE, poison_strategy::DO_NOTHING, msg};
 #define W(tag, msg)             errors[tag] = error_def{error_level::WARNING, poison_strategy::DO_NOTHING, msg};
 #define E(tag, poisoning, msg)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, msg};
-#define F(tag, msg)             errors[tag] = error_def{error_level::FATAL, poison_strategy::GIVE_UP, msg};
 #define I(tag, msg)             errors[tag] = error_def{error_level::ICE, poison_strategy::GIVE_UP, msg};
 
   E(ERROR_EXPECTED,                 TO_END_OF_STATEMENT,  "Expected %s");
@@ -60,15 +59,17 @@ void InitErrorDefs()
   E(ERROR_NO_PROGRAM_NAME,          GIVE_UP,              "A program name must be specified using the '#[Name(...)]' attribute");
   E(ERROR_WEIRD_LINKED_OBJECT,      DO_NOTHING,           "'%s' is not a valid ELF64 relocatable");
   E(ERROR_NO_ENTRY_FUNCTION,        GIVE_UP,              "Failed to find function with #[Entry] attribute");
-  E(ERROR_UNIMPLEMENTED_PROTOTYPE,  DO_NOTHING,        "Prototype function has no implementation: %s");
+  E(ERROR_UNIMPLEMENTED_PROTOTYPE,  DO_NOTHING,           "Prototype function has no implementation: %s");
+  E(ERROR_MEMBER_NOT_FOUND,         DO_NOTHING,           "Field of name '%s' is not a member of type '%s'");
 
   I(ICE_GENERIC,              "%s");
   I(ICE_UNHANDLED_NODE_TYPE,  "Unhandled node type for returning %s in GenNodeAIR for type: %s");
+  I(ICE_UNHANDLED_OPERATOR,   "Unhandled operator (token=%s) in %s");
+  I(ICE_UNHANDLED_RELOCATION, "Unable to handle relocation of type: %s");
 
 #undef N
 #undef W
 #undef E
-#undef F
 #undef I
 }
 

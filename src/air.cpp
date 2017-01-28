@@ -234,6 +234,12 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
       return n->variable.var->slot;
     } break;
 
+    case MEMBER_ACCESS_NODE:
+    {
+      assert(n->memberAccess.isResolved);
+      return n->memberAccess.member->slot;
+    } break;
+
     case NUMBER_CONSTANT_NODE:
     {
       switch (n->numberConstant.type)
@@ -788,11 +794,15 @@ bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, sign
          rangeIt++)
     {
       live_range& range = *rangeIt;
-      // TODO: should this be UINT_MAX or automatically return false because we don't care about the value
-      // of the register??
-      unsigned int lastUse = (range.lastUse ? range.lastUse->index : UINT_MAX);
 
-      if ((instruction->index >= range.definition->index) && (instruction->index <= lastUse))
+      // NOTE(Isaac): if the slot isn't used, we don't care about its value, so skip it
+      if (!(range.lastUse))
+      {
+        continue;
+      }
+
+      unsigned int definitionIndex = (slot->type == slot_type::PARAMETER ? 0u : range.definition->index);
+      if ((instruction->index >= definitionIndex) && (instruction->index <= range.lastUse->index))
       {
         return true;
       }
@@ -932,6 +942,14 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
   {
     variable_def* param = *it;
     param->slot = CreateSlot(code, slot_type::PARAMETER, param);
+
+    for (auto* memberIt = param->type.def->members.head;
+         memberIt < param->type.def->members.tail;
+         memberIt++)
+    {
+      variable_def* member = *memberIt;
+      member->slot = CreateSlot(code, slot_type::PARAMETER, member);
+    }
   }
 
   for (auto* it = code.locals.head;
@@ -940,6 +958,14 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
   {
     variable_def* local = *it;
     local->slot = CreateSlot(code, slot_type::VARIABLE, local);
+
+    for (auto* memberIt = local->type.def->members.head;
+         memberIt < local->type.def->members.tail;
+         memberIt++)
+    {
+      variable_def* member = *memberIt;
+      member->slot = CreateSlot(code, slot_type::VARIABLE, member);
+    }
   }
 
   GenNodeAIR(target, code, code.ast);

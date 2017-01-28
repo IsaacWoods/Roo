@@ -15,7 +15,7 @@ ast_pass PASS_resolveVars = {};
 __attribute__((constructor))
 void InitResolveVarsPass()
 {
-  PASS_resolveVars.iteratePolicy = NODE_FIRST;
+  PASS_resolveVars.iteratePolicy = CHILDREN_FIRST;
 
   PASS_resolveVars.f[VARIABLE_NODE] =
     [](parse_result& /*parse*/, thing_of_code* code, node* n)
@@ -59,10 +59,53 @@ void InitResolveVarsPass()
     };
 
   PASS_resolveVars.f[MEMBER_ACCESS_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* /*n*/)
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
     {
-      // TODO: actually implement this maybes
-      fprintf(stderr, "WE HAVEN'T IMPLEMENTED VARIABLE RESOLUTION FOR `MEMBER_ACCESS_NODE`S YET\n");
-      exit(1);
+      type_def* parentType = nullptr;
+      switch (n->memberAccess.parent->type)
+      {
+        case VARIABLE_NODE:
+        {
+          assert(n->memberAccess.parent->variable.isResolved);
+          assert(n->memberAccess.parent->variable.var->type.isResolved);
+          parentType = n->memberAccess.parent->variable.var->type.def;
+        } break;
+
+        case MEMBER_ACCESS_NODE:
+        {
+          assert(n->memberAccess.parent->memberAccess.isResolved);
+          assert(n->memberAccess.parent->memberAccess.member->type.isResolved);
+          parentType = n->memberAccess.parent->memberAccess.member->type.def;
+        } break;
+
+        default:
+        {
+          RaiseError(ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(parent)");
+        } break;
+      }
+
+      if (n->memberAccess.child->type != VARIABLE_NODE)
+      {
+        RaiseError(ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(child)");
+      }
+      
+      assert(!(n->memberAccess.child->variable.isResolved));
+      const char* childName = n->memberAccess.child->variable.name;
+
+      for (auto* it = parentType->members.head;
+           it < parentType->members.tail;
+           it++)
+      {
+        variable_def* member = *it;
+
+        if (strcmp(childName, member->name) == 0)
+        {
+          n->memberAccess.isResolved = true;
+          n->memberAccess.member = member;
+          return;
+        }
+      }
+
+      RaiseError(ERROR_MEMBER_NOT_FOUND, childName, parentType->name);
     };
 }

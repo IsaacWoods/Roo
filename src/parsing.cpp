@@ -1532,11 +1532,11 @@ void InitParseletMaps()
         RaiseError(ERROR_EXPECTED_BUT_GOT, "variable-binding or member-binding", GetNodeName(left->type));
       }
 
-      char* memberName = GetTextFromToken(PeekToken(parser));
       NextToken(parser);
+      node* child = Expression(parser, P_MEMBER_ACCESS); 
 
       Log(parser, "<-- [PARSELET] Member access\n");
-      return CreateNode(MEMBER_ACCESS_NODE, left, memberName);
+      return CreateNode(MEMBER_ACCESS_NODE, left, child);
     };
 
   // NOTE(Isaac): Parses a variable assignment

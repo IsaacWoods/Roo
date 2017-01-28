@@ -140,14 +140,13 @@ node* CreateNode(node_type type, ...)
     case MEMBER_ACCESS_NODE:
     {
       result->memberAccess.parent             = va_arg(args, node*);
-      result->memberAccess.name               = va_arg(args, char*);
+      result->memberAccess.child              = va_arg(args, node*);
       result->memberAccess.isResolved         = false;
     } break;
 
     default:
     {
-      fprintf(stderr, "Unhandled node type in CreateNode!\n");
-      Crash();
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "CreateNode");
     }
   }
 
@@ -271,7 +270,7 @@ void Free<node*>(node*& n)
       }
       else
       {
-        free(n->memberAccess.name);
+        Free<node*>(n->memberAccess.child);
       }
     } break;
 
@@ -385,6 +384,13 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
 
     case MEMBER_ACCESS_NODE:
     {
+      ApplyPassToNode(n->memberAccess.parent, code, pass, parse);
+
+      // NOTE(Isaac): we don't want to resolve inner variable defs (because they can't be resolved)
+      if (n->memberAccess.child->type == MEMBER_ACCESS_NODE)
+      {
+        ApplyPassToNode(n->memberAccess.child, code, pass, parse);
+      }
     } break;
 
     case NUM_AST_NODES:
@@ -427,6 +433,23 @@ void ApplyASTPass(parse_result& parse, ast_pass& pass)
       ApplyPassToNode(function->code.ast, &(function->code), pass, parse);
     }
   }
+
+  for (auto* it = parse.operators.head;
+       it < parse.operators.tail;
+       it++)
+  {
+    operator_def* op = *it;
+
+    if (op->code.attribs.isPrototype)
+    {
+      continue;
+    }
+
+    if (op->code.ast)
+    {
+      ApplyPassToNode(op->code.ast, &(op->code), pass, parse);
+    }
+  }
 }
 
 const char* GetNodeName(node_type type)
@@ -466,23 +489,19 @@ const char* GetNodeName(node_type type)
   return nullptr;
 }
 
+#ifdef OUTPUT_DOT
 #include <functional>
-
-/*
- * Outputs a DOT file of a function's AST.
- * NOTE(Isaac): The code of the DOT is not guaranteed to be pretty.
- */
-void OutputDOTOfAST(function_def* function)
+void OutputDOTOfAST(thing_of_code& code)
 {
-  // NOTE(Isaac): don't bother for empty functions
-  if (!(function->code.ast))
+  // NOTE(Isaac): don't bother for empty functions/operators
+  if (!(code.ast))
   {
     return;
   }
 
   unsigned int i = 0u;
   char fileName[128u] = {0};
-  strcpy(fileName, function->name);
+  strcpy(fileName, code.mangledName);
   strcat(fileName, ".dot");
   FILE* f = fopen(fileName, "w");
 
@@ -535,11 +554,11 @@ void OutputDOTOfAST(function_def* function)
             case TOKEN_SLASH:         fprintf(f, "\t%s[label=\"/\"];\n",  name); break;
             case TOKEN_DOUBLE_PLUS:   fprintf(f, "\t%s[label=\"++\"];\n", name); break;
             case TOKEN_DOUBLE_MINUS:  fprintf(f, "\t%s[label=\"--\"];\n", name); break;
+            case TOKEN_LEFT_BLOCK:    fprintf(f, "\t%s[label=\"[]\"];\n", name); break;
 
             default:
             {
-              fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
-              Crash();
+              RaiseError(ICE_UNHANDLED_OPERATOR, GetTokenName(n->binaryOp.op), "OuputDOTForAST:BINARY");
             }
           }
 
@@ -563,10 +582,11 @@ void OutputDOTOfAST(function_def* function)
             case TOKEN_MINUS: fprintf(f, "\t%s[label=\"-\"];\n", name); break;
             case TOKEN_BANG:  fprintf(f, "\t%s[label=\"!\"];\n", name); break;
             case TOKEN_TILDE: fprintf(f, "\t%s[label=\"~\"];\n", name); break;
+            case TOKEN_AND:   fprintf(f, "\t%s[label=\"&\"];\n", name); break;
+
             default:
             {
-              fprintf(stderr, "Unhandled prefix op node in OutputDOTForAST\n");
-              Crash();
+              RaiseError(ICE_UNHANDLED_OPERATOR, GetTokenName(n->prefixOp.op), "OuputDOTForAST:PREFIX");
             }
           }
 
@@ -597,10 +617,10 @@ void OutputDOTOfAST(function_def* function)
             case TOKEN_GREATER_THAN_EQUAL_TO:   fprintf(f, "\t%s[label=\">=\"];\n", name); break;
             case TOKEN_LESS_THAN:               fprintf(f, "\t%s[label=\"<\"];\n",  name); break;
             case TOKEN_LESS_THAN_EQUAL_TO:      fprintf(f, "\t%s[label=\"<=\"];\n", name); break;
+
             default:
             {
-              fprintf(stderr, "Unhandled binary op node in OutputDOTForAST\n");
-              Crash();
+              RaiseError(ICE_UNHANDLED_OPERATOR, "OutputDOTForAST:CONDITION");
             }
           }
 
@@ -690,7 +710,21 @@ void OutputDOTOfAST(function_def* function)
 
         case MEMBER_ACCESS_NODE:
         {
-          // TODO
+          char* parentName = emitNode(f, n->memberAccess.parent);
+          fprintf(f, "\t%s -> %s;\n", name, parentName);
+          free(parentName);
+
+          if (n->memberAccess.isResolved)
+          {
+            fprintf(f, "\t%s[label=\"%s.\"];\n", name, n->memberAccess.member->name);
+          }
+          else
+          {
+            char* childName = emitNode(f, n->memberAccess.child);
+            fprintf(f, "\t%s[label=\".\"];\n", name);
+            fprintf(f, "\t%s -> %s;\n", name, childName);
+            free(childName);
+          }
         } break;
 
         case NUM_AST_NODES:
@@ -710,8 +744,9 @@ void OutputDOTOfAST(function_def* function)
       return name;
     };
 
-  free(emitNode(f, function->code.ast));
+  free(emitNode(f, code.ast));
 
   fprintf(f, "}\n");
   fclose(f);
 }
+#endif

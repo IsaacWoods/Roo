@@ -424,7 +424,7 @@ char* MangleOperatorName(operator_def* op)
   return mangled;
 }
 
-void CompleteIR(codegen_target& target, parse_result& parse)
+void CompleteIR(parse_result& parse)
 {
   // Mangle function and operator names
   for (auto* it = parse.functions.head;

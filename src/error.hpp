@@ -23,9 +23,10 @@ enum error
   ERROR_WEIRD_LINKED_OBJECT,      // "'{string}' is not a valid ELF64 relocatable"
   ERROR_NO_ENTRY_FUNCTION,        // "Failed to find function with #[Entry] attribute"
   ERROR_UNIMPLEMENTED_PROTOTYPE,  // "Prototype function has no implementation: %s"
+  ERROR_MEMBER_NOT_FOUND,         // "Field of name '%s' is not a member of type '%s'"
 
   ICE_GENERIC,                    // "{string}"
-  ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type for returning {string} in GenNodeAIR for type: {string}"
+  ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s"
   ICE_UNHANDLED_OPERATOR,         // "Unhandled operator (token=%s) in %s"
   ICE_UNHANDLED_RELOCATION,       // "Unable to handle relocation of type: {string}"
 

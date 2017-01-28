@@ -212,4 +212,4 @@ operator_def* CreateOperatorDef(token_type op);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* MangleFunctionName(function_def* function);
 char* MangleOperatorName(operator_def* op);
-void CompleteIR(codegen_target& target, parse_result& parse);
+void CompleteIR(parse_result& parse);
