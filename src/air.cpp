@@ -1257,9 +1257,9 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
 
   const char* snazzyColors[] =
   {
-    "cyan2", "deeppink", "darkgoldenrod2", "mediumpurple2", "slategray", "goldenrod", "darkorchid1", "plum",
-    "green3", "lightblue2", "mediumspringgreeen", "orange1", "mistyrose3", "maroon2", "dodgerblue4",
-    "steelblue2", "blue", "lightseagreen"
+    "cyan2",      "deeppink",   "darkgoldenrod2",     "mediumpurple2",  "slategray",    "goldenrod",
+    "green3",     "lightblue2", "mediumspringgreeen", "orange1",        "mistyrose3",   "maroon2",
+    "steelblue2", "blue",       "lightseagreen",      "plum",           "dodgerblue4",  "darkorchid1",
   };
 
   for (auto* it = code.slots.head;
