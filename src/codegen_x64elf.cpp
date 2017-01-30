@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstdarg>
 #include <climits>
+#include <ctgmath>
 #include <common.hpp>
 #include <ir.hpp>
 #include <air.hpp>
@@ -163,32 +164,74 @@ enum class i
 };
 
 /*
- * ModR/M bytes are used to encode an instruction's operands, when there are only two and they are direct
- * registers or effective memory addresses.
+ * --- Mod/RM bytes ---
+ * A ModR/M byte is used to encode how an opcode's instructions are laid out. It is optionally accompanied
+ * by an SIB byte, a one-byte or four-byte displacement and/or a four-byte immediate value.
  *
  * 7                               0
  * +---+---+---+---+---+---+---+---+
  * |  mod  |    reg    |    r/m    |
  * +---+---+---+---+---+---+---+---+
  *
- * `mod` : register-direct addressing mode is used when this field is b11, indirect addressing is used otherwise
- * `reg` : opcode offset of the destination or source register (depending on instruction)
- * `r/m` : opcode offset of the other register, optionally with a displacement (as specified by `mod`)
+ * `mod` : the addressing mode to use
+ *      0b00 - register indirect or SIB with no displacement
+ *      0b01 - one-byte signed displacement follows
+ *      0b10 - four-byte signed displacement follows
+ *      0b11 - register addressing
+ * `reg` : opcode offset of the destination or source register (depending on instruction's direction flag)
+ * `r/m` : opcode offset of the other register
+ *
+ * --- SIB bytes ---
+ * An SIB (Scaled Index Byte) byte is used to specify a register of the form `[rax+rbx*4+7]
+ *
+ * 7       5           2           0
+ * +---+---+---+---+---+---+---+---+
+ * | scale |   index   |    base   |
+ * +---+---+---+---+---+---+---+---+
+ *
+ * `scale`  : how much to scale the index register's value by
+ *      0b00 - x1
+ *      0b01 - x2
+ *      0b10 - x4
+ *      0b11 - x8
+ * `index`  : the index register to use
+ * `base`   : the base register to use
  */
-static inline uint8_t CreateRegisterModRM(codegen_target& target, reg regOne, reg regTwo)
+static void EmitRegisterModRM(elf_thing* thing, codegen_target& target, reg a, reg b)
 {
-  uint8_t result = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-  result |= target.registerSet[regOne].pimpl->opcodeOffset << 3u;
-  result |= target.registerSet[regTwo].pimpl->opcodeOffset;
-  return result;
+  uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
+  modRM |= target.registerSet[a].pimpl->opcodeOffset << 3u;
+  modRM |= target.registerSet[b].pimpl->opcodeOffset;
+  Emit<uint8_t>(thing, modRM);
 }
 
-static inline uint8_t CreateExtensionModRM(codegen_target& target, uint8_t extension, reg r)
+/*
+ * NOTE(Isaac): `scale` may be 1, 2, 4 or 8
+ */
+static void EmitIndirectModRM(elf_thing* thing, codegen_target& target, reg dest, reg base, reg index, unsigned int scale, unsigned int displacement)
 {
-  uint8_t result = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
-  result |= extension << 3u;
-  result |= target.registerSet[r].pimpl->opcodeOffset;
-  return result;
+  uint8_t modRM = 0x0;
+  uint8_t sib   = 0x0;
+
+  // NOTE(Isaac): if the displacement can't fit in a single signed byte, use four
+  modRM |= (displacement >= ((2u<<7u)-1u) ? 0b10000000 : 0b01000000);
+  modRM |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
+
+  // NOTE(Isaac): taking the base-2 log of the scale gives the correct bit sequence... because magic
+  sib |= static_cast<uint8_t>(log2(scale)) << 6u;
+  sib |= target.registerSet[index].pimpl->opcodeOffset << 3u;
+  sib |= target.registerSet[base].pimpl->opcodeOffset;
+
+  Emit<uint8_t>(thing, modRM);
+  Emit<uint8_t>(thing, sib);
+}
+
+static void EmitExtensionModRM(elf_thing* thing, codegen_target& target, uint8_t extension, reg r)
+{
+  uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
+  modRM |= extension << 3u;
+  modRM |= target.registerSet[r].pimpl->opcodeOffset;
+  Emit<uint8_t>(thing, modRM);
 }
 
 static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
@@ -204,7 +247,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg op2 = static_cast<reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x39);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, op1, op2));
+      EmitRegisterModRM(thing, target, op1, op2);
     } break;
 
     case i::CMP_RAX_IMM32:
@@ -234,7 +277,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x01);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+      EmitRegisterModRM(thing, target, src, dest);
     } break;
 
     case i::SUB_REG_REG:
@@ -244,7 +287,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x29);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+      EmitRegisterModRM(thing, target, src, dest);
     } break;
 
     case i::MUL_REG_REG:
@@ -255,7 +298,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x0f);
       Emit<uint8_t>(thing, 0xaf);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+      EmitRegisterModRM(thing, target, src, dest);
     } break;
 
     case i::DIV_REG_REG:
@@ -272,7 +315,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x31);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+      EmitRegisterModRM(thing, target, src, dest);
     } break;
 
     case i::ADD_REG_IMM32:
@@ -282,7 +325,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x81);
-      Emit<uint8_t>(thing, CreateExtensionModRM(target, 0u, result));
+      EmitExtensionModRM(thing, target, 0u, result);
       Emit<uint32_t>(thing, imm);
     } break;
 
@@ -293,7 +336,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x81);
-      Emit<uint8_t>(thing, CreateExtensionModRM(target, 5u, result));
+      EmitExtensionModRM(thing, target, 5u, result);
       Emit<uint32_t>(thing, imm);
     } break;
 
@@ -310,7 +353,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x6b);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, result, result));
+      EmitRegisterModRM(thing, target, result, result);
       Emit<uint8_t>(thing, static_cast<uint8_t>(imm));
     } break;
 
@@ -327,7 +370,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x89);
-      Emit<uint8_t>(thing, CreateRegisterModRM(target, src, dest));
+      EmitRegisterModRM(thing, target, src, dest);
     } break;
 
     case i::MOV_REG_IMM32:
@@ -354,7 +397,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg r = static_cast<reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xFF);
-      Emit<uint8_t>(thing, CreateExtensionModRM(target, 0u, r));
+      EmitExtensionModRM(thing, target, 0u, r);
     } break;
 
     case i::DEC_REG:
@@ -362,7 +405,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
       reg r = static_cast<reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xFF);
-      Emit<uint8_t>(thing, CreateExtensionModRM(target, 1u, r));
+      EmitExtensionModRM(thing, target, 1u, r);
     } break;
 
     case i::CALL32:
@@ -482,24 +525,37 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
       {
         if (instruction->slot)
         {
-          if (instruction->slot->type == slot_type::SIGNED_INT_CONSTANT)
+          switch (instruction->slot->type)
           {
-            E(i::MOV_REG_IMM32, RAX, instruction->slot->i);
-          }
-          else if (instruction->slot->type == slot_type::UNSIGNED_INT_CONSTANT)
-          {
-            E(i::MOV_REG_IMM32, RAX, instruction->slot->u);
-          }
-          else if (instruction->slot->type == slot_type::STRING_CONSTANT)
-          {
-            E(i::MOV_REG_IMM64, RAX, 0x0);
-            CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, instruction->slot->string->offset);
-          }
-          else
-          {
-            // NOTE(Isaac): if we're here, `src` should be colored
-            assert(instruction->slot->color != -1);
-            E(i::MOV_REG_REG, RAX, instruction->slot->color);
+            case slot_type::SIGNED_INT_CONSTANT:
+            {
+              E(i::MOV_REG_IMM32, RAX, instruction->slot->i);
+            } break;
+
+            case slot_type::UNSIGNED_INT_CONSTANT:
+            {
+              E(i::MOV_REG_IMM32, RAX, instruction->slot->u);
+            } break;
+
+            case slot_type::STRING_CONSTANT:
+            {
+              E(i::MOV_REG_IMM64, RAX, 0x0);
+              CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, instruction->slot->string->offset);
+            } break;
+
+            case slot_type::VARIABLE:
+            case slot_type::PARAMETER:
+            case slot_type::TEMPORARY:
+            case slot_type::RETURN_RESULT:
+            {
+              assert(instruction->slot->color != -1);
+              E(i::MOV_REG_REG, RAX, instruction->slot->color);
+            } break;
+
+            default:
+            {
+              RaiseError(ICE_UNHANDLED_SLOT_TYPE, SlotAsString(instruction->slot), "Generate::I_RETURN");
+            } break;
           }
         }
 

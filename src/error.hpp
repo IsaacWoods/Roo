@@ -27,6 +27,7 @@ enum error
 
   ICE_GENERIC,                    // "{string}"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s"
+  ICE_UNHANDLED_SLOT_TYPE,        // "Unhandled slot type (%s) in %s"
   ICE_UNHANDLED_OPERATOR,         // "Unhandled operator (token=%s) in %s"
   ICE_UNHANDLED_RELOCATION,       // "Unable to handle relocation of type: {string}"
 

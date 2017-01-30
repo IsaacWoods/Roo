@@ -1,22 +1,13 @@
-struct Vec
+#include <stdio.h>
+
+typedef struct
 {
-  float x, y;
-
-  Vec(float x, float y)
-    :x(x)
-    ,y(y)
-  { }
-
-  Vec operator +(const Vec& v)
-  {
-    return Vec(x+v.x, y+v.y);
-  }
-};
+  int x;
+  int y;
+} vec_t;
 
 int main()
 {
-  Vec a(3, 4);
-  Vec b(7, 6);
-  Vec c = a + b;
-  return 0;
+  vec_t v{2, 5};
+  int i = v.x + v.y;
 }

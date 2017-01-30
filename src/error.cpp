@@ -64,6 +64,7 @@ void InitErrorDefs()
 
   I(ICE_GENERIC,              "%s");
   I(ICE_UNHANDLED_NODE_TYPE,  "Unhandled node type for returning %s in GenNodeAIR for type: %s");
+  I(ICE_UNHANDLED_SLOT_TYPE,  "Unhandled slot type (%s) in %s");
   I(ICE_UNHANDLED_OPERATOR,   "Unhandled operator (token=%s) in %s");
   I(ICE_UNHANDLED_RELOCATION, "Unable to handle relocation of type: %s");
 

@@ -23,6 +23,9 @@ void Free<live_range>(live_range& /*range*/)
 
 slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
 {
+  // TODO: hacky af - get this from the codegen_target
+  static const unsigned int THE_SIZE_OF_A_REGISTER = 8u;
+
   va_list args;
   va_start(args, type);
 
@@ -38,12 +41,16 @@ slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
     case slot_type::VARIABLE:
     {
       slot->variable = va_arg(args, variable_def*);
+      type_def* varType = slot->variable->type.def;
+      slot->storage = (varType->size > THE_SIZE_OF_A_REGISTER ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
 
     case slot_type::PARAMETER:
     {
       slot->variable = va_arg(args, variable_def*);
       Add<live_range>(slot->liveRanges, live_range{nullptr, nullptr});
+      type_def* varType = slot->variable->type.def;
+      slot->storage = (varType->size > THE_SIZE_OF_A_REGISTER ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
 
     case slot_type::TEMPORARY:
@@ -84,24 +91,24 @@ slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
 
 char* SlotAsString(slot_def* slot)
 {
-  #define SLOT_STR(slotType, format, arg) \
+  #define SLOT_STR(slotType, format, ...) \
     case slotType: \
     { \
-      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, format, arg) + 1u)); \
-      sprintf(result, format, arg); \
+      char* result = static_cast<char*>(malloc(snprintf(nullptr, 0u, format, __VA_ARGS__) + 1u)); \
+      sprintf(result, format, __VA_ARGS__); \
       return result; \
     }
 
   switch (slot->type)
   {
-    SLOT_STR(slot_type::VARIABLE,               "%s(V)",  slot->variable->name)
-    SLOT_STR(slot_type::PARAMETER,              "%s(P)",  slot->variable->name)
-    SLOT_STR(slot_type::TEMPORARY,              "t%u",    slot->tag)
-    SLOT_STR(slot_type::RETURN_RESULT,          "r%u",    slot->tag)
-    SLOT_STR(slot_type::SIGNED_INT_CONSTANT,    "#%d",    slot->i)
-    SLOT_STR(slot_type::UNSIGNED_INT_CONSTANT,  "#%u",    slot->u)
-    SLOT_STR(slot_type::FLOAT_CONSTANT,         "#%f",    slot->f)
-    SLOT_STR(slot_type::STRING_CONSTANT,        "\"%s\"", slot->string->string)
+    SLOT_STR(slot_type::VARIABLE,               "%s(V)-%c",  slot->variable->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
+    SLOT_STR(slot_type::PARAMETER,              "%s(P)-%c",  slot->variable->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
+    SLOT_STR(slot_type::TEMPORARY,              "t%u",        slot->tag)
+    SLOT_STR(slot_type::RETURN_RESULT,          "r%u",        slot->tag)
+    SLOT_STR(slot_type::SIGNED_INT_CONSTANT,    "#%d",        slot->i)
+    SLOT_STR(slot_type::UNSIGNED_INT_CONSTANT,  "#%u",        slot->u)
+    SLOT_STR(slot_type::FLOAT_CONSTANT,         "#%f",        slot->f)
+    SLOT_STR(slot_type::STRING_CONSTANT,        "\"%s\"",     slot->string->string)
   }
 
   return nullptr;

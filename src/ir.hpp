@@ -59,6 +59,12 @@ enum slot_type
   STRING_CONSTANT,        // `string` field of payload is valid
 };
 
+enum slot_storage
+{
+  REGISTER,
+  STACK,
+};
+
 struct live_range
 {
   /*
@@ -83,6 +89,7 @@ struct slot_def
   };
 
   slot_type           type;
+  slot_storage        storage;
   signed int          color;  // NOTE(Isaac): -1 means it hasn't been colored
   unsigned int        numInterferences;
   slot_def*           interferences[MAX_SLOT_INTERFERENCES];

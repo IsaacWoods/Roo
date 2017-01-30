@@ -2,7 +2,7 @@
 
 #[Prototype]
 fn Print(str : string)
-
+/*
 type string
 {
   head : char&
@@ -13,19 +13,21 @@ operator [](s : string, i : uint) -> char
   return s.head
 }
 
-fn PrintFmt(format : string)
+#[Entry]
+fn Main() -> int
 {
-  formatIt : mut char& = format[0u]
+  str : string = "Hello, World!"
+  c : char& = str[0u]
+}*/
 
-  while (formatIt != 0)
-  {
-    Print("Iterating over char")
-    formatIt++
-  }
+operator +(a : uint, b : uint) -> uint
+{
+  return 10u
 }
 
 #[Entry]
 fn Main() -> int
 {
-  PrintFmt("Hello")
+  x : uint = 6u + 4u
+  return 0
 }
