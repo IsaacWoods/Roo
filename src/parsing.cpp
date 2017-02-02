@@ -1156,10 +1156,7 @@ static void Function(roo_parser& parser, attrib_set& attribs)
   {
     Consume(parser, TOKEN_YIELDS);
     function->code.returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    function->code.returnType->name = GetTextFromToken(PeekToken(parser));
-    function->code.returnType->isResolved = false;
-    NextToken(parser);
-
+    *(function->code.returnType) = TypeRef(parser);
     Log(parser, "Function returns a: %s\n", function->code.returnType->name);
   }
   else
@@ -1214,9 +1211,7 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
 
   Consume(parser, TOKEN_YIELDS);
   operatorDef->code.returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-  operatorDef->code.returnType->name = GetTextFromToken(PeekToken(parser));
-  operatorDef->code.returnType->isResolved = false;
-  NextToken(parser);
+  *(operatorDef->code.returnType) = TypeRef(parser);
   Log(parser, "Return type: %s\n", operatorDef->code.returnType->name);
 
   if (operatorDef->code.attribs.isPrototype)
