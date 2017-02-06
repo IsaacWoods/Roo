@@ -1,13 +1,14 @@
 #[Name(test)]
 
-#[Prototype]
-fn Print(str : string)
-/*
 type string
 {
   head : char&
 }
 
+#[Prototype]
+fn Print(str : string)
+
+/*
 operator [](s : string, i : uint) -> char
 {
   return s.head
@@ -20,15 +21,19 @@ fn Main() -> int
   c : char& = str[0u]
 }*/
 
+#[Prototype]
 operator +(a : uint, b : uint) -> uint
-{
-  return 10u
-}
 
 #[Entry]
 fn Main() -> int
 {
-  x : uint = 6u + 4u
-  Print("Hello, World!\n")
+  x : mut uint = 2u + 4u
+
+  while (x > 0u)
+  {
+    Print("Hello, World!\n")
+    x--
+  }
+
   return 0
 }

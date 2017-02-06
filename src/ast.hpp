@@ -51,7 +51,7 @@ struct ast_pass
  *     TOKEN_DOUBLE_MINUS (no `right`)
  *     TOKEN_LEFT_BLOCK (used to index an array)
  */
-struct binary_op_node_part
+struct binary_op_part
 {
   token_type    op;
   node*         left;
@@ -67,14 +67,14 @@ struct binary_op_node_part
  *    TOKEN_TILDE
  *    TOKEN_AND   (Reference operator)
  */
-struct prefix_op_node_part
+struct prefix_op_part
 {
   token_type    op;
   node*         right;
   operator_def* resolvedOperator;
 };
 
-struct variable_node_part
+struct variable_part
 {
   union
   {
@@ -93,7 +93,7 @@ struct variable_node_part
  *    TOKEN_LESS_THAN
  *    TOKEN_LESS_THAN_EQUAL_TO
  */
-struct condition_node_part
+struct condition_part
 {
   token_type  condition;
   node*       left;
@@ -101,14 +101,14 @@ struct condition_node_part
   bool        reverseOnJump;
 };
 
-struct if_node_part
+struct if_part
 {
   node* condition;
   node* thenCode;
   node* elseCode;
 };
 
-struct while_node_part
+struct while_part
 {
   node* condition;
   node* code;
@@ -184,18 +184,18 @@ struct node
 
   union
   {
-    node*                   expression;
-    binary_op_node_part     binaryOp;
-    prefix_op_node_part     prefixOp;
-    variable_node_part      variable;
-    condition_node_part     condition;
-    if_node_part            ifThing;
-    while_node_part         whileThing;
-    number_constant_part    numberConstant;
-    string_constant*        stringConstant;
-    call_part               call;
-    variable_assign_part    variableAssignment;
-    member_access_part      memberAccess;
+    node*                 expression;
+    binary_op_part        binaryOp;
+    prefix_op_part        prefixOp;
+    variable_part         variable;
+    condition_part        condition;
+    if_part               ifThing;
+    while_part            whileThing;
+    number_constant_part  numberConstant;
+    string_constant*      stringConstant;
+    call_part             call;
+    variable_assign_part  variableAssignment;
+    member_access_part    memberAccess;
   };
 };
 

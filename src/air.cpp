@@ -14,6 +14,13 @@
 #include <ir.hpp>
 #include <error.hpp>
 
+/*
+ * This is defined by the correct target-specific code generator.
+ * It basically allows us to impose the specific requirements of various target architectures on the allocation
+ * of registers.
+ */
+void PrecolorInstruction(codegen_target& target, air_instruction* instruction);
+
 template<>
 void Free<air_instruction*>(air_instruction*& instruction)
 {
@@ -58,9 +65,8 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
     case I_CMP:
     {
-      i->slotTriple.left      = va_arg(args, slot_def*);
-      i->slotTriple.right     = va_arg(args, slot_def*);
-      i->slotTriple.result    = va_arg(args, slot_def*);
+      i->slotPair.left        = va_arg(args, slot_def*);
+      i->slotPair.right       = va_arg(args, slot_def*);
     } break;
 
     case I_BINARY_OP:
@@ -186,7 +192,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
     case PREFIX_OP_NODE:
     {
       slot_def* right = GenNodeAIR<slot_def*>(target, code, n->prefixOp.right);
-      slot_def* result = CreateSlot(code, slot_type::TEMPORARY);
+      slot_def* result = CreateSlot(target, code, slot_type::TEMPORARY);
       air_instruction* instruction = nullptr;
 
       switch (n->prefixOp.op)
@@ -246,24 +252,24 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
       {
         case number_constant_part::constant_type::SIGNED_INT:
         {
-          return CreateSlot(code, slot_type::SIGNED_INT_CONSTANT, n->numberConstant.asSignedInt);
+          return CreateSlot(target, code, slot_type::SIGNED_INT_CONSTANT, n->numberConstant.asSignedInt);
         } break;
 
         case number_constant_part::constant_type::UNSIGNED_INT:
         {
-          return CreateSlot(code, slot_type::UNSIGNED_INT_CONSTANT, n->numberConstant.asUnsignedInt);
+          return CreateSlot(target, code, slot_type::UNSIGNED_INT_CONSTANT, n->numberConstant.asUnsignedInt);
         } break;
 
         case number_constant_part::constant_type::FLOAT:
         {
-          return CreateSlot(code, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
+          return CreateSlot(target, code, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
         } break;
       }
     };
 
     case STRING_CONSTANT_NODE:
     {
-      return CreateSlot(code, slot_type::STRING_CONSTANT, n->stringConstant);
+      return CreateSlot(target, code, slot_type::STRING_CONSTANT, n->stringConstant);
     } break;
 
     default:
@@ -555,7 +561,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
         case slot_type::STRING_CONSTANT:
         {
           // NOTE(Isaac): we create a temporary to move the constant into, then color that
-          slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
+          slot_def* temporary = CreateSlot(target, code, slot_type::TEMPORARY);
           temporary->color = target.intParamColors[numGeneralParams++];
           air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, slot);
           Add<slot_def*>(params, temporary);
@@ -598,7 +604,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
 
   if (n->binaryOp.resolvedOperator->code.returnType)
   {
-    slot_def* resultSlot = CreateSlot(code, RETURN_RESULT);
+    slot_def* resultSlot = CreateSlot(target, code, RETURN_RESULT);
     ChangeSlotValue(resultSlot, callInstruction);
     resultSlot->color = target.functionReturnColor;
     return resultSlot;
@@ -641,7 +647,7 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
       case slot_type::STRING_CONSTANT:
       {
         // NOTE(Isaac): we create a temporary to move the constant into, then color that
-        slot_def* temporary = CreateSlot(code, slot_type::TEMPORARY);
+        slot_def* temporary = CreateSlot(target, code, slot_type::TEMPORARY);
         temporary->color = target.intParamColors[numGeneralParams++];
         air_instruction* movInstruction = PushInstruction(code, I_MOV, temporary, paramSlot);
         Add<slot_def*>(params, temporary);
@@ -665,7 +671,7 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
 
   if (n->call.code->returnType)
   {
-    slot_def* resultSlot = CreateSlot(code, RETURN_RESULT);
+    slot_def* resultSlot = CreateSlot(target, code, RETURN_RESULT);
     ChangeSlotValue(resultSlot, callInstruction);
     resultSlot->color = target.functionReturnColor;
     return resultSlot;
@@ -941,14 +947,14 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
        it++)
   {
     variable_def* param = *it;
-    param->slot = CreateSlot(code, slot_type::PARAMETER, param);
+    param->slot = CreateSlot(target, code, slot_type::PARAMETER, param);
 
     for (auto* memberIt = param->type.def->members.head;
          memberIt < param->type.def->members.tail;
          memberIt++)
     {
       variable_def* member = *memberIt;
-      member->slot = CreateSlot(code, slot_type::PARAMETER, member);
+      member->slot = CreateSlot(target, code, slot_type::PARAMETER, member);
     }
   }
 
@@ -957,18 +963,26 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
        it++)
   {
     variable_def* local = *it;
-    local->slot = CreateSlot(code, slot_type::VARIABLE, local);
+    local->slot = CreateSlot(target, code, slot_type::VARIABLE, local);
 
     for (auto* memberIt = local->type.def->members.head;
          memberIt < local->type.def->members.tail;
          memberIt++)
     {
       variable_def* member = *memberIt;
-      member->slot = CreateSlot(code, slot_type::VARIABLE, member);
+      member->slot = CreateSlot(target, code, slot_type::VARIABLE, member);
     }
   }
 
   GenNodeAIR(target, code, code.ast);
+
+  // Precolor the interference graph (through each instruction)
+  for (auto* instruction = code.airHead;
+       instruction;
+       instruction = instruction->next)
+  {
+    PrecolorInstruction(target, instruction);
+  }
 
   // Color the interference graph
   GenerateInterferences(code);

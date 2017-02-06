@@ -30,6 +30,7 @@ struct codegen_target
   const char*   name;
   unsigned int  numRegisters;
   register_def* registerSet;
+  unsigned int  generalRegisterSize;
 
   unsigned int  numIntParamColors;
   unsigned int* intParamColors;
@@ -208,7 +209,7 @@ struct type_def
   unsigned int          size;
 };
 
-slot_def* CreateSlot(thing_of_code& code, slot_type type, ...);
+slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type, ...);
 char* SlotAsString(slot_def* slot);
 void CreateParseResult(parse_result& result);
 void InitAttribSet(attrib_set& set);

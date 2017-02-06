@@ -1,5 +1,11 @@
 ; Copyright (C) 2016, Isaac Woods. All rights reserved.
 
+; TEMPORARY
+_RO_plus_uint_uint:
+  add rdi, rsi
+  mov rax, rdi
+  ret
+
 ; INPUT(rdi) - pointer to a string
 ; OUTPUT(rax) - length of the string
 GetStringLength:

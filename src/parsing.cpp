@@ -151,7 +151,7 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-#if 1
+#if 0
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)

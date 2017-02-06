@@ -21,11 +21,8 @@ void Free<live_range>(live_range& /*range*/)
 {
 }
 
-slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
+slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type, ...)
 {
-  // TODO: hacky af - get this from the codegen_target
-  static const unsigned int THE_SIZE_OF_A_REGISTER = 8u;
-
   va_list args;
   va_start(args, type);
 
@@ -42,7 +39,7 @@ slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
     {
       slot->variable = va_arg(args, variable_def*);
       type_def* varType = slot->variable->type.def;
-      slot->storage = (varType->size > THE_SIZE_OF_A_REGISTER ? slot_storage::STACK : slot_storage::REGISTER);
+      slot->storage = (varType->size > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
 
     case slot_type::PARAMETER:
@@ -50,7 +47,7 @@ slot_def* CreateSlot(thing_of_code& code, slot_type type, ...)
       slot->variable = va_arg(args, variable_def*);
       Add<live_range>(slot->liveRanges, live_range{nullptr, nullptr});
       type_def* varType = slot->variable->type.def;
-      slot->storage = (varType->size > THE_SIZE_OF_A_REGISTER ? slot_storage::STACK : slot_storage::REGISTER);
+      slot->storage = (varType->size > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
 
     case slot_type::TEMPORARY:
@@ -453,10 +450,10 @@ void CompleteIR(parse_result& parse)
   // --- Resolve `variable_def`s everywhere ---
   auto resolveThingOfCode = [&](thing_of_code& code)
     {
-      if (code.attribs.isPrototype)
+/*      if (code.attribs.isPrototype)
       {
         return;
-      }
+      }*/
 
       if (code.returnType)
       {

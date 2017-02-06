@@ -57,6 +57,7 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   target.name = "x64_elf";
   target.numRegisters = 16u;
   target.registerSet = static_cast<register_def*>(malloc(sizeof(register_def) * target.numRegisters));
+  target.generalRegisterSize = 8u;
 
   target.numIntParamColors = 6u;
   target.intParamColors = static_cast<unsigned int*>(malloc(sizeof(unsigned int) * target.numIntParamColors));
@@ -117,6 +118,99 @@ void Free<codegen_target>(codegen_target& target)
 
   free(target.registerSet);
   free(target.intParamColors);
+}
+
+/*
+ * This is used by the AIR generation system to allow us to deal with all the weird bits of the x86_64 ISA.
+ */
+void PrecolorInstruction(codegen_target& target, air_instruction* instruction)
+{
+  switch (instruction->type)
+  {
+    case I_RETURN:
+    {
+    } break;
+
+    case I_JUMP:
+    {
+    } break;
+
+    case I_MOV:
+    {
+    } break;
+
+    case I_CMP:
+    {
+      /*
+       * NOTE(Isaac): We should be able to assume that they're not both immediate values, because that should be
+       * dealt with by the constant folder.
+       */
+      if (instruction->slotPair.left->type == SIGNED_INT_CONSTANT   ||
+          instruction->slotPair.left->type == UNSIGNED_INT_CONSTANT ||
+          instruction->slotPair.left->type == FLOAT_CONSTANT        ||
+          instruction->slotPair.left->type == STRING_CONSTANT)
+      {
+        instruction->slotPair.right->color = RAX;
+      }
+      else if ( instruction->slotPair.right->type == SIGNED_INT_CONSTANT  ||
+                instruction->slotPair.right->type == UNSIGNED_INT_CONSTANT ||
+                instruction->slotPair.right->type == FLOAT_CONSTANT        ||
+                instruction->slotPair.right->type == STRING_CONSTANT)
+      {
+        instruction->slotPair.left->color = RAX;
+      }
+    } break;
+
+    case I_BINARY_OP:
+    {
+      switch (instruction->binaryOp.operation)
+      {
+        case binary_op_i::op::ADD_I:
+        {
+        } break;
+
+        case binary_op_i::op::SUB_I:
+        {
+        } break;
+
+        case binary_op_i::op::MUL_I:
+        {
+        } break;
+
+        case binary_op_i::op::DIV_I:
+        {
+          printf("Precoloring DIV_I operator\n");
+        } break;
+
+        default:
+        {
+          // TODO: get a string of the actual operator in the binary_op_i
+          RaiseError(ICE_UNHANDLED_OPERATOR, "operator", "PrecolorInstruction:X64:I_BINARY_OP");
+        } break;
+      }
+    } break;
+
+    case I_INC:
+    {
+    } break;
+
+    case I_DEC:
+    {
+    } break;
+
+    case I_CALL:
+    {
+    } break;
+
+    case I_LABEL:
+    {
+    } break;
+
+    case I_NUM_INSTRUCTIONS:
+    {
+      RaiseError(ICE_UNHANDLED_INSTRUCTION_TYPE, GetInstructionName(instruction), "PrecolorInstruction:X86_64");
+    }
+  }
 }
 
 /*
@@ -483,6 +577,7 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
     if (function->code.attribs.isEntry)
     {
+      printf("Found entry symbol: %s\n", function->name);
       entrySymbol = function->code.symbol;
       break;
     }
@@ -633,8 +728,11 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
           // TODO: precolor compare instructions with immediates, because the variable needs to be in RAX
           if (pair.left->color != -1)
           {
-            // NOTE(Isaac): there's only an x86 instruction for comparing an immediate with RAX
-            assert(pair.left->color == RAX);
+            if (pair.left->color != RAX)
+            {
+              RaiseError(ICE_GENERIC, "There's only an x86 instruction for comparing an immediate with RAX!");
+            }
+
             E(i::CMP_RAX_IMM32, pair.right->i);
           }
         }

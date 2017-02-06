@@ -192,7 +192,7 @@ void InitTypeCheckerPass()
           {
             operator_def* op = *it;
 
-            if ((op->op != n->binaryOp.op)      ||
+            if ((op->op != n->binaryOp.op)                ||
                 (a->def != op->code.params[0u]->type.def) ||
                 (b->def != op->code.params[1u]->type.def))
             {
