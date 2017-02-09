@@ -606,7 +606,12 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
 static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code& code)
 {
-  assert(code.airHead);
+  // NOTE(Isaac): we don't generate empty functions
+  if (!(code.airHead))
+  {
+    return nullptr;
+  }
+
   elf_thing* thing = CreateThing(elf, code.symbol);
 
   // Enter a new stack frame

@@ -975,6 +975,11 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
     }
   }
 
+  if (!(code.ast))
+  {
+    return;
+  }
+
   GenNodeAIR(target, code, code.ast);
 
   // Precolor the interference graph (through each instruction)

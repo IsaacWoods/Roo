@@ -15,6 +15,38 @@
 #define SECTION_HEADER_ENTRY_SIZE 0x40
 #define SYMBOL_TABLE_ENTRY_SIZE   0x18
 
+static const char* GetSectionTypeName(section_type type)
+{
+  switch (type)
+  {
+    case SHT_NULL:          return "SHT_NULL";
+    case SHT_PROGBITS:      return "SHT_PROGBITS";
+    case SHT_SYMTAB:        return "SHT_SYMTAB";
+    case SHT_STRTAB:        return "SHT_STRTAB"; 
+    case SHT_RELA:          return "SHT_RELA"; 
+    case SHT_HASH:          return "SHT_HASH"; 
+    case SHT_DYNAMIC:       return "SHT_DYNAMIC"; 
+    case SHT_NOTE:          return "SHT_NOTE"; 
+    case SHT_NOBITS:        return "SHT_NOBITS"; 
+    case SHT_REL:           return "SHT_REL"; 
+    case SHT_SHLIB:         return "SHT_SHLIB"; 
+    case SHT_DYNSYM:        return "SHT_DYNSYM"; 
+    case SHT_INIT_ARRAY:    return "SHT_INIT_ARRAY"; 
+    case SHT_FINI_ARRAY:    return "SHT_FINI_ARRAY"; 
+    case SHT_PREINIT_ARRAY: return "SHT_PREINIT_ARRAY"; 
+    case SHT_GROUP:         return "SHT_GROUP"; 
+    case SHT_SYMTAB_SHNDX:  return "SHT_SYMTAB_SHNDX"; 
+    case SHT_LOOS:          return "SHT_LOOS"; 
+    case SHT_HIOS:          return "SHT_HIOS"; 
+    case SHT_LOPROC:        return "SHT_LOPROC"; 
+    case SHT_HIPROC:        return "SHT_HIPROC"; 
+    case SHT_LOUSER:        return "SHT_LOUSER"; 
+    case SHT_HIUSER:        return "SHT_HIUSER"; 
+  }
+
+  return nullptr;
+}
+
 /*
  * NOTE(Isaac): the string is duplicated and freed separately of the passed string.
  */
@@ -293,12 +325,11 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
   }
 }
 
-static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* table)
+static void ParseSymbolTable(error_state& errorState, elf_file& elf, elf_object& object, elf_section* table)
 {
   if (table->entrySize != SYMBOL_TABLE_ENTRY_SIZE)
   {
-    fprintf(stderr, "FATAL: External object has weirdly-sized symbols!\n");
-    Crash();
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, object.path, "Object has weirdly sized symbols");
   }
   
   unsigned int numSymbols = table->size / SYMBOL_TABLE_ENTRY_SIZE;
@@ -398,7 +429,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (!(object.f))
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath);
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "Failed to open file");
   }
 
   #define CONSUME(byte) \
@@ -435,7 +466,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
     {
       case SHT_SYMTAB:
       {
-        ParseSymbolTable(elf, object, section);
+        ParseSymbolTable(errorState, elf, object, section);
       } break;
 
       case SHT_REL:
@@ -450,8 +481,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
       default:
       {
-        // TODO: get a string of the ignored section's type
-        RaiseError(errorState, NOTE_IGNORED_ELF_SECTION, "SomeELFSectionType");
+        RaiseError(errorState, NOTE_IGNORED_ELF_SECTION, GetSectionTypeName(section->type));
       } break;
     }
   }
