@@ -1243,7 +1243,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
   free(attribName);
 }
 
-void Parse(parse_result* result, const char* sourcePath)
+bool Parse(parse_result* result, const char* sourcePath)
 {
   roo_parser parser;
   parser.path               = sourcePath;
@@ -1284,7 +1284,7 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else
     {
-      RaiseError(parser.errorState, ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
+      RaiseError(parser.errorState, ERROR_UNEXPECTED, "top-level", GetTokenName(PeekToken(parser).type));
     }
   }
 
@@ -1292,6 +1292,8 @@ void Parse(parse_result* result, const char* sourcePath)
   parser.source = nullptr;
   parser.currentChar = nullptr;
   parser.result = nullptr;
+
+  return !(parser.errorState.hasErrored);
 }
 
 void InitParseletMaps()

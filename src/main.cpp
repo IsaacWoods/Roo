@@ -4,6 +4,7 @@
  */
 
 #include <cstdio>
+#include <cassert>
 #include <common.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
@@ -19,20 +20,20 @@
   #include <iostream>
 #endif
 
-// NOTE(Isaac): defined in `parsing.cpp`
-void InitParseletMaps();
-void Parse(parse_result* result, const char* sourcePath);
-
 // NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
 void Generate(const char* outputPath, codegen_target& target, parse_result& result);
 void InitCodegenTarget(parse_result& result, codegen_target& target);
 void FreeCodegenTarget(codegen_target& target);
 
-static compile_result Compile(parse_result& result, const char* directoryPath)
+/*
+ * NOTE(Isaac): Returns `true` if the compilation was successful, `false` if an error occured.
+ */
+static bool Compile(parse_result& parse, const char* directoryPath)
 {
   // Find and parse all .roo files in the specified directory
   directory dir;
   OpenDirectory(dir, directoryPath);
+  bool failed = false;
 
   for (auto* f = dir.files.head;
        f < dir.files.tail;
@@ -40,12 +41,12 @@ static compile_result Compile(parse_result& result, const char* directoryPath)
   {
     if (f->extension && strcmp(f->extension, "roo") == 0)
     {
-      Parse(&result, f->name); 
+      failed |= !(Parse(&parse, f->name));
     }
   }
 
   Free<directory>(dir);
-  return compile_result::SUCCESS;
+  return !failed;
 }
 
 int main()
@@ -66,10 +67,9 @@ int main()
   InitCodegenTarget(result, target);
 
   // Compile the current directory
-  if (Compile(result, ".") != compile_result::SUCCESS)
+  if (!Compile(result, "."))
   {
-    fprintf(stderr, "FATAL: Failed to compile a thing!\n");
-    Crash();
+    RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
   // Compile the dependencies
@@ -95,10 +95,11 @@ int main()
       } break;
     }
 
-    if (dependencyDirectory && Compile(result, dependencyDirectory) != compile_result::SUCCESS)
+    assert(dependencyDirectory);
+
+    if (!Compile(result, dependencyDirectory))
     {
-      fprintf(stderr, "FATAL: failed to compile dependency: %s\n", dependencyDirectory);
-      Crash();
+      RaiseError(errorState, ERROR_COMPILE_ERRORS);
     }
 
     free(dependencyDirectory);

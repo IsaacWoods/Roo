@@ -71,6 +71,7 @@ void InitErrorDefs()
   E(ERROR_OPERATE_UPON_IMMUTABLE,   DO_NOTHING,           "Cannot operate upon an immutable binding: %s");
   E(ERROR_ILLEGAL_ESCAPE_SEQUENCE,  TO_END_OF_STRING,     "Illegal escape sequence in string: '\\%c'");
   E(ERROR_FAILED_TO_OPEN_FILE,      GIVE_UP,              "Failed to open file: %s");
+  E(ERROR_COMPILE_ERRORS,           GIVE_UP,              "There were compile errors. Stopping.");
 
   I(ICE_GENERIC,                                          "%s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s");
@@ -92,6 +93,7 @@ error_state CreateErrorState(error_state_type stateType, ...)
 
   error_state state;
   state.stateType = stateType;
+  state.hasErrored = false;
 
   switch (stateType)
   {
@@ -135,6 +137,9 @@ void RaiseError(error_state& state, error e, ...)
   va_list args;
   va_start(args, e);
   const error_def& def = errors[e];
+
+  // Mark to the error state that an error has occured in its domain
+  state.hasErrored = true;
 
   //                                   White          Light Purple    Orange          Cyan
   static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};

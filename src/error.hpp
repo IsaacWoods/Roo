@@ -30,6 +30,7 @@ enum error
   ERROR_OPERATE_UPON_IMMUTABLE,   // "Cannot operate upon an immutable binding: %s"
   ERROR_ILLEGAL_ESCAPE_SEQUENCE,  // "Illegal escape sequence in string: '\\%c'"
   ERROR_FAILED_TO_OPEN_FILE,      // "Failed to open file: %s"
+  ERROR_COMPILE_ERRORS,           // "There were compile errors. Stopping."
 
   ICE_GENERIC,                    // "%s"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s"
@@ -59,7 +60,8 @@ struct type_def;
 
 struct error_state
 {
-  error_state_type stateType;
+  error_state_type  stateType;
+  bool              hasErrored;
 
   union
   {
