@@ -11,7 +11,7 @@ Roo is based upon C, but tries to find better solutions to some of C's problems:
 * No separation of definition and implementation (no headers)
 * Easier build process - nice dependency management and source management
 * Safety - strong type-checking and powerful expression of programmer intent
-* Terse, expressive syntax - no extranious semi-colons or extra punctionation
+* Terse, expressive syntax - no extranious semi-colons or extra punctuation
 * Access to the 'sharp tools' - doesn't shy away from raw pointers or manual memory management
 
 It looks something like this:
