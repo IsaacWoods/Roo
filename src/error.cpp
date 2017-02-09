@@ -7,6 +7,9 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <common.hpp>
+#include <parsing.hpp>
+#include <ir.hpp>
+#include <ast.hpp>
 
 enum error_level
 {
@@ -22,6 +25,7 @@ enum poison_strategy
   TO_END_OF_STATEMENT,
   TO_END_OF_ATTRIBUTE,
   TO_END_OF_BLOCK,
+  TO_END_OF_STRING,
   GIVE_UP
 };
 
@@ -42,6 +46,8 @@ void InitErrorDefs()
 #define E(tag, poisoning, msg)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, msg};
 #define I(tag, msg)             errors[tag] = error_def{error_level::ICE, poison_strategy::GIVE_UP, msg};
 
+  N(NOTE_IGNORED_ELF_SECTION,                             "Ignored section in ELF relocatable: %s");
+
   E(ERROR_EXPECTED,                 TO_END_OF_STATEMENT,  "Expected %s");
   E(ERROR_EXPECTED_BUT_GOT,         TO_END_OF_STATEMENT,  "Expected %s but got %s instead");
   E(ERROR_UNEXPECTED,               TO_END_OF_STATEMENT,  "Unexpected token in %s position: %s");
@@ -61,13 +67,17 @@ void InitErrorDefs()
   E(ERROR_NO_ENTRY_FUNCTION,        GIVE_UP,              "Failed to find function with #[Entry] attribute");
   E(ERROR_UNIMPLEMENTED_PROTOTYPE,  DO_NOTHING,           "Prototype function has no implementation: %s");
   E(ERROR_MEMBER_NOT_FOUND,         DO_NOTHING,           "Field of name '%s' is not a member of type '%s'");
+  E(ERROR_ASSIGN_TO_IMMUTABLE,      DO_NOTHING,           "Cannot assign to an immutable binding: %s");
+  E(ERROR_OPERATE_UPON_IMMUTABLE,   DO_NOTHING,           "Cannot operate upon an immutable binding: %s");
+  E(ERROR_ILLEGAL_ESCAPE_SEQUENCE,  TO_END_OF_STRING,     "Illegal escape sequence in string: '\\%c'");
+  E(ERROR_FAILED_TO_OPEN_FILE,      GIVE_UP,              "Failed to open file: %s");
 
-  I(ICE_GENERIC,              "%s");
-  I(ICE_UNHANDLED_NODE_TYPE,  "Unhandled node type for returning %s in GenNodeAIR for type: %s");
-  I(ICE_UNHANDLED_INSTRUCTION_TYPE, "Unhandled instruction type (%s) in %s");
-  I(ICE_UNHANDLED_SLOT_TYPE,  "Unhandled slot type (%s) in %s");
-  I(ICE_UNHANDLED_OPERATOR,   "Unhandled operator (token=%s) in %s");
-  I(ICE_UNHANDLED_RELOCATION, "Unable to handle relocation of type: %s");
+  I(ICE_GENERIC,                                          "%s");
+  I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s");
+  I(ICE_UNHANDLED_INSTRUCTION_TYPE,                       "Unhandled instruction type (%s) in %s");
+  I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
+  I(ICE_UNHANDLED_OPERATOR,                               "Unhandled operator (token=%s) in %s");
+  I(ICE_UNHANDLED_RELOCATION,                             "Unable to handle relocation of type: %s");
 
 #undef N
 #undef W
@@ -75,13 +85,56 @@ void InitErrorDefs()
 #undef I
 }
 
-void RaiseError(error e, ...)
+error_state CreateErrorState(error_state_type stateType, ...)
+{
+  va_list args;
+  va_start(args, stateType);
+
+  error_state state;
+  state.stateType = stateType;
+
+  switch (stateType)
+  {
+    case GENERAL_STUFF:
+    {
+    } break;
+
+    case PARSING_UNIT:
+    {
+      state.parser            = va_arg(args, roo_parser*);
+    } break;
+
+    case TRAVERSING_AST:
+    {
+      state.astSection.code   = va_arg(args, thing_of_code*);
+      state.astSection.n      = va_arg(args, node*);
+    } break;
+
+    case CODE_GENERATION:
+    case FUNCTION_FILLING_IN:
+    {
+      state.code              = va_arg(args, thing_of_code*);
+    } break;
+
+    case TYPE_FILLING_IN:
+    {
+      state.type              = va_arg(args, type_def*);
+    } break;
+
+    case LINKING:
+    {
+    } break;
+  }
+
+  va_end(args);
+  return state;
+}
+
+void RaiseError(error_state& state, error e, ...)
 {
   va_list args;
   va_start(args, e);
   const error_def& def = errors[e];
-
-  // TODO: follow the poisoning strategy
 
   //                                   White          Light Purple    Orange          Cyan
   static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};
@@ -94,9 +147,48 @@ void RaiseError(error e, ...)
   char message[1024u];
   vsnprintf(message, 1024u, def.messageFmt, args);
 
-  fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+  switch (state.stateType)
+  {
+    case GENERAL_STUFF:
+    {
+      fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case PARSING_UNIT:
+    {
+      fprintf(stderr, "%s(%u:%u): %s%s: \x1B[0m%s\n", state.parser->path, state.parser->currentLine,
+          state.parser->currentLineOffset, levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case TRAVERSING_AST:
+    {
+      // TODO(Isaac): be more helpful by working out where the AST node is in the source
+      fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case FUNCTION_FILLING_IN:
+    {
+      fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case TYPE_FILLING_IN:
+    {
+      fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case CODE_GENERATION:
+    {
+      fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case LINKING:
+    {
+      fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+  }
   va_end(args);
 
+  // --- Follow the poisoning strategy ---
   switch (def.poisonStrategy)
   {
     case DO_NOTHING:
@@ -109,6 +201,16 @@ void RaiseError(error e, ...)
     } break;
 
     case TO_END_OF_ATTRIBUTE:
+    {
+      roo_parser& parser = *(state.parser);
+
+      while (PeekToken(parser).type != TOKEN_RIGHT_BLOCK)
+      {
+        NextToken(parser);
+      }
+    } break;
+
+    case TO_END_OF_STRING:
     {
       // TODO
     } break;

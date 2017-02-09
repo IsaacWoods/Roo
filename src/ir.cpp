@@ -185,6 +185,8 @@ static void InitThingOfCode(thing_of_code& code)
   InitAttribSet(code.attribs);
   code.returnType       = nullptr;
 
+  code.errorState       = CreateErrorState(FUNCTION_FILLING_IN, &code);
+
   code.ast              = nullptr;
   InitVector<slot_def*>(code.slots);
   code.airHead          = nullptr;
@@ -321,7 +323,7 @@ type_def* GetTypeByName(parse_result& parse, const char* typeName)
   return nullptr;
 }
 
-static void ResolveTypeRef(type_ref& ref, parse_result& parse)
+static void ResolveTypeRef(type_ref& ref, parse_result& parse, error_state& errorState)
 {
   assert(!(ref.isResolved));
 
@@ -340,7 +342,7 @@ static void ResolveTypeRef(type_ref& ref, parse_result& parse)
     }
   }
 
-  RaiseError(ERROR_UNDEFINED_TYPE, ref.name);
+  RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name);
 }
 
 /*
@@ -398,7 +400,7 @@ char* MangleOperatorName(operator_def* op)
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_OPERATOR, GetTokenName(op->op), "MangleOperatorName");
+      RaiseError(op->code.errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(op->op), "MangleOperatorName");
     } break;
   }
 
@@ -457,7 +459,7 @@ void CompleteIR(parse_result& parse)
 
       if (code.returnType)
       {
-        ResolveTypeRef(*(code.returnType), parse);
+        ResolveTypeRef(*(code.returnType), parse, code.errorState);
       }
   
       for (auto* paramIt = code.params.head;
@@ -465,7 +467,7 @@ void CompleteIR(parse_result& parse)
            paramIt++)
       {
         variable_def* param = *paramIt;
-        ResolveTypeRef(param->type, parse);
+        ResolveTypeRef(param->type, parse, code.errorState);
       }
   
       for (auto* localIt = code.locals.head;
@@ -473,7 +475,7 @@ void CompleteIR(parse_result& parse)
            localIt++)
       {
         variable_def* local = *localIt;
-        ResolveTypeRef(local->type, parse);
+        ResolveTypeRef(local->type, parse, code.errorState);
       }
     };
   
@@ -502,7 +504,7 @@ void CompleteIR(parse_result& parse)
          memberIt++)
     {
       variable_def* member = *memberIt;
-      ResolveTypeRef(member->type, parse);
+      ResolveTypeRef(member->type, parse, type->errorState);
     }
   }
 

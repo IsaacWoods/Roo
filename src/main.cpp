@@ -56,6 +56,8 @@ int main()
 
   InitParseletMaps();
 
+  error_state errorState = CreateErrorState(GENERAL_STUFF);
+
   parse_result result;
   CreateParseResult(result);
 
@@ -173,7 +175,7 @@ int main()
 
   if (!(result.name))
   {
-    RaiseError(ERROR_NO_PROGRAM_NAME);
+    RaiseError(errorState, ERROR_NO_PROGRAM_NAME);
   }
 
   Generate(result.name, target, result);

@@ -2,6 +2,7 @@
  * Copyright (C) 2016, Isaac Woods. All rights reserved.
  */
 
+#include <parsing.hpp>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -10,42 +11,12 @@
 #include <cstdarg>
 #include <climits>
 #include <cassert>
+#include <common.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
 #include <error.hpp>
 
-struct token
-{
-  token_type   type;
-  unsigned int offset;
-  unsigned int line;
-  unsigned int lineOffset;
-
-  const char*  textStart;   // NOTE(Isaac): this points into the parser's source. It is not null-terminated!
-  unsigned int textLength;
-
-  union
-  {
-    int           asSignedInt;    // Valid if token type is TOKEN_SIGNED_INT
-    unsigned int  asUnsignedInt;  // Valid if token type is TOKEN_UNSIGNED_INT
-    float         asFloat;        // Valid if token type is TOKEN_FLOAT
-  };
-};
-
-struct roo_parser
-{
-  char*           source;
-  const char*     currentChar; // NOTE(Isaac): this points into `source`
-  unsigned int    currentLine;
-  unsigned int    currentLineOffset;
-
-  token           currentToken;
-  token           nextToken;
-
-  parse_result*   result;
-};
-
-static inline char* GetTextFromToken(const token& tkn)
+static inline char* GetTextFromToken(roo_parser& parser, const token& tkn)
 {
   // NOTE(Isaac): this is the upper bound of the amount of memory we need to store the string representation
   char* text = static_cast<char*>(malloc(sizeof(char) * (tkn.textLength + 1u)));
@@ -85,10 +56,8 @@ static inline char* GetTextFromToken(const token& tkn)
 
           default:
           {
-            // TODO: use real syntax error system
-            fprintf(stderr, "FATAL: Unrecognised escape sequence found '\\%c'!\n", *c);
-            Crash();
-          }
+            RaiseError(parser.errorState, ERROR_ILLEGAL_ESCAPE_SEQUENCE, *c);
+          } break;
         }
       }
       else
@@ -233,7 +202,7 @@ static token LexNumber(roo_parser& parser)
   }
 
   token tkn = MakeToken(parser, type, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(tkn);
+  char* text = GetTextFromToken(parser, tkn);
 
   switch (type)
   {
@@ -276,7 +245,7 @@ static token LexHexNumber(roo_parser& parser)
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
   token tkn = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(tkn);
+  char* text = GetTextFromToken(parser, tkn);
   tkn.asUnsignedInt = strtol(text, nullptr, 16);
   free(text);
 
@@ -298,7 +267,7 @@ static token LexBinaryNumber(roo_parser& parser)
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
   token tkn = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(tkn);
+  char* text = GetTextFromToken(parser, tkn);
   tkn.asUnsignedInt = strtol(text, nullptr, 2);
   free(text);
 
@@ -330,7 +299,7 @@ static token LexCharConstant(roo_parser& parser)
 
   if (*(parser.currentChar) != '\'')
   {
-    RaiseError(ERROR_EXPECTED, "a ' to end the char constant");
+    RaiseError(parser.errorState, ERROR_EXPECTED, "a ' to end the char constant");
   }
 
   return MakeToken(parser, TOKEN_CHAR_CONSTANT, (unsigned int)((uintptr_t)c - (uintptr_t)parser.source), c, 1u);
@@ -649,11 +618,8 @@ EmitSimpleToken:
   return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
 }
 
-static token NextToken(roo_parser& parser, bool ignoreLines = true)
+token PeekToken(roo_parser& parser, bool ignoreLines)
 {
-  parser.currentToken = parser.nextToken;
-  parser.nextToken = LexNext(parser);
-
   if (ignoreLines)
   {
     while (parser.currentToken.type == TOKEN_LINE)
@@ -665,8 +631,11 @@ static token NextToken(roo_parser& parser, bool ignoreLines = true)
   return parser.currentToken;
 }
 
-static token PeekToken(roo_parser& parser, bool ignoreLines = true)
+token NextToken(roo_parser& parser, bool ignoreLines)
 {
+  parser.currentToken = parser.nextToken;
+  parser.nextToken = LexNext(parser);
+
   if (ignoreLines)
   {
     while (parser.currentToken.type == TOKEN_LINE)
@@ -709,13 +678,13 @@ static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
-    printf("PEEK: (%s)\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
+    printf("PEEK: (%s)\n", GetTextFromToken(parser, PeekToken(parser, ignoreLines)));
   }
   else if ( (PeekToken(parser, ignoreLines).type == TOKEN_SIGNED_INT)   ||
             (PeekToken(parser, ignoreLines).type == TOKEN_UNSIGNED_INT) ||
             (PeekToken(parser, ignoreLines).type == TOKEN_FLOAT))
   {
-    printf("PEEK: [%s]\n", GetTextFromToken(PeekToken(parser, ignoreLines)));
+    printf("PEEK: [%s]\n", GetTextFromToken(parser, PeekToken(parser, ignoreLines)));
   }
   else
   {
@@ -727,13 +696,13 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekNextToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
-    printf("PEEK_NEXT: (%s)\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
+    printf("PEEK_NEXT: (%s)\n", GetTextFromToken(parser, PeekNextToken(parser, ignoreLines)));
   }
   else if ( (PeekToken(parser, ignoreLines).type == TOKEN_SIGNED_INT)   ||
             (PeekToken(parser, ignoreLines).type == TOKEN_UNSIGNED_INT) ||
             (PeekToken(parser, ignoreLines).type == TOKEN_FLOAT))
   {
-    printf("PEEK_NEXT: [%s]\n", GetTextFromToken(PeekNextToken(parser, ignoreLines)));
+    printf("PEEK_NEXT: [%s]\n", GetTextFromToken(parser, PeekNextToken(parser, ignoreLines)));
   }
   else
   {
@@ -746,7 +715,7 @@ static inline void Consume(roo_parser& parser, token_type expectedType, bool ign
 {
   if (PeekToken(parser, ignoreLines).type != expectedType)
   {
-    RaiseError(ERROR_EXPECTED_BUT_GOT, GetTokenName(expectedType), GetTokenName(parser.currentToken.type));
+    RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, GetTokenName(expectedType), GetTokenName(parser.currentToken.type));
   }
 
   NextToken(parser, ignoreLines);
@@ -758,7 +727,7 @@ static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool
   
   if (next != expectedType)
   {
-    RaiseError(ERROR_EXPECTED_BUT_GOT, GetTokenName(expectedType), GetTokenName(next));
+    RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, GetTokenName(expectedType), GetTokenName(next));
   }
 
   NextToken(parser, ignoreLines);
@@ -796,7 +765,7 @@ static type_ref TypeRef(roo_parser& parser)
     NextToken(parser);
   }
 
-  ref.name = GetTextFromToken(PeekToken(parser));
+  ref.name = GetTextFromToken(parser, PeekToken(parser));
   NextToken(parser);
 
   if (Match(parser, TOKEN_MUT))
@@ -828,7 +797,7 @@ static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
 
   while (true)
   {
-    char* varName = GetTextFromToken(PeekToken(parser));
+    char* varName = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
 
     type_ref typeRef = TypeRef(parser);
@@ -856,7 +825,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
   if (!prefixParselet)
   {
-    RaiseError(ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
+    RaiseError(parser.errorState, ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
   }
 
   node* expression = prefixParselet(parser);
@@ -881,7 +850,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 
 static variable_def* VariableDef(roo_parser& parser)
 {
-  char* name = GetTextFromToken(PeekToken(parser));
+  char* name = GetTextFromToken(parser, PeekToken(parser));
   ConsumeNext(parser, TOKEN_COLON);
 
   type_ref typeRef = TypeRef(parser);
@@ -951,7 +920,7 @@ static node* Condition(roo_parser& parser, bool reverseOnJump)
       (condition != TOKEN_LESS_THAN)              &&
       (condition != TOKEN_LESS_THAN_EQUAL_TO))
   {
-    RaiseError(ERROR_EXPECTED_BUT_GOT, "condition", GetTokenName(condition));
+    RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "condition", GetTokenName(condition));
   }
 
   NextToken(parser);
@@ -1009,7 +978,7 @@ static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop)
     {
       if (!isInLoop)
       {
-        RaiseError(ERROR_UNEXPECTED, "not-in-a-loop", "break");
+        RaiseError(parser.errorState, ERROR_UNEXPECTED, "not-in-a-loop", "break");
       }
 
       result = CreateNode(BREAK_NODE);
@@ -1084,9 +1053,10 @@ static void TypeDef(roo_parser& parser)
   Consume(parser, TOKEN_TYPE);
   type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
   InitVector<variable_def*>(type->members);
+  type->errorState = CreateErrorState(TYPE_FILLING_IN, type);
   type->size = UINT_MAX;
 
-  type->name = GetTextFromToken(PeekToken(parser));
+  type->name = GetTextFromToken(parser, PeekToken(parser));
   Log(parser, "%s)\n", type->name);
   
   ConsumeNext(parser, TOKEN_LEFT_BRACE);
@@ -1115,22 +1085,22 @@ static void Import(roo_parser& parser)
     case TOKEN_IDENTIFIER:
     {
       // TODO(Isaac): handle dotted identifiers
-      Log(parser, "Importing: %s\n", GetTextFromToken(PeekToken(parser)));
+      Log(parser, "Importing: %s\n", GetTextFromToken(parser, PeekToken(parser)));
       dependency->type = dependency_def::dependency_type::LOCAL;
-      dependency->path = GetTextFromToken(PeekToken(parser));
+      dependency->path = GetTextFromToken(parser, PeekToken(parser));
     } break;
 
     // NOTE(Isaac): Import a library from a remote repository
     case TOKEN_STRING:
     {
-      Log(parser, "Importing remote: %s\n", GetTextFromToken(PeekToken(parser)));
+      Log(parser, "Importing remote: %s\n", GetTextFromToken(parser, PeekToken(parser)));
       dependency->type = dependency_def::dependency_type::REMOTE;
-      dependency->path = GetTextFromToken(PeekToken(parser));
+      dependency->path = GetTextFromToken(parser, PeekToken(parser));
     } break;
 
     default:
     {
-      RaiseError(ERROR_EXPECTED_BUT_GOT, "string-literal or dotted-identifier", GetTokenName(PeekToken(parser).type));
+      RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "string-literal or dotted-identifier", GetTokenName(PeekToken(parser).type));
     }
   }
 
@@ -1143,7 +1113,7 @@ static void Function(roo_parser& parser, attrib_set& attribs)
 {
   Log(parser, "--> Function(");
 
-  function_def* function = CreateFunctionDef(GetTextFromToken(NextToken(parser)));
+  function_def* function = CreateFunctionDef(GetTextFromToken(parser, NextToken(parser)));
   function->code.attribs = attribs;
   Log(parser, "%s)\n", function->name);
   Add<function_def*>(parser.result->functions, function);
@@ -1203,7 +1173,7 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
 
     default:
     {
-      RaiseError(ERROR_INVALID_OPERATOR, GetTokenName(operatorDef->op));
+      RaiseError(parser.errorState, ERROR_INVALID_OPERATOR, GetTokenName(operatorDef->op));
     } break;
   }
 
@@ -1229,7 +1199,7 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
 
 static void Attribute(roo_parser& parser, attrib_set& attribs)
 {
-  char* attribName = GetTextFromToken(NextToken(parser));
+  char* attribName = GetTextFromToken(parser, NextToken(parser));
 
   if (strcmp(attribName, "Entry") == 0)
   {
@@ -1242,11 +1212,11 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
 
     if (!Match(parser, TOKEN_IDENTIFIER))
     {
-      RaiseError(ERROR_EXPECTED, "identifier as program / library name");
+      RaiseError(parser.errorState, ERROR_EXPECTED, "identifier as program / library name");
     }
 
     // NOTE(Isaac): while this is parsed like an attribute, it isn't created like one
-    parser.result->name = GetTextFromToken(PeekToken(parser));
+    parser.result->name = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "Prototype") == 0)
@@ -1266,7 +1236,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
   }
   else
   {
-    RaiseError(ERROR_ILLEGAL_ATTRIBUTE, attribName);
+    RaiseError(parser.errorState, ERROR_ILLEGAL_ATTRIBUTE, attribName);
   }
 
   Consume(parser, TOKEN_RIGHT_BLOCK);
@@ -1276,13 +1246,15 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
 void Parse(parse_result* result, const char* sourcePath)
 {
   roo_parser parser;
+  parser.path               = sourcePath;
   parser.source             = ReadFile(sourcePath);
   parser.currentChar        = parser.source;
-  parser.currentLine        = 0u;
+  parser.currentLine        = 1u;   // NOTE(Isaac): lines are indexed from 1 in text editors etc.
   parser.currentLineOffset  = 0u;
   parser.result             = result;
   parser.currentToken       = LexNext(parser);
   parser.nextToken          = LexNext(parser);
+  parser.errorState         = CreateErrorState(PARSING_UNIT, &parser);
 
   attrib_set attribs;
 
@@ -1312,7 +1284,7 @@ void Parse(parse_result* result, const char* sourcePath)
     }
     else
     {
-      RaiseError(ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
+      RaiseError(parser.errorState, ERROR_UNEXPECTED, "block", GetTokenName(PeekToken(parser).type));
     }
   }
 
@@ -1371,7 +1343,7 @@ void InitParseletMaps()
     [](roo_parser& parser) -> node*
     {
       Log(parser, "--> [PARSELET] Identifier\n");
-      char* name = GetTextFromToken(PeekToken(parser));
+      char* name = GetTextFromToken(parser, PeekToken(parser));
 
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Identifier\n");
@@ -1412,7 +1384,7 @@ void InitParseletMaps()
     [](roo_parser& parser) -> node*
     {
       Log(parser, "--> [PARSELET] String\n");
-      char* tokenText = GetTextFromToken(PeekToken(parser));
+      char* tokenText = GetTextFromToken(parser, PeekToken(parser));
       NextToken(parser);
 
       Log(parser, "<-- [PARSELET] String\n");
@@ -1495,7 +1467,7 @@ void InitParseletMaps()
 
       if (left->type != VARIABLE_NODE)
       {
-        RaiseError(ERROR_EXPECTED_BUT_GOT, "function-name", GetNodeName(left->type));
+        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "function-name", GetNodeName(left->type));
       }
 
       char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->variable.name) + 1u)));
@@ -1524,7 +1496,7 @@ void InitParseletMaps()
       if (left->type != VARIABLE_NODE &&
           left->type != MEMBER_ACCESS_NODE)
       {
-        RaiseError(ERROR_EXPECTED_BUT_GOT, "variable-binding or member-binding", GetNodeName(left->type));
+        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "variable-binding or member-binding", GetNodeName(left->type));
       }
 
       NextToken(parser);
@@ -1543,7 +1515,7 @@ void InitParseletMaps()
       if (left->type != VARIABLE_NODE &&
           left->type != MEMBER_ACCESS_NODE)
       {
-        RaiseError(ERROR_EXPECTED, "variable-binding before '=' token");
+        RaiseError(parser.errorState, ERROR_EXPECTED, "variable-binding before '=' token");
       }
 
       NextToken(parser);
@@ -1553,4 +1525,131 @@ void InitParseletMaps()
       Log(parser, "<-- [PARSELET] Variable assignment\n");
       return CreateNode(VARIABLE_ASSIGN_NODE, left, expression, false);
     };
+}
+
+const char* GetTokenName(token_type type)
+{
+  switch (type)
+  {
+    case TOKEN_TYPE:
+      return "TOKEN_TYPE";
+    case TOKEN_FN:
+      return "TOKEN_FN";
+    case TOKEN_TRUE:
+      return "TOKEN_TRUE";
+    case TOKEN_FALSE:
+      return "TOKEN_FALSE";
+    case TOKEN_IMPORT:
+      return "TOKEN_IMPORT";
+    case TOKEN_BREAK:
+      return "TOKEN_BREAK";
+    case TOKEN_RETURN:
+      return "TOKEN_RETURN";
+    case TOKEN_IF:
+      return "TOKEN_IF";
+    case TOKEN_ELSE:
+      return "TOKEN_ELSE";
+    case TOKEN_WHILE:
+      return "TOKEN_WHILE";
+    case TOKEN_MUT:
+      return "TOKEN_MUT";
+    case TOKEN_OPERATOR:
+      return "TOKEN_OPERATOR";
+
+    case TOKEN_DOT:
+      return "TOKEN_DOT";
+    case TOKEN_COMMA:
+      return "TOKEN_COMMA";
+    case TOKEN_COLON:
+      return "TOKEN_COLON";
+    case TOKEN_LEFT_PAREN:
+      return "TOKEN_LEFT_PAREN";
+    case TOKEN_RIGHT_PAREN:
+      return "TOKEN_RIGHT_PAREN";
+    case TOKEN_LEFT_BRACE:
+      return "TOKEN_LEFT_BRACE";
+    case TOKEN_RIGHT_BRACE:
+      return "TOKEN_RIGHT_BRACE";
+    case TOKEN_LEFT_BLOCK:
+      return "TOKEN_LEFT_BLOCK";
+    case TOKEN_RIGHT_BLOCK:
+      return "TOKEN_RIGHT_BLOCK";
+    case TOKEN_ASTERIX:
+      return "TOKEN_ASTERIX";
+    case TOKEN_PLUS:
+      return "TOKEN_PLUS";
+    case TOKEN_MINUS:
+      return "TOKEN_MINUS";
+    case TOKEN_SLASH:
+      return "TOKEN_SLASH";
+    case TOKEN_EQUALS:
+      return "TOKEN_EQUALS";
+    case TOKEN_BANG:
+      return "TOKEN_BANG";
+    case TOKEN_TILDE:
+      return "TOKEN_TILDE";
+    case TOKEN_PERCENT:
+      return "TOKEN_PERCENT";
+    case TOKEN_QUESTION_MARK:
+      return "TOKEN_QUESTION_MARK";
+    case TOKEN_POUND:
+      return "TOKEN_POUND";
+
+    case TOKEN_YIELDS:
+      return "TOKEN_YIELDS";
+    case TOKEN_START_ATTRIBUTE:
+      return "TOKEN_START_ATTRIBUTE";
+    case TOKEN_EQUALS_EQUALS:
+      return "TOKEN_EQUALS_EQUALS";
+    case TOKEN_BANG_EQUALS:
+      return "TOKEN_BANG_EQUALS";
+    case TOKEN_GREATER_THAN:
+      return "TOKEN_GREATER_THAN";
+    case TOKEN_GREATER_THAN_EQUAL_TO:
+      return "TOKEN_GREATER_THAN_EQUAL_TO";
+    case TOKEN_LESS_THAN:
+      return "TOKEN_LESS_THAN";
+    case TOKEN_LESS_THAN_EQUAL_TO:
+      return "TOKEN_LESS_THAN_EQUAL_TO";
+    case TOKEN_DOUBLE_PLUS:
+      return "TOKEN_DOUBLE_PLUS";
+    case TOKEN_DOUBLE_MINUS:
+      return "TOKEN_DOUBLE_MINUS";
+    case TOKEN_LEFT_SHIFT:
+      return "TOKEN_LEFT_SHIFT";
+    case TOKEN_RIGHT_SHIFT:
+      return "TOKEN_RIGHT_SHIFT";
+    case TOKEN_AND:
+      return "TOKEN_AND";
+    case TOKEN_OR:
+      return "TOKEN_OR";
+    case TOKEN_XOR:
+      return "TOKEN_XOR";
+    case TOKEN_DOUBLE_AND:
+      return "TOKEN_DOUBLE_AND";
+    case TOKEN_DOUBLE_OR:
+      return "TOKEN_DOUBLE_OR";
+
+    case TOKEN_IDENTIFIER:
+      return "TOKEN_IDENTIFIER";
+    case TOKEN_STRING:
+      return "TOKEN_STRING";
+    case TOKEN_SIGNED_INT:
+      return "TOKEN_SIGNED_INT";
+    case TOKEN_UNSIGNED_INT:
+      return "TOKEN_UNSIGNED_INT";
+    case TOKEN_FLOAT:
+      return "TOKEN_FLOAT";
+    case TOKEN_CHAR_CONSTANT:
+      return "TOKEN_CHAR_CONSTANT";
+    case TOKEN_LINE:
+      return "TOKEN_LINE";
+    case TOKEN_INVALID:
+      return "TOKEN_INVALID";
+    default:
+    {
+      fprintf(stderr, "FATAL: Unhandled token type in GetTokenName!\n");
+      exit(1);
+    }
+  }
 }

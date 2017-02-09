@@ -95,7 +95,7 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
     case I_NUM_INSTRUCTIONS:
     {
-      RaiseError(ICE_GENERIC, "Tried to push an AIR instruction of type I_NUM_INSTRUCTIONS!");
+      RaiseError(code.errorState, ICE_GENERIC, "Tried to push an AIR instruction of type I_NUM_INSTRUCTIONS!");
     }
   }
 
@@ -219,7 +219,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
         default:
         {
-          RaiseError(ICE_GENERIC, "Unhandled AST prefix op in GenNodeAIR<slot_def*>");
+          RaiseError(code.errorState, ICE_GENERIC, "Unhandled AST prefix op in GenNodeAIR<slot_def*>");
         }
       }
 
@@ -274,7 +274,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `slot_def*`", GetNodeName(n->type));
+      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "a `slot_def*`", GetNodeName(n->type));
       return nullptr;
     } break;
   }
@@ -342,7 +342,7 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 
         default:
         {
-          RaiseError(ICE_GENERIC, "Unhandled AST conditional in GenNodeAIR<jump_instruction::condition>");
+          RaiseError(code.errorState, ICE_GENERIC, "Unhandled AST conditional in GenNodeAIR<jump_instruction::condition>");
           Crash();
         }
       }
@@ -350,7 +350,7 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `jump_instruction::condition`", GetNodeName(n->type));
+      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "a `jump_instruction::condition`", GetNodeName(n->type));
       Crash();
     } break;
   }
@@ -405,7 +405,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
         default:
         {
-          RaiseError(ICE_GENERIC, "Unhandled binary op in GenNodeAIR<void>");
+          RaiseError(code.errorState, ICE_GENERIC, "Unhandled binary op in GenNodeAIR<void>");
         }
       }
 
@@ -463,7 +463,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_NODE_TYPE, "nothing", GetNodeName(n->type));
+      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "nothing", GetNodeName(n->type));
     }
   }
 
@@ -495,7 +495,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, th
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_NODE_TYPE, "a `instruction_label*`", GetNodeName(n->type));
+      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "a `instruction_label*`", GetNodeName(n->type));
     }
   }
 
@@ -587,7 +587,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_NODE_TYPE, "GenOperation", GetNodeName(n->type));
+      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "GenOperation", GetNodeName(n->type));
     }
   }
 
@@ -743,7 +743,8 @@ unsigned int GetInstructionCost(air_instruction* instruction)
 
     case I_NUM_INSTRUCTIONS:
     {
-      RaiseError(ICE_GENERIC, "Tried to get instruction cost of instruction with type I_NUM_INSTRUCTIONS!");
+      error_state errorState = CreateErrorState(GENERAL_STUFF);
+      RaiseError(errorState, ICE_GENERIC, "Tried to get instruction cost of instruction with type I_NUM_INSTRUCTIONS!");
     }
   }
 
@@ -933,7 +934,7 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
     if (slot->color == -1)
     {
       // TODO: spill something instead of crashing
-      RaiseError(ICE_GENERIC, "Failed to find a valid k-coloring of the interference graph!");
+      RaiseError(code.errorState, ICE_GENERIC, "Failed to find a valid k-coloring of the interference graph!");
     }
   }
 }

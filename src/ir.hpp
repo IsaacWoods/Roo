@@ -6,7 +6,8 @@
 
 #include <cstdint>
 #include <vector.hpp>
-#include <common.hpp>
+#include <parsing.hpp>
+#include <error.hpp>
 
 /*
  * NOTE(Isaac): This allows the codegen module to store platform-dependent
@@ -176,6 +177,8 @@ struct thing_of_code
   attrib_set            attribs;
   type_ref*             returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
 
+  error_state           errorState;
+
   node*                 ast;
   vector<slot_def*>     slots;
   air_instruction*      airHead;
@@ -201,6 +204,7 @@ struct type_def
 {
   char*                 name;
   vector<variable_def*> members;
+  error_state           errorState;
 
   /*
    * Size of this structure in bytes.

@@ -25,6 +25,8 @@ void InitResolveVarsPass()
         return;
       }
 
+      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
+
       for (auto* it = code->locals.head;
            it < code->locals.tail;
            it++)
@@ -55,12 +57,14 @@ void InitResolveVarsPass()
         }
       }
 
-      RaiseError(ERROR_UNDEFINED_VARIABLE, n->variable.name);
+      RaiseError(state, ERROR_UNDEFINED_VARIABLE, n->variable.name);
     };
 
   PASS_resolveVars.f[MEMBER_ACCESS_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& /*parse*/, thing_of_code* code, node* n)
     {
+      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
+
       type_def* parentType = nullptr;
       switch (n->memberAccess.parent->type)
       {
@@ -80,13 +84,13 @@ void InitResolveVarsPass()
 
         default:
         {
-          RaiseError(ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(parent)");
+          RaiseError(state, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(parent)");
         } break;
       }
 
       if (n->memberAccess.child->type != VARIABLE_NODE)
       {
-        RaiseError(ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(child)");
+        RaiseError(state, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(child)");
       }
       
       assert(!(n->memberAccess.child->variable.isResolved));
@@ -106,6 +110,6 @@ void InitResolveVarsPass()
         }
       }
 
-      RaiseError(ERROR_MEMBER_NOT_FOUND, childName, parentType->name);
+      RaiseError(state, ERROR_MEMBER_NOT_FOUND, childName, parentType->name);
     };
 }

@@ -123,8 +123,10 @@ void Free<codegen_target>(codegen_target& target)
 /*
  * This is used by the AIR generation system to allow us to deal with all the weird bits of the x86_64 ISA.
  */
-void PrecolorInstruction(codegen_target& target, air_instruction* instruction)
+void PrecolorInstruction(codegen_target& /*target*/, air_instruction* instruction)
 {
+  error_state errorState = CreateErrorState(GENERAL_STUFF);
+
   switch (instruction->type)
   {
     case I_RETURN:
@@ -185,7 +187,7 @@ void PrecolorInstruction(codegen_target& target, air_instruction* instruction)
         default:
         {
           // TODO: get a string of the actual operator in the binary_op_i
-          RaiseError(ICE_UNHANDLED_OPERATOR, "operator", "PrecolorInstruction:X64:I_BINARY_OP");
+          RaiseError(errorState, ICE_UNHANDLED_OPERATOR, "operator", "PrecolorInstruction:X64:I_BINARY_OP");
         } break;
       }
     } break;
@@ -208,7 +210,7 @@ void PrecolorInstruction(codegen_target& target, air_instruction* instruction)
 
     case I_NUM_INSTRUCTIONS:
     {
-      RaiseError(ICE_UNHANDLED_INSTRUCTION_TYPE, GetInstructionName(instruction), "PrecolorInstruction:X86_64");
+      RaiseError(errorState, ICE_UNHANDLED_INSTRUCTION_TYPE, GetInstructionName(instruction), "PrecolorInstruction:X86_64");
     }
   }
 }
@@ -328,7 +330,7 @@ static void EmitExtensionModRM(elf_thing* thing, codegen_target& target, uint8_t
   Emit<uint8_t>(thing, modRM);
 }
 
-static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
+static void Emit(error_state& errorState, elf_thing* thing, codegen_target& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -398,8 +400,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
     case i::DIV_REG_REG:
     {
       // TODO(Isaac): division is apparently a PITA, so work out what the hell to do here
-      fprintf(stderr, "FATAL ICE: We can't actually do division yet...\n");
-      Crash();
+      RaiseError(errorState, ICE_GENERIC, "Division is actually physically impossible on the x64");
     } break;
 
     case i::XOR_REG_REG:
@@ -441,8 +442,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
       if (imm >= 256u)
       {
-        fprintf(stderr, "FATAL ICE: Multiplication by immediates that don't fit into a byte isn't supported: %u\n", imm);
-        Crash();
+        RaiseError(errorState, ICE_GENERIC, "Multiplication is only supported with byte-wide immediates");
       }
 
       Emit<uint8_t>(thing, 0x48);
@@ -453,8 +453,7 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 
     case i::DIV_REG_IMM32:
     {
-      fprintf(stderr, "FATAL ICE: Division is currently deemed impossible on x64\n");
-      Crash();
+      RaiseError(errorState, ICE_GENERIC, "Division is currently deemed impossible on the x64...");
     } break;
 
     case i::MOV_REG_REG:
@@ -563,11 +562,12 @@ static void Emit(elf_thing* thing, codegen_target& target, i instruction, ...)
 }
 
 #define E(...) \
-  Emit(thing, target, __VA_ARGS__);
+  Emit(errorState, thing, target, __VA_ARGS__);
 
-static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* thing,  parse_result& parse)
+static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* thing, parse_result& parse)
 {
   elf_symbol* entrySymbol = nullptr;
+  error_state errorState = CreateErrorState(GENERAL_STUFF);
 
   for (auto* it = parse.functions.head;
        it < parse.functions.tail;
@@ -577,7 +577,6 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
     if (function->code.attribs.isEntry)
     {
-      printf("Found entry symbol: %s\n", function->name);
       entrySymbol = function->code.symbol;
       break;
     }
@@ -585,7 +584,7 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
   if (!entrySymbol)
   {
-    RaiseError(ERROR_NO_ENTRY_FUNCTION);
+    RaiseError(errorState, ERROR_NO_ENTRY_FUNCTION);
   }
 
   // Clearly mark the outermost stack frame
@@ -600,6 +599,10 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   E(i::XOR_REG_REG, RBX, RBX);
   E(i::INT_IMM8, 0x80);
 }
+
+#undef E
+#define E(...) \
+  Emit(code.errorState, thing, target, __VA_ARGS__);
 
 static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code& code)
 {
@@ -649,7 +652,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
 
             default:
             {
-              RaiseError(ICE_UNHANDLED_SLOT_TYPE, SlotAsString(instruction->slot), "Generate::I_RETURN");
+              RaiseError(code.errorState, ICE_UNHANDLED_SLOT_TYPE, SlotAsString(instruction->slot), "Generate::I_RETURN");
             } break;
           }
         }
@@ -730,7 +733,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
           {
             if (pair.left->color != RAX)
             {
-              RaiseError(ICE_GENERIC, "There's only an x86 instruction for comparing an immediate with RAX!");
+              RaiseError(code.errorState, ICE_GENERIC, "There's only an x86 instruction for comparing an immediate with RAX!");
             }
 
             E(i::CMP_RAX_IMM32, pair.right->i);
@@ -840,8 +843,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
 
       case I_NUM_INSTRUCTIONS:
       {
-        fprintf(stderr, "Tried to generate code for AIR instruction of type `I_NUM_INSTRUCTIONS`!\n");
-        Crash();
+        RaiseError(code.errorState, ICE_GENERIC, "AIR instruction of type I_NUM_INSTRUCTIONS in code generator");
       }
     }
   }
@@ -907,9 +909,11 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     tail++;
   }
 
-  // --- Generate symbols for functions and operators ---
-  auto generateSymbol = [&](thing_of_code& code)
+  // --- Generate error states and symbols for functions and operators ---
+  auto generateStateAndSymbol = [&](thing_of_code& code)
     {
+      code.errorState = CreateErrorState(CODE_GENERATION, &code);
+
       /*
        * If it's a prototype, we want to reference the symbol of an already loaded (hopefully) function.
        */
@@ -929,7 +933,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
 
         if (!code.symbol)
         {
-          RaiseError(ERROR_UNIMPLEMENTED_PROTOTYPE, code.mangledName);
+          RaiseError(code.errorState, ERROR_UNIMPLEMENTED_PROTOTYPE, code.mangledName);
         }
       }
       else
@@ -942,14 +946,14 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
        it < result.functions.tail;
        it++)
   {
-    generateSymbol((*it)->code);
+    generateStateAndSymbol((*it)->code);
   }
 
   for (auto* it = result.operators.head;
        it < result.operators.tail;
        it++)
   {
-    generateSymbol((*it)->code);
+    generateStateAndSymbol((*it)->code);
   }
 
   // Create a thing for the bootstrap
@@ -986,7 +990,6 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     Generate(elf, target, op->code);
   }
 
-  CompleteElf(elf);
   WriteElf(elf, outputPath);
   Free<elf_file>(elf);
 }

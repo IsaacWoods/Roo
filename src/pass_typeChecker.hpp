@@ -80,8 +80,9 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[VARIABLE_ASSIGN_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& /*parse*/, thing_of_code* code, node* n)
     {
+      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
       // This complains if we are assigning to a immutable variable
       {
         if (n->variableAssignment.ignoreImmutability)
@@ -106,7 +107,7 @@ void InitTypeCheckerPass()
   
         if (!(variable->type.isMutable))
         {
-          fprintf(stderr, "ERROR: Cannot assign to an immutable variable: %s\n", variable->name);
+          RaiseError(state, ERROR_ASSIGN_TO_IMMUTABLE, variable->name);
         }
       }
 
@@ -124,14 +125,15 @@ void InitTypeCheckerPass()
         // NOTE(Isaac): We don't care about their mutability
         if (varType->def != newValueType->def)
         {
-          RaiseError(ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varType->def->name);
+          RaiseError(state, ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varType->def->name);
         }
       }
     };
 
   PASS_typeChecker.f[BINARY_OP_NODE] =
-    [](parse_result& parse, thing_of_code* /*code*/, node* n)
+    [](parse_result& parse, thing_of_code* code, node* n)
     {
+      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
       // For operators that change the variable, check that they're mutable
       {
         if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
@@ -154,7 +156,7 @@ void InitTypeCheckerPass()
     
           if (!(variable->type.isMutable))
           {
-            fprintf(stderr, "ERROR: Cannot operate on an immutable variable: %s\n", variable->name);
+            RaiseError(state, ERROR_OPERATE_UPON_IMMUTABLE, variable->name);
           }
         }
       }
@@ -206,7 +208,7 @@ void InitTypeCheckerPass()
 
           if (!(n->typeRef))
           {
-            RaiseError(ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), a->def->name, b->def->name);
+            RaiseError(state, ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), a->def->name, b->def->name);
           }
         }
       }

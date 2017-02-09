@@ -346,13 +346,13 @@ static void ParseSymbolTable(elf_file& elf, elf_object& object, elf_section* tab
   }
 }
 
-static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_section* section)
+static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_object& object, elf_section* section)
 {
   const unsigned int RELOCATION_ENTRY_SIZE = 0x18;
 
   if (section->entrySize != RELOCATION_ENTRY_SIZE)
   {
-    RaiseError(ERROR_WEIRD_LINKED_OBJECT, object.path);
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, object.path);
   }
 
   unsigned int numRelocations = section->size / section->entrySize;
@@ -376,7 +376,7 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
 
     if (!(relocation->symbol))
     {
-      RaiseError(ERROR_UNRESOLVED_SYMBOL, "unknown (from external relocation section)");
+      RaiseError(errorState, ERROR_UNRESOLVED_SYMBOL, "unknown (from external relocation section)");
     }
 
     Add<elf_relocation*>(elf.relocations, relocation);
@@ -386,6 +386,8 @@ static void ParseRelocationSection(elf_file& elf, elf_object& object, elf_sectio
 
 void LinkObject(elf_file& elf, const char* objectPath)
 {
+  error_state errorState = CreateErrorState(LINKING);
+
   elf_object object;
   object.path = objectPath;
   object.f = fopen(objectPath, "rb");
@@ -396,13 +398,13 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (!(object.f))
   {
-    RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath);
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath);
   }
 
   #define CONSUME(byte) \
     if (fgetc(object.f) != byte) \
     { \
-      RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath); \
+      RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath); \
     }
 
   // Check the magic
@@ -418,7 +420,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (fileType != ET_REL)
   {
-    RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath);
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath);
   }
 
   // Parse the section header
@@ -438,16 +440,18 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
       case SHT_REL:
       {
-        RaiseError(ICE_GENERIC, "SHT_REL sections are not supported, use SHT_RELA sections instead");
+        RaiseError(errorState, ICE_GENERIC, "SHT_REL sections are not supported, use SHT_RELA sections instead");
       } break;
 
       case SHT_RELA:
       {
-        ParseRelocationSection(elf, object, section);
+        ParseRelocationSection(errorState, elf, object, section);
       } break;
 
       default:
       {
+        // TODO: get a string of the ignored section's type
+        RaiseError(errorState, NOTE_IGNORED_ELF_SECTION, "SomeELFSectionType");
       } break;
     }
   }
@@ -762,7 +766,7 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* sec
  * This resolves the symbols in the symbol table that are actually referencing symbols
  * that haven't been linked yet.
  */
-static void ResolveUndefinedSymbols(elf_file& elf)
+static void ResolveUndefinedSymbols(error_state& errorState, elf_file& elf)
 {
   for (auto* it = elf.symbols.head;
        it < elf.symbols.tail;
@@ -814,7 +818,7 @@ static void ResolveUndefinedSymbols(elf_file& elf)
 
     if (!symbolResolved)
     {
-      RaiseError(ERROR_UNRESOLVED_SYMBOL, symbol->name->str);
+      RaiseError(errorState, ERROR_UNRESOLVED_SYMBOL, symbol->name->str);
     }
   }
 }
@@ -840,12 +844,15 @@ const char* GetRelocationTypeName(relocation_type type)
 
     default:
     {
-      return "!!!UNHANDLED RELOCATION TYPE IN GetRelocationTypeName!!!";
+      error_state errorState = CreateErrorState(GENERAL_STUFF);
+      RaiseError(errorState, ICE_GENERIC, "Unhandled relocation type in GetRelocationTypeName");
     } break;
   }
+
+  return nullptr;
 }
 
-static void CompleteRelocations(FILE* f, elf_file& elf)
+static void CompleteRelocations(error_state& errorState, FILE* f, elf_file& elf)
 {
   long int currentPosition = ftell(f);
 
@@ -891,7 +898,7 @@ static void CompleteRelocations(FILE* f, elf_file& elf)
 
       default:
       {
-        RaiseError(ICE_UNHANDLED_RELOCATION, GetRelocationTypeName(relocation->type));
+        RaiseError(errorState, ICE_UNHANDLED_RELOCATION, GetRelocationTypeName(relocation->type));
       }
     }
   }
@@ -950,20 +957,17 @@ void CreateElf(elf_file& elf, codegen_target& target)
   elf.header.sectionWithSectionNames = 0u;
 }
 
-template<> void Free<int>(int&) {}
-void CompleteElf(elf_file& elf)
-{
-  ResolveUndefinedSymbols(elf);
-}
-
 void WriteElf(elf_file& elf, const char* path)
 {
   FILE* f = fopen(path, "wb");
+  error_state errorState = CreateErrorState(LINKING);
 
   if (!f)
   {
-    RaiseError(ERROR_INVALID_EXECUTABLE, path);
+    RaiseError(errorState, ERROR_INVALID_EXECUTABLE, path);
   }
+
+  ResolveUndefinedSymbols(errorState, elf);
 
   // Leave space for the ELF header
   fseek(f, 0x40, SEEK_SET);
@@ -1009,12 +1013,12 @@ void WriteElf(elf_file& elf, const char* path)
   EmitSymbolTable(f, elf, elf.symbols);
 
   // --- Do all the relocations and find the entry point ---
-  CompleteRelocations(f, elf);
+  CompleteRelocations(errorState, f, elf);
 
   elf_symbol* startSymbol = GetSymbol(elf, "_start");
   if (!startSymbol)
   {
-    RaiseError(ERROR_NO_START_SYMBOL);
+    RaiseError(errorState, ERROR_NO_START_SYMBOL);
   }
   elf.header.entryPoint = startSymbol->value;
 

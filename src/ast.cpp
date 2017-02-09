@@ -21,6 +21,8 @@ node* CreateNode(node_type type, ...)
   result->shouldFreeTypeRef = false;
   result->next = nullptr;
 
+  error_state errorState = CreateErrorState(GENERAL_STUFF);
+
   switch (type)
   {
     case BREAK_NODE:
@@ -98,9 +100,8 @@ node* CreateNode(node_type type, ...)
 
         default:
         {
-          fprintf(stderr, "Unhandled number constant type in CreateNode!\n");
-          Crash();
-        }
+          RaiseError(errorState, ICE_GENERIC, "Unhandled number constant node in CreateNode");
+        } break;
       }
     } break;
 
@@ -146,7 +147,7 @@ node* CreateNode(node_type type, ...)
 
     default:
     {
-      RaiseError(ICE_UNHANDLED_NODE_TYPE, "CreateNode");
+      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "CreateNode");
     }
   }
 
@@ -276,7 +277,8 @@ void Free<node*>(node*& n)
 
     case NUM_AST_NODES:
     {
-      fprintf(stderr, "Node of type NUM_AST_NODES found in actual AST!\n");
+      error_state errorState = CreateErrorState(GENERAL_STUFF);
+      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "FreeNode");
     } break;
   }
 
@@ -505,10 +507,11 @@ void OutputDOTOfAST(thing_of_code& code)
   strcat(fileName, ".dot");
   FILE* f = fopen(fileName, "w");
 
+  error_state errorState = CreateErrorState(GENERAL_STUFF);
+
   if (!f)
   {
-    fprintf(stderr, "Failed to open DOT file: %s!\n", fileName);
-    Crash();
+    RaiseError(errorState, ERROR_FAILED_TO_OPEN_FILE, fileName);
   }
 
   fprintf(f, "digraph G\n{\n");
@@ -558,7 +561,7 @@ void OutputDOTOfAST(thing_of_code& code)
 
             default:
             {
-              RaiseError(ICE_UNHANDLED_OPERATOR, GetTokenName(n->binaryOp.op), "OuputDOTForAST:BINARY");
+              RaiseError(errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(n->binaryOp.op), "OuputDOTForAST:BINARY");
             }
           }
 
@@ -586,7 +589,7 @@ void OutputDOTOfAST(thing_of_code& code)
 
             default:
             {
-              RaiseError(ICE_UNHANDLED_OPERATOR, GetTokenName(n->prefixOp.op), "OuputDOTForAST:PREFIX");
+              RaiseError(errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(n->prefixOp.op), "OuputDOTForAST:PREFIX");
             }
           }
 
@@ -620,7 +623,7 @@ void OutputDOTOfAST(thing_of_code& code)
 
             default:
             {
-              RaiseError(ICE_UNHANDLED_OPERATOR, "OutputDOTForAST:CONDITION");
+              RaiseError(errorState, ICE_UNHANDLED_OPERATOR, "OutputDOTForAST:CONDITION");
             }
           }
 
@@ -729,7 +732,7 @@ void OutputDOTOfAST(thing_of_code& code)
 
         case NUM_AST_NODES:
         {
-          RaiseError(ICE_GENERIC, "Node of type NUM_AST_NODES found in actual AST!");
+          RaiseError(errorState, ICE_GENERIC, "Node of type NUM_AST_NODES found in actual AST!");
         } break;
       }
 

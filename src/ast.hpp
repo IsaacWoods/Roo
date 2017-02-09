@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <common.hpp>
+#include <parsing.hpp>
 #include <ir.hpp>
 
 enum node_type

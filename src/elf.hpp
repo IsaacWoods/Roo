@@ -257,5 +257,4 @@ elf_section* GetSection(elf_file& elf, const char* name);
 elf_symbol* GetSymbol(elf_file& elf, const char* name);
 void MapSection(elf_file& elf, elf_segment* segment, elf_section* section);
 void LinkObject(elf_file& elf, const char* objectPath);
-void CompleteElf(elf_file& elf);
 void WriteElf(elf_file& elf, const char* path);

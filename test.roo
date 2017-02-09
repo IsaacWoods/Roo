@@ -1,5 +1,11 @@
 #[Name(test)]
 
+#[Potato]
+fn Potato() -> int
+{
+  return 7
+}
+
 type string
 {
   head : char&

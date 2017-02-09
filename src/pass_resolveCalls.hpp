@@ -19,9 +19,10 @@ void InitFunctionCallsPass()
   PASS_resolveCalls.iteratePolicy = NODE_FIRST;
 
   PASS_resolveCalls.f[CALL_NODE] =
-    [](parse_result& parse, thing_of_code* /*code*/, node* n)
+    [](parse_result& parse, thing_of_code* code, node* n)
     {
       assert(!n->call.isResolved);
+      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
 
       switch (n->call.type)
       {
@@ -43,7 +44,7 @@ void InitFunctionCallsPass()
             }
           }
 
-          RaiseError(ERROR_UNDEFINED_FUNCTION, n->call.name);
+          RaiseError(state, ERROR_UNDEFINED_FUNCTION, n->call.name);
         } break;
 
         case call_part::call_type::OPERATOR:
