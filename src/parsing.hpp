@@ -112,5 +112,4 @@ struct roo_parser
 token PeekToken(roo_parser& parser, bool ignoreLines = true);
 token NextToken(roo_parser& parser, bool ignoreLines = true);
 const char* GetTokenName(token_type type);
-void InitParseletMaps();
 bool Parse(parse_result* result, const char* sourcePath);

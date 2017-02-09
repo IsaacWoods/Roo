@@ -55,8 +55,6 @@ int main()
   auto begin = std::chrono::high_resolution_clock::now();
 #endif
 
-  InitParseletMaps();
-
   error_state errorState = CreateErrorState(GENERAL_STUFF);
 
   parse_result result;

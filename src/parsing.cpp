@@ -1296,7 +1296,8 @@ bool Parse(parse_result* result, const char* sourcePath)
   return !(parser.errorState.hasErrored);
 }
 
-void InitParseletMaps()
+__attribute__((constructor))
+static void InitParseletMaps()
 {
   // --- Precedence table ---
   memset(g_precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
