@@ -508,6 +508,7 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
   {
     case VARIABLE:
     case PARAMETER:
+    case MEMBER:
     {
       // TODO: think about more expensive addressing modes for things not in variables
       return 1u;
@@ -547,6 +548,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
       {
         case slot_type::VARIABLE:
         case slot_type::PARAMETER:
+        case slot_type::MEMBER:
         case slot_type::TEMPORARY:
         {
           // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
@@ -633,6 +635,7 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
     {
       case slot_type::VARIABLE:
       case slot_type::PARAMETER:
+      case slot_type::MEMBER:
       case slot_type::TEMPORARY:
       {
         // NOTE(Isaac): this precolors the slot to be in the correct place to begin with
@@ -1323,6 +1326,11 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
       case slot_type::PARAMETER:
       {
         PRINT_SLOT("%s : PARAM", slot->variable->name);
+      } break;
+
+      case slot_type::MEMBER:
+      {
+        PRINT_SLOT("%s : MEMBER", slot->member.memberVar->name);
       } break;
 
       case slot_type::TEMPORARY:

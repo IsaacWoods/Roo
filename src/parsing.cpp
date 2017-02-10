@@ -564,13 +564,20 @@ static token LexNext(roo_parser& parser)
 
       case ' ':
       case '\r':
-      case '\t':
       {
-        // Skip past any whitespace
         while (*(parser.currentChar) == ' '  ||
                *(parser.currentChar) == '\r' ||
-               *(parser.currentChar) == '\t' ||
                *(parser.currentChar) == '\n')
+        {
+          NextChar(parser);
+        }
+      } break;
+
+      case '\t':
+      {
+        RaiseError(parser.errorState, WARNING_FOUND_TAB);
+
+        while (*(parser.currentChar) == '\t')
         {
           NextChar(parser);
         }
@@ -673,7 +680,7 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
   return next;
 }
 
-#if 1
+#if 0
 static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)

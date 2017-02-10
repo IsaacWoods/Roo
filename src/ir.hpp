@@ -53,6 +53,7 @@ enum slot_type
 {
   VARIABLE,               // `var` field of payload is valid
   PARAMETER,              // `var` field of payload is valid
+  MEMBER,                 // `member` field of payload is valid
   TEMPORARY,              // `tag` field of payload is valid
   RETURN_RESULT,          // `tag` field of payload is valid
   SIGNED_INT_CONSTANT,    // `i` field of payload is valid
@@ -82,6 +83,11 @@ struct slot_def
 {
   union
   {
+    struct
+    {
+      slot_def*     parent;
+      variable_def* memberVar;
+    }                 member;
     variable_def*     variable;
     unsigned int      tag;
     int               i;

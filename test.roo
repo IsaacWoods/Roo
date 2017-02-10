@@ -8,7 +8,6 @@ type string
 #[Prototype]
 fn Print(str : string)
 
-/*
 operator [](s : string, i : uint) -> char
 {
   return s.head
@@ -19,21 +18,4 @@ fn Main() -> int
 {
   str : string = "Hello, World!"
   c : char& = str[0u]
-}*/
-
-#[Prototype]
-operator +(a : uint, b : uint) -> uint
-
-#[Entry]
-fn Main() -> int
-{
-  x : mut uint = 2u + 4u
-
-  while (x > 0u)
-  {
-    Print("Hello, World!\n")
-    x--
-  }
-
-  return 0
 }

@@ -48,6 +48,8 @@ void InitErrorDefs()
 
   N(NOTE_IGNORED_ELF_SECTION,                             "Ignored section in ELF relocatable: %s");
 
+  W(WARNING_FOUND_TAB,                                    "Found a tab; their use is discouraged in Roo");
+
   E(ERROR_EXPECTED,                 TO_END_OF_STATEMENT,  "Expected %s");
   E(ERROR_EXPECTED_BUT_GOT,         TO_END_OF_STATEMENT,  "Expected %s but got %s instead");
   E(ERROR_UNEXPECTED,               TO_END_OF_STATEMENT,  "Unexpected token in %s position: %s");

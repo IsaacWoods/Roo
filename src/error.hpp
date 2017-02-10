@@ -8,6 +8,8 @@ enum error
 {
   NOTE_IGNORED_ELF_SECTION,       // "Ignoring section in ELF relocatable: %s"
 
+  WARNING_FOUND_TAB,              // "Found a tab; their use is discouraged in Roo"
+
   ERROR_EXPECTED,                 // "Expected %s"
   ERROR_EXPECTED_BUT_GOT,         // "Expected %s but got %s instead"
   ERROR_UNEXPECTED,               // "Unexpected token in %s position: %s"
