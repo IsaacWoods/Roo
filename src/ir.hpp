@@ -183,22 +183,23 @@ struct attrib_set
 
 struct thing_of_code
 {
-  char*                 mangledName;
-  vector<variable_def*> params;
-  vector<variable_def*> locals;
-  bool                  shouldAutoReturn;
-  attrib_set            attribs;
-  type_ref*             returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
+  char*                   mangledName;
+  vector<variable_def*>   params;
+  vector<variable_def*>   locals;
+  bool                    shouldAutoReturn;
+  attrib_set              attribs;
+  type_ref*               returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
 
-  error_state           errorState;
+  error_state             errorState;
+  vector<thing_of_code*>  calledThings;
 
-  node*                 ast;
-  vector<slot_def*>     slots;
-  air_instruction*      airHead;
-  air_instruction*      airTail;
-  unsigned int          numTemporaries;
-  unsigned int          numReturnResults;
-  elf_symbol*           symbol;
+  node*                   ast;
+  vector<slot_def*>       slots;
+  air_instruction*        airHead;
+  air_instruction*        airTail;
+  unsigned int            numTemporaries;
+  unsigned int            numReturnResults;
+  elf_symbol*             symbol;
 };
 
 struct function_def

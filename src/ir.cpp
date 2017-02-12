@@ -202,6 +202,7 @@ static void InitThingOfCode(thing_of_code& code)
   code.returnType       = nullptr;
 
   code.errorState       = CreateErrorState(FUNCTION_FILLING_IN, &code);
+  InitVector<thing_of_code*>(code.calledThings);
 
   code.ast              = nullptr;
   InitVector<slot_def*>(code.slots);

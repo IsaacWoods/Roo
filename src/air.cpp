@@ -534,6 +534,9 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
 
 static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node* n)
 {
+  assert(n->binaryOp.resolvedOperator);
+  Add<thing_of_code*>(code.calledThings, &(n->binaryOp.resolvedOperator->code));
+
   // TODO: don't assume everything will fit in a general register
   unsigned int numGeneralParams = 0u;
   vector<slot_def*> params;
@@ -592,7 +595,6 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
     }
   }
 
-  assert(n->binaryOp.resolvedOperator);
   air_instruction* callInstruction = PushInstruction(code, I_CALL, &(n->binaryOp.resolvedOperator->code));
 
   for (auto* paramIt = params.head;
@@ -619,6 +621,9 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
  */
 static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
 {
+  assert(n->call.isResolved);
+  Add<thing_of_code*>(code.calledThings, n->call.code);
+
   // TODO: don't assume everything will fit in a general register
   unsigned int numGeneralParams = 0u;
   vector<slot_def*> params;
@@ -660,7 +665,6 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
     }
   }
 
-  assert(n->call.isResolved);
   air_instruction* callInstruction = PushInstruction(code, I_CALL, n->call.code);
 
   for (auto* paramIt = params.head;
