@@ -481,7 +481,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
       default:
       {
-        RaiseError(errorState, NOTE_IGNORED_ELF_SECTION, GetSectionTypeName(section->type));
+//        RaiseError(errorState, NOTE_IGNORED_ELF_SECTION, GetSectionTypeName(section->type));
       } break;
     }
   }

@@ -134,10 +134,9 @@ static void UseSlot(slot_def* slot, air_instruction* user)
   }
   else
   {
-    char* slotString = SlotAsString(slot);
-    fprintf(stderr, "FATAL: Tried to use slot before defining it (slot=%s)\n", slotString);
-    free(slotString);
-    exit(1);
+    char* slotString = GetSlotString(slot);    // NOTE(Isaac): this will be leaked, but it shouldn't really matter
+    error_state errorState = CreateErrorState(GENERATING_AIR, user);
+    RaiseError(errorState, ICE_SLOT_USED_BEFORE_DEFINED, slotString);
   }
 }
 
@@ -863,8 +862,8 @@ static void GenerateInterferences(thing_of_code& code)
              bRangeIt++)
         {
           live_range& rangeB = *bRangeIt;
-          unsigned int definitionA = (a->type == slot_type::PARAMETER ? 0u : rangeA.definition->index);
-          unsigned int definitionB = (b->type == slot_type::PARAMETER ? 0u : rangeB.definition->index);
+          unsigned int definitionA = (rangeA.definition ? rangeA.definition->index : 0u);
+          unsigned int definitionB = (rangeB.definition ? rangeB.definition->index : 0u);
           unsigned int useA = (rangeA.lastUse ? rangeA.lastUse->index : UINT_MAX);  // TODO: I reckon this should be where it's defined (we don't care about it if it's not used)
           unsigned int useB = (rangeB.lastUse ? rangeB.lastUse->index : UINT_MAX);
 
@@ -945,6 +944,7 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
 void GenerateAIR(codegen_target& target, thing_of_code& code)
 {
   assert(!(code.airHead));
+  unsigned int numParams = 0u;
 
   for (auto* it = code.params.head;
        it < code.params.tail;
@@ -952,13 +952,14 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
   {
     variable_def* param = *it;
     param->slot = CreateSlot(target, code, slot_type::PARAMETER, param);
+    param->slot->color = target.intParamColors[numParams++];
 
     for (auto* memberIt = param->type.def->members.head;
          memberIt < param->type.def->members.tail;
          memberIt++)
     {
       variable_def* member = *memberIt;
-      member->slot = CreateSlot(target, code, slot_type::PARAMETER, member);
+      member->slot = CreateSlot(target, code, slot_type::MEMBER, param->slot, member);
     }
   }
 
@@ -974,7 +975,7 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
          memberIt++)
     {
       variable_def* member = *memberIt;
-      member->slot = CreateSlot(target, code, slot_type::VARIABLE, member);
+      member->slot = CreateSlot(target, code, slot_type::MEMBER, local->slot, member);
     }
   }
 
@@ -1021,7 +1022,7 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
       continue;
     }
 
-    char* slotString = SlotAsString(slot);
+    char* slotString = GetSlotString(slot);
     printf("%-15s ", slotString);
     free(slotString);
 
@@ -1070,7 +1071,7 @@ void PrintInstruction(air_instruction* instruction)
 
       if (instruction->slot)
       {
-        returnValue = SlotAsString(instruction->slot);
+        returnValue = GetSlotString(instruction->slot);
       }
 
       printf("%u: RETURN %s\n", instruction->index, returnValue);
@@ -1150,8 +1151,8 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_MOV:
     {
-      char* srcSlot = SlotAsString(instruction->mov.src);
-      char* destSlot = SlotAsString(instruction->mov.dest);
+      char* srcSlot = GetSlotString(instruction->mov.src);
+      char* destSlot = GetSlotString(instruction->mov.dest);
       printf("%u: %s -> %s\n", instruction->index, srcSlot, destSlot);
       free(srcSlot);
       free(destSlot);
@@ -1159,8 +1160,8 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_CMP:
     {
-      char* leftSlot = SlotAsString(instruction->slotPair.left);
-      char* rightSlot = SlotAsString(instruction->slotPair.right);
+      char* leftSlot = GetSlotString(instruction->slotPair.left);
+      char* rightSlot = GetSlotString(instruction->slotPair.right);
       printf("%u: CMP %s, %s\n", instruction->index, leftSlot, rightSlot);
       free(leftSlot);
       free(rightSlot);
@@ -1178,9 +1179,9 @@ void PrintInstruction(air_instruction* instruction)
         case binary_op_i::op::DIV_I: opString = "/"; break;
       }
 
-      char* leftSlot = SlotAsString(instruction->binaryOp.left);
-      char* rightSlot = SlotAsString(instruction->binaryOp.right);
-      char* resultSlot = SlotAsString(instruction->binaryOp.result);
+      char* leftSlot = GetSlotString(instruction->binaryOp.left);
+      char* rightSlot = GetSlotString(instruction->binaryOp.right);
+      char* resultSlot = GetSlotString(instruction->binaryOp.result);
       printf("%u: %s := %s %s %s\n", instruction->index, resultSlot, leftSlot, opString, rightSlot);
       free(leftSlot);
       free(rightSlot);
@@ -1189,14 +1190,14 @@ void PrintInstruction(air_instruction* instruction)
 
     case I_INC:
     {
-      char* slot = SlotAsString(instruction->slot);
+      char* slot = GetSlotString(instruction->slot);
       printf("%u: INC %s\n", instruction->index, slot);
       free(slot);
     } break;
 
     case I_DEC:
     {
-      char* slot = SlotAsString(instruction->slot);
+      char* slot = GetSlotString(instruction->slot);
       printf("%u: DEC %s\n", instruction->index, slot);
       free(slot);
     } break;
@@ -1271,8 +1272,8 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
 
   if (!f)
   {
-    fprintf(stderr, "Failed to open DOT file: %s!\n", fileName);
-    Crash();
+    error_state errorState = CreateErrorState(GENERAL_STUFF);
+    RaiseError(errorState, ERROR_FAILED_TO_OPEN_FILE, fileName);
   }
 
   fprintf(f, "digraph G\n{\n");
@@ -1292,7 +1293,10 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
     slot_def* slot = *it;
     const char* color = "black";
 
-    if (slot->type != slot_type::VARIABLE && slot->type != slot_type::TEMPORARY)
+    if (slot->type != slot_type::VARIABLE   &&
+        slot->type != slot_type::PARAMETER  &&
+        slot->type != slot_type::TEMPORARY  &&
+        slot->type != slot_type::RETURN_RESULT)
     {
       continue;
     }

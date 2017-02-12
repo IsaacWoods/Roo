@@ -40,6 +40,7 @@ enum error
   ICE_UNHANDLED_SLOT_TYPE,        // "Unhandled slot type (%s) in %s"
   ICE_UNHANDLED_OPERATOR,         // "Unhandled operator (token=%s) in %s"
   ICE_UNHANDLED_RELOCATION,       // "Unable to handle relocation of type: %s"
+  ICE_SLOT_USED_BEFORE_DEFINED,   // "Tried to use slot before defining it (slot=%s)"
 
   NUM_ERRORS
 };
@@ -51,6 +52,7 @@ enum error_state_type
   TRAVERSING_AST,       // NOTE(Isaac): `astSection` field is valid
   FUNCTION_FILLING_IN,  // NOTE(Isaac): `code` field is valid
   TYPE_FILLING_IN,      // NOTE(Isaac): `type` field is valid
+  GENERATING_AIR,       // NOTE(Isaac): `instuction` field is valid
   CODE_GENERATION,      // NOTE(Isaac): `code` field is valid
   LINKING
 };
@@ -59,6 +61,7 @@ struct roo_parser;
 struct thing_of_code;
 struct node;
 struct type_def;
+struct air_instruction;
 
 struct error_state
 {
@@ -69,12 +72,13 @@ struct error_state
   {
     struct
     {
-      thing_of_code*  code;
-      node*           n;
-    }               astSection;
-    roo_parser*     parser;
-    thing_of_code*  code;
-    type_def*       type;
+      thing_of_code*    code;
+      node*             n;
+    }                 astSection;
+    roo_parser*       parser;
+    thing_of_code*    code;
+    type_def*         type;
+    air_instruction*  instruction;
   };
 };
 

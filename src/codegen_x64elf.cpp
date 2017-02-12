@@ -33,7 +33,8 @@ enum reg
   R12,
   R13,
   R14,
-  R15
+  R15,
+  NUM_REGISTERS
 };
 
 struct register_pimpl
@@ -222,41 +223,42 @@ void PrecolorInstruction(codegen_target& /*target*/, air_instruction* instructio
  */
 enum class i
 {
-  CMP_REG_REG,      // (ModR/M)
-  CMP_RAX_IMM32,    // (4-byte immediate)
-  PUSH_REG,         // +r
-  POP_REG,          // +r
-  ADD_REG_REG,      // [opcodeSize] (ModR/M)
-  SUB_REG_REG,      // [opcodeSize] (ModR/M)
-  MUL_REG_REG,      // [opcodeSize] (ModR/M)
-  DIV_REG_REG,      // [opcodeSize] (ModR/M)
-  XOR_REG_REG,      // [opcodeSize] (ModR/M)
-  ADD_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
-  SUB_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
-  MUL_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
-  DIV_REG_IMM32,    // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
-  MOV_REG_REG,      // [opcodeSize] (ModR/M)
-  MOV_REG_IMM32,    // +r (4-byte immediate)
-  MOV_REG_IMM64,    // [immSize] +r (8-byte immedite)
-  INC_REG,          // (ModR/M [extension])
-  DEC_REG,          // (ModR/M [extension])
-  CALL32,           // (4-byte offset to RIP)
-  INT_IMM8,         // (1-byte immediate)
+  CMP_REG_REG,          // (ModR/M)
+  CMP_RAX_IMM32,        // (4-byte immediate)
+  PUSH_REG,             // +r
+  POP_REG,              // +r
+  ADD_REG_REG,          // [opcodeSize] (ModR/M)
+  SUB_REG_REG,          // [opcodeSize] (ModR/M)
+  MUL_REG_REG,          // [opcodeSize] (ModR/M)
+  DIV_REG_REG,          // [opcodeSize] (ModR/M)
+  XOR_REG_REG,          // [opcodeSize] (ModR/M)
+  ADD_REG_IMM32,        // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  SUB_REG_IMM32,        // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  MUL_REG_IMM32,        // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  DIV_REG_IMM32,        // [opcodeSize] (ModR/M [extension]) (4-byte immediate)
+  MOV_REG_REG,          // [opcodeSize] (ModR/M)
+  MOV_REG_IMM32,        // +r (4-byte immediate)
+  MOV_REG_IMM64,        // [immSize] +r (8-byte immedite)
+  MOV_REG_BASE_DISP,    // [opcodeSize] (ModR/M) (1-byte/4-byte displacement)
+  INC_REG,              // (ModR/M [extension])
+  DEC_REG,              // (ModR/M [extension])
+  CALL32,               // (4-byte offset to RIP)
+  INT_IMM8,             // (1-byte immediate)
   LEAVE,
   RET,
-  JMP,              // (4-byte offset to RIP)
-  JE,               // (4-byte offset to RIP)
-  JNE,              // (4-byte offset to RIP)
-  JO,               // (4-byte offset to RIP)
-  JNO,              // (4-byte offset to RIP)
-  JS,               // (4-byte offset to RIP)
-  JNS,              // (4-byte offset to RIP)
-  JG,               // (4-byte offset to RIP)
-  JGE,              // (4-byte offset to RIP)
-  JL,               // (4-byte offset to RIP)
-  JLE,              // (4-byte offset to RIP)
-  JPE,              // (4-byte offset to RIP)
-  JPO,              // (4-byte offset to RIP)
+  JMP,                  // (4-byte offset to RIP)
+  JE,                   // (4-byte offset to RIP)
+  JNE,                  // (4-byte offset to RIP)
+  JO,                   // (4-byte offset to RIP)
+  JNO,                  // (4-byte offset to RIP)
+  JS,                   // (4-byte offset to RIP)
+  JNS,                  // (4-byte offset to RIP)
+  JG,                   // (4-byte offset to RIP)
+  JGE,                  // (4-byte offset to RIP)
+  JL,                   // (4-byte offset to RIP)
+  JLE,                  // (4-byte offset to RIP)
+  JPE,                  // (4-byte offset to RIP)
+  JPO,                  // (4-byte offset to RIP)
 };
 
 /*
@@ -270,7 +272,7 @@ enum class i
  * +---+---+---+---+---+---+---+---+
  *
  * `mod` : the addressing mode to use
- *      0b00 - register indirect or SIB with no displacement
+ *      0b00 - register indirect(r/m=register) or SIB with no displacement(r/m=0b100)
  *      0b01 - one-byte signed displacement follows
  *      0b10 - four-byte signed displacement follows
  *      0b11 - register addressing
@@ -302,24 +304,59 @@ static void EmitRegisterModRM(elf_thing* thing, codegen_target& target, reg a, r
 }
 
 /*
- * NOTE(Isaac): `scale` may be 1, 2, 4 or 8
+ * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(elf_thing* thing, codegen_target& target, reg dest, reg base, reg index, unsigned int scale, unsigned int displacement)
+static void EmitIndirectModRM(elf_thing* thing, codegen_target& target, reg dest, reg base, uint32_t displacement, reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
-  uint8_t modRM = 0x0;
-  uint8_t sib   = 0x0;
-
-  // NOTE(Isaac): if the displacement can't fit in a single signed byte, use four
-  modRM |= (displacement >= ((2u<<7u)-1u) ? 0b10000000 : 0b01000000);
+  uint8_t modRM = 0u;
   modRM |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
 
-  // NOTE(Isaac): taking the base-2 log of the scale gives the correct bit sequence... because magic
-  sib |= static_cast<uint8_t>(log2(scale)) << 6u;
-  sib |= target.registerSet[index].pimpl->opcodeOffset << 3u;
-  sib |= target.registerSet[base].pimpl->opcodeOffset;
+  if (scale == 0u)
+  {
+    modRM |= target.registerSet[base].pimpl->opcodeOffset;
+  }
+  else
+  {
+    modRM |= 0b100;
+  }
+
+  if (displacement == 0u)
+  {
+    modRM |= 0b00000000;  // NOTE(Isaac): we don't need a displacement
+  }
+  else if (displacement >= ((2u<<7u)-1u))
+  {
+    modRM |= 0b10000000;  // NOTE(Isaac): we need four bytes for the displacement
+  }
+  else
+  {
+    modRM |= 0b01000000;  // NOTE(Isaac): we only need one byte for the displacement
+  }
 
   Emit<uint8_t>(thing, modRM);
-  Emit<uint8_t>(thing, sib);
+
+  if (scale != 0u)
+  {
+    uint8_t sib = 0x0;
+
+    // NOTE(Isaac): taking the base-2 log of the scale gives the correct bit sequence... because magic
+    sib |= static_cast<uint8_t>(log2(scale)) << 6u;
+    sib |= target.registerSet[index].pimpl->opcodeOffset << 3u;
+    sib |= target.registerSet[base].pimpl->opcodeOffset;
+    Emit<uint8_t>(thing, sib);
+  }
+
+  if (displacement > 0u)
+  {
+    if (displacement >= ((2u<<7u)-1u))
+    {
+      Emit<uint32_t>(thing, displacement);
+    }
+    else
+    {
+      Emit<uint8_t>(thing, static_cast<uint8_t>(displacement));
+    }
+  }
 }
 
 static void EmitExtensionModRM(elf_thing* thing, codegen_target& target, uint8_t extension, reg r)
@@ -483,6 +520,17 @@ static void Emit(error_state& errorState, elf_thing* thing, codegen_target& targ
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
       Emit<uint64_t>(thing, imm);
+    } break;
+
+    case i::MOV_REG_BASE_DISP:
+    {
+      reg dest = static_cast<reg>(va_arg(args, int));
+      reg base = static_cast<reg>(va_arg(args, int));
+      uint32_t displacement = va_arg(args, uint32_t);
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x8B);
+      EmitIndirectModRM(thing, target, dest, base, displacement);
     } break;
 
     case i::INC_REG:
@@ -655,9 +703,15 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
               E(i::MOV_REG_REG, RAX, instruction->slot->color);
             } break;
 
+            case slot_type::MEMBER:
+            {
+              assert(instruction->slot->member.parent->color != -1);
+              E(i::MOV_REG_BASE_DISP, RAX, instruction->slot->member.parent->color, instruction->slot->member.memberVar->offset);
+            } break;
+
             default:
             {
-              RaiseError(code.errorState, ICE_UNHANDLED_SLOT_TYPE, SlotAsString(instruction->slot), "Generate::I_RETURN");
+              RaiseError(code.errorState, ICE_UNHANDLED_SLOT_TYPE, GetSlotString(instruction->slot), "Generate_X64::I_RETURN");
             } break;
           }
         }

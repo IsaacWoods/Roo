@@ -10,6 +10,7 @@
 #include <parsing.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
+#include <air.hpp>
 
 enum error_level
 {
@@ -81,6 +82,7 @@ void InitErrorDefs()
   I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
   I(ICE_UNHANDLED_OPERATOR,                               "Unhandled operator (token=%s) in %s");
   I(ICE_UNHANDLED_RELOCATION,                             "Unable to handle relocation of type: %s");
+  I(ICE_SLOT_USED_BEFORE_DEFINED,                         "Tried to use slot before defining it (slot=%s)");
 
 #undef N
 #undef W
@@ -123,6 +125,11 @@ error_state CreateErrorState(error_state_type stateType, ...)
     case TYPE_FILLING_IN:
     {
       state.type              = va_arg(args, type_def*);
+    } break;
+
+    case GENERATING_AIR:
+    {
+      state.instruction       = va_arg(args, air_instruction*);
     } break;
 
     case LINKING:
@@ -181,6 +188,12 @@ void RaiseError(error_state& state, error e, ...)
     case TYPE_FILLING_IN:
     {
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+    } break;
+
+    case GENERATING_AIR:
+    {
+      fprintf(stderr, "AIR(%u): %s%s: \x1B[0m%s\n", state.instruction->index, levelColors[def.level],
+          levelStrings[def.level], message);
     } break;
 
     case CODE_GENERATION:

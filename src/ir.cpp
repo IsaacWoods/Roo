@@ -55,6 +55,11 @@ slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type
       slot->member.parent     = va_arg(args, slot_def*);
       slot->member.memberVar  = va_arg(args, variable_def*);
 
+      if (slot->member.parent->type == slot_type::PARAMETER)
+      {
+        Add<live_range>(slot->liveRanges, live_range{nullptr, nullptr});
+      }
+
       type_def* varType = slot->member.memberVar->type.def;
       slot->storage = (varType->size > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
@@ -95,7 +100,7 @@ slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type
   return slot;
 }
 
-char* SlotAsString(slot_def* slot)
+char* GetSlotString(slot_def* slot)
 {
   #define SLOT_STR(slotType, format, ...) \
     case slotType: \
@@ -107,9 +112,9 @@ char* SlotAsString(slot_def* slot)
 
   switch (slot->type)
   {
-    SLOT_STR(slot_type::VARIABLE,               "%s(V)-%c",  slot->variable->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
-    SLOT_STR(slot_type::PARAMETER,              "%s(P)-%c",  slot->variable->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
-    SLOT_STR(slot_type::MEMBER,                 "%s(P)-%c",  slot->member.memberVar->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
+    SLOT_STR(slot_type::VARIABLE,               "%s(V)-%c",   slot->variable->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
+    SLOT_STR(slot_type::PARAMETER,              "%s(P)-%c",   slot->variable->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
+    SLOT_STR(slot_type::MEMBER,                 "%s(M)-%c",   slot->member.memberVar->name, (slot->storage == slot_storage::REGISTER ? 'R' : 'S'))
     SLOT_STR(slot_type::TEMPORARY,              "t%u",        slot->tag)
     SLOT_STR(slot_type::RETURN_RESULT,          "r%u",        slot->tag)
     SLOT_STR(slot_type::SIGNED_INT_CONSTANT,    "#%d",        slot->i)
@@ -174,6 +179,7 @@ variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue)
   var->type         = typeRef;
   var->initValue    = initValue;
   var->slot         = nullptr;
+  var->offset       = 0u;
 
   return var;
 }
@@ -375,6 +381,7 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
   {
     variable_def* member = *it;
     assert(member->type.isResolved);
+    member->offset = type->size;
     type->size += CalculateSizeOfType(member->type.def);
   }
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <common.hpp>
 #include <vector.hpp>
 #include <parsing.hpp>
 #include <error.hpp>
@@ -164,6 +165,12 @@ struct variable_def
   type_ref      type;
   node*         initValue;
   slot_def*     slot;
+
+  /*
+   * NOTE(Isaac): this can be used to represent multiple things:
+   *    * Offset inside a parent structure
+   */
+  unsigned int  offset;
 };
 
 struct attrib_set
@@ -220,7 +227,7 @@ struct type_def
 };
 
 slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type, ...);
-char* SlotAsString(slot_def* slot);
+char* GetSlotString(slot_def* slot);
 void CreateParseResult(parse_result& result);
 void InitAttribSet(attrib_set& set);
 string_constant* CreateStringConstant(parse_result* result, char* string);
