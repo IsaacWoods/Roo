@@ -385,6 +385,34 @@ char* TypeRefToString(type_ref* type)
   return str;
 }
 
+bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability)
+{
+  if (a->def != b->def)
+  {
+    return false;
+  }
+
+  if (a->isReference != b->isReference)
+  {
+    return false;
+  }
+
+  if (careAboutMutability)
+  {
+    if (a->isMutable != b->isMutable)
+    {
+      return false;
+    }
+
+    if ((a->isReference && b->isReference) && (a->isReferenceMutable != b->isReferenceMutable))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static void ResolveTypeRef(type_ref& ref, parse_result& parse, error_state& errorState)
 {
   assert(!(ref.isResolved));

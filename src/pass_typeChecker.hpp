@@ -44,6 +44,8 @@ void InitTypeCheckerPass()
       n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
       n->typeRef->isResolved = true;
       n->typeRef->isMutable = false;
+      n->typeRef->isReference = false;
+      n->typeRef->isReferenceMutable = false;
 
       switch (n->numberConstant.type)
       {
@@ -61,6 +63,8 @@ void InitTypeCheckerPass()
       n->typeRef->def = GetTypeByName(parse, "string");
       n->typeRef->isResolved = true;
       n->typeRef->isMutable = false;
+      n->typeRef->isReference = false;
+      n->typeRef->isReferenceMutable = false;
     };
 
   PASS_typeChecker.f[CALL_NODE] =
@@ -187,9 +191,9 @@ void InitTypeCheckerPass()
           {
             operator_def* op = *it;
 
-            if ((op->op != n->binaryOp.op)                ||
-                (a->def != op->code.params[0u]->type.def) ||
-                (b->def != op->code.params[1u]->type.def))
+            if ((op->op != n->binaryOp.op) ||
+                !AreTypeRefsCompatible(a, &(op->code.params[0u]->type)) ||
+                !AreTypeRefsCompatible(b, &(op->code.params[1u]->type)))
             {
               continue;
             }

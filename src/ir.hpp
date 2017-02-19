@@ -237,6 +237,7 @@ function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* TypeRefToString(type_ref* type);
+bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability = true);
 char* MangleFunctionName(function_def* function);
 char* MangleOperatorName(operator_def* op);
 void CompleteIR(parse_result& parse);

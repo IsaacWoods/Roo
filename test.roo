@@ -8,7 +8,12 @@ type string
   head : char&
 }
 
-operator [](s : string&, i : uint) -> char
+operator +(s : char&, offset : uint) -> char&
+{
+  return s
+}
+
+operator [](s : string, i : uint) -> char
 {
   return s.head + i
 }
