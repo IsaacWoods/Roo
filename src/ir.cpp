@@ -340,6 +340,51 @@ type_def* GetTypeByName(parse_result& parse, const char* typeName)
   return nullptr;
 }
 
+/*
+ * NOTE(Isaac): the returned string must be freed by the caller
+ */
+char* TypeRefToString(type_ref* type)
+{
+  // NOTE(Isaac): this is pretty unlikely to overflow hopefully
+  char buffer[1024u] = {};
+  unsigned int length = 0u;
+
+  #define PUSH(str)\
+    strcat(buffer, str);\
+    length += strlen(str);
+
+  if (type->isMutable)
+  {
+    PUSH("mut ");
+  }
+
+  if (type->isResolved)
+  {
+    PUSH(type->def->name);
+  }
+  else
+  {
+    PUSH(type->name);
+  }
+
+  if (type->isReference)
+  {
+    if (type->isReferenceMutable)
+    {
+      PUSH(" mut&");
+    }
+    else
+    {
+      PUSH("&");
+    }
+  }
+  #undef PUSH
+
+  char* str = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
+  strcpy(str, buffer);
+  return str;
+}
+
 static void ResolveTypeRef(type_ref& ref, parse_result& parse, error_state& errorState)
 {
   assert(!(ref.isResolved));

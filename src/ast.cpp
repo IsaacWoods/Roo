@@ -79,21 +79,21 @@ node* CreateNode(node_type type, ...)
 
     case NUMBER_CONSTANT_NODE:
     {
-      result->numberConstant.type = static_cast<number_constant_part::constant_type>(va_arg(args, int));
+      result->numberConstant.type = static_cast<number_part::constant_type>(va_arg(args, int));
 
       switch (result->numberConstant.type)
       {
-        case number_constant_part::constant_type::SIGNED_INT:
+        case number_part::constant_type::SIGNED_INT:
         {
           result->numberConstant.asSignedInt    = va_arg(args, int);
         } break;
 
-        case number_constant_part::constant_type::UNSIGNED_INT:
+        case number_part::constant_type::UNSIGNED_INT:
         {
           result->numberConstant.asUnsignedInt  = va_arg(args, unsigned int);
         } break;
 
-        case number_constant_part::constant_type::FLOAT:
+        case number_part::constant_type::FLOAT:
         {
           result->numberConstant.asFloat        = static_cast<float>(va_arg(args, double));
         } break;
@@ -658,17 +658,17 @@ void OutputDOTOfAST(thing_of_code& code)
         {
           switch (n->numberConstant.type)
           {
-            case number_constant_part::constant_type::SIGNED_INT:
+            case number_part::constant_type::SIGNED_INT:
             {
               fprintf(f, "\t%s[label=\"%d\"];\n", name, n->numberConstant.asSignedInt);
             } break;
 
-            case number_constant_part::constant_type::UNSIGNED_INT:
+            case number_part::constant_type::UNSIGNED_INT:
             {
               fprintf(f, "\t%s[label=\"%u\"];\n", name, n->numberConstant.asUnsignedInt);
             } break;
 
-            case number_constant_part::constant_type::FLOAT:
+            case number_part::constant_type::FLOAT:
             {
               fprintf(f, "\t%s[label=\"%f\"];\n", name, n->numberConstant.asFloat);
             } break;

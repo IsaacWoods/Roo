@@ -1367,7 +1367,7 @@ static void InitParseletMaps()
       int value = PeekToken(parser).asSignedInt;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (signed integer)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::SIGNED_INT, value);
+      return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::SIGNED_INT, value);
     };
 
   g_prefixMap[TOKEN_UNSIGNED_INT] =
@@ -1377,7 +1377,7 @@ static void InitParseletMaps()
       unsigned int value = PeekToken(parser).asUnsignedInt;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (unsigned integer)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::UNSIGNED_INT, value);
+      return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::UNSIGNED_INT, value);
     };
 
   g_prefixMap[TOKEN_FLOAT] =
@@ -1387,7 +1387,7 @@ static void InitParseletMaps()
       float value = PeekToken(parser).asFloat;
       NextToken(parser);
       Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_constant_part::constant_type::FLOAT, value);
+      return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::FLOAT, value);
     };
 
   g_prefixMap[TOKEN_STRING] =

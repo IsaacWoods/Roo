@@ -236,6 +236,7 @@ variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
 function_def* CreateFunctionDef(char* name);
 operator_def* CreateOperatorDef(token_type op);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
+char* TypeRefToString(type_ref* type);
 char* MangleFunctionName(function_def* function);
 char* MangleOperatorName(operator_def* op);
 void CompleteIR(parse_result& parse);

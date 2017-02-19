@@ -29,36 +29,27 @@ void InitTypeCheckerPass()
       n->shouldFreeTypeRef = false;
     };
 
+  PASS_typeChecker.f[MEMBER_ACCESS_NODE] =
+    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    {
+      assert(n->memberAccess.isResolved);
+      n->typeRef = &(n->memberAccess.member->type);
+      n->shouldFreeTypeRef = false;
+    };
+
   PASS_typeChecker.f[NUMBER_CONSTANT_NODE] =
     [](parse_result& parse, thing_of_code* /*code*/, node* n)
     {
       n->shouldFreeTypeRef = true;
+      n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+      n->typeRef->isResolved = true;
+      n->typeRef->isMutable = false;
 
       switch (n->numberConstant.type)
       {
-        case number_constant_part::constant_type::SIGNED_INT:
-        {
-          n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-          n->typeRef->def = GetTypeByName(parse, "int");
-          n->typeRef->isResolved = true;
-          n->typeRef->isMutable = false;
-        } break;
-
-        case number_constant_part::constant_type::UNSIGNED_INT:
-        {
-          n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-          n->typeRef->def = GetTypeByName(parse, "uint");
-          n->typeRef->isResolved = true;
-          n->typeRef->isMutable = false;
-        } break;
-
-        case number_constant_part::constant_type::FLOAT:
-        {
-          n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-          n->typeRef->def = GetTypeByName(parse, "float");
-          n->typeRef->isResolved = true;
-          n->typeRef->isMutable = false;
-        } break;
+        case number_part::constant_type::SIGNED_INT:   n->typeRef->def = GetTypeByName(parse, "int");   break;
+        case number_part::constant_type::UNSIGNED_INT: n->typeRef->def = GetTypeByName(parse, "uint");  break;
+        case number_part::constant_type::FLOAT:        n->typeRef->def = GetTypeByName(parse, "float"); break;
       }
     };
 
@@ -125,7 +116,9 @@ void InitTypeCheckerPass()
         // NOTE(Isaac): We don't care about their mutability
         if (varType->def != newValueType->def)
         {
-          RaiseError(state, ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varType->def->name);
+          char* varTypeString = TypeRefToString(varType);
+          RaiseError(state, ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varTypeString);
+          free(varTypeString);
         }
       }
     };
@@ -208,7 +201,11 @@ void InitTypeCheckerPass()
 
           if (!(n->typeRef))
           {
-            RaiseError(state, ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), a->def->name, b->def->name);
+            char* aString = TypeRefToString(a);
+            char* bString = TypeRefToString(b);
+            RaiseError(state, ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), aString, bString);
+            free(aString);
+            free(bString);
           }
         }
       }

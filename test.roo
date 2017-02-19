@@ -10,14 +10,14 @@ type string
 
 operator [](s : string&, i : uint) -> char
 {
-  return s.head
+  return s.head + i
 }
 
 #[Entry]
 fn Main() -> int
 {
-  str: string = "Hello, World!"
-  c: char& = str[0u]
+  str: string = "Hello, World!\n"
+  c: char = str[0u]
   Print(str)
   return 0
 }

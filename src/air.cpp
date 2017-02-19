@@ -249,17 +249,17 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
     {
       switch (n->numberConstant.type)
       {
-        case number_constant_part::constant_type::SIGNED_INT:
+        case number_part::constant_type::SIGNED_INT:
         {
           return CreateSlot(target, code, slot_type::SIGNED_INT_CONSTANT, n->numberConstant.asSignedInt);
         } break;
 
-        case number_constant_part::constant_type::UNSIGNED_INT:
+        case number_part::constant_type::UNSIGNED_INT:
         {
           return CreateSlot(target, code, slot_type::UNSIGNED_INT_CONSTANT, n->numberConstant.asUnsignedInt);
         } break;
 
-        case number_constant_part::constant_type::FLOAT:
+        case number_part::constant_type::FLOAT:
         {
           return CreateSlot(target, code, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
         } break;

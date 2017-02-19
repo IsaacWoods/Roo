@@ -114,7 +114,7 @@ struct while_part
   node* code;
 };
 
-struct number_constant_part
+struct number_part
 {
   enum constant_type
   {
@@ -191,7 +191,7 @@ struct node
     condition_part        condition;
     if_part               ifThing;
     while_part            whileThing;
-    number_constant_part  numberConstant;
+    number_part           numberConstant;
     string_constant*      stringConstant;
     call_part             call;
     variable_assign_part  variableAssignment;
