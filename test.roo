@@ -16,11 +16,22 @@ operator [](s : string, i : uint) -> char
   return s.head + i
 }
 
+operator +(a : uint, b : uint) -> uint
+{
+  return 6
+}
+
+operator *(a : uint, b : uint) -> uint
+{
+  return 3
+}
+
 #[Entry]
 fn Main() -> int
 {
   str: string = "Hello, World!\n"
   c: char = str[0u]
   Print(str)
-  return 0
+
+  return (1u + 2u) * 3u
 }

@@ -1428,6 +1428,19 @@ static void InitParseletMaps()
       return CreateNode(PREFIX_OP_NODE, TOKEN_AND, expression);
     };
 
+  g_prefixMap[TOKEN_LEFT_PAREN] =
+    [](roo_parser& parser) -> node*
+    {
+      Log(parser, "--> [PARSELET] Parentheses\n");
+      
+      NextToken(parser);
+      node* expression = Expression(parser);
+      Consume(parser, TOKEN_RIGHT_PAREN);
+
+      Log(parser, "<-- [PARSELET] Parentheses\n");
+      return expression;
+    };
+
   // --- Infix Parselets ---
   g_infixMap[TOKEN_PLUS] =
   g_infixMap[TOKEN_MINUS] =
