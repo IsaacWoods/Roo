@@ -686,10 +686,10 @@ static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
   return nullptr;
 }
 
-// TODO: these are just made-up bullshit values for instruction costs
+// TODO: these are just made-up values atm
 // A) It depends on the microarchitecture on how much these cost - (how) do we take that into consideration?
 // B) There isn't really a good modern model of the x64 to base this off
-// C) We should look into how GCC, Clang etc. do this
+// C) We should look into how GCC, Clang etc do this
 unsigned int GetInstructionCost(air_instruction* instruction)
 {
   switch (instruction->type)

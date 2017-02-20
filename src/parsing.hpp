@@ -24,7 +24,7 @@ enum token_type
   TOKEN_MUT,
   TOKEN_OPERATOR,
 
-  // Punctuation n' shit
+  // Punctuation
   TOKEN_DOT,
   TOKEN_COMMA,
   TOKEN_COLON,
