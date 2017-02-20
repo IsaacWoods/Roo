@@ -8,10 +8,8 @@ type string
   head : char&
 }
 
+#[Prototype]
 operator +(s : char&, offset : uint) -> char&
-{
-  return s
-}
 
 operator [](s : string, i : uint) -> char
 {

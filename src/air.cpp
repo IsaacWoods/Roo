@@ -814,7 +814,7 @@ bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, sign
         continue;
       }
 
-      unsigned int definitionIndex = (slot->type == slot_type::PARAMETER ? 0u : range.definition->index);
+      unsigned int definitionIndex = (range.definition ? range.definition->index : 0u);
       if ((instruction->index >= definitionIndex) && (instruction->index <= range.lastUse->index))
       {
         return true;
