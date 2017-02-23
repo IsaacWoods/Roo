@@ -10,12 +10,11 @@
 #include <ast.hpp>
 #include <air.hpp>
 #include <error.hpp>
+#include <scheduler.hpp>
 
-#define TIME_EXECUTION
-
-#ifdef TIME_EXECUTION
+#if 1
+  #define TIME_EXECUTION
   #include <chrono>
-  #include <iostream>
 #endif
 
 // NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
@@ -133,7 +132,10 @@ int main()
   }
   #endif
 
-  // --- Generate AIR for functions and operators ---
+  // --- Create tasks for generating AIR for functions and operators ---
+  scheduler s;
+  InitScheduler(s);
+
   for (auto* it = result.functions.head;
        it < result.functions.tail;
        it++)
@@ -145,11 +147,7 @@ int main()
       continue;
     }
 
-    GenerateAIR(target, function->code);
-
-#ifdef OUTPUT_DOT
-    OutputInterferenceDOT(function->code, function->name);
-#endif
+    AddTask(s, task_type::GENERATE_AIR, &(function->code));
   }
 
   for (auto* it = result.operators.head;
@@ -163,12 +161,27 @@ int main()
       continue;
     }
 
-    GenerateAIR(target, op->code);
+    AddTask(s, task_type::GENERATE_AIR, &(op->code));
+  }
+
+  while (s.tasks.size > 0u)
+  {
+    task_info* task = GetTask(s);
+
+    switch (task->type)
+    {
+      case task_type::GENERATE_AIR:
+      {
+        GenerateAIR(target, *(task->code));
 
 #ifdef OUTPUT_DOT
-    OutputInterferenceDOT(op->code, op->code.mangledName);
+        OutputInterferenceDOT(*(task->code), task->code->mangledName);
 #endif
+      } break;
+    }
   }
+
+  Free<scheduler>(s);
 
   if (!(result.name))
   {

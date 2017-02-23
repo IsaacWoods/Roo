@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cassert>
 
 template<typename T>
 void Free(T&);
@@ -177,6 +178,19 @@ void StableRemove(vector<T>& v, const T& thing)
       }
     }
   }
+}
+
+// O(1)
+template<typename T>
+T PopBack(vector<T>& v)
+{
+  assert(v.size > 0u);
+
+  T last = v[v.size - 1u];
+  v.size--;
+  v.tail--;
+
+  return last;
 }
 
 // O(n log(n))
