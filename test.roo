@@ -16,16 +16,6 @@ operator [](s : string, i : uint) -> char
   return s.head + i
 }
 
-operator +(a : uint, b : uint) -> uint
-{
-  return 6
-}
-
-operator *(a : uint, b : uint) -> uint
-{
-  return 3
-}
-
 #[Entry]
 fn Main() -> int
 {
@@ -33,5 +23,5 @@ fn Main() -> int
   c: char = str[0u]
   Print(str)
 
-  return (1u + 2u) * 3u
+  return 0
 }

@@ -11,9 +11,7 @@
 #include <air.hpp>
 #include <error.hpp>
 
-// NOTE(Isaac): turning this on causes a segfault in the printf call (or the one printing "Hello, World!").
-// Fuck knows what's going on there
-//#define TIME_EXECUTION
+#define TIME_EXECUTION
 
 #ifdef TIME_EXECUTION
   #include <chrono>
@@ -183,11 +181,10 @@ int main()
   Free<codegen_target>(target);
 
 #ifdef TIME_EXECUTION
-//  auto end = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::high_resolution_clock::now();
   // NOTE(Isaac): chrono uses integer types to represent ticks, so we use microseconds then convert ourselves.
-//  double elapsed = (double)(std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()) / 1000.0;
-//  printf("Time taken to compile: %f ms\n", 4.3);
-//  printf("Hello, World!\n");
+  double elapsed = (double)(std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()) / 1000.0;
+  printf("Time taken to compile: %f ms\n", elapsed);
 #endif
 
   return 0;
