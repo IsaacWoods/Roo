@@ -41,9 +41,7 @@ struct codegen_target
 };
 
 struct dependency_def;
-struct function_def;
 struct variable_def;
-struct operator_def;
 struct type_def;
 struct string_constant;
 struct air_instruction;
@@ -113,8 +111,7 @@ struct parse_result
 {
   char*                     name;
   vector<dependency_def*>   dependencies;
-  vector<function_def*>     functions;
-  vector<operator_def*>     operators;
+  vector<thing_of_code*>    codeThings;
   vector<type_def*>         types;
   vector<string_constant*>  strings;
 };
@@ -181,8 +178,21 @@ struct attrib_set
   bool isNoInline   : 1;
 };
 
+enum class thing_type
+{
+  FUNCTION,
+  OPERATOR,
+};
+
 struct thing_of_code
 {
+  thing_type              type;
+  union
+  {
+    char*                 name;
+    token_type            op;
+  };
+
   char*                   mangledName;
   vector<variable_def*>   params;
   vector<variable_def*>   locals;
@@ -202,18 +212,6 @@ struct thing_of_code
   elf_symbol*             symbol;
 };
 
-struct function_def
-{
-  char*             name;
-  thing_of_code     code;
-};
-
-struct operator_def
-{
-  token_type        op;
-  thing_of_code     code;
-};
-
 struct type_def
 {
   char*                 name;
@@ -227,17 +225,15 @@ struct type_def
   unsigned int          size;
 };
 
-slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type, ...);
+slot_def* CreateSlot(codegen_target& target, thing_of_code* code, slot_type type, ...);
 char* GetSlotString(slot_def* slot);
 void CreateParseResult(parse_result& result);
 void InitAttribSet(attrib_set& set);
 string_constant* CreateStringConstant(parse_result* result, char* string);
 variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
-function_def* CreateFunctionDef(char* name);
-operator_def* CreateOperatorDef(token_type op);
+thing_of_code* CreateThingOfCode(thing_type type, ...);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* TypeRefToString(type_ref* type);
 bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability = true);
-char* MangleFunctionName(function_def* function);
-char* MangleOperatorName(operator_def* op);
+char* MangleName(thing_of_code* thing);
 void CompleteIR(parse_result& parse);

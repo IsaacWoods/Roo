@@ -103,32 +103,18 @@ int main()
   CompleteIR(result);
 
   #ifdef OUTPUT_DOT
-  for (auto* it = result.functions.head;
-       it < result.functions.tail;
+  for (auto* it = result.codeThings.head;
+       it < result.codeThings.tail;
        it++)
   {
-    function_def* function = *it;
+    thing_of_code* code = *it;
 
-    if (function->code.attribs.isPrototype)
+    if (code->attribs.isPrototype)
     {
       continue;
     }
 
-    OutputDOTOfAST(function->code);
-  }
-
-  for (auto* it = result.operators.head;
-       it < result.operators.tail;
-       it++)
-  {
-    operator_def* op = *it;
-
-    if (op->code.attribs.isPrototype)
-    {
-      continue;
-    }
-
-    OutputDOTOfAST(op->code);
+    OutputDOTOfAST(code);
   }
   #endif
 
@@ -136,32 +122,18 @@ int main()
   scheduler s;
   InitScheduler(s);
 
-  for (auto* it = result.functions.head;
-       it < result.functions.tail;
+  for (auto* it = result.codeThings.head;
+       it < result.codeThings.tail;
        it++)
   {
-    function_def* function = *it;
+    thing_of_code* code = *it;
 
-    if (function->code.attribs.isPrototype)
+    if (code->attribs.isPrototype)
     {
       continue;
     }
 
-    AddTask(s, task_type::GENERATE_AIR, &(function->code));
-  }
-
-  for (auto* it = result.operators.head;
-       it < result.operators.tail;
-       it++)
-  {
-    operator_def* op = *it;
-
-    if (op->code.attribs.isPrototype)
-    {
-      continue;
-    }
-
-    AddTask(s, task_type::GENERATE_AIR, &(op->code));
+    AddTask(s, task_type::GENERATE_AIR, code);
   }
 
   while (s.tasks.size > 0u)
@@ -172,10 +144,10 @@ int main()
     {
       case task_type::GENERATE_AIR:
       {
-        GenerateAIR(target, *(task->code));
+        GenerateAIR(target, task->code);
 
 #ifdef OUTPUT_DOT
-        OutputInterferenceDOT(*(task->code), task->code->mangledName);
+        OutputInterferenceDOT(task->code);
 #endif
       } break;
     }

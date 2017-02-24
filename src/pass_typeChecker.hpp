@@ -185,21 +185,26 @@ void InitTypeCheckerPass()
           assert(b->def);
 
           // NOTE(Isaac): this isn't really actually type-checking, but here we resolve the operator_def to use
-          for (auto* it = parse.operators.head;
-               it < parse.operators.tail;
+          for (auto* it = parse.codeThings.head;
+               it < parse.codeThings.tail;
                it++)
           {
-            operator_def* op = *it;
+            thing_of_code* thing = *it;
 
-            if ((op->op != n->binaryOp.op) ||
-                !AreTypeRefsCompatible(a, &(op->code.params[0u]->type)) ||
-                !AreTypeRefsCompatible(b, &(op->code.params[1u]->type)))
+            if (thing->type != thing_type::OPERATOR)
             {
               continue;
             }
 
-            n->binaryOp.resolvedOperator = op;
-            n->typeRef = op->code.returnType;
+            if ((thing->op != n->binaryOp.op) ||
+                !AreTypeRefsCompatible(a, &(thing->params[0u]->type)) ||
+                !AreTypeRefsCompatible(b, &(thing->params[1u]->type)))
+            {
+              continue;
+            }
+
+            n->binaryOp.resolvedOperator = thing;
+            n->typeRef = thing->returnType;
             break;
           }
 

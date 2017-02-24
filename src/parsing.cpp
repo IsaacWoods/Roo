@@ -880,8 +880,8 @@ static variable_def* VariableDef(roo_parser& parser)
   return variable;
 }
 
-static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop = false);
-static node* Block(roo_parser& parser, thing_of_code& scope, bool isInLoop = false)
+static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop = false);
+static node* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -937,7 +937,7 @@ static node* Condition(roo_parser& parser, bool reverseOnJump)
   return CreateNode(CONDITION_NODE, condition, left, right, reverseOnJump);
 }
 
-static node* If(roo_parser& parser, thing_of_code& scope)
+static node* If(roo_parser& parser, thing_of_code* scope)
 {
   Log(parser, "--> If\n");
 
@@ -959,7 +959,7 @@ static node* If(roo_parser& parser, thing_of_code& scope)
   return CreateNode(IF_NODE, condition, thenCode, elseCode);
 }
 
-static node* While(roo_parser& parser, thing_of_code& scope)
+static node* While(roo_parser& parser, thing_of_code* scope)
 {
   Log(parser, "--> While\n");
 
@@ -974,7 +974,7 @@ static node* While(roo_parser& parser, thing_of_code& scope)
   return CreateNode(WHILE_NODE, condition, code);
 }
 
-static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop)
+static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
   node* result = nullptr;
@@ -996,7 +996,7 @@ static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop)
     case TOKEN_RETURN:
     {
       Log(parser, "(RETURN)\n");
-      scope.shouldAutoReturn = false;
+      scope->shouldAutoReturn = false;
 
       if (MatchNext(parser, TOKEN_LINE, false))
       {
@@ -1038,7 +1038,7 @@ static node* Statement(roo_parser& parser, thing_of_code& scope, bool isInLoop)
 
         result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
 
-        Add<variable_def*>(scope.locals, variable);
+        Add<variable_def*>(scope->locals, variable);
         break;
       }
     } // NOTE(Isaac): no break
@@ -1120,34 +1120,34 @@ static void Function(roo_parser& parser, attrib_set& attribs)
 {
   Log(parser, "--> Function(");
 
-  function_def* function = CreateFunctionDef(GetTextFromToken(parser, NextToken(parser)));
-  function->code.attribs = attribs;
+  thing_of_code* function = CreateThingOfCode(thing_type::FUNCTION, GetTextFromToken(parser, NextToken(parser)));
+  function->attribs = attribs;
   Log(parser, "%s)\n", function->name);
-  Add<function_def*>(parser.result->functions, function);
+  Add<thing_of_code*>(parser.result->codeThings, function);
 
   NextToken(parser);
-  ParameterList(parser, function->code.params);
+  ParameterList(parser, function->params);
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
   {
     Consume(parser, TOKEN_YIELDS);
-    function->code.returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    *(function->code.returnType) = TypeRef(parser);
-    Log(parser, "Function returns a: %s\n", function->code.returnType->name);
+    function->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+    *(function->returnType) = TypeRef(parser);
+    Log(parser, "Function returns a: %s\n", function->returnType->name);
   }
   else
   {
-    function->code.returnType = nullptr;
+    function->returnType = nullptr;
   }
 
-  if (function->code.attribs.isPrototype)
+  if (function->attribs.isPrototype)
   {
-    function->code.ast = nullptr;
+    function->ast = nullptr;
   }
   else
   {
-    function->code.ast = Block(parser, function->code);
+    function->ast = Block(parser, function);
   }
 
   Log(parser, "<-- Function\n");
@@ -1156,10 +1156,11 @@ static void Function(roo_parser& parser, attrib_set& attribs)
 static void Operator(roo_parser& parser, attrib_set& attribs)
 {
   Log(parser, "--> Operator(");
-  operator_def* operatorDef = CreateOperatorDef(NextToken(parser).type);
-  operatorDef->code.attribs = attribs;
+
+  thing_of_code* operatorDef = CreateThingOfCode(thing_type::OPERATOR, NextToken(parser).type);
+  operatorDef->attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
-  Add<operator_def*>(parser.result->operators, operatorDef);
+  Add<thing_of_code*>(parser.result->codeThings, operatorDef);
 
   switch (operatorDef->op)
   {
@@ -1184,21 +1185,21 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
     } break;
   }
 
-  ParameterList(parser, operatorDef->code.params);
+  ParameterList(parser, operatorDef->params);
 
   Consume(parser, TOKEN_YIELDS);
-  operatorDef->code.returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-  *(operatorDef->code.returnType) = TypeRef(parser);
-  Log(parser, "Return type: %s\n", operatorDef->code.returnType->name);
+  operatorDef->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+  *(operatorDef->returnType) = TypeRef(parser);
+  Log(parser, "Return type: %s\n", operatorDef->returnType->name);
 
-  if (operatorDef->code.attribs.isPrototype)
+  if (operatorDef->attribs.isPrototype)
   {
-    operatorDef->code.ast = nullptr;
+    operatorDef->ast = nullptr;
   }
   else
   {
-    operatorDef->code.ast = Block(parser, operatorDef->code);
-    assert(!(operatorDef->code.shouldAutoReturn));
+    operatorDef->ast = Block(parser, operatorDef);
+    assert(!(operatorDef->shouldAutoReturn));
   }
 
   Log(parser, "<-- Operator\n");

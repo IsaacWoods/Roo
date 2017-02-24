@@ -419,37 +419,20 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
 
 void ApplyASTPass(parse_result& parse, ast_pass& pass)
 {
-  for (auto* it = parse.functions.head;
-       it < parse.functions.tail;
+  for (auto* it = parse.codeThings.head;
+       it < parse.codeThings.tail;
        it++)
   {
-    function_def* function = *it;
+    thing_of_code* thing = *it;
 
-    if (function->code.attribs.isPrototype)
+    if (thing->attribs.isPrototype)
     {
       continue;
     }
 
-    if (function->code.ast)
+    if (thing->ast)
     {
-      ApplyPassToNode(function->code.ast, &(function->code), pass, parse);
-    }
-  }
-
-  for (auto* it = parse.operators.head;
-       it < parse.operators.tail;
-       it++)
-  {
-    operator_def* op = *it;
-
-    if (op->code.attribs.isPrototype)
-    {
-      continue;
-    }
-
-    if (op->code.ast)
-    {
-      ApplyPassToNode(op->code.ast, &(op->code), pass, parse);
+      ApplyPassToNode(thing->ast, thing, pass, parse);
     }
   }
 }
@@ -493,17 +476,17 @@ const char* GetNodeName(node_type type)
 
 #ifdef OUTPUT_DOT
 #include <functional>
-void OutputDOTOfAST(thing_of_code& code)
+void OutputDOTOfAST(thing_of_code* code)
 {
   // NOTE(Isaac): don't bother for empty functions/operators
-  if (!(code.ast))
+  if (!(code->ast))
   {
     return;
   }
 
   unsigned int i = 0u;
   char fileName[128u] = {0};
-  strcpy(fileName, code.mangledName);
+  strcpy(fileName, code->mangledName);
   strcat(fileName, ".dot");
   FILE* f = fopen(fileName, "w");
 
@@ -747,7 +730,7 @@ void OutputDOTOfAST(thing_of_code& code)
       return name;
     };
 
-  free(emitNode(f, code.ast));
+  free(emitNode(f, code->ast));
 
   fprintf(f, "}\n");
   fclose(f);

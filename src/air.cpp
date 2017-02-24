@@ -35,7 +35,7 @@ instruction_label* CreateInstructionLabel()
   return label;
 }
 
-static air_instruction* PushInstruction(thing_of_code& code, instruction_type type, ...)
+static air_instruction* PushInstruction(thing_of_code* code, instruction_type type, ...)
 {
   va_list args;
   va_start(args, type);
@@ -95,21 +95,21 @@ static air_instruction* PushInstruction(thing_of_code& code, instruction_type ty
 
     case I_NUM_INSTRUCTIONS:
     {
-      RaiseError(code.errorState, ICE_GENERIC, "Tried to push an AIR instruction of type I_NUM_INSTRUCTIONS!");
+      RaiseError(code->errorState, ICE_GENERIC, "Tried to push an AIR instruction of type I_NUM_INSTRUCTIONS!");
     }
   }
 
-  if (code.airHead)
+  if (code->airHead)
   {
-    i->index = code.airTail->index + 1u;
-    code.airTail->next = i;
-    code.airTail = i;
+    i->index = code->airTail->index + 1u;
+    code->airTail->next = i;
+    code->airTail = i;
   }
   else
   {
     i->index = 0u;
-    code.airHead = i;
-    code.airTail = i;
+    code->airHead = i;
+    code->airTail = i;
   }
 
   va_end(args);
@@ -157,8 +157,8 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
   Add<live_range>(slot->liveRanges, range);
 }
 
-static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n);
-static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node* n);
+static slot_def* GenCall(codegen_target& target, thing_of_code* code, node* n);
+static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node* n);
 
 /*
  * BREAK_NODE:              `
@@ -174,10 +174,10 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
  * VARIABLE_ASSIGN_NODE:    `Nothing
  */
 template<typename T = void>
-T GenNodeAIR(codegen_target& target, thing_of_code& code, node* n);
+T GenNodeAIR(codegen_target& target, thing_of_code* code, node* n);
 
 template<>
-slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, node* n)
+slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, node* n)
 {
   assert(n);
 
@@ -218,7 +218,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
         default:
         {
-          RaiseError(code.errorState, ICE_GENERIC, "Unhandled AST prefix op in GenNodeAIR<slot_def*>");
+          RaiseError(code->errorState, ICE_GENERIC, "Unhandled AST prefix op in GenNodeAIR<slot_def*>");
         }
       }
 
@@ -273,14 +273,14 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code& code, nod
 
     default:
     {
-      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "a `slot_def*`", GetNodeName(n->type));
+      RaiseError(code->errorState, ICE_UNHANDLED_NODE_TYPE, "a `slot_def*`", GetNodeName(n->type));
       return nullptr;
     } break;
   }
 }
 
 template<>
-jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of_code& code, node* n)
+jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of_code* code, node* n)
 {
   assert(n);
 
@@ -341,7 +341,7 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 
         default:
         {
-          RaiseError(code.errorState, ICE_GENERIC, "Unhandled AST conditional in GenNodeAIR<jump_instruction::condition>");
+          RaiseError(code->errorState, ICE_GENERIC, "Unhandled AST conditional in GenNodeAIR<jump_instruction::condition>");
           Crash();
         }
       }
@@ -349,14 +349,14 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 
     default:
     {
-      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "a `jump_instruction::condition`", GetNodeName(n->type));
+      RaiseError(code->errorState, ICE_UNHANDLED_NODE_TYPE, "a `jump_instruction::condition`", GetNodeName(n->type));
       Crash();
     } break;
   }
 }
 
 template<>
-void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
+void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 {
   assert(n);
 
@@ -404,7 +404,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
         default:
         {
-          RaiseError(code.errorState, ICE_GENERIC, "Unhandled binary op in GenNodeAIR<void>");
+          RaiseError(code->errorState, ICE_GENERIC, "Unhandled binary op in GenNodeAIR<void>");
         }
       }
 
@@ -462,7 +462,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 
     default:
     {
-      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "nothing", GetNodeName(n->type));
+      RaiseError(code->errorState, ICE_UNHANDLED_NODE_TYPE, "nothing", GetNodeName(n->type));
     }
   }
 
@@ -477,7 +477,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code& code, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, thing_of_code& code, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, thing_of_code* code, node* n)
 {
   assert(n);
 
@@ -494,7 +494,7 @@ instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, th
 
     default:
     {
-      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "a `instruction_label*`", GetNodeName(n->type));
+      RaiseError(code->errorState, ICE_UNHANDLED_NODE_TYPE, "a `instruction_label*`", GetNodeName(n->type));
     }
   }
 
@@ -532,10 +532,10 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
   return 0u;
 }
 
-static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node* n)
+static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node* n)
 {
   assert(n->binaryOp.resolvedOperator);
-  Add<thing_of_code*>(code.calledThings, &(n->binaryOp.resolvedOperator->code));
+  Add<thing_of_code*>(code->calledThings, n->binaryOp.resolvedOperator);
 
   // TODO: don't assume everything will fit in a general register
   unsigned int numGeneralParams = 0u;
@@ -591,11 +591,11 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
 
     default:
     {
-      RaiseError(code.errorState, ICE_UNHANDLED_NODE_TYPE, "GenOperation", GetNodeName(n->type));
+      RaiseError(code->errorState, ICE_UNHANDLED_NODE_TYPE, "GenOperation", GetNodeName(n->type));
     }
   }
 
-  air_instruction* callInstruction = PushInstruction(code, I_CALL, &(n->binaryOp.resolvedOperator->code));
+  air_instruction* callInstruction = PushInstruction(code, I_CALL, n->binaryOp.resolvedOperator);
 
   for (auto* paramIt = params.head;
        paramIt < params.tail;
@@ -605,7 +605,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
   }
   DetachVector<slot_def*>(params);
 
-  if (n->binaryOp.resolvedOperator->code.returnType)
+  if (n->binaryOp.resolvedOperator->returnType)
   {
     slot_def* resultSlot = CreateSlot(target, code, RETURN_RESULT);
     ChangeSlotValue(resultSlot, callInstruction);
@@ -619,10 +619,10 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code& code, node*
 /*
  * NOTE(Isaac): returns the result of the function call in a *new* slot.
  */
-static slot_def* GenCall(codegen_target& target, thing_of_code& code, node* n)
+static slot_def* GenCall(codegen_target& target, thing_of_code* code, node* n)
 {
   assert(n->call.isResolved);
-  Add<thing_of_code*>(code.calledThings, n->call.code);
+  Add<thing_of_code*>(code->calledThings, n->call.code);
 
   // TODO: don't assume everything will fit in a general register
   unsigned int numGeneralParams = 0u;
@@ -757,11 +757,11 @@ unsigned int GetInstructionCost(air_instruction* instruction)
   return 0u;
 }
 
-unsigned int GetCodeCost(thing_of_code& code)
+unsigned int GetCodeCost(thing_of_code* code)
 {
   unsigned int cost = 0u;
 
-  for (auto* instruction = code.airHead;
+  for (auto* instruction = code->airHead;
        instruction;
        instruction = instruction->next)
   {
@@ -772,18 +772,18 @@ unsigned int GetCodeCost(thing_of_code& code)
 }
 
 // TODO: maybe this could take more context into account?
-bool ShouldCodeBeInlined(thing_of_code& code)
+bool ShouldCodeBeInlined(thing_of_code* code)
 {
   static const unsigned int INLINE_THRESHOLD = 16u;
 
-  return ((code.attribs.isInline && !(code.attribs.isNoInline)) ||
+  return ((code->attribs.isInline && !(code->attribs.isNoInline)) ||
           GetCodeCost(code) < INLINE_THRESHOLD);
 }
 
-bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, signed int color)
+bool IsColorInUseAtPoint(thing_of_code* code, air_instruction* instruction, signed int color)
 {
-  for (auto* it = code.slots.head;
-       it < code.slots.tail;
+  for (auto* it = code->slots.head;
+       it < code->slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -825,10 +825,10 @@ bool IsColorInUseAtPoint(thing_of_code& code, air_instruction* instruction, sign
   return false;
 }
 
-static void GenerateInterferences(thing_of_code& code)
+static void GenerateInterferences(thing_of_code* code)
 {
-  for (auto* itA = code.slots.head;
-       itA < code.slots.tail;
+  for (auto* itA = code->slots.head;
+       itA < code->slots.tail;
        itA++)
   {
     slot_def* a = *itA;
@@ -842,7 +842,7 @@ static void GenerateInterferences(thing_of_code& code)
     }
 
     for (auto* itB = (itA + 1u);
-         itB < code.slots.tail;
+         itB < code->slots.tail;
          itB++)
     {
       slot_def* b = *itB;
@@ -881,10 +881,6 @@ static void GenerateInterferences(thing_of_code& code)
         }
       }
 
-      /*
-       * NOTE(Isaac): We need the `continue` here even though it's at the end of the loop because
-       * C++ makes us have a statement after a label...
-       */
 FoundInterference:
       continue;
     }
@@ -894,12 +890,12 @@ FoundInterference:
 /*
  * Used by the AIR generator to color the interference graph to allocate slots to registers.
  */
-static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
+static void ColorSlots(codegen_target& /*target*/, thing_of_code* code)
 {
   const unsigned int numGeneralRegisters = 14u;
 
-  for (auto* it = code.slots.head;
-       it < code.slots.tail;
+  for (auto* it = code->slots.head;
+       it < code->slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -940,18 +936,18 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code& code)
     if (slot->color == -1)
     {
       // TODO: spill something instead of crashing
-      RaiseError(code.errorState, ICE_GENERIC, "Failed to find a valid k-coloring of the interference graph!");
+      RaiseError(code->errorState, ICE_GENERIC, "Failed to find a valid k-coloring of the interference graph!");
     }
   }
 }
 
-void GenerateAIR(codegen_target& target, thing_of_code& code)
+void GenerateAIR(codegen_target& target, thing_of_code* code)
 {
-  assert(!(code.airHead));
+  assert(!(code->airHead));
   unsigned int numParams = 0u;
 
-  for (auto* it = code.params.head;
-       it < code.params.tail;
+  for (auto* it = code->params.head;
+       it < code->params.tail;
        it++)
   {
     variable_def* param = *it;
@@ -967,8 +963,8 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
     }
   }
 
-  for (auto* it = code.locals.head;
-       it < code.locals.tail;
+  for (auto* it = code->locals.head;
+       it < code->locals.tail;
        it++)
   {
     variable_def* local = *it;
@@ -983,15 +979,15 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
     }
   }
 
-  if (!(code.ast))
+  if (!(code->ast))
   {
     return;
   }
 
-  GenNodeAIR(target, code, code.ast);
+  GenNodeAIR(target, code, code->ast);
 
   // Precolor the interference graph (through each instruction)
-  for (auto* instruction = code.airHead;
+  for (auto* instruction = code->airHead;
        instruction;
        instruction = instruction->next)
   {
@@ -1003,17 +999,17 @@ void GenerateAIR(codegen_target& target, thing_of_code& code)
   ColorSlots(target, code);
 
 #if 1
-  printf("--- AIR instruction listing for function: %s ---\n", code.mangledName);
-  for (air_instruction* i = code.airHead;
+  printf("--- AIR instruction listing for function: %s ---\n", code->mangledName);
+  for (air_instruction* i = code->airHead;
        i;
        i = i->next)
   {
     PrintInstruction(i);
   }
 
-  printf("\n--- Slot listing for function: %s ---\n", code.mangledName);
-  for (auto* it = code.slots.head;
-       it < code.slots.tail;
+  printf("\n--- Slot listing for function: %s ---\n", code->mangledName);
+  for (auto* it = code->slots.head;
+       it < code->slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -1262,15 +1258,15 @@ const char* GetInstructionName(air_instruction* instruction)
 }
 
 #ifdef OUTPUT_DOT
-void OutputInterferenceDOT(thing_of_code& code, const char* name)
+void OutputInterferenceDOT(thing_of_code* code)
 {
-  if (code.airHead == nullptr)
+  if (code->airHead == nullptr)
   {
     return;
   }
 
   char fileName[128u] = {0};
-  strcpy(fileName, name);
+  strcpy(fileName, code->mangledName);
   strcat(fileName, "_interference.dot");
   FILE* f = fopen(fileName, "w");
 
@@ -1290,8 +1286,8 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
     "steelblue2", "blue",       "lightseagreen",      "plum",           "dodgerblue4",  "darkorchid1",
   };
 
-  for (auto* it = code.slots.head;
-       it < code.slots.tail;
+  for (auto* it = code->slots.head;
+       it < code->slots.tail;
        it++)
   {
     slot_def* slot = *it;
@@ -1377,8 +1373,8 @@ void OutputInterferenceDOT(thing_of_code& code, const char* name)
   }
 
   // Emit the interferences between them
-  for (auto* it = code.slots.head;
-       it < code.slots.tail;
+  for (auto* it = code->slots.head;
+       it < code->slots.tail;
        it++)
   {
     slot_def* slot = *it;

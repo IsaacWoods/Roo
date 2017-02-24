@@ -53,10 +53,10 @@ struct ast_pass
  */
 struct binary_op_part
 {
-  token_type    op;
-  node*         left;
-  node*         right;
-  operator_def* resolvedOperator;
+  token_type      op;
+  node*           left;
+  node*           right;
+  thing_of_code*  resolvedOperator;
 };
 
 /*
@@ -69,9 +69,9 @@ struct binary_op_part
  */
 struct prefix_op_part
 {
-  token_type    op;
-  node*         right;
-  operator_def* resolvedOperator;
+  token_type      op;
+  node*           right;
+  thing_of_code*  resolvedOperator;
 };
 
 struct variable_part
@@ -204,5 +204,5 @@ node* CreateNode(node_type type, ...);
 void ApplyASTPass(parse_result& parse, ast_pass& pass);
 
 #ifdef OUTPUT_DOT
-void OutputDOTOfAST(thing_of_code& code);
+void OutputDOTOfAST(thing_of_code* code);
 #endif

@@ -617,15 +617,20 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   elf_symbol* entrySymbol = nullptr;
   error_state errorState = CreateErrorState(GENERAL_STUFF);
 
-  for (auto* it = parse.functions.head;
-       it < parse.functions.tail;
+  for (auto* it = parse.codeThings.head;
+       it < parse.codeThings.tail;
        it++)
   {
-    function_def* function = *it;
+    thing_of_code* thing = *it;
 
-    if (function->code.attribs.isEntry)
+    if (thing->type != thing_type::FUNCTION)
     {
-      entrySymbol = function->code.symbol;
+      continue;
+    }
+
+    if (thing->attribs.isEntry)
+    {
+      entrySymbol = thing->symbol;
       break;
     }
   }
@@ -650,23 +655,23 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
 
 #undef E
 #define E(...) \
-  Emit(code.errorState, thing, target, __VA_ARGS__);
+  Emit(code->errorState, thing, target, __VA_ARGS__);
 
-static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code& code)
+static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code* code)
 {
   // NOTE(Isaac): we don't generate empty functions
-  if (!(code.airHead))
+  if (!(code->airHead))
   {
     return nullptr;
   }
 
-  elf_thing* thing = CreateThing(elf, code.symbol);
+  elf_thing* thing = CreateThing(elf, code->symbol);
 
   // Enter a new stack frame
   E(i::PUSH_REG, RBP);
   E(i::MOV_REG_REG, RBP, RSP);
 
-  for (air_instruction* instruction = code.airHead;
+  for (air_instruction* instruction = code->airHead;
        instruction;
        instruction = instruction->next)
   {
@@ -711,7 +716,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
 
             default:
             {
-              RaiseError(code.errorState, ICE_UNHANDLED_SLOT_TYPE, GetSlotString(instruction->slot), "Generate_X64::I_RETURN");
+              RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, GetSlotString(instruction->slot), "Generate_X64::I_RETURN");
             } break;
           }
         }
@@ -792,7 +797,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
           {
             if (pair.left->color != RAX)
             {
-              RaiseError(code.errorState, ICE_GENERIC, "There's only an x86 instruction for comparing an immediate with RAX!");
+              RaiseError(code->errorState, ICE_GENERIC, "There's only an x86 instruction for comparing an immediate with RAX!");
             }
 
             E(i::CMP_RAX_IMM32, pair.right->i);
@@ -902,13 +907,13 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code&
 
       case I_NUM_INSTRUCTIONS:
       {
-        RaiseError(code.errorState, ICE_GENERIC, "AIR instruction of type I_NUM_INSTRUCTIONS in code generator");
+        RaiseError(code->errorState, ICE_GENERIC, "AIR instruction of type I_NUM_INSTRUCTIONS in code generator");
       }
     }
   }
 
   // If we should auto-return, leave the stack frame and return
-  if (code.shouldAutoReturn)
+  if (code->shouldAutoReturn)
   {
     E(i::LEAVE);
     E(i::RET);
@@ -968,85 +973,60 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     tail++;
   }
 
-  // --- Generate error states and symbols for functions and operators ---
-  auto generateStateAndSymbol = [&](thing_of_code& code)
+  // --- Generate error states and symbols for things of code ---
+  for (auto* it = result.codeThings.head;
+       it < result.codeThings.tail;
+       it++)
+  {
+    thing_of_code* thing = *it;
+    thing->errorState = CreateErrorState(CODE_GENERATION, thing);
+
+    /*
+     * If it's a prototype, we want to reference the symbol of an already loaded (hopefully) function.
+     */
+    if (thing->attribs.isPrototype)
     {
-      code.errorState = CreateErrorState(CODE_GENERATION, &code);
-
-      /*
-       * If it's a prototype, we want to reference the symbol of an already loaded (hopefully) function.
-       */
-      if (code.attribs.isPrototype)
+      for (auto* thingIt = elf.things.head;
+           thingIt < elf.things.tail;
+           thingIt++)
       {
-        for (auto* thingIt = elf.things.head;
-             thingIt < elf.things.tail;
-             thingIt++)
-        {
-          elf_thing* thing = *thingIt;
+        elf_thing* elfThing = *thingIt;
 
-          if (strcmp(thing->symbol->name->str, code.mangledName) == 0)
-          {
-            code.symbol = thing->symbol;
-          }
-        }
-
-        if (!code.symbol)
+        if (strcmp(thing->mangledName, elfThing->symbol->name->str) == 0)
         {
-          RaiseError(code.errorState, ERROR_UNIMPLEMENTED_PROTOTYPE, code.mangledName);
+          thing->symbol = elfThing->symbol;
         }
       }
-      else
+
+      if (!(thing->symbol))
       {
-        code.symbol = CreateSymbol(elf, code.mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+        RaiseError(thing->errorState, ERROR_UNIMPLEMENTED_PROTOTYPE, thing->mangledName);
       }
-    };
-
-  for (auto* it = result.functions.head;
-       it < result.functions.tail;
-       it++)
-  {
-    generateStateAndSymbol((*it)->code);
+    }
+    else
+    {
+      thing->symbol = CreateSymbol(elf, thing->mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+    }
   }
 
-  for (auto* it = result.operators.head;
-       it < result.operators.tail;
-       it++)
-  {
-    generateStateAndSymbol((*it)->code);
-  }
-
-  // Create a thing for the bootstrap
+  // --- Create a thing for the bootstrap ---
   elf_symbol* bootstrapSymbol = CreateSymbol(elf, "_start", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
   elf_thing* bootstrapThing = CreateThing(elf, bootstrapSymbol);
   GenerateBootstrap(elf, target, bootstrapThing, result);
 
-  // --- Generate `elf_thing`s for each function and operator ---
-  for (auto* it = result.functions.head;
-       it < result.functions.tail;
+  // --- Generate `elf_thing`s for each thing of code ---
+  for (auto* it = result.codeThings.head;
+       it < result.codeThings.tail;
        it++)
   {
-    function_def* function = *it;
+    thing_of_code* thing = *it;
 
-    if (function->code.attribs.isPrototype)
+    if (thing->attribs.isPrototype)
     {
       continue;
     }
 
-    Generate(elf, target, function->code);
-  }
-
-  for (auto* it = result.operators.head;
-       it < result.operators.tail;
-       it++)
-  {
-    operator_def* op = *it;
-
-    if (op->code.attribs.isPrototype)
-    {
-      continue;
-    }
-
-    Generate(elf, target, op->code);
+    Generate(elf, target, thing);
   }
 
   WriteElf(elf, outputPath);

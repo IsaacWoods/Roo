@@ -28,18 +28,23 @@ void InitFunctionCallsPass()
       {
         case call_part::call_type::FUNCTION:
         {
-          for (auto* it = parse.functions.head;
-               it < parse.functions.tail;
+          for (auto* it = parse.codeThings.head;
+               it < parse.codeThings.tail;
                it++)
           {
-            function_def* function = *it;
+            thing_of_code* thing = *it;
    
+            if (thing->type != thing_type::FUNCTION)
+            {
+              continue;
+            }
+
             // TODO: do this betterer - take into account params and stuff
-            if (strcmp(function->name, n->call.name) == 0)
+            if (strcmp(thing->name, n->call.name) == 0)
             {
               free(n->call.name);
               n->call.isResolved = true;
-              n->call.code = &(function->code);
+              n->call.code = thing;
               return;
             }
           }

@@ -21,7 +21,7 @@ void Free<live_range>(live_range& /*range*/)
 {
 }
 
-slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type, ...)
+slot_def* CreateSlot(codegen_target& target, thing_of_code* code, slot_type type, ...)
 {
   va_list args;
   va_start(args, type);
@@ -66,12 +66,12 @@ slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type
 
     case slot_type::TEMPORARY:
     {
-      slot->tag = code.numTemporaries++;
+      slot->tag = code->numTemporaries++;
     } break;
 
     case slot_type::RETURN_RESULT:
     {
-      slot->tag = code.numReturnResults++;
+      slot->tag = code->numReturnResults++;
     } break;
 
     case slot_type::SIGNED_INT_CONSTANT:
@@ -95,7 +95,7 @@ slot_def* CreateSlot(codegen_target& target, thing_of_code& code, slot_type type
     } break;
   }
 
-  Add<slot_def*>(code.slots, slot);
+  Add<slot_def*>(code->slots, slot);
   va_end(args);
   return slot;
 }
@@ -137,8 +137,7 @@ void CreateParseResult(parse_result& result)
 {
   result.name = nullptr;
   InitVector<dependency_def*>(result.dependencies);
-  InitVector<function_def*>(result.functions);
-  InitVector<operator_def*>(result.operators);
+  InitVector<thing_of_code*>(result.codeThings);
   InitVector<type_def*>(result.types);
   InitVector<string_constant*>(result.strings);
 }
@@ -148,8 +147,7 @@ void Free<parse_result>(parse_result& result)
 {
   free(result.name);
   FreeVector<dependency_def*>(result.dependencies);
-  FreeVector<function_def*>(result.functions);
-  FreeVector<type_def*>(result.types);
+  FreeVector<thing_of_code*>(result.codeThings);
   FreeVector<string_constant*>(result.strings);
 }
 
@@ -192,43 +190,46 @@ void InitAttribSet(attrib_set& set)
   set.isNoInline  = false;
 }
 
-static void InitThingOfCode(thing_of_code& code)
+thing_of_code* CreateThingOfCode(thing_type type, ...)
 {
-  code.mangledName      = nullptr;
-  InitVector<variable_def*>(code.params);
-  InitVector<variable_def*>(code.locals);
-  code.shouldAutoReturn = false;
-  InitAttribSet(code.attribs);
-  code.returnType       = nullptr;
+  va_list args;
+  va_start(args, type);
 
-  code.errorState       = CreateErrorState(FUNCTION_FILLING_IN, &code);
-  InitVector<thing_of_code*>(code.calledThings);
+  thing_of_code* thing = static_cast<thing_of_code*>(malloc(sizeof(thing_of_code)));
+  thing->type = type;
 
-  code.ast              = nullptr;
-  InitVector<slot_def*>(code.slots);
-  code.airHead          = nullptr;
-  code.airTail          = nullptr;
-  code.numTemporaries   = 0u;
-  code.numReturnResults = 0u;
-  code.symbol           = nullptr;
-}
+  switch (type)
+  {
+    case thing_type::FUNCTION:
+    {
+      thing->name = va_arg(args, char*);
+    } break;
 
-function_def* CreateFunctionDef(char* name)
-{
-  function_def* function = static_cast<function_def*>(malloc(sizeof(function_def)));
-  function->name = name;
-  InitThingOfCode(function->code);
+    case thing_type::OPERATOR:
+    {
+      thing->op = static_cast<token_type>(va_arg(args, int));
+    } break;
+  }
 
-  return function;
-}
+  thing->mangledName      = nullptr;
+  thing->shouldAutoReturn = false;
+  thing->returnType       = nullptr;
+  thing->errorState       = CreateErrorState(FUNCTION_FILLING_IN, thing);
+  thing->ast              = nullptr;
+  thing->airHead          = nullptr;
+  thing->airTail          = nullptr;
+  thing->numTemporaries   = 0u;
+  thing->numReturnResults = 0u;
+  thing->symbol           = nullptr;
 
-operator_def* CreateOperatorDef(token_type op)
-{
-  operator_def* operatorDef = static_cast<operator_def*>(malloc(sizeof(operator_def)));
-  operatorDef->op = op;
-  InitThingOfCode(operatorDef->code);
+  InitVector<variable_def*>(thing->params);
+  InitVector<variable_def*>(thing->locals);
+  InitAttribSet(thing->attribs);
+  InitVector<thing_of_code*>(thing->calledThings);
+  InitVector<slot_def*>(thing->slots);
 
-  return operatorDef;
+  va_end(args);
+  return thing;
 }
 
 template<>
@@ -281,46 +282,43 @@ void Free<variable_def*>(variable_def*& variable)
 }
 
 template<>
-void Free<thing_of_code>(thing_of_code& code)
+void Free<thing_of_code*>(thing_of_code*& code)
 {
-  free(code.mangledName);
-  FreeVector<variable_def*>(code.params);
-  FreeVector<variable_def*>(code.locals);
-
-  if (code.returnType)
+  switch (code->type)
   {
-    Free<type_ref>(*(code.returnType));
-    free(code.returnType);
+    case thing_type::FUNCTION:
+    {
+      free(code->name);
+    } break;
+
+    case thing_type::OPERATOR:
+    {
+    } break;
   }
 
-  if (code.ast)
+  free(code->mangledName);
+  FreeVector<variable_def*>(code->params);
+  FreeVector<variable_def*>(code->locals);
+
+  if (code->returnType)
   {
-    Free<node*>(code.ast);
+    Free<type_ref>(*(code->returnType));
+    free(code->returnType);
   }
 
-  FreeVector<slot_def*>(code.slots);
-
-  while (code.airHead)
+  if (code->ast)
   {
-    air_instruction* temp = code.airHead;
-    code.airHead = code.airHead->next;
+    Free<node*>(code->ast);
+  }
+
+  FreeVector<slot_def*>(code->slots);
+
+  while (code->airHead)
+  {
+    air_instruction* temp = code->airHead;
+    code->airHead = code->airHead->next;
     Free<air_instruction*>(temp);
   }
-}
-
-template<>
-void Free<function_def*>(function_def*& function)
-{
-  free(function->name);
-  Free<thing_of_code>(function->code);
-  free(function);
-}
-
-template<>
-void Free<operator_def*>(operator_def*& operatorDef)
-{
-  Free<thing_of_code>(operatorDef->code);
-  free(operatorDef);
 }
 
 type_def* GetTypeByName(parse_result& parse, const char* typeName)
@@ -462,126 +460,111 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
   return type->size;
 }
 
-char* MangleFunctionName(function_def* function)
+char* MangleName(thing_of_code* thing)
 {
-  static const char* base = "_R_";
-
-  // NOTE(Isaac): add one to leave space for an added null-terminator
-  char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(function->name) + 1u)));
-  strcpy(mangled, base);
-  strcat(mangled, function->name);
-
-  return mangled;
-}
-
-char* MangleOperatorName(operator_def* op)
-{
-  static const char* base = "_RO_";
-
-  const char* opName = nullptr;
-  switch (op->op)
+  switch (thing->type)
   {
-    case TOKEN_PLUS:          opName = "plus";      break;
-    case TOKEN_MINUS:         opName = "minus";     break;
-    case TOKEN_ASTERIX:       opName = "multiply";  break;
-    case TOKEN_SLASH:         opName = "divide";    break;
-    case TOKEN_DOUBLE_PLUS:   opName = "increment"; break;
-    case TOKEN_DOUBLE_MINUS:  opName = "decrement"; break;
-    case TOKEN_LEFT_BLOCK:    opName = "index";     break;
-
-    default:
+    case thing_type::FUNCTION:
     {
-      RaiseError(op->code.errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(op->op), "MangleOperatorName");
+      static const char* base = "_R_";
+    
+      // NOTE(Isaac): add one to leave space for an added null-terminator
+      char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(thing->name) + 1u)));
+      strcpy(mangled, base);
+      strcat(mangled, thing->name);
+    
+      return mangled;
+    } break;
+
+    case thing_type::OPERATOR:
+    {
+      static const char* base = "_RO_";
+    
+      const char* opName = nullptr;
+      switch (thing->op)
+      {
+        case TOKEN_PLUS:          opName = "plus";      break;
+        case TOKEN_MINUS:         opName = "minus";     break;
+        case TOKEN_ASTERIX:       opName = "multiply";  break;
+        case TOKEN_SLASH:         opName = "divide";    break;
+        case TOKEN_DOUBLE_PLUS:   opName = "increment"; break;
+        case TOKEN_DOUBLE_MINUS:  opName = "decrement"; break;
+        case TOKEN_LEFT_BLOCK:    opName = "index";     break;
+    
+        default:
+        {
+          RaiseError(thing->errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(thing->op), "MangleName");
+        } break;
+      }
+    
+      size_t length = strlen(base) + strlen(opName);
+      for (auto* it = thing->params.head;
+           it < thing->params.tail;
+           it++)
+      {
+        variable_def* param = *it;
+        assert(!(param->type.isResolved));
+        length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
+      }
+    
+      char* mangled = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
+      strcpy(mangled, base);
+      strcat(mangled, opName);
+    
+      for (auto* it = thing->params.head;
+           it < thing->params.tail;
+           it++)
+      {
+        variable_def* param = *it;
+        strcat(mangled, "_");
+        strcat(mangled, param->type.name);
+      }
+    
+      return mangled;
     } break;
   }
 
-  size_t length = strlen(base) + strlen(opName);
-  for (auto* it = op->code.params.head;
-       it < op->code.params.tail;
-       it++)
-  {
-    variable_def* param = *it;
-    assert(!(param->type.isResolved));
-    length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
-  }
-
-  char* mangled = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
-  strcpy(mangled, base);
-  strcat(mangled, opName);
-
-  for (auto* it = op->code.params.head;
-       it < op->code.params.tail;
-       it++)
-  {
-    variable_def* param = *it;
-    strcat(mangled, "_");
-    strcat(mangled, param->type.name);
-  }
-
-  return mangled;
+  return nullptr;
 }
 
 void CompleteIR(parse_result& parse)
 {
   // Mangle function and operator names
-  for (auto* it = parse.functions.head;
-       it < parse.functions.tail;
+  for (auto* it = parse.codeThings.head;
+       it < parse.codeThings.tail;
        it++)
   {
-    function_def* function = *it;
-    function->code.mangledName = MangleFunctionName(function);
-  }
-
-  for (auto* it = parse.operators.head;
-       it < parse.operators.tail;
-       it++)
-  {
-    operator_def* op = *it;
-    op->code.mangledName = MangleOperatorName(op);
+    thing_of_code* thing = *it;
+    thing->mangledName = MangleName(thing);
   }
 
   // --- Resolve `variable_def`s everywhere ---
-  auto resolveThingOfCode = [&](thing_of_code& code)
+  for (auto* it = parse.codeThings.head;
+       it < parse.codeThings.tail;
+       it++)
+  {
+    thing_of_code* thing = *it;
+
+    if (thing->returnType)
     {
-/*      if (code.attribs.isPrototype)
-      {
-        return;
-      }*/
-
-      if (code.returnType)
-      {
-        ResolveTypeRef(*(code.returnType), parse, code.errorState);
-      }
+      ResolveTypeRef(*(thing->returnType), parse, thing->errorState);
+    }
   
-      for (auto* paramIt = code.params.head;
-           paramIt < code.params.tail;
-           paramIt++)
-      {
-        variable_def* param = *paramIt;
-        ResolveTypeRef(param->type, parse, code.errorState);
-      }
+    for (auto* paramIt = thing->params.head;
+         paramIt < thing->params.tail;
+         paramIt++)
+    {
+      variable_def* param = *paramIt;
+      ResolveTypeRef(param->type, parse, thing->errorState);
+    }
   
-      for (auto* localIt = code.locals.head;
-           localIt < code.locals.tail;
-           localIt++)
-      {
-        variable_def* local = *localIt;
-        ResolveTypeRef(local->type, parse, code.errorState);
-      }
-    };
-  
-  for (auto* it = parse.functions.head;
-       it < parse.functions.tail;
-       it++)
-  {
-    resolveThingOfCode((*it)->code);
-  }
-
-  for (auto* it = parse.operators.head;
-       it < parse.operators.tail;
-       it++)
-  {
-    resolveThingOfCode((*it)->code);
+    for (auto* localIt = thing->locals.head;
+         localIt < thing->locals.tail;
+         localIt++)
+    {
+      variable_def* local = *localIt;
+      ResolveTypeRef(local->type, parse, thing->errorState);
+    }
   }
 
   for (auto* it = parse.types.head;
