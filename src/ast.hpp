@@ -133,16 +133,9 @@ struct number_part
 
 struct call_part
 {
-  enum call_type
-  {
-    FUNCTION,
-    OPERATOR,
-  } type;
-
   union
   {
     char*           name;
-    token_type      op;
     thing_of_code*  code;
   };
 

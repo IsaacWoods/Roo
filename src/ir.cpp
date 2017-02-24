@@ -13,7 +13,6 @@
 
 // AST Passes
 #include <pass_resolveVars.hpp>
-#include <pass_resolveCalls.hpp>
 #include <pass_typeChecker.hpp>
 
 template<>
@@ -592,6 +591,5 @@ void CompleteIR(parse_result& parse)
 
   // --- Apply AST Passes ---
   ApplyASTPass(parse, PASS_resolveVars);
-  ApplyASTPass(parse, PASS_resolveCalls);
   ApplyASTPass(parse, PASS_typeChecker);
 }

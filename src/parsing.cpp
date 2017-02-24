@@ -1498,7 +1498,7 @@ static void InitParseletMaps()
       strcpy(functionName, left->variable.name);
       Free<node*>(left);
 
-      node* result = CreateNode(CALL_NODE, call_part::call_type::FUNCTION, functionName);
+      node* result = CreateNode(CALL_NODE, functionName);
       Consume(parser, TOKEN_LEFT_PAREN);
 
       while (!Match(parser, TOKEN_RIGHT_PAREN))

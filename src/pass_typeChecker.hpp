@@ -68,8 +68,40 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[CALL_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& parse, thing_of_code* code, node* n)
     {
+      // --- First, we resolve the function call to the actual `thing_of_code` being called ---
+      assert(!n->call.isResolved);
+      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
+
+      for (auto* it = parse.codeThings.head;
+           it < parse.codeThings.tail;
+           it++)
+      {
+        thing_of_code* thing = *it;
+   
+        if (thing->type != thing_type::FUNCTION)
+        {
+          continue;
+        }
+
+        // TODO: do this betterer - take into account params and stuff
+        if (strcmp(thing->name, n->call.name) == 0)
+        {
+          free(n->call.name);
+          n->call.isResolved = true;
+          n->call.code = thing;
+          break;
+        }
+      }
+
+      if (!(n->call.isResolved))
+      {
+        RaiseError(state, ERROR_UNDEFINED_FUNCTION, n->call.name);
+        return;
+      }
+
+      // --- We then work out the type of the calling expression from the return type ---
       n->shouldFreeTypeRef = false;
       n->typeRef = n->call.code->returnType;
     };

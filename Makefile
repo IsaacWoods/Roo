@@ -19,7 +19,6 @@ OBJS = \
 
 AST_PASSES = \
 	src/pass_resolveVars.hpp \
-	src/pass_resolveCalls.hpp \
 	src/pass_typeChecker.hpp \
 
 STD_OBJECTS = \

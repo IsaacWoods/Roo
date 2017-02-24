@@ -15,11 +15,11 @@ node* CreateNode(node_type type, ...)
   va_list args;
   va_start(args, type);
 
-  node* result = static_cast<node*>(malloc(sizeof(node)));
-  result->type = type;
-  result->typeRef = nullptr;
+  node* result              = static_cast<node*>(malloc(sizeof(node)));
+  result->type              = type;
+  result->typeRef           = nullptr;
   result->shouldFreeTypeRef = false;
-  result->next = nullptr;
+  result->next              = nullptr;
 
   error_state errorState = CreateErrorState(GENERAL_STUFF);
 
@@ -31,55 +31,54 @@ node* CreateNode(node_type type, ...)
 
     case RETURN_NODE:
     {
-      result->expression                      = va_arg(args, node*);
+      result->expression                        = va_arg(args, node*);
     } break;
 
     case BINARY_OP_NODE:
     {
-      // NOTE(Isaac): enum types are promoted to `int`s on the stack
-      result->binaryOp.op                     = static_cast<token_type>(va_arg(args, int));
-      result->binaryOp.left                   = va_arg(args, node*);
-      result->binaryOp.right                  = va_arg(args, node*);
-      result->binaryOp.resolvedOperator       = nullptr;
+      result->binaryOp.op                       = static_cast<token_type>(va_arg(args, int));
+      result->binaryOp.left                     = va_arg(args, node*);
+      result->binaryOp.right                    = va_arg(args, node*);
+      result->binaryOp.resolvedOperator         = nullptr;
     } break;
 
     case PREFIX_OP_NODE:
     {
-      result->prefixOp.op                     = static_cast<token_type>(va_arg(args, int));
-      result->prefixOp.right                  = va_arg(args, node*);
-      result->prefixOp.resolvedOperator       = nullptr;
+      result->prefixOp.op                       = static_cast<token_type>(va_arg(args, int));
+      result->prefixOp.right                    = va_arg(args, node*);
+      result->prefixOp.resolvedOperator         = nullptr;
     } break;
 
     case VARIABLE_NODE:
     {
-      result->variable.name                   = va_arg(args, char*);
-      result->variable.isResolved             = false;
+      result->variable.name                     = va_arg(args, char*);
+      result->variable.isResolved               = false;
     } break;
 
     case CONDITION_NODE:
     {
-      result->condition.condition             = static_cast<token_type>(va_arg(args, int));
-      result->condition.left                  = va_arg(args, node*);
-      result->condition.right                 = va_arg(args, node*);
-      result->condition.reverseOnJump         = static_cast<bool>(va_arg(args, int));
+      result->condition.condition               = static_cast<token_type>(va_arg(args, int));
+      result->condition.left                    = va_arg(args, node*);
+      result->condition.right                   = va_arg(args, node*);
+      result->condition.reverseOnJump           = static_cast<bool>(va_arg(args, int));
     } break;
 
     case IF_NODE:
     {
-      result->ifThing.condition               = va_arg(args, node*);
-      result->ifThing.thenCode                = va_arg(args, node*);
-      result->ifThing.elseCode                = va_arg(args, node*);
+      result->ifThing.condition                 = va_arg(args, node*);
+      result->ifThing.thenCode                  = va_arg(args, node*);
+      result->ifThing.elseCode                  = va_arg(args, node*);
     } break;
 
     case WHILE_NODE:
     {
-      result->whileThing.condition            = va_arg(args, node*);
-      result->whileThing.code                 = va_arg(args, node*);
+      result->whileThing.condition              = va_arg(args, node*);
+      result->whileThing.code                   = va_arg(args, node*);
     } break;
 
     case NUMBER_CONSTANT_NODE:
     {
-      result->numberConstant.type = static_cast<number_part::constant_type>(va_arg(args, int));
+      result->numberConstant.type               = static_cast<number_part::constant_type>(va_arg(args, int));
 
       switch (result->numberConstant.type)
       {
@@ -112,22 +111,8 @@ node* CreateNode(node_type type, ...)
 
     case CALL_NODE:
     {
+      result->call.name                       = va_arg(args, char*);
       result->call.isResolved                 = false;
-      result->call.type                       = static_cast<call_part::call_type>(va_arg(args, int));
-      
-      switch (result->call.type)
-      {
-        case call_part::call_type::FUNCTION:
-        {
-          result->call.name                   = va_arg(args, char*);
-        } break;
-
-        case call_part::call_type::OPERATOR:
-        {
-          result->call.op                     = static_cast<token_type>(va_arg(args, int));
-        } break;
-      }
-
       InitVector<node*>(result->call.params);
     } break;
 
@@ -239,17 +224,7 @@ void Free<node*>(node*& n)
     {
       if (!(n->call.isResolved))
       {
-        switch (n->call.type)
-        {
-          case call_part::call_type::FUNCTION:
-          {
-            free(n->call.name);
-          } break;
-
-          case call_part::call_type::OPERATOR:
-          {
-          } break;
-        }
+        free(n->call.name);
       }
 
       FreeVector<node*>(n->call.params);
@@ -267,7 +242,7 @@ void Free<node*>(node*& n)
 
       if (n->memberAccess.isResolved)
       {
-        // TODO: don't free the variable
+        // NOTE(Isaac): don't free the variable
       }
       else
       {
@@ -665,18 +640,13 @@ void OutputDOTOfAST(thing_of_code* code)
 
         case CALL_NODE:
         {
-          switch (n->call.type)
+          if (n->call.isResolved)
           {
-            case call_part::call_type::FUNCTION:
-            {
-              // TODO
-              fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->call.code->mangledName);
-            } break;
-
-            case call_part::call_type::OPERATOR:
-            {
-              fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, GetTokenName(n->call.op));
-            } break;
+            fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->call.code->mangledName);
+          }
+          else
+          {
+            fprintf(f, "\t%s[label=\"Call(%s)\"];\n", name, n->call.name);
           }
         } break;
 
