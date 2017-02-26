@@ -13,7 +13,6 @@ operator +(s : char&, offset : uint) -> char&
 
 operator [](s : string, i : uint) -> char
 {
-  shit the bed
   return s.head + i
 }
 

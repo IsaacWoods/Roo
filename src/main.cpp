@@ -23,11 +23,11 @@ void InitCodegenTarget(parse_result& result, codegen_target& target);
 void FreeCodegenTarget(codegen_target& target);
 
 /*
+ * Find and compile all .roo files in the specified directory.
  * NOTE(Isaac): Returns `true` if the compilation was successful, `false` if an error occured.
  */
 static bool Compile(parse_result& parse, const char* directoryPath)
 {
-  // Find and parse all .roo files in the specified directory
   directory dir;
   OpenDirectory(dir, directoryPath);
   bool failed = false;
@@ -38,7 +38,10 @@ static bool Compile(parse_result& parse, const char* directoryPath)
   {
     if (f->extension && strcmp(f->extension, "roo") == 0)
     {
+      printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f->name);
       bool compileSuccessful = Parse(&parse, f->name);
+//      printf("%20s\n", (compileSuccessful ? "\x1B[32m[PASSED]\x1B[0m" : "\x1B[31m[FAILED]\x1B[0m"));
+
       failed |= !compileSuccessful;
     }
   }

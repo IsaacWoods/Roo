@@ -171,8 +171,9 @@ void RaiseError(error_state& state, error e, ...)
 
     case PARSING_UNIT:
     {
-      fprintf(stderr, "%s(%u:%u): %s%s: \x1B[0m%s\n", state.parser->path, state.parser->currentLine,
-          state.parser->currentLineOffset, levelColors[def.level], levelStrings[def.level], message);
+      fprintf(stderr, "\x1B[1;37m%s(%u:%u):\x1B[0m %s%s: \x1B[0m%s\n", state.parser->path,
+          state.parser->currentLine, state.parser->currentLineOffset, levelColors[def.level],
+          levelStrings[def.level], message);
     } break;
 
     case TRAVERSING_AST:
