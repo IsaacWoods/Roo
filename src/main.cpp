@@ -38,7 +38,8 @@ static bool Compile(parse_result& parse, const char* directoryPath)
   {
     if (f->extension && strcmp(f->extension, "roo") == 0)
     {
-      failed |= !(Parse(&parse, f->name));
+      bool compileSuccessful = Parse(&parse, f->name);
+      failed |= !compileSuccessful;
     }
   }
 

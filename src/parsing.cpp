@@ -1047,7 +1047,21 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
       Log(parser, "(EXPRESSION STATEMENT)\n");
       result = Expression(parser);
 
-      // TODO(Isaac): make sure it's a valid node type to appear at top level
+      /*
+       * This checks that the produced expression can appear at top-level.
+       */
+      switch (result->type)
+      {
+        case VARIABLE_ASSIGN_NODE:
+        case CALL_NODE:
+        {
+        } break;
+
+        default:
+        {
+          RaiseError(parser.errorState, ERROR_UNEXPECTED, "statement-position", GetNodeName(result->type));
+        } break;
+      }
   }
 
   Log(parser, "<-- Statement\n");

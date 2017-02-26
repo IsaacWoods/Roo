@@ -13,6 +13,7 @@ enum error
   ERROR_EXPECTED,                 // "Expected %s"
   ERROR_EXPECTED_BUT_GOT,         // "Expected %s but got %s instead"
   ERROR_UNEXPECTED,               // "Unexpected token in %s position: %s"
+  ERROR_UNEXPECTED_EXPRESSION,    // "Unexpected expression type in %s position: %s"
   ERROR_ILLEGAL_ATTRIBUTE,        // "Unrecognised attribute '%s'"
   ERROR_UNDEFINED_VARIABLE,       // "Failed to resolve variable called '%s'"
   ERROR_UNDEFINED_FUNCTION,       // "Failed to resolve function called '%s'"
