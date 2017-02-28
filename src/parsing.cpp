@@ -529,10 +529,15 @@ static token LexNext(roo_parser& parser)
 
           while (parser.currentChar)
           {
-            if (*(parser.currentChar) == '/')
+            if (*(parser.currentChar) == '*')
             {
               NextChar(parser);
-              break;
+
+              if (*(parser.currentChar) == '/')
+              {
+                NextChar(parser);
+                break;
+              }
             }
             else
             {

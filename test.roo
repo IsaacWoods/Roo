@@ -13,8 +13,38 @@ operator +(s : char&, offset : uint) -> char&
 
 operator [](s : string, i : uint) -> char
 {
-  return s.head + i + fuckwad
+  return s.head + i
 }
+
+/*
+#[Prototype]
+fn PrintBuffer(buffer : char&, length : uint)
+
+fn PrintInt(n : uint, base : uint)
+{
+  buffer : char[16u]
+  temp : uint = n
+  i : int = 0
+
+  do
+  {
+    temp = n % base
+    buffer[i++] = (temp < 10u) ? ('0' + Cast<Char>(temp)) : ('a' + Cast<char>(temp - 10u));    
+  } while ((n /= base) > 0u)
+
+  buffer[i--] = '\0';
+
+  for (j : uint in (0..i))
+  {
+    temp = buffer[j]
+    buffer[j] = buffer[i]
+    buffer[i] = temp
+    i--
+  }
+
+  PrintBuffer(buffer, i)
+}
+*/
 
 #[Entry]
 fn Main() -> int
