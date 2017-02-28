@@ -29,10 +29,10 @@ fn PrintInt(n : uint, base : uint)
   do
   {
     temp = n % base
-    buffer[i++] = (temp < 10u) ? ('0' + Cast<Char>(temp)) : ('a' + Cast<char>(temp - 10u));    
+    buffer[i++] = (temp < 10u) ? ('0' + Cast<Char>(temp)) : ('a' + Cast<char>(temp - 10u))
   } while ((n /= base) > 0u)
 
-  buffer[i--] = '\0';
+  buffer[i--] = '\0'
 
   for (j : uint in (0..i))
   {
@@ -49,8 +49,9 @@ fn PrintInt(n : uint, base : uint)
 #[Entry]
 fn Main() -> int
 {
-//  (10u > 5u ? Print("True!\n") : Print("False :(\n"))
-
+  i : uint = 1u
+  (i > 5u ? Print("True!\n") : Print("False :(\n"))
+/*
   // NOTE(Isaac): we need to constant-fold these conditions, because x86 doesn't have an instruction to compare
   // two immediates
   i : uint = 2u
@@ -61,7 +62,7 @@ fn Main() -> int
   else
   {
     Print("Nahhh :(\n")
-  }
+  }*/
 
   return 0
 }

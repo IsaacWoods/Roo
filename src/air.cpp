@@ -176,6 +176,12 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node*
 template<typename T = void>
 T GenNodeAIR(codegen_target& target, thing_of_code* code, node* n);
 
+// --- Forward specializations ---
+template<> slot_def* GenNodeAIR<slot_def*>(codegen_target&, thing_of_code*, node*);
+template<> jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target&, thing_of_code*, node*);
+template<> void GenNodeAIR<void>(codegen_target&, thing_of_code*, node*);
+template<> instruction_label* GenNodeAIR<instruction_label*>(codegen_target&, thing_of_code*, node*);
+
 template<>
 slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, node* n)
 {
@@ -224,7 +230,43 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 
       UseSlot(right, instruction);
       ChangeSlotValue(result, instruction);
+      return result;
+    } break;
 
+    case TERNARY_NODE:
+    {
+      assert(n->branch.condition->type == CONDITION_NODE);
+      assert(n->branch.condition->condition.reverseOnJump);
+      jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->branch.condition);
+
+      slot_def* result = CreateSlot(target, code, slot_type::TEMPORARY);
+
+      instruction_label* elseLabel = nullptr;
+      instruction_label* endLabel = CreateInstructionLabel();
+      
+      if (n->branch.elseCode)
+      {
+        elseLabel = CreateInstructionLabel();
+      }
+
+      PushInstruction(code, I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
+      slot_def* thenResult = GenNodeAIR<slot_def*>(target, code, n->branch.thenCode);
+      air_instruction* thenMovInstruction = PushInstruction(code, I_MOV, result, thenResult);
+      UseSlot(thenResult, thenMovInstruction);
+      ChangeSlotValue(result, thenMovInstruction);
+
+      if (n->branch.elseCode)
+      {
+        PushInstruction(code, I_JUMP, jump_i::condition::UNCONDITIONAL, endLabel);
+
+        PushInstruction(code, I_LABEL, elseLabel);
+        slot_def* elseResult = GenNodeAIR<slot_def*>(target, code, n->branch.elseCode);
+        air_instruction* elseMovInstruction = PushInstruction(code, I_MOV, result, elseResult);
+        UseSlot(elseResult, elseMovInstruction);
+        ChangeSlotValue(result, elseMovInstruction);
+      }
+
+      PushInstruction(code, I_LABEL, endLabel);
       return result;
     } break;
 
@@ -419,28 +461,29 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
     } break;
 
     case IF_NODE:
+    case TERNARY_NODE:
     {
-      assert(n->ifThing.condition->type == CONDITION_NODE);
-      assert(n->ifThing.condition->condition.reverseOnJump);
-      jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->ifThing.condition);
+      assert(n->branch.condition->type == CONDITION_NODE);
+      assert(n->branch.condition->condition.reverseOnJump);
+      jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->branch.condition);
 
       instruction_label* elseLabel = nullptr;
       instruction_label* endLabel = CreateInstructionLabel();
       
-      if (n->ifThing.elseCode)
+      if (n->branch.elseCode)
       {
         elseLabel = CreateInstructionLabel();
       }
 
       PushInstruction(code, I_JUMP, jumpCondition, (elseLabel ? elseLabel : endLabel));
-      GenNodeAIR(target, code, n->ifThing.thenCode);
+      GenNodeAIR(target, code, n->branch.thenCode);
 
-      if (n->ifThing.elseCode)
+      if (n->branch.elseCode)
       {
         PushInstruction(code, I_JUMP, jump_i::condition::UNCONDITIONAL, endLabel);
 
         PushInstruction(code, I_LABEL, elseLabel);
-        GenNodeAIR(target, code, n->ifThing.elseCode);
+        GenNodeAIR(target, code, n->branch.elseCode);
       }
 
       PushInstruction(code, I_LABEL, endLabel);

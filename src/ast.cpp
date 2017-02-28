@@ -64,10 +64,11 @@ node* CreateNode(node_type type, ...)
     } break;
 
     case IF_NODE:
+    case TERNARY_NODE:
     {
-      result->ifThing.condition                 = va_arg(args, node*);
-      result->ifThing.thenCode                  = va_arg(args, node*);
-      result->ifThing.elseCode                  = va_arg(args, node*);
+      result->branch.condition                 = va_arg(args, node*);
+      result->branch.thenCode                  = va_arg(args, node*);
+      result->branch.elseCode                  = va_arg(args, node*);
     } break;
 
     case WHILE_NODE:
@@ -199,10 +200,11 @@ void Free<node*>(node*& n)
     } break;
 
     case IF_NODE:
+    case TERNARY_NODE:
     {
-      Free<node*>(n->ifThing.condition);
-      Free<node*>(n->ifThing.thenCode);
-      Free<node*>(n->ifThing.elseCode);
+      Free<node*>(n->branch.condition);
+      Free<node*>(n->branch.thenCode);
+      Free<node*>(n->branch.elseCode);
     } break;
 
     case WHILE_NODE:
@@ -319,13 +321,14 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
     } break;
 
     case IF_NODE:
+    case TERNARY_NODE:
     {
-      ApplyPassToNode(n->ifThing.condition, code, pass, parse, errorState);
-      ApplyPassToNode(n->ifThing.thenCode, code, pass, parse, errorState);
+      ApplyPassToNode(n->branch.condition, code, pass, parse, errorState);
+      ApplyPassToNode(n->branch.thenCode, code, pass, parse, errorState);
 
-      if (n->ifThing.elseCode)
+      if (n->branch.elseCode)
       {
-        ApplyPassToNode(n->ifThing.elseCode, code, pass, parse, errorState);
+        ApplyPassToNode(n->branch.elseCode, code, pass, parse, errorState);
       }
     } break;
 
@@ -441,6 +444,8 @@ const char* GetNodeName(node_type type)
       return "CONDITION_NODE";
     case IF_NODE:
       return "IF_NODE";
+    case TERNARY_NODE:
+      return "TERNARY_NODE";
     case WHILE_NODE:
       return "WHILE_NODE";
     case NUMBER_CONSTANT_NODE:
@@ -606,6 +611,11 @@ void OutputDOTOfAST(thing_of_code* code)
         } break;
 
         case IF_NODE:
+        {
+          // TODO
+        } break;
+
+        case TERNARY_NODE:
         {
           // TODO
         } break;

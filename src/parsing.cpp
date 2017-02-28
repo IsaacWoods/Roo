@@ -34,25 +34,10 @@ static inline char* GetTextFromToken(roo_parser& parser, const token& tkn)
       {
         switch (*(++c))
         {
-          case '0':
-          {
-            text[i++] = '\0';
-          } break;
-
-          case 'n':
-          {
-            text[i++] = '\n';
-          } break;
-
-          case 't':
-          {
-            text[i++] = '\t';
-          } break;
-
-          case '\\':
-          {
-            text[i++] = '\\';
-          } break;
+          case '0':   text[i++] = '\0'; break;
+          case 'n':   text[i++] = '\n'; break;
+          case 't':   text[i++] = '\t'; break;
+          case '\\':  text[i++] = '\\'; break;
 
           default:
           {
@@ -120,7 +105,7 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-#if 1
+#if 0
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -841,6 +826,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
   }
 
   node* expression = prefixParselet(parser);
+  Log(parser, "Infix consideration: %s\n", GetTokenName(PeekToken(parser, false).type));
 
   while (precedence < g_precedenceTable[PeekToken(parser, false).type])
   {
@@ -1046,6 +1032,7 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
       {
         case VARIABLE_ASSIGN_NODE:
         case CALL_NODE:
+        case TERNARY_NODE:
         {
         } break;
 
@@ -1341,6 +1328,7 @@ static void InitParseletMaps()
   };
   
   g_precedenceTable[TOKEN_EQUALS]                 = P_ASSIGNMENT;
+  g_precedenceTable[TOKEN_QUESTION_MARK]          = P_TERNARY;
   g_precedenceTable[TOKEN_PLUS]                   = P_ADDITIVE;
   g_precedenceTable[TOKEN_MINUS]                  = P_ADDITIVE;
   g_precedenceTable[TOKEN_ASTERIX]                = P_MULTIPLICATIVE;
@@ -1368,7 +1356,7 @@ static void InitParseletMaps()
       Log(parser, "--> [PARSELET] Identifier\n");
       char* name = GetTextFromToken(parser, PeekToken(parser));
 
-      NextToken(parser);
+      NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Identifier\n");
       return CreateNode(VARIABLE_NODE, name);
     };
@@ -1378,7 +1366,7 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] Number constant (signed integer)\n");
       int value = PeekToken(parser).asSignedInt;
-      NextToken(parser);
+      NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (signed integer)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::SIGNED_INT, value);
     };
@@ -1388,7 +1376,7 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] Number constant (unsigned integer)\n");
       unsigned int value = PeekToken(parser).asUnsignedInt;
-      NextToken(parser);
+      NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (unsigned integer)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::UNSIGNED_INT, value);
     };
@@ -1398,7 +1386,7 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] Number constant (floating point)\n");
       float value = PeekToken(parser).asFloat;
-      NextToken(parser);
+      NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
       return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::FLOAT, value);
     };
@@ -1408,7 +1396,7 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] String\n");
       char* tokenText = GetTextFromToken(parser, PeekToken(parser));
-      NextToken(parser);
+      NextToken(parser, false);
 
       Log(parser, "<-- [PARSELET] String\n");
       return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
@@ -1455,6 +1443,7 @@ static void InitParseletMaps()
     };
 
   // --- Infix Parselets ---
+  // Parses binary operators
   g_infixMap[TOKEN_PLUS] =
   g_infixMap[TOKEN_MINUS] =
   g_infixMap[TOKEN_ASTERIX] =
@@ -1469,7 +1458,7 @@ static void InitParseletMaps()
       return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, g_precedenceTable[operation]));
     };
 
-  // NOTE(Isaac): these are binary operations that don't have a right side (like increment and decrement)
+  // Parses binary operators that don't take a right side (like increment or decrement)
   g_infixMap[TOKEN_DOUBLE_PLUS] =
   g_infixMap[TOKEN_DOUBLE_MINUS] =
     [](roo_parser& parser, node* left) -> node*
@@ -1482,7 +1471,7 @@ static void InitParseletMaps()
       return CreateNode(BINARY_OP_NODE, operation, left, nullptr);
     };
 
-  // NOTE(Isaac): parses an array index
+  // Parses an array index
   g_infixMap[TOKEN_LEFT_BLOCK] =
     [](roo_parser& parser, node* left) -> node*
     {
@@ -1495,7 +1484,7 @@ static void InitParseletMaps()
       return CreateNode(BINARY_OP_NODE, TOKEN_LEFT_BLOCK, left, indexExpression);
     };
 
-  // NOTE(Isaac): Parses a conditional
+  // Parses a conditional
   g_infixMap[TOKEN_EQUALS_EQUALS]         =
   g_infixMap[TOKEN_BANG_EQUALS]           =
   g_infixMap[TOKEN_GREATER_THAN]          =
@@ -1514,7 +1503,7 @@ static void InitParseletMaps()
       return CreateNode(CONDITION_NODE, condition, left, right);
     };
 
-  // NOTE(Isaac): Parses a function call
+  // Parses a function call
   g_infixMap[TOKEN_LEFT_PAREN] =
     [](roo_parser& parser, node* left) -> node*
     {
@@ -1542,7 +1531,7 @@ static void InitParseletMaps()
       return result;
     };
 
-  // NOTE(Isaac): Parses a member access
+  // Parses a member access
   g_infixMap[TOKEN_DOT] =
     [](roo_parser& parser, node* left) -> node*
     {
@@ -1561,7 +1550,29 @@ static void InitParseletMaps()
       return CreateNode(MEMBER_ACCESS_NODE, left, child);
     };
 
-  // NOTE(Isaac): Parses a variable assignment
+  // Parses a ternary expression
+  g_infixMap[TOKEN_QUESTION_MARK] =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      Log(parser, "--> [PARSELET] Ternary\n");
+      
+      if (left->type != CONDITION_NODE)
+      {
+        RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", GetNodeName(left->type));
+      }
+
+      left->condition.reverseOnJump = true;
+
+      NextToken(parser);
+      node* thenBody = Expression(parser, P_TERNARY-1u);
+      Consume(parser, TOKEN_COLON);
+      node* elseBody = Expression(parser, P_TERNARY-1u);
+
+      Log(parser, "<-- [PARSELET] Ternary\n");
+      return CreateNode(TERNARY_NODE, left, thenBody, elseBody);
+    };
+
+  // Parses a variable assignment
   g_infixMap[TOKEN_EQUALS] =
     [](roo_parser& parser, node* left) -> node*
     {
@@ -1575,7 +1586,7 @@ static void InitParseletMaps()
 
       NextToken(parser);
       // NOTE(Isaac): minus one from the precedence because assignment is right-associative
-      node* expression = Expression(parser, P_ASSIGNMENT - 1u);
+      node* expression = Expression(parser, P_ASSIGNMENT-1u);
 
       Log(parser, "<-- [PARSELET] Variable assignment\n");
       return CreateNode(VARIABLE_ASSIGN_NODE, left, expression, false);

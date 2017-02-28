@@ -15,13 +15,14 @@ enum node_type
   PREFIX_OP_NODE,         // `prefix_op_part`
   VARIABLE_NODE,          // `variable`
   CONDITION_NODE,         // `condition_part`
-  IF_NODE,                // `if_part`
+  IF_NODE,                // `branched_part`
   WHILE_NODE,             // `while_part`
   NUMBER_CONSTANT_NODE,   // `number_constant_part`
   STRING_CONSTANT_NODE,   // `string_constant*`
   CALL_NODE,              // `call_part`
   VARIABLE_ASSIGN_NODE,   // `variable_assign_part`
   MEMBER_ACCESS_NODE,     // `member_access_part`
+  TERNARY_NODE,           // `branched_part`
 
   NUM_AST_NODES
 };
@@ -101,7 +102,7 @@ struct condition_part
   bool        reverseOnJump;
 };
 
-struct if_part
+struct branched_part
 {
   node* condition;
   node* thenCode;
@@ -182,7 +183,7 @@ struct node
     prefix_op_part        prefixOp;
     variable_part         variable;
     condition_part        condition;
-    if_part               ifThing;
+    branched_part         branch;
     while_part            whileThing;
     number_part           numberConstant;
     string_constant*      stringConstant;
