@@ -120,7 +120,7 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-#if 0
+#if 1
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -918,39 +918,21 @@ static node* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = fal
   return code;
 }
 
-static node* Condition(roo_parser& parser, bool reverseOnJump)
-{
-  Log(parser, "--> Condition\n");
-  node* left = Expression(parser);
-
-  token_type condition = PeekToken(parser).type;
-
-  if ((condition != TOKEN_EQUALS_EQUALS)          &&
-      (condition != TOKEN_BANG_EQUALS)            &&
-      (condition != TOKEN_GREATER_THAN)           &&
-      (condition != TOKEN_GREATER_THAN_EQUAL_TO)  &&
-      (condition != TOKEN_LESS_THAN)              &&
-      (condition != TOKEN_LESS_THAN_EQUAL_TO))
-  {
-    RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "condition", GetTokenName(condition));
-  }
-
-  NextToken(parser);
-  node* right = Expression(parser);
-
-  Log(parser, "<-- Condition\n");
-  return CreateNode(CONDITION_NODE, condition, left, right, reverseOnJump);
-}
-
 static node* If(roo_parser& parser, thing_of_code* scope)
 {
   Log(parser, "--> If\n");
 
   Consume(parser, TOKEN_IF);
   Consume(parser, TOKEN_LEFT_PAREN);
-  node* condition = Condition(parser, true);
+  node* condition = Expression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
+  if (condition->type != CONDITION_NODE)
+  {
+    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", GetNodeName(condition->type));
+  }
+
+  condition->condition.reverseOnJump = true;
   node* thenCode = Block(parser, scope);
   node* elseCode = nullptr;
 
@@ -970,8 +952,13 @@ static node* While(roo_parser& parser, thing_of_code* scope)
 
   Consume(parser, TOKEN_WHILE);
   Consume(parser, TOKEN_LEFT_PAREN);
-  node* condition = Condition(parser, false);
+  node* condition = Expression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
+
+  if (condition->type != CONDITION_NODE)
+  {
+    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", GetNodeName(condition->type));
+  }
 
   node* code = Block(parser, scope, true);
 
@@ -1353,20 +1340,26 @@ static void InitParseletMaps()
     P_MEMBER_ACCESS,            // x.y
   };
   
-  g_precedenceTable[TOKEN_EQUALS]       = P_ASSIGNMENT;
-  g_precedenceTable[TOKEN_PLUS]         = P_ADDITIVE;
-  g_precedenceTable[TOKEN_MINUS]        = P_ADDITIVE;
-  g_precedenceTable[TOKEN_ASTERIX]      = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_SLASH]        = P_MULTIPLICATIVE;
-  g_precedenceTable[TOKEN_LEFT_PAREN]   = P_PRIMARY;
-  g_precedenceTable[TOKEN_LEFT_BLOCK]   = P_PRIMARY;
-  g_precedenceTable[TOKEN_DOT]          = P_MEMBER_ACCESS;
-  g_precedenceTable[TOKEN_DOUBLE_PLUS]  = P_PREFIX;
-  g_precedenceTable[TOKEN_DOUBLE_MINUS] = P_PREFIX;
+  g_precedenceTable[TOKEN_EQUALS]                 = P_ASSIGNMENT;
+  g_precedenceTable[TOKEN_PLUS]                   = P_ADDITIVE;
+  g_precedenceTable[TOKEN_MINUS]                  = P_ADDITIVE;
+  g_precedenceTable[TOKEN_ASTERIX]                = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_SLASH]                  = P_MULTIPLICATIVE;
+  g_precedenceTable[TOKEN_LEFT_PAREN]             = P_PRIMARY;
+  g_precedenceTable[TOKEN_LEFT_BLOCK]             = P_PRIMARY;
+  g_precedenceTable[TOKEN_DOT]                    = P_MEMBER_ACCESS;
+  g_precedenceTable[TOKEN_DOUBLE_PLUS]            = P_PREFIX;
+  g_precedenceTable[TOKEN_DOUBLE_MINUS]           = P_PREFIX;
+  g_precedenceTable[TOKEN_EQUALS_EQUALS]          = P_EQUALS_RELATIONAL;
+  g_precedenceTable[TOKEN_BANG_EQUALS]            = P_EQUALS_RELATIONAL;
+  g_precedenceTable[TOKEN_GREATER_THAN]           = P_COMPARATIVE_RELATIONAL;
+  g_precedenceTable[TOKEN_GREATER_THAN_EQUAL_TO]  = P_COMPARATIVE_RELATIONAL;
+  g_precedenceTable[TOKEN_LESS_THAN]              = P_COMPARATIVE_RELATIONAL;
+  g_precedenceTable[TOKEN_LESS_THAN_EQUAL_TO]     = P_COMPARATIVE_RELATIONAL;
 
   // --- Parselets ---
-  memset(g_prefixMap, 0, sizeof(prefix_parselet) * NUM_TOKENS);
-  memset(g_infixMap, 0, sizeof(infix_parselet) * NUM_TOKENS);
+  memset(g_prefixMap, 0, sizeof(prefix_parselet)  * NUM_TOKENS);
+  memset(g_infixMap,  0, sizeof(infix_parselet)   * NUM_TOKENS);
 
   // --- Prefix Parselets
   g_prefixMap[TOKEN_IDENTIFIER] =
@@ -1500,6 +1493,25 @@ static void InitParseletMaps()
 
       Log(parser, "<-- [PARSELET] Array index\n");
       return CreateNode(BINARY_OP_NODE, TOKEN_LEFT_BLOCK, left, indexExpression);
+    };
+
+  // NOTE(Isaac): Parses a conditional
+  g_infixMap[TOKEN_EQUALS_EQUALS]         =
+  g_infixMap[TOKEN_BANG_EQUALS]           =
+  g_infixMap[TOKEN_GREATER_THAN]          =
+  g_infixMap[TOKEN_GREATER_THAN_EQUAL_TO] =
+  g_infixMap[TOKEN_LESS_THAN]             =
+  g_infixMap[TOKEN_LESS_THAN_EQUAL_TO]    =
+    [](roo_parser& parser, node* left) -> node*
+    {
+      Log(parser, "--> [PARSELET] Conditional\n");
+
+      token_type condition = PeekToken(parser).type;
+      NextToken(parser);
+      node* right = Expression(parser, g_precedenceTable[condition]);
+
+      Log(parser, "<-- [PARSELET] Conditional\n");
+      return CreateNode(CONDITION_NODE, condition, left, right);
     };
 
   // NOTE(Isaac): Parses a function call

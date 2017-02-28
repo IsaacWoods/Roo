@@ -49,9 +49,19 @@ fn PrintInt(n : uint, base : uint)
 #[Entry]
 fn Main() -> int
 {
-  str: string = "Hello, World!\n"
-  c: char = str[0u]
-  Print(str)
+//  (10u > 5u ? Print("True!\n") : Print("False :(\n"))
+
+  // NOTE(Isaac): we need to constant-fold these conditions, because x86 doesn't have an instruction to compare
+  // two immediates
+  i : uint = 2u
+  if (i > 5u)
+  {
+    Print("Yaayyy\n")
+  }
+  else
+  {
+    Print("Nahhh :(\n")
+  }
 
   return 0
 }

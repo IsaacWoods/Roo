@@ -11,12 +11,12 @@ enum node_type
 {
   BREAK_NODE,             // Nothing
   RETURN_NODE,            // Nothing or `expression` (can be nullptr)
-  BINARY_OP_NODE,         // `binary_op_node_part`
-  PREFIX_OP_NODE,         // `prefix_op_node_part`
+  BINARY_OP_NODE,         // `binary_op_part`
+  PREFIX_OP_NODE,         // `prefix_op_part`
   VARIABLE_NODE,          // `variable`
-  CONDITION_NODE,         // `condition_node_part`
-  IF_NODE,                // `if_node_part`
-  WHILE_NODE,             // `while_node_part`
+  CONDITION_NODE,         // `condition_part`
+  IF_NODE,                // `if_part`
+  WHILE_NODE,             // `while_part`
   NUMBER_CONSTANT_NODE,   // `number_constant_part`
   STRING_CONSTANT_NODE,   // `string_constant*`
   CALL_NODE,              // `call_part`
