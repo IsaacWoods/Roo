@@ -12,6 +12,10 @@
 #include <error.hpp>
 #include <scheduler.hpp>
 
+// AST Passes
+#include <pass_resolveVars.hpp>
+#include <pass_typeChecker.hpp>
+
 #if 1
   #define TIME_EXECUTION
   #include <chrono>
@@ -105,6 +109,18 @@ int main()
   }
 
   CompleteIR(result);
+
+  // --- Apply AST Passes ---
+  bool failedToApplyASTPasses = false;
+  #define APPLY_PASS(passName) failedToApplyASTPasses |= !(ApplyASTPass(result, passName));
+  APPLY_PASS(PASS_resolveVars);
+  APPLY_PASS(PASS_typeChecker);
+  #undef APPLY_PASS
+
+  if (failedToApplyASTPasses)
+  {
+    RaiseError(errorState, ERROR_COMPILE_ERRORS);
+  }
 
   #ifdef OUTPUT_DOT
   for (auto* it = result.codeThings.head;

@@ -18,14 +18,12 @@ void InitResolveVarsPass()
   PASS_resolveVars.iteratePolicy = CHILDREN_FIRST;
 
   PASS_resolveVars.f[VARIABLE_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* code, node* n)
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* code, node* n)
     {
       if (n->variable.isResolved)
       {
         return;
       }
-
-      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
 
       for (auto* it = code->locals.head;
            it < code->locals.tail;
@@ -57,15 +55,14 @@ void InitResolveVarsPass()
         }
       }
 
-      RaiseError(state, ERROR_UNDEFINED_VARIABLE, n->variable.name);
+      RaiseError(errorState, ERROR_UNDEFINED_VARIABLE, n->variable.name);
     };
 
   PASS_resolveVars.f[MEMBER_ACCESS_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* code, node* n)
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
-      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
-
       type_def* parentType = nullptr;
+
       switch (n->memberAccess.parent->type)
       {
         case VARIABLE_NODE:
@@ -84,13 +81,13 @@ void InitResolveVarsPass()
 
         default:
         {
-          RaiseError(state, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(parent)");
+          RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(parent)");
         } break;
       }
 
       if (n->memberAccess.child->type != VARIABLE_NODE)
       {
-        RaiseError(state, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(child)");
+        RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(child)");
       }
       
       assert(!(n->memberAccess.child->variable.isResolved));
@@ -110,6 +107,6 @@ void InitResolveVarsPass()
         }
       }
 
-      RaiseError(state, ERROR_MEMBER_NOT_FOUND, childName, parentType->name);
+      RaiseError(errorState, ERROR_MEMBER_NOT_FOUND, childName, parentType->name);
     };
 }

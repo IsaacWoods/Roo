@@ -8,12 +8,8 @@
 #include <cstring>
 #include <cstdarg>
 #include <common.hpp>
-#include <ast.hpp>
+//#include <ast.hpp>
 #include <air.hpp>
-
-// AST Passes
-#include <pass_resolveVars.hpp>
-#include <pass_typeChecker.hpp>
 
 template<>
 void Free<live_range>(live_range& /*range*/)
@@ -588,8 +584,4 @@ void CompleteIR(parse_result& parse)
   {
     CalculateSizeOfType(*typeIt);
   }
-
-  // --- Apply AST Passes ---
-  ApplyASTPass(parse, PASS_resolveVars);
-  ApplyASTPass(parse, PASS_typeChecker);
 }

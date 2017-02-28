@@ -27,7 +27,7 @@ enum node_type
 };
 
 struct node;
-typedef void(*ast_passlet)(parse_result&, thing_of_code*, node*);
+typedef void(*ast_passlet)(parse_result&, error_state&, thing_of_code*, node*);
 
 enum ast_iterate_policy
 {
@@ -194,7 +194,7 @@ struct node
 
 const char* GetNodeName(node_type type);
 node* CreateNode(node_type type, ...);
-void ApplyASTPass(parse_result& parse, ast_pass& pass);
+bool ApplyASTPass(parse_result& parse, ast_pass& pass);
 
 #ifdef OUTPUT_DOT
 void OutputDOTOfAST(thing_of_code* code);

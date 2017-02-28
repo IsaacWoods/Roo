@@ -265,7 +265,7 @@ void Free<node*>(node*& n)
   free(n);
 }
 
-static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse)
+static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse, error_state& errorState)
 {
   assert(n->type);
 
@@ -273,7 +273,7 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
   {
     if (pass.f[n->type])
     {
-      (*pass.f[n->type])(parse, code, n);
+      (*pass.f[n->type])(parse, errorState, code, n);
     }
   }
 
@@ -288,24 +288,24 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
     {
       if (n->expression)
       {
-        ApplyPassToNode(n->expression, code, pass, parse);
+        ApplyPassToNode(n->expression, code, pass, parse, errorState);
       }
     } break;
 
     case BINARY_OP_NODE:
     {
-      ApplyPassToNode(n->binaryOp.left, code, pass, parse);
+      ApplyPassToNode(n->binaryOp.left, code, pass, parse, errorState);
       
       if (n->binaryOp.op != TOKEN_DOUBLE_PLUS &&
           n->binaryOp.op != TOKEN_DOUBLE_MINUS)
       {
-        ApplyPassToNode(n->binaryOp.right, code, pass, parse);
+        ApplyPassToNode(n->binaryOp.right, code, pass, parse, errorState);
       }
     } break;
 
     case PREFIX_OP_NODE:
     {
-      ApplyPassToNode(n->prefixOp.right, code, pass, parse);
+      ApplyPassToNode(n->prefixOp.right, code, pass, parse, errorState);
     } break;
 
     case VARIABLE_NODE:
@@ -314,25 +314,25 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
 
     case CONDITION_NODE:
     {
-      ApplyPassToNode(n->condition.left, code, pass, parse);
-      ApplyPassToNode(n->condition.right, code, pass, parse);
+      ApplyPassToNode(n->condition.left, code, pass, parse, errorState);
+      ApplyPassToNode(n->condition.right, code, pass, parse, errorState);
     } break;
 
     case IF_NODE:
     {
-      ApplyPassToNode(n->ifThing.condition, code, pass, parse);
-      ApplyPassToNode(n->ifThing.thenCode, code, pass, parse);
+      ApplyPassToNode(n->ifThing.condition, code, pass, parse, errorState);
+      ApplyPassToNode(n->ifThing.thenCode, code, pass, parse, errorState);
 
       if (n->ifThing.elseCode)
       {
-        ApplyPassToNode(n->ifThing.elseCode, code, pass, parse);
+        ApplyPassToNode(n->ifThing.elseCode, code, pass, parse, errorState);
       }
     } break;
 
     case WHILE_NODE:
     {
-      ApplyPassToNode(n->whileThing.condition, code, pass, parse);
-      ApplyPassToNode(n->whileThing.code, code, pass, parse);
+      ApplyPassToNode(n->whileThing.condition, code, pass, parse, errorState);
+      ApplyPassToNode(n->whileThing.code, code, pass, parse, errorState);
     } break;
 
     case NUMBER_CONSTANT_NODE:
@@ -349,31 +349,30 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
            it < n->call.params.tail;
            it++)
       {
-        ApplyPassToNode(*it, code, pass, parse);
+        ApplyPassToNode(*it, code, pass, parse, errorState);
       }
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      ApplyPassToNode(n->variableAssignment.variable, code, pass, parse);
-      ApplyPassToNode(n->variableAssignment.newValue, code, pass, parse);
+      ApplyPassToNode(n->variableAssignment.variable, code, pass, parse, errorState);
+      ApplyPassToNode(n->variableAssignment.newValue, code, pass, parse, errorState);
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
-      ApplyPassToNode(n->memberAccess.parent, code, pass, parse);
+      ApplyPassToNode(n->memberAccess.parent, code, pass, parse, errorState);
 
       // NOTE(Isaac): we don't want to resolve inner variable defs (because they can't be resolved)
       if (n->memberAccess.child->type == MEMBER_ACCESS_NODE)
       {
-        ApplyPassToNode(n->memberAccess.child, code, pass, parse);
+        ApplyPassToNode(n->memberAccess.child, code, pass, parse, errorState);
       }
     } break;
 
-    case NUM_AST_NODES:
+    default:
     {
-      fprintf(stderr, "ICE: Node of type NUM_AST_NODES actually in the AST!\n");
-      Crash();
+      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(n->type));
     } break;
   }
 
@@ -381,35 +380,47 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
   {
     if (pass.f[n->type])
     {
-      (*pass.f[n->type])(parse, code, n);
+      (*pass.f[n->type])(parse, errorState, code, n);
     }
   }
 
   // Apply to next node
   if (n->next)
   {
-    ApplyPassToNode(n->next, code, pass, parse);
+    ApplyPassToNode(n->next, code, pass, parse, errorState);
   }
 }
 
-void ApplyASTPass(parse_result& parse, ast_pass& pass)
+/*
+ * Applies an AST pass to the entire AST.
+ * Returns whether applying the pass was successful or not.
+ */
+bool ApplyASTPass(parse_result& parse, ast_pass& pass)
 {
   for (auto* it = parse.codeThings.head;
        it < parse.codeThings.tail;
        it++)
   {
-    thing_of_code* thing = *it;
+    thing_of_code* code = *it;
 
-    if (thing->attribs.isPrototype)
+    if (code->attribs.isPrototype)
     {
       continue;
     }
 
-    if (thing->ast)
+    if (code->ast)
     {
-      ApplyPassToNode(thing->ast, thing, pass, parse);
+      error_state errorState = CreateErrorState(TRAVERSING_AST, code, code->ast);
+      ApplyPassToNode(code->ast, code, pass, parse, errorState);
+
+      if (errorState.hasErrored)
+      {
+        return false;
+      }
     }
   }
+
+  return true;
 }
 
 const char* GetNodeName(node_type type)

@@ -21,7 +21,7 @@ void InitTypeCheckerPass()
   PASS_typeChecker.iteratePolicy = CHILDREN_FIRST;
 
   PASS_typeChecker.f[VARIABLE_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& /*parse*/, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
       assert(n->variable.isResolved);
       assert(n->variable.var->type.isResolved);
@@ -30,7 +30,7 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[MEMBER_ACCESS_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& /*parse*/, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
       assert(n->memberAccess.isResolved);
       n->typeRef = &(n->memberAccess.member->type);
@@ -38,7 +38,7 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[NUMBER_CONSTANT_NODE] =
-    [](parse_result& parse, thing_of_code* /*code*/, node* n)
+    [](parse_result& parse, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
       n->shouldFreeTypeRef = true;
       n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
@@ -56,7 +56,7 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[STRING_CONSTANT_NODE] =
-    [](parse_result& parse, thing_of_code* /*code*/, node* n)
+    [](parse_result& parse, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
       n->shouldFreeTypeRef = true;
       n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
@@ -68,11 +68,10 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[CALL_NODE] =
-    [](parse_result& parse, thing_of_code* code, node* n)
+    [](parse_result& parse, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
       // --- First, we resolve the function call to the actual `thing_of_code` being called ---
       assert(!n->call.isResolved);
-      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
 
       for (auto* it = parse.codeThings.head;
            it < parse.codeThings.tail;
@@ -97,7 +96,7 @@ void InitTypeCheckerPass()
 
       if (!(n->call.isResolved))
       {
-        RaiseError(state, ERROR_UNDEFINED_FUNCTION, n->call.name);
+        RaiseError(errorState, ERROR_UNDEFINED_FUNCTION, n->call.name);
         return;
       }
 
@@ -107,9 +106,8 @@ void InitTypeCheckerPass()
     };
 
   PASS_typeChecker.f[VARIABLE_ASSIGN_NODE] =
-    [](parse_result& /*parse*/, thing_of_code* code, node* n)
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
-      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
       // This complains if we are assigning to a immutable variable
       {
         if (n->variableAssignment.ignoreImmutability)
@@ -134,7 +132,7 @@ void InitTypeCheckerPass()
   
         if (!(variable->type.isMutable))
         {
-          RaiseError(state, ERROR_ASSIGN_TO_IMMUTABLE, variable->name);
+          RaiseError(errorState, ERROR_ASSIGN_TO_IMMUTABLE, variable->name);
         }
       }
 
@@ -153,16 +151,15 @@ void InitTypeCheckerPass()
         if (varType->def != newValueType->def)
         {
           char* varTypeString = TypeRefToString(varType);
-          RaiseError(state, ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varTypeString);
+          RaiseError(errorState, ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varTypeString);
           free(varTypeString);
         }
       }
     };
 
   PASS_typeChecker.f[BINARY_OP_NODE] =
-    [](parse_result& parse, thing_of_code* code, node* n)
+    [](parse_result& parse, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
-      error_state state = CreateErrorState(TRAVERSING_AST, code, n);
       // For operators that change the variable, check that they're mutable
       {
         if (n->binaryOp.op == TOKEN_DOUBLE_PLUS ||
@@ -185,7 +182,7 @@ void InitTypeCheckerPass()
     
           if (!(variable->type.isMutable))
           {
-            RaiseError(state, ERROR_OPERATE_UPON_IMMUTABLE, variable->name);
+            RaiseError(errorState, ERROR_OPERATE_UPON_IMMUTABLE, variable->name);
           }
         }
       }
@@ -244,7 +241,7 @@ void InitTypeCheckerPass()
           {
             char* aString = TypeRefToString(a);
             char* bString = TypeRefToString(b);
-            RaiseError(state, ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), aString, bString);
+            RaiseError(errorState, ERROR_MISSING_OPERATOR, GetTokenName(n->binaryOp.op), aString, bString);
             free(aString);
             free(bString);
           }
