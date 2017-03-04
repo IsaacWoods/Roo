@@ -47,7 +47,7 @@ void InitTypeCheckerPass()
       n->typeRef->isReference = false;
       n->typeRef->isReferenceMutable = false;
 
-      switch (n->numberConstant.type)
+      switch (n->number.type)
       {
         case number_part::constant_type::SIGNED_INT:   n->typeRef->def = GetTypeByName(parse, "int");   break;
         case number_part::constant_type::UNSIGNED_INT: n->typeRef->def = GetTypeByName(parse, "uint");  break;

@@ -8,7 +8,7 @@ highlight link rooKeyword Keyword
 syntax keyword rooBools true false
 highlight link rooBools Boolean
 
-syntax match rooNumber display contained "\d\+\(u\=l\{0,2}\|ll\=u\)\>"
+syntax match rooNumber display contained '\d\+' containedin=ALL
 highlight def link rooNumber Number
 
 syntax region rooString start='"' end='"' contained

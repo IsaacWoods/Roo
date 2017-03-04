@@ -46,23 +46,14 @@ fn PrintInt(n : uint, base : uint)
 }
 */
 
+#[Prototype]
+operator +(a : uint, b : uint) -> uint
+
 #[Entry]
 fn Main() -> int
 {
-  i : uint = 1u
-  (i > 5u ? Print("True!\n") : Print("False :(\n"))
-/*
-  // NOTE(Isaac): we need to constant-fold these conditions, because x86 doesn't have an instruction to compare
-  // two immediates
-  i : uint = 2u
-  if (i > 5u)
-  {
-    Print("Yaayyy\n")
-  }
-  else
-  {
-    Print("Nahhh :(\n")
-  }*/
+  a : uint = 6u + 4u
+  (10u > 5u ? Print("True!\n") : Print("False :(\n"))
 
   return 0
 }

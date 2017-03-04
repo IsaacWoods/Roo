@@ -66,9 +66,9 @@ node* CreateNode(node_type type, ...)
     case IF_NODE:
     case TERNARY_NODE:
     {
-      result->branch.condition                 = va_arg(args, node*);
-      result->branch.thenCode                  = va_arg(args, node*);
-      result->branch.elseCode                  = va_arg(args, node*);
+      result->branch.condition                  = va_arg(args, node*);
+      result->branch.thenCode                   = va_arg(args, node*);
+      result->branch.elseCode                   = va_arg(args, node*);
     } break;
 
     case WHILE_NODE:
@@ -79,56 +79,51 @@ node* CreateNode(node_type type, ...)
 
     case NUMBER_CONSTANT_NODE:
     {
-      result->numberConstant.type               = static_cast<number_part::constant_type>(va_arg(args, int));
+      result->number.type                       = static_cast<number_part::constant_type>(va_arg(args, int));
 
-      switch (result->numberConstant.type)
+      switch (result->number.type)
       {
         case number_part::constant_type::SIGNED_INT:
         {
-          result->numberConstant.asSignedInt    = va_arg(args, int);
+          result->number.asSignedInt            = va_arg(args, int);
         } break;
 
         case number_part::constant_type::UNSIGNED_INT:
         {
-          result->numberConstant.asUnsignedInt  = va_arg(args, unsigned int);
+          result->number.asUnsignedInt          = va_arg(args, unsigned int);
         } break;
 
         case number_part::constant_type::FLOAT:
         {
-          result->numberConstant.asFloat        = static_cast<float>(va_arg(args, double));
-        } break;
-
-        default:
-        {
-          RaiseError(errorState, ICE_GENERIC, "Unhandled number constant node in CreateNode");
+          result->number.asFloat                = static_cast<float>(va_arg(args, double));
         } break;
       }
     } break;
 
     case STRING_CONSTANT_NODE:
     {
-      result->stringConstant                  = va_arg(args, string_constant*);
+      result->string                            = va_arg(args, string_constant*);
     } break;
 
     case CALL_NODE:
     {
-      result->call.name                       = va_arg(args, char*);
-      result->call.isResolved                 = false;
+      result->call.name                         = va_arg(args, char*);
+      result->call.isResolved                   = false;
       InitVector<node*>(result->call.params);
     } break;
 
     case VARIABLE_ASSIGN_NODE:
     {
-      result->variableAssignment.variable     = va_arg(args, node*);
-      result->variableAssignment.newValue     = va_arg(args, node*);
+      result->variableAssignment.variable       = va_arg(args, node*);
+      result->variableAssignment.newValue       = va_arg(args, node*);
       result->variableAssignment.ignoreImmutability = static_cast<bool>(va_arg(args, int));
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
-      result->memberAccess.parent             = va_arg(args, node*);
-      result->memberAccess.child              = va_arg(args, node*);
-      result->memberAccess.isResolved         = false;
+      result->memberAccess.parent               = va_arg(args, node*);
+      result->memberAccess.child                = va_arg(args, node*);
+      result->memberAccess.isResolved           = false;
     } break;
 
     default:
@@ -635,28 +630,28 @@ void OutputDOTOfAST(thing_of_code* code)
 
         case NUMBER_CONSTANT_NODE:
         {
-          switch (n->numberConstant.type)
+          switch (n->number.type)
           {
             case number_part::constant_type::SIGNED_INT:
             {
-              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->numberConstant.asSignedInt);
+              fprintf(f, "\t%s[label=\"%d\"];\n", name, n->number.asSignedInt);
             } break;
 
             case number_part::constant_type::UNSIGNED_INT:
             {
-              fprintf(f, "\t%s[label=\"%u\"];\n", name, n->numberConstant.asUnsignedInt);
+              fprintf(f, "\t%s[label=\"%u\"];\n", name, n->number.asUnsignedInt);
             } break;
 
             case number_part::constant_type::FLOAT:
             {
-              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->numberConstant.asFloat);
+              fprintf(f, "\t%s[label=\"%f\"];\n", name, n->number.asFloat);
             } break;
           }
         } break;
 
         case STRING_CONSTANT_NODE:
         {
-          fprintf(f, "\t%s[label=\"\\\"%s\\\"\"];\n", name, n->stringConstant->string);
+          fprintf(f, "\t%s[label=\"\\\"%s\\\"\"];\n", name, n->string->string);
         } break;
 
         case CALL_NODE:

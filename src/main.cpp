@@ -15,6 +15,7 @@
 // AST Passes
 #include <pass_resolveVars.hpp>
 #include <pass_typeChecker.hpp>
+#include <pass_constantFolder.hpp>
 
 #if 1
   #define TIME_EXECUTION
@@ -115,6 +116,7 @@ int main()
   #define APPLY_PASS(passName) failedToApplyASTPasses |= !(ApplyASTPass(result, passName));
   APPLY_PASS(PASS_resolveVars);
   APPLY_PASS(PASS_typeChecker);
+  APPLY_PASS(PASS_constantFolder);
   #undef APPLY_PASS
 
   if (failedToApplyASTPasses)

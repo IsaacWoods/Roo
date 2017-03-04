@@ -266,7 +266,7 @@ enum class i
  * A ModR/M byte is used to encode how an opcode's instructions are laid out. It is optionally accompanied
  * by an SIB byte, a one-byte or four-byte displacement and/or a four-byte immediate value.
  *
- * 7                               0
+ * 7       5           2           0
  * +---+---+---+---+---+---+---+---+
  * |  mod  |    reg    |    r/m    |
  * +---+---+---+---+---+---+---+---+

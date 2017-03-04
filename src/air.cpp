@@ -289,28 +289,28 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 
     case NUMBER_CONSTANT_NODE:
     {
-      switch (n->numberConstant.type)
+      switch (n->number.type)
       {
         case number_part::constant_type::SIGNED_INT:
         {
-          return CreateSlot(target, code, slot_type::SIGNED_INT_CONSTANT, n->numberConstant.asSignedInt);
+          return CreateSlot(target, code, slot_type::SIGNED_INT_CONSTANT, n->number.asSignedInt);
         } break;
 
         case number_part::constant_type::UNSIGNED_INT:
         {
-          return CreateSlot(target, code, slot_type::UNSIGNED_INT_CONSTANT, n->numberConstant.asUnsignedInt);
+          return CreateSlot(target, code, slot_type::UNSIGNED_INT_CONSTANT, n->number.asUnsignedInt);
         } break;
 
         case number_part::constant_type::FLOAT:
         {
-          return CreateSlot(target, code, slot_type::FLOAT_CONSTANT, n->numberConstant.asFloat);
+          return CreateSlot(target, code, slot_type::FLOAT_CONSTANT, n->number.asFloat);
         } break;
       }
     };
 
     case STRING_CONSTANT_NODE:
     {
-      return CreateSlot(target, code, slot_type::STRING_CONSTANT, n->stringConstant);
+      return CreateSlot(target, code, slot_type::STRING_CONSTANT, n->string);
     } break;
 
     default:

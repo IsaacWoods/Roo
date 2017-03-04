@@ -17,7 +17,7 @@ enum node_type
   CONDITION_NODE,         // `condition_part`
   IF_NODE,                // `branched_part`
   WHILE_NODE,             // `while_part`
-  NUMBER_CONSTANT_NODE,   // `number_constant_part`
+  NUMBER_CONSTANT_NODE,   // `number_part`
   STRING_CONSTANT_NODE,   // `string_constant*`
   CALL_NODE,              // `call_part`
   VARIABLE_ASSIGN_NODE,   // `variable_assign_part`
@@ -185,8 +185,8 @@ struct node
     condition_part        condition;
     branched_part         branch;
     while_part            whileThing;
-    number_part           numberConstant;
-    string_constant*      stringConstant;
+    number_part           number;
+    string_constant*      string;
     call_part             call;
     variable_assign_part  variableAssignment;
     member_access_part    memberAccess;
