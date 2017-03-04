@@ -167,7 +167,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node*
  * PREFIX_OP_NODE:          `slot_def*
  * VARIABLE_NAME:           `slot_def*
  * CONDITION_NODE:          `jump_instruction::condition
- * IF_NODE:                 `Nothing
+ * BRANCH_NODE:             `Nothing    `slot_def*
  * NUMBER_NODE:             `slot_def*
  * STRING_CONSTANT_NODE:    `
  * FUNCTION_CALL_NODE:      `slot_def*  `Nothing
@@ -233,7 +233,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
       return result;
     } break;
 
-    case TERNARY_NODE:
+    case BRANCH_NODE:
     {
       assert(n->branch.condition->type == CONDITION_NODE);
       assert(n->branch.condition->condition.reverseOnJump);
@@ -460,8 +460,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
       GenCall(target, code, n);
     } break;
 
-    case IF_NODE:
-    case TERNARY_NODE:
+    case BRANCH_NODE:
     {
       assert(n->branch.condition->type == CONDITION_NODE);
       assert(n->branch.condition->condition.reverseOnJump);

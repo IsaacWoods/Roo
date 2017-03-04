@@ -23,7 +23,7 @@ void InitConstantFolderPass()
   PASS_constantFolder.iteratePolicy = CHILDREN_FIRST;
 
   PASS_constantFolder.f[BINARY_OP_NODE] =
-    [](parse_result& /*parse*/, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
       if ((n->binaryOp.left && n->binaryOp.right)         &&
           n->binaryOp.left->type == NUMBER_CONSTANT_NODE  &&
@@ -50,7 +50,6 @@ void InitConstantFolderPass()
 
               default:
               {
-                error_state errorState = CreateErrorState(GENERAL_STUFF);
                 RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(oldNode.type));
               } break;
               #undef DO_OP
@@ -69,7 +68,6 @@ void InitConstantFolderPass()
 
               default:
               {
-                error_state errorState = CreateErrorState(GENERAL_STUFF);
                 RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(oldNode.type));
               } break;
               #undef DO_OP
@@ -88,7 +86,6 @@ void InitConstantFolderPass()
 
               default:
               {
-                error_state errorState = CreateErrorState(GENERAL_STUFF);
                 RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(oldNode.type));
               } break;
               #undef DO_OP
@@ -101,13 +98,100 @@ void InitConstantFolderPass()
       }
     };
 
-  PASS_constantFolder.f[CONDITION_NODE] =
-    [](parse_result& /*parse*/, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
+  PASS_constantFolder.f[BRANCH_NODE] =
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
-      if (n->condition.left->type != NUMBER_CONSTANT_NODE ||
-          n->condition.right->type != NUMBER_CONSTANT_NODE)
+      condition_part& condition = n->branch.condition->condition;
+
+      if (condition.left->type != NUMBER_CONSTANT_NODE ||
+          condition.right->type != NUMBER_CONSTANT_NODE)
       {
         return;
+      }
+
+      number_part& left = condition.left->number;
+      number_part& right = condition.right->number;
+      assert(left.type == right.type);
+
+      bool comparisonResult;
+
+      switch (left.type)
+      {
+        case number_part::constant_type::SIGNED_INT:
+        {
+          #define DO_COMPARE(op) comparisonResult = (left.asSignedInt op right.asSignedInt);
+          switch (condition.condition)
+          {
+            case TOKEN_EQUALS_EQUALS:         DO_COMPARE(==); break;
+            case TOKEN_BANG_EQUALS:           DO_COMPARE(!=); break;
+            case TOKEN_GREATER_THAN:          DO_COMPARE(>);  break;
+            case TOKEN_GREATER_THAN_EQUAL_TO: DO_COMPARE(>=); break;
+            case TOKEN_LESS_THAN:             DO_COMPARE(<);  break;
+            case TOKEN_LESS_THAN_EQUAL_TO:    DO_COMPARE(<=); break;
+
+            default:
+            {
+              RaiseError(errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(condition.condition), "PASS_constantFolder::CONDITION_NODE");
+            } break;
+          }
+          #undef DO_COMPARE
+        } break;
+
+        case number_part::constant_type::UNSIGNED_INT:
+        {
+          #define DO_COMPARE(op) comparisonResult = (left.asUnsignedInt op right.asUnsignedInt);
+          switch (condition.condition)
+          {
+            case TOKEN_EQUALS_EQUALS:         DO_COMPARE(==); break;
+            case TOKEN_BANG_EQUALS:           DO_COMPARE(!=); break;
+            case TOKEN_GREATER_THAN:          DO_COMPARE(>);  break;
+            case TOKEN_GREATER_THAN_EQUAL_TO: DO_COMPARE(>=); break;
+            case TOKEN_LESS_THAN:             DO_COMPARE(<);  break;
+            case TOKEN_LESS_THAN_EQUAL_TO:    DO_COMPARE(<=); break;
+
+            default:
+            {
+              RaiseError(errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(condition.condition), "PASS_constantFolder::CONDITION_NODE");
+            } break;
+          }
+          #undef DO_COMPARE
+        } break;
+
+        case number_part::constant_type::FLOAT:
+        {
+          #define DO_COMPARE(op) comparisonResult = (left.asFloat op right.asFloat);
+          switch (condition.condition)
+          {
+            case TOKEN_EQUALS_EQUALS:         DO_COMPARE(==); break;
+            case TOKEN_BANG_EQUALS:           DO_COMPARE(!=); break;
+            case TOKEN_GREATER_THAN:          DO_COMPARE(>);  break;
+            case TOKEN_GREATER_THAN_EQUAL_TO: DO_COMPARE(>=); break;
+            case TOKEN_LESS_THAN:             DO_COMPARE(<);  break;
+            case TOKEN_LESS_THAN_EQUAL_TO:    DO_COMPARE(<=); break;
+
+            default:
+            {
+              RaiseError(errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(condition.condition), "PASS_constantFolder::CONDITION_NODE");
+            } break;
+          }
+          #undef DO_COMPARE
+        } break;
+      }
+
+      node oldN = *n;
+      Free<node*>(oldN.branch.condition);
+
+      if (comparisonResult)
+      {
+        *n = *(oldN.branch.thenCode);
+        n->next = oldN.next;
+        Free<node*>(oldN.branch.elseCode);
+      }
+      else
+      {
+        *n = *(oldN.branch.elseCode);
+        n->next = oldN.next;
+        Free<node*>(oldN.branch.thenCode);
       }
     };
 }

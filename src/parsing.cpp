@@ -929,7 +929,7 @@ static node* If(roo_parser& parser, thing_of_code* scope)
   }
 
   Log(parser, "<-- If\n");
-  return CreateNode(IF_NODE, condition, thenCode, elseCode);
+  return CreateNode(BRANCH_NODE, condition, thenCode, elseCode);
 }
 
 static node* While(roo_parser& parser, thing_of_code* scope)
@@ -1032,7 +1032,7 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
       {
         case VARIABLE_ASSIGN_NODE:
         case CALL_NODE:
-        case TERNARY_NODE:
+        case BRANCH_NODE:
         {
         } break;
 
@@ -1569,7 +1569,7 @@ static void InitParseletMaps()
       node* elseBody = Expression(parser, P_TERNARY-1u);
 
       Log(parser, "<-- [PARSELET] Ternary\n");
-      return CreateNode(TERNARY_NODE, left, thenBody, elseBody);
+      return CreateNode(BRANCH_NODE, left, thenBody, elseBody);
     };
 
   // Parses a variable assignment

@@ -63,8 +63,7 @@ node* CreateNode(node_type type, ...)
       result->condition.reverseOnJump           = false;
     } break;
 
-    case IF_NODE:
-    case TERNARY_NODE:
+    case BRANCH_NODE:
     {
       result->branch.condition                  = va_arg(args, node*);
       result->branch.thenCode                   = va_arg(args, node*);
@@ -194,8 +193,7 @@ void Free<node*>(node*& n)
       Free<node*>(n->condition.right);
     } break;
 
-    case IF_NODE:
-    case TERNARY_NODE:
+    case BRANCH_NODE:
     {
       Free<node*>(n->branch.condition);
       Free<node*>(n->branch.thenCode);
@@ -315,8 +313,7 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
       ApplyPassToNode(n->condition.right, code, pass, parse, errorState);
     } break;
 
-    case IF_NODE:
-    case TERNARY_NODE:
+    case BRANCH_NODE:
     {
       ApplyPassToNode(n->branch.condition, code, pass, parse, errorState);
       ApplyPassToNode(n->branch.thenCode, code, pass, parse, errorState);
@@ -437,10 +434,8 @@ const char* GetNodeName(node_type type)
       return "VARIABLE_NODE";
     case CONDITION_NODE:
       return "CONDITION_NODE";
-    case IF_NODE:
-      return "IF_NODE";
-    case TERNARY_NODE:
-      return "TERNARY_NODE";
+    case BRANCH_NODE:
+      return "BRANCH_NODE";
     case WHILE_NODE:
       return "WHILE_NODE";
     case NUMBER_CONSTANT_NODE:
@@ -605,14 +600,24 @@ void OutputDOTOfAST(thing_of_code* code)
           free(rightName);
         } break;
 
-        case IF_NODE:
+        case BRANCH_NODE:
         {
-          // TODO
-        } break;
+          fprintf(f, "\t%s[label=\"If\"];\n", name);
 
-        case TERNARY_NODE:
-        {
-          // TODO
+          char* conditionName = emitNode(f, n->branch.condition);
+          fprintf(f, "\t%s -> %s;\n", name, conditionName);
+          free(conditionName);
+
+          char* thenName = emitNode(f, n->branch.thenCode);
+          fprintf(f, "\t%s -> %s;\n", name, thenName);
+          free(thenName);
+
+          if (n->branch.elseCode)
+          {
+            char* elseName = emitNode(f, n->branch.elseCode);
+            fprintf(f, "\t%s -> %s;\n", name, elseName);
+            free(elseName);
+          }
         } break;
 
         case WHILE_NODE:
