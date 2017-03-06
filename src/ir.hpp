@@ -147,7 +147,7 @@ struct type_ref
   union
   {
     char*     name;
-    type_def* def;
+    type_def* def;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
   };
 
   bool isResolved;

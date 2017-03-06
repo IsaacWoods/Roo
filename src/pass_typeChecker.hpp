@@ -40,12 +40,15 @@ void InitTypeCheckerPass()
   PASS_typeChecker.f[NUMBER_CONSTANT_NODE] =
     [](parse_result& parse, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
-      n->shouldFreeTypeRef = true;
-      n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-      n->typeRef->isResolved = true;
-      n->typeRef->isMutable = false;
-      n->typeRef->isReference = false;
-      n->typeRef->isReferenceMutable = false;
+      n->shouldFreeTypeRef            = true;
+      n->typeRef                      = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+      n->typeRef->isResolved          = true;
+      n->typeRef->isMutable           = false;
+      n->typeRef->isReference         = false;
+      n->typeRef->isReferenceMutable  = false;
+      n->typeRef->isArray             = false;
+      n->typeRef->isArraySizeResolved = false;
+      n->typeRef->arraySizeExpression = nullptr;
 
       switch (n->number.type)
       {
@@ -58,13 +61,57 @@ void InitTypeCheckerPass()
   PASS_typeChecker.f[STRING_CONSTANT_NODE] =
     [](parse_result& parse, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
-      n->shouldFreeTypeRef = true;
-      n->typeRef = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-      n->typeRef->def = GetTypeByName(parse, "string");
-      n->typeRef->isResolved = true;
-      n->typeRef->isMutable = false;
-      n->typeRef->isReference = false;
-      n->typeRef->isReferenceMutable = false;
+      n->shouldFreeTypeRef            = true;
+      n->typeRef                      = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+      n->typeRef->def                 = GetTypeByName(parse, "string");
+      n->typeRef->isResolved          = true;
+      n->typeRef->isMutable           = false;
+      n->typeRef->isReference         = false;
+      n->typeRef->isReferenceMutable  = false;
+      n->typeRef->isArray             = false;
+      n->typeRef->isArraySizeResolved = false;
+      n->typeRef->arraySizeExpression = nullptr;
+    };
+
+  PASS_typeChecker.f[ARRAY_INIT_NODE] =
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* /*code*/, node* n)
+    {
+      n->shouldFreeTypeRef            = true;
+      n->typeRef                      = static_cast<type_ref*>(malloc(sizeof(type_ref)));
+      n->typeRef->def                 = nullptr;
+      n->typeRef->isResolved          = true;
+      n->typeRef->isMutable           = false;
+      n->typeRef->isReference         = false;
+      n->typeRef->isReferenceMutable  = false;
+      n->typeRef->isArray             = true;
+      n->typeRef->isArraySizeResolved = true;
+      n->typeRef->arraySize           = 0u;
+
+      if (n->arrayInit.items.size > 0u)
+      {
+        type_ref* establishedType = nullptr;
+
+        for (auto* it = n->arrayInit.items.head;
+             it < n->arrayInit.items.tail;
+             it++)
+        {
+          node* item = *it;
+
+          if (establishedType)
+          {
+            if (!AreTypeRefsCompatible(item->typeRef, establishedType))
+            {
+              RaiseError(errorState, ERROR_INCOMPATIBLE_TYPE, TypeRefToString(establishedType), TypeRefToString(item->typeRef));
+            }
+          }
+          else
+          {
+            establishedType = item->typeRef;
+          }
+        }
+
+        n->typeRef->def = establishedType->def;
+      }
     };
 
   PASS_typeChecker.f[CALL_NODE] =
@@ -117,17 +164,36 @@ void InitTypeCheckerPass()
   
         node* variableNode = n->variableAssignment.variable;
         variable_def* variable;
-  
-        if (variableNode->type == VARIABLE_NODE)
+ 
+        switch (variableNode->type)
         {
-          assert(variableNode->variable.isResolved);
-          variable = variableNode->variable.var;
-        }
-        else
-        {
-          assert(variableNode->type == MEMBER_ACCESS_NODE);
-          assert(variableNode->memberAccess.isResolved);
-          variable = variableNode->memberAccess.member;
+          case VARIABLE_NODE:
+          {
+            assert(variableNode->variable.isResolved);
+            variable = variableNode->variable.var;
+          } break;
+
+          case MEMBER_ACCESS_NODE:
+          {
+            assert(variableNode->memberAccess.isResolved);
+            variable = variableNode->memberAccess.member;
+          } break;
+
+          case BINARY_OP_NODE:
+          {
+            if (variableNode->binaryOp.op == TOKEN_LEFT_BLOCK)
+            {
+              assert(variableNode->binaryOp.left->type == VARIABLE_NODE);
+              assert(variableNode->binaryOp.left->variable.isResolved);
+              variable = variableNode->binaryOp.left->variable.var;
+              break;
+            }
+          } // NOTE(Isaac): no break
+
+          default:
+          {
+            RaiseError(errorState, ERROR_UNEXPECTED_EXPRESSION, "variable-binding", GetTokenName(variableNode->binaryOp.op));
+          } break;
         }
   
         if (!(variable->type.isMutable))
@@ -147,11 +213,10 @@ void InitTypeCheckerPass()
         assert(newValueType);
         assert(newValueType->isResolved);
 
-        // NOTE(Isaac): We don't care about their mutability
-        if (varType->def != newValueType->def)
+        if (!AreTypeRefsCompatible(varType, newValueType, false))
         {
           char* varTypeString = TypeRefToString(varType);
-          RaiseError(errorState, ERROR_INCOMPATIBLE_ASSIGN, newValueType->def->name, varTypeString);
+          RaiseError(errorState, ERROR_INCOMPATIBLE_ASSIGN, TypeRefToString(newValueType), varTypeString);
           free(varTypeString);
         }
       }
@@ -226,8 +291,8 @@ void InitTypeCheckerPass()
             }
 
             if ((thing->op != n->binaryOp.op) ||
-                !AreTypeRefsCompatible(a, &(thing->params[0u]->type)) ||
-                !AreTypeRefsCompatible(b, &(thing->params[1u]->type)))
+                !AreTypeRefsCompatible(a, &(thing->params[0u]->type), false) ||
+                !AreTypeRefsCompatible(b, &(thing->params[1u]->type), false))
             {
               continue;
             }

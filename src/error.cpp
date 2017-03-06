@@ -61,6 +61,7 @@ void InitErrorDefs()
   E(ERROR_UNDEFINED_TYPE,           TO_END_OF_STATEMENT,  "Failed to resolve type with the name '%s'");
   E(ERROR_MISSING_OPERATOR,         TO_END_OF_STATEMENT,  "Can't find %s operator for operands of type '%s' and '%s'");
   E(ERROR_INCOMPATIBLE_ASSIGN,      TO_END_OF_STATEMENT,  "Can't assign a '%s' to a variable of type '%s'");
+  E(ERROR_INCOMPATIBLE_TYPE,        DO_NOTHING,           "Expected type of '%s' but got a '%s'");
   E(ERROR_INVALID_OPERATOR,         TO_END_OF_BLOCK,      "Can't overload operator with token %s");
   E(ERROR_INVALID_OPERATOR,         TO_END_OF_STATEMENT,  "Can't overload operator with token %s");
   E(ERROR_NO_START_SYMBOL,          GIVE_UP,              "No _start symbol (is this a freestanding environment?\?)");
@@ -75,15 +76,15 @@ void InitErrorDefs()
   E(ERROR_OPERATE_UPON_IMMUTABLE,   DO_NOTHING,           "Cannot operate upon an immutable binding: %s");
   E(ERROR_ILLEGAL_ESCAPE_SEQUENCE,  TO_END_OF_STRING,     "Illegal escape sequence in string: '\\%c'");
   E(ERROR_FAILED_TO_OPEN_FILE,      GIVE_UP,              "Failed to open file: %s");
+  E(ERROR_BIND_USED_BEFORE_INIT,    GIVE_UP,              "The binding '%s' was used before it was initialised");
   E(ERROR_COMPILE_ERRORS,           GIVE_UP,              "There were compile errors. Stopping.");
 
   I(ICE_GENERIC,                                          "%s");
-  I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s");
+  I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");
   I(ICE_UNHANDLED_INSTRUCTION_TYPE,                       "Unhandled instruction type (%s) in %s");
   I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
   I(ICE_UNHANDLED_OPERATOR,                               "Unhandled operator (token=%s) in %s");
   I(ICE_UNHANDLED_RELOCATION,                             "Unable to handle relocation of type: %s");
-  I(ICE_SLOT_USED_BEFORE_DEFINED,                         "Tried to use slot before defining it (slot=%s)");
 
 #undef N
 #undef W

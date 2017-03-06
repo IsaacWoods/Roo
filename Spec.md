@@ -77,7 +77,7 @@ An array of type `T` and size `16` is a `T[16u]`. The mutable qualifier in `mut 
 An array's size is fixed at compile time and it will be allocated on the stack. Arrays can be indexed with the `[{uint}]` operator and bounds
 checking, if possible, will occur at compile time.
 The array size always appears after the type name, so a mutable array of 16 mutable references to `T` is a
-`mut T[16u] mut&`.
+`mut T[16u] mut&`. An array can be initialised as a literal with `{expression, expression, expression}`.
 
 ### Traits
 Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their

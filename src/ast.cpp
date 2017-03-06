@@ -125,9 +125,14 @@ node* CreateNode(node_type type, ...)
       result->memberAccess.isResolved           = false;
     } break;
 
+    case ARRAY_INIT_NODE:
+    {
+      result->arrayInit.items                   = va_arg(args, vector<node*>);
+    } break;
+
     default:
     {
-      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "CreateNode");
+      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "CreateNode", GetNodeName(type));
     }
   }
 
@@ -245,10 +250,15 @@ void Free<node*>(node*& n)
       }
     } break;
 
-    case NUM_AST_NODES:
+    case ARRAY_INIT_NODE:
+    {
+      FreeVector<node*>(n->arrayInit.items);
+    } break;
+
+    default:
     {
       error_state errorState = CreateErrorState(GENERAL_STUFF);
-      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "FreeNode");
+      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "FreeNode", GetNodeName(n->type));
     } break;
   }
 
@@ -365,9 +375,19 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
       }
     } break;
 
+    case ARRAY_INIT_NODE:
+    {
+      for (auto* it = n->arrayInit.items.head;
+           it < n->arrayInit.items.tail;
+           it++)
+      {
+        ApplyPassToNode(*it, code, pass, parse, errorState);
+      }
+    } break;
+
     default:
     {
-      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(n->type));
+      RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "ApplyPassToNode", GetNodeName(n->type));
     } break;
   }
 
@@ -448,6 +468,8 @@ const char* GetNodeName(node_type type)
       return "VARIABLE_ASSIGN_NODE";
     case MEMBER_ACCESS_NODE:
       return "MEMBER_ACCESS_NODE";
+    case ARRAY_INIT_NODE:
+      return "ARRAY_INIT_NODE";
     case NUM_AST_NODES:
       return "!!!NUM_AST_NODES!!!";
   }
@@ -702,6 +724,11 @@ void OutputDOTOfAST(thing_of_code* code)
             fprintf(f, "\t%s -> %s;\n", name, childName);
             free(childName);
           }
+        } break;
+
+        case ARRAY_INIT_NODE:
+        {
+          // TODO
         } break;
 
         case NUM_AST_NODES:

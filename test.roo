@@ -49,13 +49,16 @@ fn PrintInt(n : uint, base : uint)
 #[Prototype]
 operator +(a : uint, b : uint) -> uint
 
+#[Prototype]
+operator [](array : int[10u], index : uint) -> int
+
 #[Entry]
 fn Main() -> int
 {
-  a : int[10u]
-/*  a[0u] = 7
+  a : mut int[10u] = {}
+  a[0u] = 7
   a[4u] = 3
-  i : int = a[3u]*/
+  i : int = a[3u]
 
   return 0
 }

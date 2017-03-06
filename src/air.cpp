@@ -136,7 +136,7 @@ static void UseSlot(slot_def* slot, air_instruction* user)
   {
     char* slotString = GetSlotString(slot);    // NOTE(Isaac): this will be leaked, but it shouldn't really matter
     error_state errorState = CreateErrorState(GENERATING_AIR, user);
-    RaiseError(errorState, ICE_SLOT_USED_BEFORE_DEFINED, slotString);
+    RaiseError(errorState, ERROR_BIND_USED_BEFORE_INIT, slotString);
   }
 }
 

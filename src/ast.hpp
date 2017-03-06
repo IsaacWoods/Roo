@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <vector.hpp>
 #include <parsing.hpp>
 #include <ir.hpp>
 
@@ -22,6 +23,7 @@ enum node_type
   CALL_NODE,              // `call_part`
   VARIABLE_ASSIGN_NODE,   // `variable_assign_part`
   MEMBER_ACCESS_NODE,     // `member_access_part`
+  ARRAY_INIT_NODE,        // `array_init_part`
 
   NUM_AST_NODES
 };
@@ -167,6 +169,11 @@ struct member_access_part
   };
 };
 
+struct array_init_part
+{
+  vector<node*> items;
+};
+
 struct node
 {
   node_type type;
@@ -189,6 +196,7 @@ struct node
     call_part             call;
     variable_assign_part  variableAssignment;
     member_access_part    memberAccess;
+    array_init_part       arrayInit;
   };
 };
 

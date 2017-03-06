@@ -353,7 +353,14 @@ char* TypeRefToString(type_ref* type)
 
   if (type->isResolved)
   {
-    PUSH(type->def->name);
+    if (type->isArray && !(type->def))
+    {
+      PUSH("EMPTY-LIST");
+    }
+    else
+    {
+      PUSH(type->def->name);
+    }
   }
   else
   {
@@ -397,6 +404,19 @@ char* TypeRefToString(type_ref* type)
 
 bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability)
 {
+  /*
+   * This covers the special case of assigning an empty-list to another list.
+   * The types won't match, because we don't know the contained type of `{}`, but we assume they're compatible.
+   */
+  if (a->isArray && b->isArray)
+  {
+    if ((a->isArraySizeResolved && a->arraySize == 0u) ||
+        (b->isArraySizeResolved && b->arraySize == 0u))
+    {
+      return true;
+    }
+  }
+
   if (a->def != b->def)
   {
     return false;

@@ -105,7 +105,7 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-#if 1
+#if 0
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -748,6 +748,10 @@ prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
 unsigned int    g_precedenceTable[NUM_TOKENS];
 
+/*
+ * Parses expressions.
+ * If the previous operator is right-associative, the new precedence should be one less than that of the operator
+ */
 static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
   Log(parser, "--> Expression(%u)\n", precedence);
@@ -1457,6 +1461,44 @@ static void InitParseletMaps()
       return expression;
     };
 
+  // Parses an array literal
+  g_prefixMap[TOKEN_LEFT_BRACE] =
+    [](roo_parser& parser) -> node*
+    {
+      Log(parser, "--> [PARSELET] Array literal\n");
+      
+      NextToken(parser);
+      vector<node*> items;
+      InitVector<node*>(items);
+
+      // Check for an empty initialiser-list
+      if (Match(parser, TOKEN_RIGHT_BRACE))
+      {
+        Consume(parser, TOKEN_RIGHT_BRACE);
+      }
+      else
+      {
+        while (true)
+        {
+          node* item = Expression(parser, 0);
+          Add<node*>(items, item);
+
+          if (Match(parser, TOKEN_COMMA))
+          {
+            Consume(parser, TOKEN_COMMA);
+          }
+          else
+          {
+            Consume(parser, TOKEN_RIGHT_BRACE);
+            break;
+          }
+        }
+      }
+
+      Log(parser, "<-- [PARSELET] Array literal\n");
+      return CreateNode(ARRAY_INIT_NODE, items);
+    };
+
   // --- Infix Parselets ---
   // Parses binary operators
   g_infixMap[TOKEN_PLUS] =
@@ -1593,14 +1635,7 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] Variable assignment\n");
 
-      if (left->type != VARIABLE_NODE &&
-          left->type != MEMBER_ACCESS_NODE)
-      {
-        RaiseError(parser.errorState, ERROR_EXPECTED, "variable-binding before '=' token");
-      }
-
       NextToken(parser);
-      // NOTE(Isaac): minus one from the precedence because assignment is right-associative
       node* expression = Expression(parser, P_ASSIGNMENT-1u);
 
       Log(parser, "<-- [PARSELET] Variable assignment\n");
