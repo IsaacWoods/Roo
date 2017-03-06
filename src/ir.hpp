@@ -150,10 +150,18 @@ struct type_ref
     type_def* def;
   };
 
-  bool  isResolved;
-  bool  isMutable;          // NOTE(Isaac): for references, this describes the mutability of the reference
-  bool  isReference;
-  bool  isReferenceMutable; // NOTE(Isaac): describes the mutability of the reference's contents
+  bool isResolved;
+  bool isMutable;          // NOTE(Isaac): for references, this describes the mutability of the reference
+  bool isReference;
+  bool isReferenceMutable; // NOTE(Isaac): describes the mutability of the reference's contents
+
+  bool isArray;
+  bool isArraySizeResolved;
+  union
+  {
+    node*         arraySizeExpression;
+    unsigned int  arraySize;
+  };
 };
 
 struct variable_def

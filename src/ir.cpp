@@ -338,7 +338,7 @@ type_def* GetTypeByName(parse_result& parse, const char* typeName)
  */
 char* TypeRefToString(type_ref* type)
 {
-  // NOTE(Isaac): this is pretty unlikely to overflow hopefully
+  // This is probably fairly unlikely to overflow, and is easier
   char buffer[1024u] = {};
   unsigned int length = 0u;
 
@@ -358,6 +358,23 @@ char* TypeRefToString(type_ref* type)
   else
   {
     PUSH(type->name);
+  }
+
+  if (type->isArray)
+  {
+    PUSH("[");
+
+    if (type->isArraySizeResolved)
+    {
+      char arraySizeBuffer[8u] = {};
+      itoa(type->arraySize, arraySizeBuffer, 10);
+      PUSH(arraySizeBuffer);
+      PUSH("]");
+    }
+    else
+    {
+      PUSH("?]");
+    }
   }
 
   if (type->isReference)

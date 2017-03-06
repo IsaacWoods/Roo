@@ -73,9 +73,11 @@ A variable may be referenced by as many immutable references as the programmer s
 to how Rust's borrowing system does so, prevents any chance or race conditions and increases safety.
 
 ### Arrays
-An array of type `T` and size `16` is a `T[16]`. The mutable qualifier in `mut T[16]` references the mutability of the underlying elements.
+An array of type `T` and size `16` is a `T[16u]`. The mutable qualifier in `mut T[16u]` references the mutability of the underlying elements.
 An array's size is fixed at compile time and it will be allocated on the stack. Arrays can be indexed with the `[{uint}]` operator and bounds
 checking, if possible, will occur at compile time.
+The array size always appears after the type name, so a mutable array of 16 mutable references to `T` is a
+`mut T[16u] mut&`.
 
 ### Traits
 Traits are abstract versions of types that define a set of members. Types can *implement* traits to inherit their

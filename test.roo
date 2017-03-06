@@ -52,8 +52,10 @@ operator +(a : uint, b : uint) -> uint
 #[Entry]
 fn Main() -> int
 {
-  a : uint = 6u + 4u
-  (10u > 5u ? Print("True!\n") : Print("False :(\n"))
+  a : int[10u]
+/*  a[0u] = 7
+  a[4u] = 3
+  i : int = a[3u]*/
 
   return 0
 }

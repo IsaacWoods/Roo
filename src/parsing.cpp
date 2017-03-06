@@ -105,7 +105,7 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-#if 0
+#if 1
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -748,6 +748,37 @@ prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
 unsigned int    g_precedenceTable[NUM_TOKENS];
 
+static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
+{
+  Log(parser, "--> Expression(%u)\n", precedence);
+  prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
+
+  if (!prefixParselet)
+  {
+    RaiseError(parser.errorState, ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
+  }
+
+  node* expression = prefixParselet(parser);
+  Log(parser, "Infix consideration: %s\n", GetTokenName(PeekToken(parser, false).type));
+
+  while (precedence < g_precedenceTable[PeekToken(parser, false).type])
+  {
+    infix_parselet infixParselet = g_infixMap[PeekToken(parser, false).type];
+
+    // NOTE(Isaac): there is no infix expression part - just return the prefix expression
+    if (!infixParselet)
+    {
+      Log(parser, "<-- Expression(NO INFIX)\n");
+      return expression;
+    }
+
+    expression = infixParselet(parser, expression);
+  }
+
+  Log(parser, "<-- Expression\n");
+  return expression;
+}
+
 static type_ref TypeRef(roo_parser& parser)
 {
   type_ref ref;
@@ -755,6 +786,9 @@ static type_ref TypeRef(roo_parser& parser)
   ref.isResolved          = false;
   ref.isReference         = false;
   ref.isReferenceMutable  = false;
+  ref.isArray             = false;
+  ref.isArraySizeResolved = false;
+  ref.arraySizeExpression = nullptr;
   
   if (Match(parser, TOKEN_MUT))
   {
@@ -764,6 +798,14 @@ static type_ref TypeRef(roo_parser& parser)
 
   ref.name = GetTextFromToken(parser, PeekToken(parser));
   NextToken(parser);
+
+  if (Match(parser, TOKEN_LEFT_BLOCK))
+  {
+    Consume(parser, TOKEN_LEFT_BLOCK);
+    ref.isArray = true;
+    ref.arraySizeExpression = Expression(parser);
+    Consume(parser, TOKEN_RIGHT_BLOCK);
+  }
 
   if (Match(parser, TOKEN_MUT))
   {
@@ -815,37 +857,6 @@ static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
   }
 }
 
-static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
-{
-  Log(parser, "--> Expression(%u)\n", precedence);
-  prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
-
-  if (!prefixParselet)
-  {
-    RaiseError(parser.errorState, ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
-  }
-
-  node* expression = prefixParselet(parser);
-  Log(parser, "Infix consideration: %s\n", GetTokenName(PeekToken(parser, false).type));
-
-  while (precedence < g_precedenceTable[PeekToken(parser, false).type])
-  {
-    infix_parselet infixParselet = g_infixMap[PeekToken(parser, false).type];
-
-    // NOTE(Isaac): there is no infix expression part - just return the prefix expression
-    if (!infixParselet)
-    {
-      Log(parser, "<-- Expression(NO INFIX)\n");
-      return expression;
-    }
-
-    expression = infixParselet(parser, expression);
-  }
-
-  Log(parser, "<-- Expression\n");
-  return expression;
-}
-
 static variable_def* VariableDef(roo_parser& parser)
 {
   char* name = GetTextFromToken(parser, PeekToken(parser));
@@ -862,8 +873,9 @@ static variable_def* VariableDef(roo_parser& parser)
 
   variable_def* variable = CreateVariableDef(name, typeRef, initValue);
 
-  Log(parser, "Defined variable: '%s' which is a %s'%s', which is %s\n",
+  Log(parser, "Defined variable: '%s' which is %s%s'%s', which is %s\n",
               variable->name,
+              (variable->type.isArray ? "an array of " : "a "),
               (variable->type.isReference ? (variable->type.isReferenceMutable ? "mutable reference to a " : "reference to a ") : ""),
               variable->type.name,
               (variable->type.isMutable ? "mutable" : "immutable"));
@@ -1008,13 +1020,16 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
         variable_def* variable = VariableDef(parser);
 
         // Assign the initial value to the variable
-        node* variableNode = static_cast<node*>(malloc(sizeof(node)));
-        variableNode->type = VARIABLE_NODE;
-        variableNode->next = nullptr;
-        variableNode->variable.var = variable;
-        variableNode->variable.isResolved = true;
+        if (variable->initValue)
+        {
+          node* variableNode = static_cast<node*>(malloc(sizeof(node)));
+          variableNode->type = VARIABLE_NODE;
+          variableNode->next = nullptr;
+          variableNode->variable.var = variable;
+          variableNode->variable.isResolved = true;
 
-        result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
+          result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
+        }
 
         Add<variable_def*>(scope->locals, variable);
         break;
