@@ -18,17 +18,14 @@ OBJS = \
 	src/elf.o \
 	src/auto_doAstPasses.o \
 
-AST_PASSES = \
-	src/pass_resolveVars.hpp \
-	src/pass_typeChecker.hpp \
-
 STD_OBJECTS = \
 	std/io.o \
 
 .PHONY: clean install lines
 .DEFAULT: roo
 
-roo: $(OBJS) $(STD_OBJECTS) $(AST_PASSES)
+roo: $(OBJS) $(STD_OBJECTS)
+	python genPassFile.py
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 %.o: %.cpp
@@ -36,6 +33,10 @@ roo: $(OBJS) $(STD_OBJECTS) $(AST_PASSES)
 
 %.o: %.s
 	nasm -felf64 -o $@ $<
+
+src/auto_doAstPasses.o:
+	python genPassFile.py
+	$(CXX) -o $@ -c src/auto_doAstPasses.cpp $(CFLAGS)
 
 clean:
 	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo
