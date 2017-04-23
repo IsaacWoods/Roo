@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Isaac Woods. All rights reserved.
+ * Copyright (C) 2017, Isaac Woods.
  * See LICENCE.md
  */
 
@@ -11,16 +11,12 @@
 #include <air.hpp>
 #include <error.hpp>
 #include <scheduler.hpp>
+#include <codegen.hpp>
 
 #if 1
   #define TIME_EXECUTION
   #include <chrono>
 #endif
-
-// NOTE(Isaac): defined in the relevant `codegen_xxx.cpp`
-void Generate(const char* outputPath, codegen_target& target, parse_result& result);
-void InitCodegenTarget(parse_result& result, codegen_target& target);
-void FreeCodegenTarget(codegen_target& target);
 
 /*
  * Find and compile all .roo files in the specified directory.

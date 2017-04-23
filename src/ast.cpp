@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2016, Isaac Woods. All rights reserved.
+ * Copyright (C) 2017, Isaac Woods.
+ * See LICENCE.md
  */
 
 #include <ast.hpp>
@@ -415,38 +416,6 @@ void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result&
     ApplyPassToNode(n->next, code, pass, parse, errorState);
   }
 }
-
-/*
- * Applies an AST pass to the entire AST.
- * Returns whether applying the pass was successful or not.
- */
-/*bool ApplyASTPass(parse_result& parse, ast_pass& pass)
-{
-  for (auto* it = parse.codeThings.head;
-       it < parse.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    if (code->ast)
-    {
-      error_state errorState = CreateErrorState(TRAVERSING_AST, code, code->ast);
-      ApplyPassToNode(code->ast, code, pass, parse, errorState);
-
-      if (errorState.hasErrored)
-      {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}*/
 
 const char* GetNodeName(node_type type)
 {

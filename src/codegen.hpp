@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2016, Isaac Woods. All rights reserved.
+ * Copyright (C) 2017, Isaac Woods.
+ * See LICENCE.md
  */
 
 #pragma once
@@ -11,6 +12,10 @@ struct code_generator
 {
   FILE* output;
 };
+
+void Generate(const char* outputPath, codegen_target& target, parse_result& result);
+void InitCodegenTarget(parse_result& result, codegen_target& target);
+void FreeCodegenTarget(codegen_target& target);
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath);
 void FreeCodeGenerator(code_generator& generator);

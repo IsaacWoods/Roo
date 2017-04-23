@@ -1,10 +1,8 @@
 # Specification
-Roo is a toy programming language. It's base belief is that C had the right idea, but was executed
-in a way that ended up with numerous compromises. Roo aims to create a programming language with the
-power of languages like C and C++, but without some of the limitations of powerful languages.
+Roo is a toy programming language. It aims to improve on C with a simpler syntax and by adding some powerful
+new features, but without the sacrifice of power that comes with many higher-level programming languages.
 
 ### Aims
-* Mostly procedural
 * No separation of definition and implementation
 * Easy build process - nice dependency and source management
 * Terse and expressive syntax - no extranious punctuation and clear, concise meaning

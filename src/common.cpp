@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2016, Isaac Woods. All rights reserved.
+ * Copyright (C) 2017, Isaac Woods.
+ * See LICENCE.md
  */
 
 #include <common.hpp>

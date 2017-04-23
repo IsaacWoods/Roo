@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2016, Isaac Woods. All rights reserved.
+ * Copyright (C) 2017, Isaac Woods.
+ * See LICENCE.md
  */
 
 #include <ir.hpp>
@@ -586,7 +587,6 @@ static void CompleteVariable(variable_def* var, error_state& errorState)
   if (var->type.isArray)
   {
     assert(!(var->type.isArraySizeResolved));
-    printf("Resolving array size!\n");
     
     node* sizeExpression = var->type.arraySizeExpression;
     assert(sizeExpression);
@@ -605,7 +605,6 @@ static void CompleteVariable(variable_def* var, error_state& errorState)
      * we must manually free it here to avoid leaking the old expression.
      */
     Free<node*>(sizeExpression);
-    printf("Resolved array of size [%u] in %s\n", var->type.arraySize, var->name);
   }
 }
 
