@@ -8,7 +8,7 @@
 #include <cstring>
 #include <cstdarg>
 #include <common.hpp>
-//#include <ast.hpp>
+#include <ast.hpp>
 #include <air.hpp>
 
 template<>
@@ -33,16 +33,16 @@ slot_def* CreateSlot(codegen_target& target, thing_of_code* code, slot_type type
     case slot_type::VARIABLE:
     {
       slot->variable = va_arg(args, variable_def*);
-      type_def* varType = slot->variable->type.def;
-      slot->storage = (varType->size > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
+      type_ref& varType = slot->variable->type;
+      slot->storage = (GetSizeOfTypeRef(varType) > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
 
     case slot_type::PARAMETER:
     {
       slot->variable = va_arg(args, variable_def*);
       Add<live_range>(slot->liveRanges, live_range{nullptr, nullptr});
-      type_def* varType = slot->variable->type.def;
-      slot->storage = (varType->size > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
+      type_ref& varType = slot->variable->type;
+      slot->storage = (GetSizeOfTypeRef(varType) > target.generalRegisterSize ? slot_storage::STACK : slot_storage::REGISTER);
     } break;
 
     case slot_type::MEMBER:
@@ -211,6 +211,7 @@ thing_of_code* CreateThingOfCode(thing_type type, ...)
   thing->returnType       = nullptr;
   thing->errorState       = CreateErrorState(FUNCTION_FILLING_IN, thing);
   thing->ast              = nullptr;
+  thing->stackFrameSize   = 0u;
   thing->airHead          = nullptr;
   thing->airTail          = nullptr;
   thing->numTemporaries   = 0u;
@@ -455,7 +456,7 @@ static void ResolveTypeRef(type_ref& ref, parse_result& parse, error_state& erro
 
     if (strcmp(type->name, ref.name) == 0)
     {
-      // TODO(Isaac): would be a good place to increment a usage counter on `typeIt`, if we ever needed one
+      // XXX(Isaac): would be a good place to increment a usage counter on `typeIt`, if we ever needed one
       ref.isResolved = true;
       ref.def = type;
       return;
@@ -490,6 +491,26 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
   }
 
   return type->size;
+}
+
+unsigned int GetSizeOfTypeRef(type_ref& type)
+{
+  if (type.isReference)
+  {
+    // TODO: this should come from the target or something
+    return 8u;
+  }
+
+  assert(type.isResolved);
+  unsigned int size = type.def->size;
+
+  if (type.isArray)
+  {
+    assert(type.isArraySizeResolved);
+    size *= type.arraySize;
+  }
+
+  return size;
 }
 
 char* MangleName(thing_of_code* thing)
@@ -559,6 +580,35 @@ char* MangleName(thing_of_code* thing)
   return nullptr;
 }
 
+static void CompleteVariable(variable_def* var, error_state& errorState)
+{
+  // If it's an array, resolve the size
+  if (var->type.isArray)
+  {
+    assert(!(var->type.isArraySizeResolved));
+    printf("Resolving array size!\n");
+    
+    node* sizeExpression = var->type.arraySizeExpression;
+    assert(sizeExpression);
+
+    if (!(sizeExpression->type == NUMBER_CONSTANT_NODE &&
+          sizeExpression->number.type == number_part::constant_type::UNSIGNED_INT))
+    {
+      RaiseError(errorState, ERROR_INVALID_ARRAY_SIZE);
+    }
+
+    var->type.isArraySizeResolved = true;
+    var->type.arraySize = sizeExpression->number.asUnsignedInt;
+
+    /*
+     * NOTE(Isaac): as the `arraySizeExpression` field of the union has now been replaced and the tag changed,
+     * we must manually free it here to avoid leaking the old expression.
+     */
+    Free<node*>(sizeExpression);
+    printf("Resolved array of size [%u] in %s\n", var->type.arraySize, var->name);
+  }
+}
+
 void CompleteIR(parse_result& parse)
 {
   // Mangle function and operator names
@@ -588,6 +638,7 @@ void CompleteIR(parse_result& parse)
     {
       variable_def* param = *paramIt;
       ResolveTypeRef(param->type, parse, thing->errorState);
+      CompleteVariable(param, thing->errorState);
     }
   
     for (auto* localIt = thing->locals.head;
@@ -596,6 +647,7 @@ void CompleteIR(parse_result& parse)
     {
       variable_def* local = *localIt;
       ResolveTypeRef(local->type, parse, thing->errorState);
+      CompleteVariable(local, thing->errorState);
     }
   }
 
@@ -611,6 +663,7 @@ void CompleteIR(parse_result& parse)
     {
       variable_def* member = *memberIt;
       ResolveTypeRef(member->type, parse, type->errorState);
+      CompleteVariable(member, type->errorState);
     }
   }
 

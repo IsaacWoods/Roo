@@ -15,6 +15,7 @@ ast_pass PASS_resolveVars = {};
 __attribute__((constructor))
 void InitResolveVarsPass()
 {
+  PASS_resolveVars.passName = "ResolveVars";
   PASS_resolveVars.iteratePolicy = CHILDREN_FIRST;
 
   PASS_resolveVars.f[VARIABLE_NODE] =

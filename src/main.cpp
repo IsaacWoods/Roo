@@ -12,11 +12,6 @@
 #include <error.hpp>
 #include <scheduler.hpp>
 
-// AST Passes
-#include <pass_resolveVars.hpp>
-#include <pass_typeChecker.hpp>
-#include <pass_constantFolder.hpp>
-
 #if 1
   #define TIME_EXECUTION
   #include <chrono>
@@ -112,16 +107,32 @@ int main()
   CompleteIR(result);
 
   // --- Apply AST Passes ---
-  bool failedToApplyASTPasses = false;
+/*  bool failedToApplyASTPasses = false;
   #define APPLY_PASS(passName) failedToApplyASTPasses |= !(ApplyASTPass(result, passName));
   APPLY_PASS(PASS_resolveVars);
   APPLY_PASS(PASS_typeChecker);
   APPLY_PASS(PASS_constantFolder);
+  APPLY_PASS(PASS_arraySizeResolver);
   #undef APPLY_PASS
 
   if (failedToApplyASTPasses)
   {
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
+  }*/
+
+  for (auto* it = result.codeThings.head;
+       it < result.codeThings.tail;
+       it++)
+  {
+    thing_of_code* code = *it;
+
+    if (!(code->attribs.isPrototype) && code->ast)
+    {
+      if (ApplyASTPasses(result, code, code->ast).hasErrored)
+      {
+        RaiseError(errorState, ERROR_COMPILE_ERRORS);
+      }
+    }
   }
 
   #ifdef OUTPUT_DOT

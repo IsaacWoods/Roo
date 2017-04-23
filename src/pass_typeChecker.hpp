@@ -14,6 +14,7 @@ ast_pass PASS_typeChecker = {};
 __attribute__((constructor))
 void InitTypeCheckerPass()
 {
+  PASS_typeChecker.passName = "TypeChecker";
   /*
    * NOTE(Isaac): this should mean that nodes have already been marked with their types by the time
    * we try to type check their parents.

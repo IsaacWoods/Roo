@@ -142,6 +142,19 @@ struct string_constant
   uint64_t offset;
 };
 
+struct type_def
+{
+  char*                 name;
+  vector<variable_def*> members;
+  error_state           errorState;
+
+  /*
+   * Size of this structure in bytes.
+   * NOTE(Isaac): provided for inbuilt types, calculated for composite types by `CalculateTypeSizes`.
+   */
+  unsigned int          size;
+};
+
 struct type_ref
 {
   union
@@ -213,24 +226,12 @@ struct thing_of_code
 
   node*                   ast;
   vector<slot_def*>       slots;
+  unsigned int            stackFrameSize;
   air_instruction*        airHead;
   air_instruction*        airTail;
   unsigned int            numTemporaries;
   unsigned int            numReturnResults;
   elf_symbol*             symbol;
-};
-
-struct type_def
-{
-  char*                 name;
-  vector<variable_def*> members;
-  error_state           errorState;
-
-  /*
-   * Size of this structure in bytes.
-   * NOTE(Isaac): provided for inbuilt types, calculated for composite types by `CalculateTypeSizes`.
-   */
-  unsigned int          size;
 };
 
 slot_def* CreateSlot(codegen_target& target, thing_of_code* code, slot_type type, ...);
@@ -243,5 +244,6 @@ thing_of_code* CreateThingOfCode(thing_type type, ...);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* TypeRefToString(type_ref* type);
 bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability = true);
+unsigned int GetSizeOfTypeRef(type_ref& type);
 char* MangleName(thing_of_code* thing);
 void CompleteIR(parse_result& parse);

@@ -16,6 +16,20 @@
 #include <ast.hpp>
 #include <error.hpp>
 
+#if 0
+  // NOTE(Isaac): format must be specified as the first vararg
+  #define Log(parser, ...) Log_(parser, __VA_ARGS__);
+  static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+  }
+#else
+  #define Log(parser, ...)
+#endif
+
 static inline char* GetTextFromToken(roo_parser& parser, const token& tkn)
 {
   // NOTE(Isaac): this is the upper bound of the amount of memory we need to store the string representation
@@ -104,20 +118,6 @@ static inline token MakeToken(roo_parser& parser, token_type type, unsigned int 
 {
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
-
-#if 0
-  // NOTE(Isaac): format must be specified as the first vararg
-  #define Log(parser, ...) Log_(parser, __VA_ARGS__);
-  static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-  }
-#else
-  #define Log(parser, ...)
-#endif
 
 static token LexName(roo_parser& parser)
 {

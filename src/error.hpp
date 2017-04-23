@@ -10,6 +10,7 @@ enum error
 
   WARNING_FOUND_TAB,              // "Found a tab; their use is discouraged in Roo"
 
+  ERROR_COMPILE_ERRORS,           // "There were compile errors. Stopping."
   ERROR_EXPECTED,                 // "Expected %s"
   ERROR_EXPECTED_BUT_GOT,         // "Expected %s but got %s instead"
   ERROR_UNEXPECTED,               // "Unexpected token in %s position: %s"
@@ -35,7 +36,7 @@ enum error
   ERROR_ILLEGAL_ESCAPE_SEQUENCE,  // "Illegal escape sequence in string: '\\%c'"
   ERROR_FAILED_TO_OPEN_FILE,      // "Failed to open file: %s"
   ERROR_BIND_USED_BEFORE_INIT,    // "The binding '%s' was used before it was initialised"
-  ERROR_COMPILE_ERRORS,           // "There were compile errors. Stopping."
+  ERROR_INVALID_ARRAY_SIZE,       // "Array size must be an unsigned constant value"
 
   ICE_GENERIC,                    // "%s"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s: %s"

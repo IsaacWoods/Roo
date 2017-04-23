@@ -270,12 +270,17 @@ void Free<node*>(node*& n)
   free(n);
 }
 
-static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse, error_state& errorState)
+void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse, error_state& errorState)
 {
   assert(n->type);
 
   if (pass.iteratePolicy == NODE_FIRST)
   {
+    if (pass.forAllNodes)
+    {
+      (*pass.forAllNodes)(parse, errorState, code, n);
+    }
+
     if (pass.f[n->type])
     {
       (*pass.f[n->type])(parse, errorState, code, n);
@@ -402,6 +407,11 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
   // Apply to next node
   if (n->next)
   {
+    if (pass.forAllNodes)
+    {
+      (*pass.forAllNodes)(parse, errorState, code, n);
+    }
+
     ApplyPassToNode(n->next, code, pass, parse, errorState);
   }
 }
@@ -410,7 +420,7 @@ static void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_
  * Applies an AST pass to the entire AST.
  * Returns whether applying the pass was successful or not.
  */
-bool ApplyASTPass(parse_result& parse, ast_pass& pass)
+/*bool ApplyASTPass(parse_result& parse, ast_pass& pass)
 {
   for (auto* it = parse.codeThings.head;
        it < parse.codeThings.tail;
@@ -436,7 +446,7 @@ bool ApplyASTPass(parse_result& parse, ast_pass& pass)
   }
 
   return true;
-}
+}*/
 
 const char* GetNodeName(node_type type)
 {

@@ -20,6 +20,7 @@ ast_pass PASS_constantFolder = {};
 __attribute__((constructor))
 void InitConstantFolderPass()
 {
+  PASS_constantFolder.passName = "ConstantFolder";
   PASS_constantFolder.iteratePolicy = CHILDREN_FIRST;
 
   PASS_constantFolder.f[BINARY_OP_NODE] =
