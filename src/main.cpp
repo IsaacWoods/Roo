@@ -102,19 +102,21 @@ int main()
 
   CompleteIR(result);
 
-  // --- Apply AST Passes ---
-/*  bool failedToApplyASTPasses = false;
-  #define APPLY_PASS(passName) failedToApplyASTPasses |= !(ApplyASTPass(result, passName));
-  APPLY_PASS(PASS_resolveVars);
-  APPLY_PASS(PASS_typeChecker);
-  APPLY_PASS(PASS_constantFolder);
-  APPLY_PASS(PASS_arraySizeResolver);
-  #undef APPLY_PASS
-
-  if (failedToApplyASTPasses)
+#if 1
+  for (auto* it = result.codeThings.head;
+       it < result.codeThings.tail;
+       it++)
   {
-    RaiseError(errorState, ERROR_COMPILE_ERRORS);
-  }*/
+    thing_of_code* code = *it;
+
+    if (code->attribs.isPrototype)
+    {
+      continue;
+    }
+
+    OutputDOTOfAST(code);
+  }
+#endif
 
   for (auto* it = result.codeThings.head;
        it < result.codeThings.tail;
@@ -131,7 +133,7 @@ int main()
     }
   }
 
-  #ifdef OUTPUT_DOT
+#ifdef OUTPUT_DOT
   for (auto* it = result.codeThings.head;
        it < result.codeThings.tail;
        it++)
@@ -145,7 +147,7 @@ int main()
 
     OutputDOTOfAST(code);
   }
-  #endif
+#endif
 
   // --- Create tasks for generating AIR for functions and operators ---
   scheduler s;

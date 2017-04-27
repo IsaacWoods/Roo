@@ -210,7 +210,6 @@ struct node
 
 const char* GetNodeName(node_type type);
 node* CreateNode(node_type type, ...);
-//bool ApplyASTPass(parse_result& parse, ast_pass& pass);
 void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse, error_state& errorState);
 
 #ifdef OUTPUT_DOT

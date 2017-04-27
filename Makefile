@@ -25,7 +25,6 @@ STD_OBJECTS = \
 .DEFAULT: roo
 
 roo: $(OBJS) $(STD_OBJECTS)
-	python genPassFile.py
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 %.o: %.cpp
@@ -35,7 +34,7 @@ roo: $(OBJS) $(STD_OBJECTS)
 	nasm -felf64 -o $@ $<
 
 src/auto_doAstPasses.o:
-	python genPassFile.py
+#	python genPassFile.py
 	$(CXX) -o $@ -c src/auto_doAstPasses.cpp $(CFLAGS)
 
 clean:
