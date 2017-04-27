@@ -421,36 +421,21 @@ const char* GetNodeName(node_type type)
 {
   switch (type)
   {
-    case BREAK_NODE:
-      return "BREAK_NODE";
-    case RETURN_NODE:
-      return "RETURN_NODE";
-    case BINARY_OP_NODE:
-      return "BINARY_OP_NODE";
-    case PREFIX_OP_NODE:
-      return "PREFIX_OP_NODE";
-    case VARIABLE_NODE:
-      return "VARIABLE_NODE";
-    case CONDITION_NODE:
-      return "CONDITION_NODE";
-    case BRANCH_NODE:
-      return "BRANCH_NODE";
-    case WHILE_NODE:
-      return "WHILE_NODE";
-    case NUMBER_CONSTANT_NODE:
-      return "NUMBER_CONSTANT_NODE";
-    case STRING_CONSTANT_NODE:
-      return "STRING_CONSTANT_NODE";
-    case CALL_NODE:
-      return "CALL_NODE";
-    case VARIABLE_ASSIGN_NODE:
-      return "VARIABLE_ASSIGN_NODE";
-    case MEMBER_ACCESS_NODE:
-      return "MEMBER_ACCESS_NODE";
-    case ARRAY_INIT_NODE:
-      return "ARRAY_INIT_NODE";
-    case NUM_AST_NODES:
-      return "!!!NUM_AST_NODES!!!";
+    case BREAK_NODE:            return "BREAK_NODE";
+    case RETURN_NODE:           return "RETURN_NODE";
+    case BINARY_OP_NODE:        return "BINARY_OP_NODE";
+    case PREFIX_OP_NODE:        return "PREFIX_OP_NODE";
+    case VARIABLE_NODE:         return "VARIABLE_NODE";
+    case CONDITION_NODE:        return "CONDITION_NODE";
+    case BRANCH_NODE:           return "BRANCH_NODE";
+    case WHILE_NODE:            return "WHILE_NODE";
+    case NUMBER_CONSTANT_NODE:  return "NUMBER_CONSTANT_NODE";
+    case STRING_CONSTANT_NODE:  return "STRING_CONSTANT_NODE";
+    case CALL_NODE:             return "CALL_NODE";
+    case VARIABLE_ASSIGN_NODE:  return "VARIABLE_ASSIGN_NODE";
+    case MEMBER_ACCESS_NODE:    return "MEMBER_ACCESS_NODE";
+    case ARRAY_INIT_NODE:       return "ARRAY_INIT_NODE";
+    case NUM_AST_NODES:         return "!!!NUM_AST_NODES!!!";
   }
 
   return nullptr;
