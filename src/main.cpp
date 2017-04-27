@@ -124,7 +124,7 @@ int main()
   {
     thing_of_code* code = *it;
 
-    if (!(code->attribs.isPrototype) && code->ast)
+    if (!(code->attribs.isPrototype) && HasCode(code))
     {
       if (ApplyASTPasses(result, code, code->ast).hasErrored)
       {

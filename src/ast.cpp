@@ -445,8 +445,7 @@ const char* GetNodeName(node_type type)
 #include <functional>
 void OutputDOTOfAST(thing_of_code* code)
 {
-  // NOTE(Isaac): don't bother for empty functions/operators
-  if (!(code->ast))
+  if (!HasCode(code))
   {
     return;
   }
@@ -467,8 +466,8 @@ void OutputDOTOfAST(thing_of_code* code)
   fprintf(f, "digraph G\n{\n");
 
   /*
-   * NOTE(Isaac): Trust me, I've tried pretty damn hard to eliminate this capture and use a normal
-   * C function pointer, but I've had to resort to STD stuff because of the capture ¯\_(ツ)_/¯
+   * XXX(Isaac): I don't really like having to use a capture, because then we can't use a raw C function
+   * pointer, but it's clearer like this so we just admit defeat and use STD stuff
    */
   std::function<char*(FILE*, node*)> emitNode = [&](FILE* f, node* n) -> char*
     {

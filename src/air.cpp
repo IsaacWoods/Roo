@@ -1022,7 +1022,7 @@ void GenerateAIR(codegen_target& target, thing_of_code* code)
     }
   }
 
-  if (!(code->ast))
+  if (!HasCode(code))
   {
     return;
   }

@@ -235,6 +235,15 @@ struct thing_of_code
   elf_symbol*             symbol;
 };
 
+/*
+ * Returns whether a given `thing_of_code` contains code, or is empty.
+ * Abstracts the requirement to know that empty things' ASTs are `nullptr`
+ */
+inline bool HasCode(thing_of_code* code)
+{
+  return (code->ast);
+}
+
 slot_def* CreateSlot(codegen_target& target, thing_of_code* code, slot_type type, ...);
 char* GetSlotString(slot_def* slot);
 void CreateParseResult(parse_result& result);

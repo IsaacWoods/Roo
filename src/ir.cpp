@@ -303,7 +303,7 @@ void Free<thing_of_code*>(thing_of_code*& code)
     free(code->returnType);
   }
 
-  if (code->ast)
+  if (HasCode(code))
   {
     Free<node*>(code->ast);
   }
