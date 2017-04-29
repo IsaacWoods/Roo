@@ -8,22 +8,9 @@ type string
 #[Prototype]
 fn Print(str : string)
 
-template operator []<type T, uint N>(T[N] array, uint index) -> T&
-{
-  StaticAssert(index < N)
-  AIR("la t1, #array")
-  AIR("add t1, #index")
-  return AIR("t1")
-}
-
 #[Entry]
 fn Main() -> int
 {
-  a : mut string[3u]
-  a[0u] = "String1"
-  a[1u] = "String2"
-  a[2u] = "String3"
-
-  Print(a[0u])
+  Print("Hello, World!\n")
   return 0
 }

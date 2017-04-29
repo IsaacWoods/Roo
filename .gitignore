@@ -9,3 +9,4 @@ test
 *.dot
 *.png
 callgrind.out.*
+*.old

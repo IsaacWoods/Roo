@@ -17,7 +17,7 @@
 #include <ast.hpp>
 #include <error.hpp>
 
-#if 0
+#if 1
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -764,7 +764,6 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
   }
 
   node* expression = prefixParselet(parser);
-  Log(parser, "Infix consideration: %s\n", GetTokenName(PeekToken(parser, false).type));
 
   while (precedence < g_precedenceTable[PeekToken(parser, false).type])
   {
