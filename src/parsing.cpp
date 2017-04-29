@@ -99,9 +99,20 @@ static char NextChar(roo_parser& parser)
   return *(parser.currentChar++);
 }
 
-static bool IsName(char c)
+/*
+ * The first character of an identifier must be a lower or upper-case letter, but after that, underscores
+ * and numbers are also allowed.
+ */
+static bool IsName(char c, bool isFirstChar)
 {
-  return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+  if (isFirstChar)
+  {
+    return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+  }
+  else
+  {
+    return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_') || (c >= '0' && c <= '9'));
+  }
 }
 
 static bool IsDigit(char c)
@@ -125,7 +136,7 @@ static token LexName(roo_parser& parser)
   // NOTE(Isaac): Minus one to get the current char as well
   const char* startChar = parser.currentChar - 1u;
 
-  while (IsName(*(parser.currentChar)))
+  while (IsName(*(parser.currentChar), false))
   {
     NextChar(parser);
   }
@@ -586,7 +597,7 @@ static token LexNext(roo_parser& parser)
 
       default:
       {
-        if (IsName(c))
+        if (IsName(c, true))
         {
           return LexName(parser);
         }

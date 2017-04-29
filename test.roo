@@ -1,5 +1,10 @@
 #[Name(test)]
 
+type testType
+{
+  thing : u32
+}
+
 type string
 {
   head : char&
