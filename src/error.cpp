@@ -58,10 +58,10 @@ void InitErrorDefs()
   E(ERROR_UNEXPECTED,               SKIP_TOKEN,           "Unexpected token in %s position: %s. Skipping.");
   E(ERROR_UNEXPECTED_EXPRESSION,    TO_END_OF_STATEMENT,  "Unexpected expression type in %s position: %s");
   E(ERROR_ILLEGAL_ATTRIBUTE,        TO_END_OF_ATTRIBUTE,  "Unrecognised attribute '%s'");
-  E(ERROR_UNDEFINED_VARIABLE,       TO_END_OF_STATEMENT,  "Failed to resolve variable called '%s'");
-  E(ERROR_UNDEFINED_FUNCTION,       TO_END_OF_STATEMENT,  "Failed to resolve function called '%s'");
+  E(ERROR_UNDEFINED_VARIABLE,       DO_NOTHING,           "Failed to resolve variable called '%s'");
+  E(ERROR_UNDEFINED_FUNCTION,       DO_NOTHING,           "Failed to resolve function called '%s'");
   E(ERROR_UNDEFINED_TYPE,           DO_NOTHING,           "Failed to resolve type with the name '%s'");
-  E(ERROR_MISSING_OPERATOR,         TO_END_OF_STATEMENT,  "Can't find %s operator for operands of type '%s' and '%s'");
+  E(ERROR_MISSING_OPERATOR,         DO_NOTHING,           "Can't find %s operator for operand types '%s' and '%s'");
   E(ERROR_INCOMPATIBLE_ASSIGN,      TO_END_OF_STATEMENT,  "Can't assign a '%s' to a variable of type '%s'");
   E(ERROR_INCOMPATIBLE_TYPE,        DO_NOTHING,           "Expected type of '%s' but got a '%s'");
   E(ERROR_INVALID_OPERATOR,         TO_END_OF_BLOCK,      "Can't overload operator with token %s");

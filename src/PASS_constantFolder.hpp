@@ -24,6 +24,10 @@ void InitConstantFolderPass()
   PASS_constantFolder.passName = "ConstantFolder";
   PASS_constantFolder.iteratePolicy = CHILDREN_FIRST;
 
+  /*
+   * TODO(Isaac): Rewriting sections of the AST is something we'll do in passes a lot, so it should probably
+   * be slightly easier and definitely more declarative.
+   */
   PASS_constantFolder.f[BINARY_OP_NODE] =
     [](parse_result& /*parse*/, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
@@ -31,28 +35,27 @@ void InitConstantFolderPass()
           n->binaryOp.left->type == NUMBER_CONSTANT_NODE  &&
           n->binaryOp.right->type == NUMBER_CONSTANT_NODE)
       {
-        // NOTE(Isaac): we make a copy of the node, so we can change stuff in `n`
-        node oldNode = *n;
-        n->type = NUMBER_CONSTANT_NODE;
+        node* newNode;
 
-        assert(oldNode.binaryOp.left->number.type == oldNode.binaryOp.right->number.type);
-        n->number.type = oldNode.binaryOp.left->number.type;
-
-        switch (oldNode.binaryOp.left->number.type)
+        assert(n->binaryOp.left->number.type == n->binaryOp.right->number.type);
+        switch (n->binaryOp.left->number.type)
         {
           case number_part::constant_type::SIGNED_INT:
           {
-            switch (oldNode.binaryOp.op)
+            int left = n->binaryOp.left->number.asSignedInt;
+            int right = n->binaryOp.right->number.asSignedInt;
+
+            switch (n->binaryOp.op)
             {
-              #define DO_OP(op) n->number.asSignedInt = oldNode.binaryOp.left->number.asSignedInt op oldNode.binaryOp.right->number.asSignedInt;
-              case TOKEN_PLUS:      DO_OP(+); break;
+              #define DO_OP(op) newNode = CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::SIGNED_INT, left op right);
+              case TOKEN_PLUS:      DO_OP(+) break;
               case TOKEN_MINUS:     DO_OP(-); break;
               case TOKEN_ASTERIX:   DO_OP(*); break;
               case TOKEN_SLASH:     DO_OP(/); break;
 
               default:
               {
-                RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(oldNode.type));
+                RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(n->type));
               } break;
               #undef DO_OP
             }
@@ -60,9 +63,12 @@ void InitConstantFolderPass()
 
           case number_part::constant_type::UNSIGNED_INT:
           {
-            switch (oldNode.binaryOp.op)
+            unsigned int left = n->binaryOp.left->number.asUnsignedInt;
+            unsigned int right = n->binaryOp.right->number.asUnsignedInt;
+
+            switch (n->binaryOp.op)
             {
-              #define DO_OP(op) n->number.asUnsignedInt = oldNode.binaryOp.left->number.asUnsignedInt op oldNode.binaryOp.right->number.asUnsignedInt;
+              #define DO_OP(op) newNode = CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::UNSIGNED_INT, left op right);
               case TOKEN_PLUS:      DO_OP(+); break;
               case TOKEN_MINUS:     DO_OP(-); break;
               case TOKEN_ASTERIX:   DO_OP(*); break;
@@ -70,7 +76,7 @@ void InitConstantFolderPass()
 
               default:
               {
-                RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(oldNode.type));
+                RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(n->type));
               } break;
               #undef DO_OP
             }
@@ -78,9 +84,12 @@ void InitConstantFolderPass()
 
           case number_part::constant_type::FLOAT:
           {
-            switch (oldNode.binaryOp.op)
+            float left = n->binaryOp.left->number.asFloat;
+            float right = n->binaryOp.right->number.asFloat;
+
+            switch (n->binaryOp.op)
             {
-              #define DO_OP(op) n->number.asFloat = oldNode.binaryOp.left->number.asFloat op oldNode.binaryOp.right->number.asFloat;
+              #define DO_OP(op) newNode = CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::FLOAT, left op right);
               case TOKEN_PLUS:      DO_OP(+); break;
               case TOKEN_MINUS:     DO_OP(-); break;
               case TOKEN_ASTERIX:   DO_OP(*); break;
@@ -88,15 +97,17 @@ void InitConstantFolderPass()
 
               default:
               {
-                RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(oldNode.type));
+                RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, GetNodeName(n->type));
               } break;
               #undef DO_OP
             }
           } break;
         }
 
-        Free<node*>(oldNode.binaryOp.left);
-        Free<node*>(oldNode.binaryOp.right);
+        Free<node*>(n->binaryOp.left);
+        Free<node*>(n->binaryOp.right);
+        *n = *newNode;
+        // XXX: This leaks the new node - do a **shallow** free (just the memory address, DON'T free the node itself)
       }
     };
 

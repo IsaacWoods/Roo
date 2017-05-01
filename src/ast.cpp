@@ -629,7 +629,7 @@ void OutputDOTOfAST(thing_of_code* code)
 
             case number_part::constant_type::UNSIGNED_INT:
             {
-              fprintf(f, "\t%s[label=\"%u\"];\n", name, n->number.asUnsignedInt);
+              fprintf(f, "\t%s[label=\"%uu\"];\n", name, n->number.asUnsignedInt);
             } break;
 
             case number_part::constant_type::FLOAT:
