@@ -19,7 +19,7 @@ OBJS = \
 	src/auto_doAstPasses.o \
 
 STD_OBJECTS = \
-	std/io.o \
+	Prelude/stuff.o \
 
 .PHONY: clean install lines
 .DEFAULT: roo

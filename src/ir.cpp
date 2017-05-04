@@ -131,11 +131,19 @@ void Free<slot_def*>(slot_def*& slot)
 
 void CreateParseResult(parse_result& result)
 {
-  result.name = nullptr;
+  result.isModule = false;
+  result.name     = nullptr;
   InitVector<dependency_def*>(result.dependencies);
   InitVector<thing_of_code*>(result.codeThings);
   InitVector<type_def*>(result.types);
   InitVector<string_constant*>(result.strings);
+  InitVector<const char*>(result.manualLinkedFiles);
+}
+
+template<>
+void Free<const char*>(const char*& str)
+{
+  free((char*)str);
 }
 
 template<>
@@ -145,6 +153,7 @@ void Free<parse_result>(parse_result& result)
   FreeVector<dependency_def*>(result.dependencies);
   FreeVector<thing_of_code*>(result.codeThings);
   FreeVector<string_constant*>(result.strings);
+  FreeVector<const char*>(result.manualLinkedFiles);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)

@@ -926,7 +926,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
 void Generate(const char* outputPath, codegen_target& target, parse_result& result)
 {
   elf_file elf;
-  CreateElf(elf, target);
+  CreateElf(elf, target, result.isModule);
 
   elf_segment* loadSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R, 0x400000, 0x200000);
   loadSegment->offset = 0x00;
@@ -946,11 +946,13 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   // Create a symbol to reference the .rodata section with
   elf.rodataThing = CreateRodataThing(elf);
 
-  // --- TEMPORARY TESTING STUFF AND THINGS ---
-  LinkObject(elf, "./std/io.o");
-  // ---
- 
-  // TODO: link external object files we need here
+  // Link with any files we've been told to
+  for (auto* it = result.manualLinkedFiles.head;
+       it < result.manualLinkedFiles.tail;
+       it++)
+  {
+    LinkObject(elf, *it);
+  }
 
   // Emit string constants into the .rodata thing
   unsigned int tail = 0u;
@@ -1010,10 +1012,13 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
     }
   }
 
-  // --- Create a thing for the bootstrap ---
-  elf_symbol* bootstrapSymbol = CreateSymbol(elf, "_start", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
-  elf_thing* bootstrapThing = CreateThing(elf, bootstrapSymbol);
-  GenerateBootstrap(elf, target, bootstrapThing, result);
+  // --- Create a thing for the bootstrap, if this isn't a module ---
+  if (!(result.isModule))
+  {
+    elf_symbol* bootstrapSymbol = CreateSymbol(elf, "_start", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+    elf_thing* bootstrapThing = CreateThing(elf, bootstrapSymbol);
+    GenerateBootstrap(elf, target, bootstrapThing, result);
+  }
 
   // --- Generate `elf_thing`s for each thing of code ---
   for (auto* it = result.codeThings.head;

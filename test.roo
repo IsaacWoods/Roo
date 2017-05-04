@@ -1,15 +1,13 @@
 #[Name(test)]
 
-#[Prototype]
-fn Print(str : char&)
+#[LinkFile("Prelude/stuff.o")]
 
 #[Prototype]
-operator +(a : uint, b : uint) -> uint
+fn Print(str : char&)
 
 #[Entry]
 fn Main() -> int
 {
-  i : uint = 4u + 5u
   Print("Hello, World!\n")
   return 0
 }

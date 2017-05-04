@@ -418,6 +418,7 @@ static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_o
 
 void LinkObject(elf_file& elf, const char* objectPath)
 {
+  printf("Linking: %s\n", objectPath);
   error_state errorState = CreateErrorState(LINKING);
 
   elf_object object;
@@ -965,9 +966,11 @@ static void MapSectionsToSegments(elf_file& elf)
   }
 }
 
-void CreateElf(elf_file& elf, codegen_target& target)
+void CreateElf(elf_file& elf, codegen_target& target, bool isRelocatable)
 {
+  elf.isRelocatable = isRelocatable;
   elf.target = &target;
+
   InitVector<elf_thing*>(elf.things);
   InitVector<elf_symbol*>(elf.symbols);
   InitVector<elf_segment*>(elf.segments);
@@ -979,7 +982,7 @@ void CreateElf(elf_file& elf, codegen_target& target)
   elf.numSymbols = 0u;
   elf.rodataThing = nullptr;
 
-  elf.header.fileType = ET_EXEC;
+  elf.header.fileType = (isRelocatable ? ET_REL : ET_EXEC);
   elf.header.entryPoint = 0x0;
   elf.header.programHeaderOffset = 0x0;
   elf.header.sectionHeaderOffset = 0x0;
@@ -1046,12 +1049,15 @@ void WriteElf(elf_file& elf, const char* path)
   // --- Do all the relocations and find the entry point ---
   CompleteRelocations(errorState, f, elf);
 
-  elf_symbol* startSymbol = GetSymbol(elf, "_start");
-  if (!startSymbol)
+  if (!(elf.isRelocatable))
   {
-    RaiseError(errorState, ERROR_NO_START_SYMBOL);
+    elf_symbol* startSymbol = GetSymbol(elf, "_start");
+    if (!startSymbol)
+    {
+      RaiseError(errorState, ERROR_NO_START_SYMBOL);
+    }
+    elf.header.entryPoint = startSymbol->value;
   }
-  elf.header.entryPoint = startSymbol->value;
 
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);

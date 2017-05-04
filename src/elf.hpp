@@ -211,7 +211,7 @@ struct elf_relocation
   const instruction_label*  label;
 };
 
-// NOTE(Isaac): do not call this directly!
+// XXX(Isaac): do not call this directly!
 template<typename T>
 void Emit_(elf_thing* thing, T);
 
@@ -233,7 +233,9 @@ struct elf_symbol;
 
 struct elf_file
 {
+  bool                    isRelocatable;
   codegen_target*         target;
+
   elf_header              header;
   vector<elf_segment*>    segments;
   vector<elf_section*>    sections;
@@ -247,7 +249,7 @@ struct elf_file
   elf_thing*              rodataThing;
 };
 
-void CreateElf(elf_file& elf, codegen_target& target);
+void CreateElf(elf_file& elf, codegen_target& target, bool isRelocatable);
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const instruction_label* label = nullptr);
 elf_thing* CreateRodataThing(elf_file& elf);

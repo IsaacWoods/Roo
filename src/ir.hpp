@@ -110,11 +110,17 @@ struct slot_def
 
 struct parse_result
 {
+  bool                      isModule;
   char*                     name;
   vector<dependency_def*>   dependencies;
   vector<thing_of_code*>    codeThings;
   vector<type_def*>         types;
   vector<string_constant*>  strings;
+
+  /*
+   * This contains paths to files manually linked with the #[LinkFile] attribute.
+   */
+  vector<const char*>       manualLinkedFiles;
 };
 
 struct dependency_def

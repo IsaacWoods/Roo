@@ -1,0 +1,16 @@
+/*
+ * Copyright (C) 2017, Isaac Woods.
+ * See LICENCE.md
+ */
+
+#[Module(Prelude)]
+
+#[LinkFile("stuff.o")]
+
+type string
+{
+  head : char&
+}
+
+#[Prototype]
+fn Print(str : string)

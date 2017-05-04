@@ -1254,6 +1254,31 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     parser.result->name = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
+  else if (strcmp(attribName, "Module") == 0)
+  {
+    ConsumeNext(parser, TOKEN_LEFT_PAREN);
+
+    if (!Match(parser, TOKEN_IDENTIFIER))
+    {
+      RaiseError(parser.errorState, ERROR_EXPECTED, "identifier as module name");
+    }
+
+    parser.result->isModule = true;
+    parser.result->name = GetTextFromToken(parser, PeekToken(parser));
+    ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+  }
+  else if (strcmp(attribName, "LinkFile") == 0)
+  {
+    ConsumeNext(parser, TOKEN_LEFT_PAREN);
+
+    if (!Match(parser, TOKEN_STRING))
+    {
+      RaiseError(parser.errorState, ERROR_EXPECTED, "string constant to specify path of file to manually link");
+    }
+
+    Add<const char*>(parser.result->manualLinkedFiles, GetTextFromToken(parser, PeekToken(parser)));
+    ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+  }
   else if (strcmp(attribName, "Prototype") == 0)
   {
     attribs.isPrototype = true;
