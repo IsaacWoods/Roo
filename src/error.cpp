@@ -53,6 +53,7 @@ void InitErrorDefs()
 
   W(WARNING_FOUND_TAB,                                    "Found a tab; their use is discouraged in Roo");
 
+  E(ERROR_COMPILE_ERRORS,           GIVE_UP,              "There were compile errors. Stopping.");
   E(ERROR_EXPECTED,                 TO_END_OF_STATEMENT,  "Expected %s");
   E(ERROR_EXPECTED_BUT_GOT,         TO_END_OF_STATEMENT,  "Expected %s but got %s instead");
   E(ERROR_UNEXPECTED,               SKIP_TOKEN,           "Unexpected token in %s position: %s. Skipping.");
@@ -79,7 +80,9 @@ void InitErrorDefs()
   E(ERROR_ILLEGAL_ESCAPE_SEQUENCE,  TO_END_OF_STRING,     "Illegal escape sequence in string: '\\%c'");
   E(ERROR_FAILED_TO_OPEN_FILE,      GIVE_UP,              "Failed to open file: %s");
   E(ERROR_BIND_USED_BEFORE_INIT,    GIVE_UP,              "The binding '%s' was used before it was initialised");
-  E(ERROR_COMPILE_ERRORS,           GIVE_UP,              "There were compile errors. Stopping.");
+  E(ERROR_INVALID_ARRAY_SIZE,       DO_NOTHING,           "Array size must be an unsigned constant value");
+  E(ERROR_MISSING_MODULE,           GIVE_UP,              "Couldn't find module: %s");
+  E(ERROR_MALFORMED_MODULE_INFO,    GIVE_UP,              "Couldn't parse module info file(%s): %s");
 
   I(ICE_GENERIC,                                          "%s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");

@@ -9,7 +9,7 @@ syntax keyword rooBools true false
 highlight link rooBools Boolean
 
 syntax match rooNumber display contained '\d\+' containedin=ALL
-highlight def link rooNumber Number
+highlight link rooNumber Number
 
 syntax region rooString start='"' end='"' contained
 highlight link rooString Constant

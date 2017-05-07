@@ -20,17 +20,17 @@ void Free(T&);
 template<typename T>
 struct vector
 {
-  T* head;
-  T* tail;
-  unsigned int size;
-  unsigned int capacity;
+  T*      head;
+  T*      tail;
+  size_t  size;
+  size_t  capacity;
 
-  T& operator[](unsigned int i)
+  T& operator[](size_t i)
   {
     return head[i];
   }
 
-  const T& operator[](unsigned int i) const
+  const T& operator[](size_t i) const
   {
     return head[i];
   }
@@ -39,10 +39,23 @@ struct vector
 template<typename T>
 void InitVector(vector<T>& v)
 {
-  v.head = nullptr;
-  v.tail = nullptr;
-  v.size = 0u;
-  v.capacity = 0u;
+  v.head      = nullptr;
+  v.tail      = nullptr;
+  v.size      = 0u;
+  v.capacity  = 0u;
+}
+
+/*
+ * This should be used when you know how big the vector is, and it's unlikely to change.
+ * NOTE(Isaac): the capacity doesn't increase in powers-of-two, if the vector is added to.
+ */
+template<typename T>
+void InitVector(vector<T>& v, size_t size)
+{
+  v.head      = static_cast<T*>(malloc(sizeof(T) * size));
+  v.tail      = v.head;
+  v.size      = size;
+  v.capacity  = size;
 }
 
 // O(n)

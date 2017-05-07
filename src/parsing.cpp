@@ -1363,7 +1363,7 @@ static void InitParseletMaps()
   memset(g_precedenceTable, 0, sizeof(unsigned int) * NUM_TOKENS);
 
   /*
-   * NOTE(Isaac): This is mostly the same as C++'s operator precedence, for maximum intuitiveness
+   * The higher the precedence, the tighter binding an operator is (higher-precendence operations are done first)
    * NOTE(Isaac): Precedence starts at 1, as a precedence of 0 has special meaning
    */
   enum Precedence

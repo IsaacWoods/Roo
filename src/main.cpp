@@ -12,6 +12,7 @@
 #include <error.hpp>
 #include <scheduler.hpp>
 #include <codegen.hpp>
+#include <module.hpp>
 
 #if 1
   #define TIME_EXECUTION
@@ -53,7 +54,6 @@ int main()
 #endif
 
   error_state errorState = CreateErrorState(GENERAL_STUFF);
-
   parse_result result;
   CreateParseResult(result);
 
@@ -66,6 +66,9 @@ int main()
   {
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
+
+  // --- Temp ---
+  ImportModule(result, "test.roomod");
 
   // Compile the dependencies
   for (auto* it = result.dependencies.head;
@@ -80,8 +83,7 @@ int main()
       case dependency_def::dependency_type::LOCAL:
       {
         // TODO: resolve the path
-        fprintf(stderr, "Failed to find local dependency: %s\n", dependency->path);
-        continue;
+        RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
       } break;
 
       case dependency_def::dependency_type::REMOTE:

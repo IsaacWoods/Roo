@@ -17,6 +17,7 @@ OBJS = \
 	src/codegen_x64elf.o \
 	src/elf.o \
 	src/auto_doAstPasses.o \
+	src/module.o \
 
 STD_OBJECTS = \
 	Prelude/stuff.o \

@@ -10,3 +10,4 @@ test
 *.png
 callgrind.out.*
 *.old
+*.roomod

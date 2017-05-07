@@ -51,14 +51,14 @@ struct elf_symbol;
 
 enum slot_type
 {
-  VARIABLE,               // `var` field of payload is valid
-  PARAMETER,              // `var` field of payload is valid
+  VARIABLE,               // `var`    field of payload is valid
+  PARAMETER,              // `var`    field of payload is valid
   MEMBER,                 // `member` field of payload is valid
-  TEMPORARY,              // `tag` field of payload is valid
-  RETURN_RESULT,          // `tag` field of payload is valid
-  SIGNED_INT_CONSTANT,    // `i` field of payload is valid
-  UNSIGNED_INT_CONSTANT,  // `u` field of payload is valid
-  FLOAT_CONSTANT,         // `f` field of payload is valid
+  TEMPORARY,              // `tag`    field of payload is valid
+  RETURN_RESULT,          // `tag`    field of payload is valid
+  SIGNED_INT_CONSTANT,    // `i`      field of payload is valid
+  UNSIGNED_INT_CONSTANT,  // `u`      field of payload is valid
+  FLOAT_CONSTANT,         // `f`      field of payload is valid
   STRING_CONSTANT,        // `string` field of payload is valid
 };
 
@@ -132,7 +132,7 @@ struct dependency_def
   } type;
 
   /*
-   * LOCAL:   a symbolic path from an arbitrary library source
+   * LOCAL:   the name of a local package
    * REMOTE:  a URL to a Git repository containing a Roo project
    */
   char* path;

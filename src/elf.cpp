@@ -418,7 +418,6 @@ static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_o
 
 void LinkObject(elf_file& elf, const char* objectPath)
 {
-  printf("Linking: %s\n", objectPath);
   error_state errorState = CreateErrorState(LINKING);
 
   elf_object object;

@@ -1,9 +1,6 @@
 #[Name(test)]
 
-#[LinkFile("Prelude/stuff.o")]
-
-#[Prototype]
-fn Print(str : char&)
+//import Prelude
 
 #[Entry]
 fn Main() -> int

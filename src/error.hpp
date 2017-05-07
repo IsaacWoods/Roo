@@ -38,6 +38,8 @@ enum error
   ERROR_FAILED_TO_OPEN_FILE,      // "Failed to open file: %s"
   ERROR_BIND_USED_BEFORE_INIT,    // "The binding '%s' was used before it was initialised"
   ERROR_INVALID_ARRAY_SIZE,       // "Array size must be an unsigned constant value"
+  ERROR_MISSING_MODULE,           // "Couldn't find module: %s"
+  ERROR_MALFORMED_MODULE_INFO,    // "Couldn't parse module info file(%s): %s"
 
   ICE_GENERIC,                    // "%s"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s: %s"
@@ -52,12 +54,12 @@ enum error
 enum error_state_type
 {
   GENERAL_STUFF,
-  PARSING_UNIT,         // NOTE(Isaac): `parser` field is valid
-  TRAVERSING_AST,       // NOTE(Isaac): `astSection` field is valid
-  FUNCTION_FILLING_IN,  // NOTE(Isaac): `code` field is valid
-  TYPE_FILLING_IN,      // NOTE(Isaac): `type` field is valid
-  GENERATING_AIR,       // NOTE(Isaac): `instuction` field is valid
-  CODE_GENERATION,      // NOTE(Isaac): `code` field is valid
+  PARSING_UNIT,         // `parser`     field is valid
+  TRAVERSING_AST,       // `astSection` field is valid
+  FUNCTION_FILLING_IN,  // `code`       field is valid
+  TYPE_FILLING_IN,      // `type`       field is valid
+  GENERATING_AIR,       // `instuction` field is valid
+  CODE_GENERATION,      // `code`       field is valid
   LINKING
 };
 
