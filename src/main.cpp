@@ -67,9 +67,6 @@ int main()
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
-  // --- Temp ---
-  ImportModule(result, "test.roomod");
-
   // Compile the dependencies
   for (auto* it = result.dependencies.head;
        it < result.dependencies.tail;
@@ -150,6 +147,11 @@ int main()
     OutputDOTOfAST(code);
   }
 #endif
+
+  // !!!Temp!!!
+  ExportModule("exported.roomod", result);
+  ImportModule("exported.roomod", result);
+  // End temp
 
   // --- Create tasks for generating AIR for functions and operators ---
   scheduler s;

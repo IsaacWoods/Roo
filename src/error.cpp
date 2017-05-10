@@ -83,6 +83,7 @@ void InitErrorDefs()
   E(ERROR_INVALID_ARRAY_SIZE,       DO_NOTHING,           "Array size must be an unsigned constant value");
   E(ERROR_MISSING_MODULE,           GIVE_UP,              "Couldn't find module: %s");
   E(ERROR_MALFORMED_MODULE_INFO,    GIVE_UP,              "Couldn't parse module info file(%s): %s");
+  E(ERROR_FAILED_TO_EXPORT_MODULE,  GIVE_UP,              "Failed to export module(%s): %s");
 
   I(ICE_GENERIC,                                          "%s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");

@@ -8,8 +8,5 @@
 #include <error.hpp>
 #include <ir.hpp>
 
-/*
- * Loads the types, functions and operators from the ELF module file into the parse_result.
- * Usually executed for every imported module.
- */
-error_state ImportModule(parse_result& parse, const char* modulePath);
+error_state ImportModule(const char* modulePath, parse_result& parse);
+error_state ExportModule(const char* outputPath, parse_result& parse);
