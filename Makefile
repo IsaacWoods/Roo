@@ -40,6 +40,7 @@ src/auto_doAstPasses.o:
 
 clean:
 	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo
+	rm -f Prelude Prelude.roomod
 
 install:
 	mkdir -p ~/.vim/syntax

@@ -124,7 +124,7 @@ thing_of_code* Read<thing_of_code*>(FILE* f)
   InitVector<slot_def*>(thing->slots);
 
   /*
-   * Even if it defined in Roo in the other module, we're linking against it here and so it should be considered
+   * Even if it is defined in Roo in the other module, we're linking against it here and so it should be considered
    * a prototype function, as if it were defined in C or assembly or whatever.
    */
   thing->attribs.isPrototype = true;
