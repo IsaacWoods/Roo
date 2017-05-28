@@ -47,6 +47,8 @@ static bool Compile(parse_result& parse, const char* directoryPath)
   return !failed;
 }
 
+#define ROO_MODULE_EXT ".roomod"
+
 int main()
 {
 #ifdef TIME_EXECUTION
@@ -73,30 +75,41 @@ int main()
        it++)
   {
     dependency_def* dependency = *it;
-    char* dependencyDirectory = nullptr;
 
     switch (dependency->type)
     {
+      /*
+       * E.g: For a module `Prelude`, there will be two files:
+       *  - An ELF relocatable called `Prelude` that should be linked against
+       *  - A binary file called `Prelude.roomod` that should be imported using `ImportModule`
+       */
       case dependency_def::dependency_type::LOCAL:
       {
-        // TODO: resolve the path
-        RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
+        // Check the relocatable exists and say to link against it
+        if (!DoesFileExist(dependency->path))
+        {
+          RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
+        }
+
+        Add<char*>(result.filesToLink, dependency->path);
+
+        // Import the module info file
+        char* modInfoPath = static_cast<char*>(malloc(sizeof(char)*(strlen(dependency->path)+strlen(ROO_MODULE_EXT)+1u)));
+        strcpy(modInfoPath, dependency->path);
+        strcat(modInfoPath, ROO_MODULE_EXT);
+
+        if (ImportModule(modInfoPath, result).hasErrored)
+        {
+          RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
+        }
+
+        free(modInfoPath);
       } break;
 
       case dependency_def::dependency_type::REMOTE:
       {
-        // TODO: clone the repo and pass it's path
       } break;
     }
-
-    assert(dependencyDirectory);
-
-    if (!Compile(result, dependencyDirectory))
-    {
-      RaiseError(errorState, ERROR_COMPILE_ERRORS);
-    }
-
-    free(dependencyDirectory);
   }
 
   CompleteIR(result);
@@ -148,10 +161,14 @@ int main()
   }
 #endif
 
-  // !!!Temp!!!
-  ExportModule("exported.roomod", result);
-  ImportModule("exported.roomod", result);
-  // End temp
+  if (result.isModule)
+  {
+    char* modulePath = static_cast<char*>(malloc(sizeof(char)*(strlen(result.name)+strlen(ROO_MODULE_EXT))));
+    strcpy(modulePath, result.name);
+    strcat(modulePath, ROO_MODULE_EXT);
+    ExportModule(modulePath, result);
+    free(modulePath);
+  }
 
   // --- Create tasks for generating AIR for functions and operators ---
   scheduler s;

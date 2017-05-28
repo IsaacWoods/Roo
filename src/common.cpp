@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <ast.hpp>
 #include <air.hpp>
+#include <sys/stat.h>
 
 #define USING_GDB
 
@@ -156,4 +157,10 @@ char* ReadFile(const char* path)
   fclose(file);
 
   return contents;
+}
+
+bool DoesFileExist(const char* path)
+{
+  struct stat buffer;
+  return (stat(path, &buffer) == 0);
 }

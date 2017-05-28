@@ -39,3 +39,4 @@ void OpenDirectory(directory& dir, const char* path);
 // --- Common functions ---
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
+bool DoesFileExist(const char* path);

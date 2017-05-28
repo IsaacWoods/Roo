@@ -1,6 +1,6 @@
 #[Name(test)]
 
-//import Prelude
+import Prelude
 
 #[Entry]
 fn Main() -> int

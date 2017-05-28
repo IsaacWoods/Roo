@@ -81,7 +81,7 @@ void InitErrorDefs()
   E(ERROR_FAILED_TO_OPEN_FILE,      GIVE_UP,              "Failed to open file: %s");
   E(ERROR_BIND_USED_BEFORE_INIT,    GIVE_UP,              "The binding '%s' was used before it was initialised");
   E(ERROR_INVALID_ARRAY_SIZE,       DO_NOTHING,           "Array size must be an unsigned constant value");
-  E(ERROR_MISSING_MODULE,           GIVE_UP,              "Couldn't find module: %s");
+  E(ERROR_MISSING_MODULE,           DO_NOTHING,           "Couldn't find module: %s");
   E(ERROR_MALFORMED_MODULE_INFO,    GIVE_UP,              "Couldn't parse module info file(%s): %s");
   E(ERROR_FAILED_TO_EXPORT_MODULE,  GIVE_UP,              "Failed to export module(%s): %s");
 

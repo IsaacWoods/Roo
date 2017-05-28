@@ -54,7 +54,7 @@ void InitVector(vector<T>& v, size_t size)
 {
   v.head      = static_cast<T*>(malloc(sizeof(T) * size));
   v.tail      = v.head;
-  v.size      = size;
+  v.size      = 0u;
   v.capacity  = size;
 }
 

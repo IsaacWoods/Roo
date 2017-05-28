@@ -20,9 +20,9 @@ OBJS = \
 	src/module.o \
 
 STD_OBJECTS = \
-	Prelude/stuff.o \
+	Prelude-dir/stuff.o \
 
-.PHONY: clean install lines
+.PHONY: clean install lines prelude
 .DEFAULT: roo
 
 roo: $(OBJS) $(STD_OBJECTS)
@@ -47,3 +47,8 @@ install:
 
 lines:
 	cloc --read-lang-def=cloc.cfg .
+
+prelude: Prelude-dir/stuff.o
+	(cd Prelude-dir ; ../roo)
+	cp Prelude-dir/Prelude Prelude
+	cp Prelude-dir/Prelude.roomod Prelude.roomod

@@ -1,18 +1,6 @@
 ; Copyright (C) 2017, Isaac Woods.
 ; See LICENCE.md
 
-; TEMPORARY
-_RO_plus_uint_uint:
-  add rdi, rsi
-  mov rax, rdi
-  ret
-
-_RO_plus_char_uint:
-  add rdi, rsi
-  mov rax, rdi
-  ret
-; END TEMPORARY
-
 ; INPUT(rdi) - pointer to a string
 ; OUTPUT(rax) - length of the string
 GetStringLength:

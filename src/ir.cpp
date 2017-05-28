@@ -137,13 +137,13 @@ void CreateParseResult(parse_result& result)
   InitVector<thing_of_code*>(result.codeThings);
   InitVector<type_def*>(result.types);
   InitVector<string_constant*>(result.strings);
-  InitVector<const char*>(result.manualLinkedFiles);
+  InitVector<char*>(result.filesToLink);
 }
 
 template<>
-void Free<const char*>(const char*& str)
+void Free<char*>(char*& str)
 {
-  free((char*)str);
+  free(str);
 }
 
 template<>
@@ -153,7 +153,7 @@ void Free<parse_result>(parse_result& result)
   FreeVector<dependency_def*>(result.dependencies);
   FreeVector<thing_of_code*>(result.codeThings);
   FreeVector<string_constant*>(result.strings);
-  FreeVector<const char*>(result.manualLinkedFiles);
+  FreeVector<char*>(result.filesToLink);
 }
 
 string_constant* CreateStringConstant(parse_result* result, char* string)

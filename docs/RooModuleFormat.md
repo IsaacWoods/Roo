@@ -1,8 +1,8 @@
 # File format for Roo Modules
-Information about Roo modules are stored in a `.roomod` file (later on, this may be included in the ELF
-relocatable itself). This is because Roo lacks header files, but still needs to know information at compile-time
-that either is required before linking, or isn't present in the relocatable (such as template information and
-types).
+Information about Roo modules are stored in a binary `.roomod` file (later on, this may be included in the ELF
+relocatable itself). This is needed because Roo lacks header files, but still needs to know information at
+compile-time that either is required before linking, or isn't present in the relocatable (such as template
+information and types).
 
 ### Overview
 A `.roomod` file encodes information about:
@@ -11,7 +11,7 @@ A `.roomod` file encodes information about:
 
 They start with a header, that specifies the number of types, functions and operators in the file.
 
-### Binary format
+### Header
 | Offset  | Size (bytes)  | Name                | Description                           |
 |---------|---------------|---------------------|---------------------------------------|
 | 0x00    | 4             | Magic               | `0x7F 'R' 'O' 'O'`                    |
@@ -23,12 +23,13 @@ The rest of the file starts from 0xD.
 
 ### String encoding
 **NOTE: This format doesn't allow encoding of non-ASCII or strings longer than 255 characters**
-String are encoded as a 1-byte length (in bytes), including the null-terminator, followed by the ASCII bytes of the string
-and null-terminated by `'\0'`.
+String are encoded as a 1-byte length (in bytes), including the null-terminator, followed by the ASCII encoding
+of the string and null-terminated by `'\0'`.
 
 ### Vector encoding
 **NOTE: This format doesn't allow encoding of vectors of more than 255 elements**
-A vector of length `N` of type `T` is encoded as a 1-byte length (in elements), followed by `N` elements of size `sizeof(T)`.
+A vector of length `N` with elements of type `T` is encoded as a 1-byte length (in elements), followed by `N`
+elements of size `sizeof(T)`.
 
 ### Variable Definition encoding
 | Field                 | Type            | Size (bytes)  | Description                           |
@@ -54,6 +55,5 @@ A vector of length `N` of type `T` is encoded as a 1-byte length (in elements), 
 | `name`(f)   | String          | variable      | The name of the function                |
 | `token`(op) | Enum            | 4             | The token of the operator               |
 | `params`    | Vector<Var-Def> | variable      | The parameters to the function/operator |
-| `symbol`    | String          | variable      | The symbol of the function/operator     |
 
 Only either `name` or `token` is present, the former for functions and the latter for operators.

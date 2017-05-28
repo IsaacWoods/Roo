@@ -11,3 +11,5 @@ test
 callgrind.out.*
 *.old
 *.roomod
+Prelude
+Prelude-dir/Prelude

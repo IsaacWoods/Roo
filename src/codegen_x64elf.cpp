@@ -928,11 +928,7 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf_file elf;
   CreateElf(elf, target, result.isModule);
 
-  elf_segment* loadSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X | SEGMENT_ATTRIB_R, 0x400000, 0x200000);
-  loadSegment->offset = 0x00;
-  loadSegment->size.inFile = 0x40;  // NOTE(Isaac): set the tail to the end of the ELF header
-
-  CreateSection(elf, ".text",   SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A | SECTION_ATTRIB_E;
+  CreateSection(elf, ".text",   SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A|SECTION_ATTRIB_E;
   CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
   CreateSection(elf, ".strtab", SHT_STRTAB,   0x04);
   CreateSection(elf, ".symtab", SHT_SYMTAB,   0x04);
@@ -940,15 +936,22 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   GetSection(elf, ".symtab")->link = GetSection(elf, ".strtab")->index;
   GetSection(elf, ".symtab")->entrySize = 0x18;
 
-  MapSection(elf, loadSegment, GetSection(elf, ".text"));
-  MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
+  if (!(result.isModule))
+  {
+    elf_segment* loadSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X|SEGMENT_ATTRIB_R, 0x400000, 0x200000);
+    loadSegment->offset = 0x00;
+    loadSegment->size.inFile = 0x40;  // NOTE(Isaac): set the tail to the end of the ELF header
+
+    MapSection(elf, loadSegment, GetSection(elf, ".text"));
+    MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
+  }
 
   // Create a symbol to reference the .rodata section with
   elf.rodataThing = CreateRodataThing(elf);
 
   // Link with any files we've been told to
-  for (auto* it = result.manualLinkedFiles.head;
-       it < result.manualLinkedFiles.tail;
+  for (auto* it = result.filesToLink.head;
+       it < result.filesToLink.tail;
        it++)
   {
     LinkObject(elf, *it);

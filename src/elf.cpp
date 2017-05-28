@@ -517,7 +517,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
        it < object.symbols.tail;
        it++)
   {
-    elf_symbol* symbol = *it;;
+    elf_symbol* symbol = *it;
 
     /*
      * NOTE(Isaac): NASM refuses to emit symbols for functions with the correct type,
@@ -530,7 +530,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
     }
   }
 
-  // Sort the linked list by the symbols' offsets into .text
+  // Sort the linked list by the symbols' offsets into the section
   SortVector<elf_symbol*>(functionSymbols, [](elf_symbol*& a, elf_symbol*& b)
     {
       return (a->value < b->value);
@@ -544,13 +544,26 @@ void LinkObject(elf_file& elf, const char* objectPath)
     elf_symbol* symbol = *it;
     assert(symbol->name); // NOTE(Isaac): functions should probably always have names
 
-    if ((it + 1) < functionSymbols.tail)
+    /*
+     * Annoying assemblers/compilers like NASM neglect to actually include the sizes of symbols, so we have
+     * to work them out ourselves.
+     */
+    if (symbol->size == 0u)
     {
-      symbol->size = (*(it + 1))->value - symbol->value;
-    }
-    else
-    {
-      symbol->size = text->size - symbol->value;
+      if ((it + 1) < functionSymbols.tail)
+      {
+        /*
+         * The size is the difference between the offset of this symbol and the next one
+         */
+        symbol->size = (*(it + 1))->value - symbol->value;
+      }
+      else
+      {
+        /*
+         * Or the difference between the offset of this one and the end of the section, for the last symbol.
+         */
+        symbol->size = text->size - symbol->value;
+      }
     }
 
     // Create a thing for the extracted function
@@ -571,7 +584,8 @@ void LinkObject(elf_file& elf, const char* objectPath)
     Add<elf_thing*>(object.things, thing);
 
     /*
-     * We create a new symbol for the function, so remove the old one
+     * We create a new symbol for the function, so remove the old one.
+     * NOTE(Isaac): We've sorted the symbols by offset, so this must be stable.
      */
     StableRemove<elf_symbol*>(elf.symbols, symbol);
   }
@@ -635,10 +649,11 @@ void Emit_<uint64_t>(elf_thing* thing, uint64_t i)
 static void EmitHeader(FILE* f, elf_header& header)
 {
   /*
-   * NOTE(Isaac): these are already defines, but `fwrite` is stupid, so it has to be a lvalue too
+   * If there aren't any program/section headers (respectively), we should emit 0 instead of the actual size of
+   * one of the entries.
    */
-  const uint16_t programHeaderEntrySize = PROGRAM_HEADER_ENTRY_SIZE;
-  const uint16_t sectionHeaderEntrySize = SECTION_HEADER_ENTRY_SIZE;
+  const uint16_t programHeaderEntrySize = (header.numProgramHeaderEntries > 0u ? PROGRAM_HEADER_ENTRY_SIZE : 0u);
+  const uint16_t sectionHeaderEntrySize = (header.numSectionHeaderEntries > 0u ? SECTION_HEADER_ENTRY_SIZE : 0u);
 
 /*0x00*/fputc(0x7F,     f); // Emit the 4 byte magic value
         fputc('E',      f);
@@ -654,16 +669,16 @@ static void EmitHeader(FILE* f, elf_header& header)
         {
           fputc(0x00,   f); // Pad out EI_ABIVERSION and EI_PAD
         }
-/*0x10*/fwrite(&(header.fileType), sizeof(uint16_t), 1, f);
+/*0x10*/fwrite(&(header.fileType),                sizeof(uint16_t), 1, f);
 /*0x12*/fputc(0x3E,     f); // Specify we are targetting the x86_64 ISA
         fputc(0x00,     f);
-/*0x14*/fputc(0x01,     f); // Specify we are targetting the first version of ELF
+/*0x14*/fputc(0x01,     f); // Specify we are targetting the EV_CURRENT version of the ELF object file format
         fputc(0x00,     f);
         fputc(0x00,     f);
         fputc(0x00,     f);
-/*0x18*/fwrite(&(header.entryPoint), sizeof(uint64_t), 1, f);
-/*0x20*/fwrite(&(header.programHeaderOffset), sizeof(uint64_t), 1, f);
-/*0x28*/fwrite(&(header.sectionHeaderOffset), sizeof(uint64_t), 1, f);
+/*0x18*/fwrite(&(header.entryPoint),              sizeof(uint64_t), 1, f);
+/*0x20*/fwrite(&(header.programHeaderOffset),     sizeof(uint64_t), 1, f);
+/*0x28*/fwrite(&(header.sectionHeaderOffset),     sizeof(uint64_t), 1, f);
 /*0x30*/fputc(0x00,     f); // Specify some flags (undefined for x86_64)
         fputc(0x00,     f);
         fputc(0x00,     f);
@@ -858,20 +873,9 @@ const char* GetRelocationTypeName(relocation_type type)
 {
   switch (type)
   {
-    case R_X86_64_64:
-    {
-      return "R_X86_64_64";
-    } break;
-
-    case R_X86_64_PC32:
-    {
-      return "R_X86_64_PC32";
-    } break;
-
-    case R_X86_64_32:
-    {
-      return "R_X86_64_32";
-    } break;
+    case R_X86_64_64:   return "R_X86_64_64";
+    case R_X86_64_PC32: return "R_X86_64_PC32";
+    case R_X86_64_32:   return "R_X86_64_32";
 
     default:
     {
@@ -947,7 +951,7 @@ static void MapSectionsToSegments(elf_file& elf)
     elf_section* section = it->section;
 
     /*
-     * Atm, we can't tell the size of a SHT_NOBITS section, because it's size in the file is a lie
+     * XXX: Atm, we can't tell the size of a SHT_NOBITS section, because it's size in the file is a lie
      */
     assert(section->type != SHT_NOBITS);
 
@@ -1024,13 +1028,17 @@ void WriteElf(elf_file& elf, const char* path)
 
   MapSectionsToSegments(elf);
 
-  // Recalculate symbol values
-  uint64_t textAddress = GetSection(elf, ".text")->address;
+  // --- Recalculate symbol values ---
+  /*
+   * If this is a relocatable, we want to emit symbol values relative to their section's *offset*
+   * If this is an executable, they should be relative to the final *virtual address*
+   */
+  uint64_t symbolOffset = (elf.isRelocatable ? 0u : GetSection(elf, ".text")->address);
   for (auto* it = elf.things.head;
        it < elf.things.tail;
        it++)
   {
-    (*it)->symbol->value += textAddress;
+    (*it)->symbol->value += symbolOffset;
   }
 
   // Calculate virtual address of .rodata symbol
@@ -1078,12 +1086,15 @@ void WriteElf(elf_file& elf, const char* path)
   }
 
   // --- Emit the program header ---
-  elf.header.programHeaderOffset = ftell(f);
-  for (auto* it = elf.segments.head;
-       it < elf.segments.tail;
-       it++)
+  if (elf.segments.size > 0u)
   {
-    EmitProgramEntry(f, *it);
+    elf.header.programHeaderOffset = ftell(f);
+    for (auto* it = elf.segments.head;
+         it < elf.segments.tail;
+         it++)
+    {
+      EmitProgramEntry(f, *it);
+    }
   }
 
   // --- Emit the ELF header ---

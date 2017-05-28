@@ -59,7 +59,7 @@ amountOfGreenInCyan : u8 = cyan.g
 
 ### References
 A reference to type `T` is a `T&`. References actually have two levels of mutablility, one that talks about the reference,
-and another that talks about the thing being  referenced. A mutable reference can be used to change the thing it points to (as long as
+and another that talks about the thing being referenced. A mutable reference can be used to change the thing it points to (as long as
 that thing is mutable itself).
 
 * An immutable reference to an immutable thing is a `T&`

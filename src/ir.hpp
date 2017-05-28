@@ -116,11 +116,7 @@ struct parse_result
   vector<thing_of_code*>    codeThings;
   vector<type_def*>         types;
   vector<string_constant*>  strings;
-
-  /*
-   * This contains paths to files manually linked with the #[LinkFile] attribute.
-   */
-  vector<const char*>       manualLinkedFiles;
+  vector<char*>             filesToLink;
 };
 
 struct dependency_def
