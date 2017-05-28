@@ -1,13 +1,12 @@
 # Roo
 [![Build Status](https://travis-ci.org/IsaacWoods/Roo.svg?branch=master)](https://travis-ci.org/IsaacWoods/Roo)
 
-Roo is a toy programming language that is mainly imperitive, but takes concepts from functional languages.
-Its central goal is to design a language with good programmers in mind, instead of protecting against
-bad ones. It aims to avoid the kitchen-sink-esque hodgepodge of languages like C++, expressing the logic
-of a program through a few powerful features.
+Roo is a imperitive, toy programming language that takes concepts from functional programming. Its central goal
+is to design a language with good programmers in mind, instead of protecting against bad ones. It aims to avoid
+the kitchen-sink-esque hodgepodge of languages like C++, expressing the logic of a program through a few powerful
+features.
 
 ### Aims
-Roo is based upon C, but tries to find better solutions to some of C's problems:
 * No separation of definition and implementation (no headers)
 * Easier build process - nice dependency management and source management
 * Safety - strong type-checking and powerful expression of programmer intent
@@ -15,9 +14,9 @@ Roo is based upon C, but tries to find better solutions to some of C's problems:
 * Access to the 'sharp tools' - doesn't shy away from raw pointers or manual memory management
 
 It looks something like this:
-
 ``` roo
 #[Name(example)]
+
 import Prelude
 
 type color
