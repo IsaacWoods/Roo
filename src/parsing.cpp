@@ -1802,10 +1802,9 @@ const char* GetTokenName(token_type type)
       return "TOKEN_LINE";
     case TOKEN_INVALID:
       return "TOKEN_INVALID";
-    default:
-    {
-      fprintf(stderr, "FATAL: Unhandled token type in GetTokenName!\n");
-      exit(1);
-    }
+    case NUM_TOKENS:
+      return "NUM_TOKENS";
   }
+
+  return nullptr;
 }

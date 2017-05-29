@@ -114,7 +114,7 @@ int main()
 
   CompleteIR(result);
 
-#if 1
+#ifdef OUTPUT_DOT
   for (auto* it = result.codeThings.head;
        it < result.codeThings.tail;
        it++)
@@ -188,6 +188,8 @@ int main()
     AddTask(s, task_type::GENERATE_AIR, code);
   }
 
+  // --- Run the tasks ---
+  // TODO: In the future, these are in theory parallelizable, so run them on multiple threads?
   while (s.tasks.size > 0u)
   {
     task_info* task = GetTask(s);

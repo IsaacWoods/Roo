@@ -16,6 +16,7 @@
 #define SECTION_HEADER_ENTRY_SIZE 0x40
 #define SYMBOL_TABLE_ENTRY_SIZE   0x18
 
+/*
 static const char* GetSectionTypeName(section_type type)
 {
   switch (type)
@@ -47,6 +48,7 @@ static const char* GetSectionTypeName(section_type type)
 
   return nullptr;
 }
+*/
 
 /*
  * NOTE(Isaac): the string is duplicated and freed separately of the passed string.
