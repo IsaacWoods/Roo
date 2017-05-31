@@ -47,7 +47,10 @@ fn Main() -> int
 ```
 
 ### Using the compiler
-At the moment, the compiler only produces executables usable with x86_64, System-V, ELF-compatible systems.
-Running `./roo` in a directory of `.roo` files will compile and link them, producing an executable in the
-current directory. It will also produce various DOT files, which may be converted to images with:
-`dot -Tpng -o {someName}.png {someName}.dot`
+* At the moment, The compiler can only produce executables usable on x86_64, System-V, ELF-compatible systems
+* (Temporary step) Run `make prelude` to build `Prelude` (our standard library)
+* Run `./roo` to compile and link all the files in the current directory
+* Various DOT files will also be produced, which may be converted to PNG with `dot -Tpng -o {file}.png {file}.dot`
+
+### Contributing
+Contributions are welcome. Current tasks and long-term goals can be found on the [Trello](https://trello.com/b/zxHvpzTz/roo). Please keep to the style of the existing code.
