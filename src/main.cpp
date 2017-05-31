@@ -112,6 +112,12 @@ int main()
     }
   }
 
+  // If we've already encoutered an error somewhere, there's no point carrying on
+  if (errorState.hasErrored)
+  {
+    Crash(); 
+  }
+
   CompleteIR(result);
 
 #ifdef OUTPUT_DOT

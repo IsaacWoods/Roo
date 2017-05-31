@@ -69,7 +69,7 @@ static elf_string* CreateString(elf_file& elf, const char* str)
  * NOTE(Isaac): If `name == nullptr`, the symbol points towards the nulled entry of the string table.
  */
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type,
-                                uint16_t sectionIndex, uint64_t value)
+                         uint16_t sectionIndex, uint64_t value)
 {
   elf_symbol* symbol = static_cast<elf_symbol*>(malloc(sizeof(elf_symbol)));
   symbol->name = (name ? CreateString(elf, name) : nullptr);
@@ -92,7 +92,8 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   return symbol;
 }
 
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const instruction_label* label)
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol,
+                      int64_t addend, const instruction_label* label)
 {
   elf_relocation* relocation = static_cast<elf_relocation*>(malloc(sizeof(elf_relocation)));
   relocation->thing   = thing;
@@ -105,7 +106,8 @@ void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocati
   Add<elf_relocation*>(elf.relocations, relocation);
 }
 
-elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly)
+elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment,
+                           bool isMappedDirectly)
 {
   elf_segment* segment        = static_cast<elf_segment*>(malloc(sizeof(elf_segment)));
   segment->type               = type;
@@ -386,7 +388,7 @@ static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_o
 
   if (section->entrySize != RELOCATION_ENTRY_SIZE)
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, object.path);
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, object.path, "Relocation section has weirdly sized entries");
   }
 
   unsigned int numRelocations = section->size / section->entrySize;
@@ -432,13 +434,13 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (!(object.f))
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "Failed to open file");
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "Couldn't open file");
   }
 
   #define CONSUME(byte) \
     if (fgetc(object.f) != byte) \
     { \
-      RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath); \
+      RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "Does not follow format"); \
     }
 
   // Check the magic
@@ -454,7 +456,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   if (fileType != ET_REL)
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath);
+    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "File type is not a relocatable");
   }
 
   // Parse the section header
