@@ -649,8 +649,9 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, entrySymbol, -0x4);
 
   // Call the SYS_EXIT system call
+  // The return value of Main() should be in RAX
+  E(i::MOV_REG_REG, RBX, RAX);
   E(i::MOV_REG_IMM32, RAX, 1u);
-  E(i::XOR_REG_REG, RBX, RBX);
   E(i::INT_IMM8, 0x80);
 }
 
