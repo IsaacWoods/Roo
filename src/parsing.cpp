@@ -21,7 +21,7 @@
  * When this flag is set, the parser emits detailed logging throughout the parse.
  * It should probably be left off, unless debugging the lexer or parser.
  */
-#if 0
+#if 1
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -621,8 +621,7 @@ static token LexNext(roo_parser& parser)
           return LexNumber(parser);
         }
 
-        // NOTE(Isaac): We aren't handling whatever character's next
-        fprintf(stderr, "WARNING: Skipping unlexable character: '%c'\n", c);
+        RaiseError(parser.errorState, ERROR_UNLEXABLE_CHARACTER, c);
       } break;
     }
   }

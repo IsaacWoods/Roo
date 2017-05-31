@@ -25,6 +25,7 @@ enum poison_strategy
 {
   DO_NOTHING,
   SKIP_TOKEN,
+  SKIP_CHARACTER,
   TO_END_OF_STATEMENT,
   TO_END_OF_ATTRIBUTE,
   TO_END_OF_BLOCK,
@@ -84,6 +85,7 @@ void InitErrorDefs()
   E(ERROR_MISSING_MODULE,           DO_NOTHING,           "Couldn't find module: %s");
   E(ERROR_MALFORMED_MODULE_INFO,    GIVE_UP,              "Couldn't parse module info file(%s): %s");
   E(ERROR_FAILED_TO_EXPORT_MODULE,  GIVE_UP,              "Failed to export module(%s): %s");
+  E(ERROR_UNLEXABLE_CHARACTER,      SKIP_CHARACTER,       "Failed to lex character: '%c'. Trying to skip.");
 
   I(ICE_GENERIC,                                          "%s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");
@@ -230,6 +232,12 @@ void RaiseError(error_state& state, error e, ...)
       roo_parser& parser = *(state.parser);
       NextToken(parser, false);
     } break;
+    
+    case SKIP_CHARACTER:
+    {
+      // Do we actually need to do anything here?
+      // Maybe NextChar(parser);
+    } break;
 
     case TO_END_OF_STATEMENT:
     {
@@ -244,6 +252,7 @@ void RaiseError(error_state& state, error e, ...)
       }
       else
       {
+        // TODO(Isaac): maybe handle skipping of statements within the AST (is this needed?)
         printf("INTERNAL WARNING: Skipping TO_END_OF_STATEMENT poisoning, because we're not in the parser\n");
       }
     } break;
