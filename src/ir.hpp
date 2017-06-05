@@ -112,6 +112,7 @@ struct parse_result
 {
   bool                      isModule;
   char*                     name;
+  char*                     targetArch;     // `nullptr` leaves the compiler to assume the correct target arch
   vector<dependency_def*>   dependencies;
   vector<thing_of_code*>    codeThings;
   vector<type_def*>         types;

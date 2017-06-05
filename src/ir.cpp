@@ -131,8 +131,9 @@ void Free<slot_def*>(slot_def*& slot)
 
 void CreateParseResult(parse_result& result)
 {
-  result.isModule = false;
-  result.name     = nullptr;
+  result.isModule     = false;
+  result.name         = nullptr;
+  result.targetArch   = nullptr;
   InitVector<dependency_def*>(result.dependencies);
   InitVector<thing_of_code*>(result.codeThings);
   InitVector<type_def*>(result.types);
@@ -150,6 +151,7 @@ template<>
 void Free<parse_result>(parse_result& result)
 {
   free(result.name);
+  free(result.targetArch);
   FreeVector<dependency_def*>(result.dependencies);
   FreeVector<thing_of_code*>(result.codeThings);
   FreeVector<string_constant*>(result.strings);

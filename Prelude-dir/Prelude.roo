@@ -4,6 +4,8 @@
  */
 
 #[Module(Prelude)]
+#[Target("x86_64")]
+
 #[LinkFile("stuff.o")]
 
 type string

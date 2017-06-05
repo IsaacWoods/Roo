@@ -1249,8 +1249,19 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
       RaiseError(parser.errorState, ERROR_EXPECTED, "identifier as program / library name");
     }
 
-    // NOTE(Isaac): while this is parsed like an attribute, it isn't created like one
     parser.result->name = GetTextFromToken(parser, PeekToken(parser));
+    ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+  }
+  else if (strcmp(attribName, "Target") == 0)
+  {
+    ConsumeNext(parser, TOKEN_LEFT_PAREN);
+
+    if (!Match(parser, TOKEN_STRING))
+    {
+      RaiseError(parser.errorState, ERROR_EXPECTED, "string as target identifier");
+    }
+
+    parser.result->targetArch = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "Module") == 0)
