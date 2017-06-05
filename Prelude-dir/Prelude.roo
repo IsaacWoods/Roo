@@ -4,7 +4,7 @@
  */
 
 #[Module(Prelude)]
-#[Target("x86_64")]
+#[TargetArch("x86_64")]
 
 #[LinkFile("stuff.o")]
 

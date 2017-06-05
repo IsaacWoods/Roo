@@ -1252,7 +1252,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     parser.result->name = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
-  else if (strcmp(attribName, "Target") == 0)
+  else if (strcmp(attribName, "TargetArch") == 0)
   {
     ConsumeNext(parser, TOKEN_LEFT_PAREN);
 
