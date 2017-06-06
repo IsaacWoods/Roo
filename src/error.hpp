@@ -42,6 +42,8 @@ enum error
   ERROR_MALFORMED_MODULE_INFO,    // "Couldn't parse module info file(%s): %s"
   ERROR_FAILED_TO_EXPORT_MODULE,  // "Failed to export module(%s): %s"
   ERROR_UNLEXABLE_CHARACTER,      // "Failed to lex character: '%c'. Trying to skip."
+  ERROR_MUST_RETURN_SOMETHING,    // "Expected to return something of type: %s"
+  ERROR_RETURN_VALUE_NOT_EXPECTED,// "Shouldn't return anything, trying to return a: %s"
 
   ICE_GENERIC,                    // "%s"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s: %s"

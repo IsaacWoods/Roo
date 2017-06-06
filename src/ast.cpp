@@ -474,7 +474,7 @@ void OutputDOTOfAST(thing_of_code* code)
       assert(n);
 
       // Generate a new node name
-      // NOTE(Isaac): it's possible this could overflow with high values of i
+      // XXX(Isaac): it's possible this could overflow with high values of i
       char* name = static_cast<char*>(malloc(sizeof(char) * 16u));
       name[0] = 'n';
       itoa(i++, &(name[1]), 10);
@@ -491,9 +491,12 @@ void OutputDOTOfAST(thing_of_code* code)
         {
           fprintf(f, "\t%s[label=\"Return\"];\n", name);
 
-          char* expressionName = emitNode(f, n->expression);
-          fprintf(f, "\t%s -> %s;\n", name, expressionName);
-          free(expressionName);
+          if (n->expression)
+          {
+            char* expressionName = emitNode(f, n->expression);
+            fprintf(f, "\t%s -> %s;\n", name, expressionName);
+            free(expressionName);
+          }
         } break;
 
         case BINARY_OP_NODE:

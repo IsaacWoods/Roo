@@ -2,6 +2,11 @@
 
 import Prelude
 
+fn Potato() -> int
+{
+  return
+}
+
 #[Entry]
 fn Main() -> int
 {

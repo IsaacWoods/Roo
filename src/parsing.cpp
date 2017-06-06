@@ -1005,14 +1005,14 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
     {
       Log(parser, "(RETURN)\n");
       scope->shouldAutoReturn = false;
+      NextToken(parser, false);
 
-      if (MatchNext(parser, TOKEN_LINE, false))
+      if (Match(parser, TOKEN_LINE, false))
       {
         result = CreateNode(RETURN_NODE, nullptr);
       }
       else
       {
-        NextToken(parser);
         result = CreateNode(RETURN_NODE, Expression(parser));
       }
     } break;

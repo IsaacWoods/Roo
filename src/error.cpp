@@ -86,6 +86,8 @@ void InitErrorDefs()
   E(ERROR_MALFORMED_MODULE_INFO,    GIVE_UP,              "Couldn't parse module info file(%s): %s");
   E(ERROR_FAILED_TO_EXPORT_MODULE,  GIVE_UP,              "Failed to export module(%s): %s");
   E(ERROR_UNLEXABLE_CHARACTER,      SKIP_CHARACTER,       "Failed to lex character: '%c'. Trying to skip.");
+  E(ERROR_MUST_RETURN_SOMETHING,    DO_NOTHING,           "Expected to return something of type: %s");
+  E(ERROR_RETURN_VALUE_NOT_EXPECTED,DO_NOTHING,           "Shouldn't return anything, trying to return a: %s");
 
   I(ICE_GENERIC,                                          "%s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");

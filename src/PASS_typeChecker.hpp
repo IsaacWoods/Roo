@@ -116,6 +116,34 @@ void InitTypeCheckerPass()
       }
     };
 
+  PASS_typeChecker.f[RETURN_NODE] =
+    [](parse_result& /*parse*/, error_state& errorState, thing_of_code* code, node* n)
+    {
+      /*
+       * Firstly, remain null safe - if one is null but not the other, don't dereference, but still error
+       * (hopefully helpfully).
+       */
+      if (!(code->returnType) && n->expression)
+      {
+        RaiseError(errorState, ERROR_RETURN_VALUE_NOT_EXPECTED, TypeRefToString(n->expression->typeRef));
+        return;
+      }
+
+      if (code->returnType && !(n->expression))
+      {
+        RaiseError(errorState, ERROR_MUST_RETURN_SOMETHING, TypeRefToString(code->returnType));
+        return;
+      }
+
+      /*
+       * If both types actually exist, compare them
+       */
+      if (!AreTypeRefsCompatible(code->returnType, n->expression->typeRef))
+      {
+        RaiseError(errorState, ERROR_INCOMPATIBLE_TYPE, TypeRefToString(code->returnType), TypeRefToString(n->expression->typeRef));
+      }
+    };
+
   PASS_typeChecker.f[CALL_NODE] =
     [](parse_result& parse, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
