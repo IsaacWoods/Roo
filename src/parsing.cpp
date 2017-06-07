@@ -1289,6 +1289,29 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     Add<char*>(parser.result->filesToLink, GetTextFromToken(parser, PeekToken(parser)));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
+  else if (strcmp(attribName, "DefinePrimitive") == 0)
+  {
+    ConsumeNext(parser, TOKEN_LEFT_PAREN);
+
+    if (!Match(parser, TOKEN_STRING))
+    {
+      RaiseError(parser.errorState, ERROR_EXPECTED, "string containing name of primitive");
+    }
+
+    type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
+    type->name = GetTextFromToken(parser, PeekToken(parser));
+    InitVector<variable_def*>(type->members);
+
+    ConsumeNext(parser, TOKEN_COMMA);
+    if (!Match(parser, TOKEN_UNSIGNED_INT))
+    {
+      RaiseError(parser.errorState, ERROR_EXPECTED, "size of primitive as unsigned int (in bytes)");
+    }
+    type->size = PeekToken(parser).asUnsignedInt;
+
+    Add<type_def*>(parser.result->types, type);
+    ConsumeNext(parser, TOKEN_RIGHT_PAREN);
+  }
   else if (strcmp(attribName, "Prototype") == 0)
   {
     attribs.isPrototype = true;
