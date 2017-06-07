@@ -52,13 +52,12 @@ void InitCodegenTarget(codegen_target& target)
 
   target.numIntParamColors = 6u;
   target.intParamColors = static_cast<unsigned int*>(malloc(sizeof(unsigned int) * target.numIntParamColors));
-  // XXX: Can we write this with array-initializer syntax?
-  target.intParamColors[0] = RDI;
-  target.intParamColors[1] = RSI;
-  target.intParamColors[2] = RDX;
-  target.intParamColors[3] = RCX;
-  target.intParamColors[4] = R8;
-  target.intParamColors[5] = R9;
+  target.intParamColors[0u] = RDI;
+  target.intParamColors[1u] = RSI;
+  target.intParamColors[2u] = RDX;
+  target.intParamColors[3u] = RCX;
+  target.intParamColors[4u] = R8;
+  target.intParamColors[5u] = R9;
 
   target.functionReturnColor = RAX;
 

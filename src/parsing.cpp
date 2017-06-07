@@ -1247,6 +1247,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     if (!Match(parser, TOKEN_IDENTIFIER))
     {
       RaiseError(parser.errorState, ERROR_EXPECTED, "identifier as program / library name");
+      return;
     }
 
     parser.result->name = GetTextFromToken(parser, PeekToken(parser));
@@ -1259,6 +1260,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     if (!Match(parser, TOKEN_STRING))
     {
       RaiseError(parser.errorState, ERROR_EXPECTED, "string as target identifier");
+      return;
     }
 
     parser.result->targetArch = GetTextFromToken(parser, PeekToken(parser));
@@ -1271,6 +1273,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     if (!Match(parser, TOKEN_IDENTIFIER))
     {
       RaiseError(parser.errorState, ERROR_EXPECTED, "identifier as module name");
+      return;
     }
 
     parser.result->isModule = true;
@@ -1284,6 +1287,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     if (!Match(parser, TOKEN_STRING))
     {
       RaiseError(parser.errorState, ERROR_EXPECTED, "string constant to specify path of file to manually link");
+      return;
     }
 
     Add<char*>(parser.result->filesToLink, GetTextFromToken(parser, PeekToken(parser)));
@@ -1296,6 +1300,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     if (!Match(parser, TOKEN_STRING))
     {
       RaiseError(parser.errorState, ERROR_EXPECTED, "string containing name of primitive");
+      return;
     }
 
     type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
@@ -1306,6 +1311,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     if (!Match(parser, TOKEN_UNSIGNED_INT))
     {
       RaiseError(parser.errorState, ERROR_EXPECTED, "size of primitive as unsigned int (in bytes)");
+      return;
     }
     type->size = PeekToken(parser).asUnsignedInt;
 
