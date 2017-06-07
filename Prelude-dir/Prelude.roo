@@ -8,6 +8,19 @@
 
 #[LinkFile("stuff.o")]
 
+#[DefinePrimitive("char",   1u)]
+#[DefinePrimitive("int",    4u)]
+#[DefinePrimitive("uint",   4u)]
+#[DefinePrimitive("float",  4u)]
+#[DefinePrimitive("u8",     1u)]
+#[DefinePrimitive("s8",     1u)]
+#[DefinePrimitive("u16",    2u)]
+#[DefinePrimitive("s16",    3u)]
+#[DefinePrimitive("u32",    4u)]
+#[DefinePrimitive("s32",    4u)]
+#[DefinePrimitive("u64",    8u)]
+#[DefinePrimitive("s62",    8u)]
+
 type string
 {
   head : char&

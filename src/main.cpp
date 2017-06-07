@@ -61,7 +61,7 @@ int main()
 
   // Create the target for the codegen
   codegen_target target;
-  InitCodegenTarget(result, target);
+  InitCodegenTarget(target);
 
   // Compile the current directory
   if (!Compile(result, "."))

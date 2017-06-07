@@ -14,7 +14,7 @@ struct code_generator
 };
 
 void Generate(const char* outputPath, codegen_target& target, parse_result& result);
-void InitCodegenTarget(parse_result& result, codegen_target& target);
+void InitCodegenTarget(codegen_target& target);
 void FreeCodegenTarget(codegen_target& target);
 
 void CreateCodeGenerator(code_generator& generator, const char* outputPath);

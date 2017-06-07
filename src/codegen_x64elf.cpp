@@ -43,18 +43,7 @@ struct register_pimpl
   uint8_t opcodeOffset;
 };
 
-static type_def* CreateInbuiltType(const char* name, unsigned int size)
-{
-  type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
-  type->name = static_cast<char*>(malloc(sizeof(char) * strlen(name) + 1u));
-  strcpy(type->name, name);
-  InitVector<variable_def*>(type->members);
-  type->size = size;
-
-  return type;
-}
-
-void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
+void InitCodegenTarget(codegen_target& target)
 {
   target.name = "x64_elf";
   target.numRegisters = 16u;
@@ -63,6 +52,7 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
 
   target.numIntParamColors = 6u;
   target.intParamColors = static_cast<unsigned int*>(malloc(sizeof(unsigned int) * target.numIntParamColors));
+  // XXX: Can we write this with array-initializer syntax?
   target.intParamColors[0] = RDI;
   target.intParamColors[1] = RSI;
   target.intParamColors[2] = RDX;
@@ -92,20 +82,6 @@ void InitCodegenTarget(parse_result& parseResult, codegen_target& target)
   REGISTER(R13, "R13", register_def::reg_usage::GENERAL, 13u);
   REGISTER(R14, "R14", register_def::reg_usage::GENERAL, 14u);
   REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
-
-  // Add inbuilt types
-  Add<type_def*>(parseResult.types, CreateInbuiltType("int",    4u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("uint",   4u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("float",  4u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("u8",     1u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("s8",     1u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("u16",    2u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("s16",    2u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("u32",    4u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("s32",    4u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("u64",    8u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("s64",    8u));
-  Add<type_def*>(parseResult.types, CreateInbuiltType("char",   1u));
 }
 
 template<>
