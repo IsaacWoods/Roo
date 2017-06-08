@@ -90,6 +90,7 @@ void InitErrorDefs()
   E(ERROR_RETURN_VALUE_NOT_EXPECTED,DO_NOTHING,           "Shouldn't return anything, trying to return a: %s");
 
   I(ICE_GENERIC,                                          "%s");
+  I(ICE_UNEXPECTED_TOKEN_TYPE,                            "Unexpected token type in %s: %s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");
   I(ICE_UNHANDLED_INSTRUCTION_TYPE,                       "Unhandled instruction type (%s) in %s");
   I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
@@ -153,6 +154,21 @@ error_state CreateErrorState(error_state_type stateType, ...)
   return state;
 }
 
+//                                   White          Light Purple    Orange          Cyan
+static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};
+static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "ICE"};
+
+/*
+ * XXX: `Assert` must not be used in the following methods, because it executes `RaiseError` to report errors.
+ * Instead, use this method to crash with a relatively helpful message.
+ */
+__attribute__((noreturn))
+void ReportErrorInErrorReporter()
+{
+  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);
+  Crash();
+}
+
 void RaiseError(error_state& state, error e, ...)
 {
   va_list args;
@@ -162,13 +178,9 @@ void RaiseError(error_state& state, error e, ...)
   // Mark to the error state that an error has occured in its domain
   state.hasErrored = true;
 
-  //                                   White          Light Purple    Orange          Cyan
-  static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};
-  static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "ICE"};
-
   /*
-   *  NOTE(Isaac): we can't use the vsnprintf trick here to dynamically allocate the string buffer,
-   *  because we can't use the vararg list twice.
+   *  We can't use the vsnprintf trick here to dynamically allocate the string buffer, because we can't use the
+   *  vararg list twice, so we template based on the a stack-allocated buffer.
    */
   char message[1024u];
   vsnprintf(message, 1024u, def.messageFmt, args);
@@ -230,7 +242,11 @@ void RaiseError(error_state& state, error e, ...)
 
     case SKIP_TOKEN:
     {
-      assert(state.stateType == PARSING_UNIT);
+      if (state.stateType != PARSING_UNIT)
+      {
+        ReportErrorInErrorReporter();
+      }
+
       roo_parser& parser = *(state.parser);
       NextToken(parser, false);
     } break;
@@ -261,9 +277,12 @@ void RaiseError(error_state& state, error e, ...)
 
     case TO_END_OF_ATTRIBUTE:
     {
-      assert(state.stateType == PARSING_UNIT);
-      roo_parser& parser = *(state.parser);
+      if (state.stateType != PARSING_UNIT)
+      {
+        ReportErrorInErrorReporter();
+      }
 
+      roo_parser& parser = *(state.parser);
       while (PeekToken(parser).type != TOKEN_RIGHT_BLOCK)
       {
         NextToken(parser);
@@ -284,5 +303,24 @@ void RaiseError(error_state& state, error e, ...)
     {
       Crash();
     } break;
+  }
+}
+
+void RaiseError(error e, ...)
+{
+  va_list args;
+  va_start(args, e);
+  const error_def& def = errors[e];
+
+  char message[1024u];
+  vsnprintf(message, 1024u, def.messageFmt, args);
+
+  fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
+  va_end(args);
+
+  // --- Make sure it doesn't expect us to poison anything - we can't without an error_state ---
+  if (def.poisonStrategy != DO_NOTHING)
+  {
+    ReportErrorInErrorReporter();
   }
 }

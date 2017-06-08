@@ -5,6 +5,17 @@
 
 #pragma once
 
+/*
+ * XXX: You should use this instead of `assert` from <cassert>
+ *
+ * - We first evaluate the condition, if it passes we shortcircuit the || operator and return
+ * - If the condition failed, we run RaiseError as the first expression of the comma
+ * - We then return the right expression of the comma (`false`) to fail overall
+ * - We then cast it all to `void` to stop the compiler complaining about the unused value
+ */
+#define Assert(expression, message)\
+  (void)((expression) || (RaiseError(ICE_FAILED_ASSERTION, __FILE__, __LINE__, message),false));
+
 enum error
 {
   NOTE_IGNORED_ELF_SECTION,       // "Ignoring section in ELF relocatable: %s"
@@ -46,11 +57,13 @@ enum error
   ERROR_RETURN_VALUE_NOT_EXPECTED,// "Shouldn't return anything, trying to return a: %s"
 
   ICE_GENERIC,                    // "%s"
+  ICE_UNEXPECTED_TOKEN_TYPE,      // "Unexpected token type in %s: %s"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s: %s"
   ICE_UNHANDLED_INSTRUCTION_TYPE, // "Unhandled instruction type (%s) in %s"
   ICE_UNHANDLED_SLOT_TYPE,        // "Unhandled slot type (%s) in %s"
   ICE_UNHANDLED_OPERATOR,         // "Unhandled operator (token=%s) in %s"
   ICE_UNHANDLED_RELOCATION,       // "Unable to handle relocation of type: %s"
+  ICE_FAILED_ASSERTION,           // "Assertion failed at (%s:%d): %s"
 
   NUM_ERRORS
 };
@@ -94,3 +107,4 @@ struct error_state
 
 error_state CreateErrorState(error_state_type type, ...);
 void RaiseError(error_state& state, error e, ...);
+void RaiseError(error e, ...);

@@ -4,7 +4,6 @@
  */
 
 #include <cstdio>
-#include <cassert>
 #include <common.hpp>
 #include <ir.hpp>
 #include <ast.hpp>

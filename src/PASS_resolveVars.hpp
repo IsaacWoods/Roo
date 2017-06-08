@@ -7,7 +7,6 @@
 
 #include <cstdio>
 #include <cstring>
-#include <cassert>
 #include <ast.hpp>
 #include <error.hpp>
 
@@ -69,15 +68,15 @@ void InitResolveVarsPass()
       {
         case VARIABLE_NODE:
         {
-          assert(n->memberAccess.parent->variable.isResolved);
-          assert(n->memberAccess.parent->variable.var->type.isResolved);
+          Assert(n->memberAccess.parent->variable.isResolved, "Member access is unresolved");
+          Assert(n->memberAccess.parent->variable.var->type.isResolved, "Member access type is unresolved");
           parentType = n->memberAccess.parent->variable.var->type.def;
         } break;
 
         case MEMBER_ACCESS_NODE:
         {
-          assert(n->memberAccess.parent->memberAccess.isResolved);
-          assert(n->memberAccess.parent->memberAccess.member->type.isResolved);
+          Assert(n->memberAccess.parent->memberAccess.isResolved, "Member access child is unresolved");
+          Assert(n->memberAccess.parent->memberAccess.member->type.isResolved, "Member access child's type is unresolved");
           parentType = n->memberAccess.parent->memberAccess.member->type.def;
         } break;
 
@@ -92,7 +91,7 @@ void InitResolveVarsPass()
         RaiseError(errorState, ICE_UNHANDLED_NODE_TYPE, "PASS_resolveVars::MEMBER_ACCESS_NODE(child)");
       }
       
-      assert(!(n->memberAccess.child->variable.isResolved));
+      Assert(!(n->memberAccess.child->variable.isResolved), "Child member variable is unresolved");
       const char* childName = n->memberAccess.child->variable.name;
 
       for (auto* it = parentType->members.head;

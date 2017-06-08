@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <cstdarg>
 #include <climits>
-#include <cassert>
 #include <common.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
@@ -224,8 +223,8 @@ static token LexNumber(roo_parser& parser)
 
     default:
     {
-      assert(false);
-    }
+      RaiseError(parser.errorState, ICE_UNEXPECTED_TOKEN_TYPE, "LexNumber", GetTokenName(type));
+    } break;
   }
 
   free(text);
@@ -1225,7 +1224,7 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
   else
   {
     operatorDef->ast = Block(parser, operatorDef);
-    assert(!(operatorDef->shouldAutoReturn));
+    Assert(!(operatorDef->shouldAutoReturn), "Parsed an operator that should apparently auto-return");
   }
 
   Log(parser, "<-- Operator\n");

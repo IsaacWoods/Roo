@@ -4,7 +4,6 @@
  */
 
 #include <ir.hpp>
-#include <cassert>
 #include <climits>
 #include <cstring>
 #include <cstdarg>
@@ -458,7 +457,7 @@ bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability)
 
 static void ResolveTypeRef(type_ref& ref, parse_result& parse, error_state& errorState)
 {
-  assert(!(ref.isResolved));
+  Assert(!(ref.isResolved), "Tried to resolve type reference that is already resolved");
 
   for (auto* it = parse.types.head;
        it < parse.types.tail;
@@ -497,7 +496,7 @@ static unsigned int CalculateSizeOfType(type_def* type, bool overwrite = false)
        it++)
   {
     variable_def* member = *it;
-    assert(member->type.isResolved);
+    Assert(member->type.isResolved, "Tried to calculate size of type that has unresolved members");
     member->offset = type->size;
     type->size += CalculateSizeOfType(member->type.def);
   }
@@ -513,12 +512,12 @@ unsigned int GetSizeOfTypeRef(type_ref& type)
     return 8u;
   }
 
-  assert(type.isResolved);
+  Assert(type.isResolved, "Tried to get size of a type reference that hasn't been resolved");
   unsigned int size = type.def->size;
 
   if (type.isArray)
   {
-    assert(type.isArraySizeResolved);
+    Assert(type.isArraySizeResolved, "Tried to find size of an array type who's size if unresolved");
     size *= type.arraySize;
   }
 
@@ -568,7 +567,7 @@ char* MangleName(thing_of_code* thing)
            it++)
       {
         variable_def* param = *it;
-        assert(!(param->type.isResolved));
+        Assert(!(param->type.isResolved), "Tried to mangle an operator that isn't fully resolved");
         length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
       }
     
@@ -597,10 +596,10 @@ static void CompleteVariable(variable_def* var, error_state& errorState)
   // If it's an array, resolve the size
   if (var->type.isArray)
   {
-    assert(!(var->type.isArraySizeResolved));
+    Assert(!(var->type.isArraySizeResolved), "Tried to resolve array size expression that already has a size");
     
     node* sizeExpression = var->type.arraySizeExpression;
-    assert(sizeExpression);
+    Assert(sizeExpression, "An array has a nullptr size expression");
 
     if (!(sizeExpression->type == NUMBER_CONSTANT_NODE &&
           sizeExpression->number.type == number_part::constant_type::UNSIGNED_INT))

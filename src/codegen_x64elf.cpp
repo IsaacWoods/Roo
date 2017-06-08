@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>
-#include <cassert>
 #include <cstdarg>
 #include <climits>
 #include <ctgmath>
@@ -681,13 +680,13 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
             case slot_type::TEMPORARY:
             case slot_type::RETURN_RESULT:
             {
-              assert(instruction->slot->color != -1);
+              Assert(instruction->slot->color != -1, "Not in a register when it should be");
               E(i::MOV_REG_REG, RAX, instruction->slot->color);
             } break;
 
             case slot_type::MEMBER:
             {
-              assert(instruction->slot->member.parent->color != -1);
+              Assert(instruction->slot->member.parent->color != -1, "Not in a register when it should be");
               E(i::MOV_REG_BASE_DISP, RAX, instruction->slot->member.parent->color, instruction->slot->member.memberVar->offset);
             } break;
 
@@ -753,7 +752,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
         else
         {
           // NOTE(Isaac): if we're here, `src` should be colored
-          assert(mov.src->color != -1);
+          Assert(mov.src->color != -1, "Should be in a register and it isn't");
 
           E(i::MOV_REG_REG, mov.dest->color, mov.src->color);
         }
@@ -769,14 +768,9 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
         }
         else
         {
-          // TODO: precolor compare instructions with immediates, because the variable needs to be in RAX
           if (pair.left->color != -1)
           {
-            if (pair.left->color != RAX)
-            {
-              RaiseError(code->errorState, ICE_GENERIC, "There's only an x86 instruction for comparing an immediate with RAX!");
-            }
-
+            Assert(pair.left->color == RAX, "Compare instructions should be precolored to be in RAX on x64");
             E(i::CMP_RAX_IMM32, pair.right->i);
           }
         }
@@ -819,13 +813,13 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
 
       case I_INC:
       {
-        assert(instruction->slot->color != -1);
+        Assert(instruction->slot->color != -1, "Should be in a register");
         E(i::INC_REG, instruction->slot->color);
       } break;
 
       case I_DEC:
       {
-        assert(instruction->slot->color != -1);
+        Assert(instruction->slot->color != -1, "Should be in a register");
         E(i::DEC_REG, instruction->slot->color);
       } break;
 

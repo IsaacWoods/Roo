@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
-#include <cassert>
 #include <common.hpp>
 #include <error.hpp>
 
@@ -144,7 +143,7 @@ node* CreateNode(node_type type, ...)
 template<>
 void Free<node*>(node*& n)
 {
-  assert(n);
+  Assert(n, "Tried to free nullptr node");
 
   if (n->shouldFreeTypeRef)
   {
@@ -273,7 +272,8 @@ void Free<node*>(node*& n)
 
 void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse, error_state& errorState)
 {
-  assert(n->type);
+  // XXX: Uhh, why are we asserting an enum on each node?? Maybe a reason
+//  assert(n->type);
 
   if (pass.iteratePolicy == NODE_FIRST)
   {
@@ -471,7 +471,7 @@ void OutputDOTOfAST(thing_of_code* code)
    */
   std::function<char*(FILE*, node*)> emitNode = [&](FILE* f, node* n) -> char*
     {
-      assert(n);
+      Assert(n, "Tried to print nullptr node");
 
       // Generate a new node name
       // XXX(Isaac): it's possible this could overflow with high values of i
@@ -663,7 +663,7 @@ void OutputDOTOfAST(thing_of_code* code)
         {
           fprintf(f, "\t%s[label=\"=\"];\n", name);
 
-          assert(n->variableAssignment.variable);
+          Assert(n->variableAssignment.variable, "Tried to print variable assignment without a variable");
           char* variableName = emitNode(f, n->variableAssignment.variable);
           fprintf(f, "\t%s -> %s;\n", name, variableName);
           free(variableName);

@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
-#include <cassert>
 #include <cstdarg>
 #include <climits>
 #include <common.hpp>
@@ -130,7 +129,7 @@ static void UseSlot(slot_def* slot, air_instruction* user)
   if (slot->liveRanges.size >= 1u)
   {
     live_range& lastRange = slot->liveRanges[slot->liveRanges.size - 1u];
-    if (lastRange.definition) assert(lastRange.definition->index < user->index);
+    if (lastRange.definition) Assert(lastRange.definition->index < user->index, "Slot used before being defined");
     lastRange.lastUse = user;
   }
   else
@@ -186,7 +185,7 @@ template<> instruction_label* GenNodeAIR<instruction_label*>(codegen_target&, th
 template<>
 slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, node* n)
 {
-  assert(n);
+  Assert(n, "Tried to generate AIR for nullptr AST node");
 
   switch (n->type)
   {
@@ -236,8 +235,8 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 
     case BRANCH_NODE:
     {
-      assert(n->branch.condition->type == CONDITION_NODE);
-      assert(n->branch.condition->condition.reverseOnJump);
+      Assert(n->branch.condition->type == CONDITION_NODE, "Condition node of branch isn't actually a condition");
+      Assert(n->branch.condition->condition.reverseOnJump, "Not reversing jump condition when we should");
       jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->branch.condition);
 
       slot_def* result = CreateSlot(target, code, slot_type::TEMPORARY);
@@ -278,13 +277,13 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 
     case VARIABLE_NODE:
     {
-      assert(n->variable.isResolved);
+      Assert(n->variable.isResolved, "Tried to generate AIR for unresolved variable");
       return n->variable.var->slot;
     } break;
 
     case MEMBER_ACCESS_NODE:
     {
-      assert(n->memberAccess.isResolved);
+      Assert(n->memberAccess.isResolved, "Tried to generate AIR for an unresolved member access");
       return n->memberAccess.member->slot;
     } break;
 
@@ -325,7 +324,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 template<>
 jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of_code* code, node* n)
 {
-  assert(n);
+  Assert(n, "Tried to generate AIR for nullptr AST node");
 
   switch (n->type)
   {
@@ -401,7 +400,7 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 template<>
 void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 {
-  assert(n);
+  Assert(n, "Tried to generate AIR for nullptr AST node");
 
   switch (n->type)
   {
@@ -463,8 +462,8 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 
     case BRANCH_NODE:
     {
-      assert(n->branch.condition->type == CONDITION_NODE);
-      assert(n->branch.condition->condition.reverseOnJump);
+      Assert(n->branch.condition->type == CONDITION_NODE, "Condition node of branch isn't actually a condition");
+      Assert(n->branch.condition->condition.reverseOnJump, "Not reversing jump condition when we should");
       jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->branch.condition);
 
       instruction_label* elseLabel = nullptr;
@@ -481,7 +480,6 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
       if (n->branch.elseCode)
       {
         PushInstruction(code, I_JUMP, jump_i::condition::UNCONDITIONAL, endLabel);
-
         PushInstruction(code, I_LABEL, elseLabel);
         GenNodeAIR(target, code, n->branch.elseCode);
       }
@@ -491,8 +489,8 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 
     case WHILE_NODE:
     {
-      assert(n->whileThing.condition->type == CONDITION_NODE);
-      assert(!(n->whileThing.condition->condition.reverseOnJump));
+      Assert(n->branch.condition->type == CONDITION_NODE, "Condition node of branch isn't actually a condition");
+      Assert(!(n->whileThing.condition->condition.reverseOnJump), "Reversing jump when we shouldn't be");
 
       instruction_label* label = CreateInstructionLabel();
       PushInstruction(code, I_LABEL, label);
@@ -522,7 +520,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 template<>
 instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, thing_of_code* code, node* n)
 {
-  assert(n);
+  Assert(n, "Tried to generate AIR for nullptr AST node");
 
   switch (n->type)
   {
@@ -577,7 +575,7 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
 
 static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node* n)
 {
-  assert(n->binaryOp.resolvedOperator);
+  Assert(n->binaryOp.resolvedOperator, "Tried to generate operation AIR for unresolved operator");
   Add<thing_of_code*>(code->calledThings, n->binaryOp.resolvedOperator);
 
   // TODO: don't assume everything will fit in a general register
@@ -664,7 +662,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node*
  */
 static slot_def* GenCall(codegen_target& target, thing_of_code* code, node* n)
 {
-  assert(n->call.isResolved);
+  Assert(n->call.isResolved, "Tried to generate AIR for unresolved function call");
   Add<thing_of_code*>(code->calledThings, n->call.code);
 
   // TODO: don't assume everything will fit in a general register
@@ -986,7 +984,7 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code* code)
 
 void GenerateAIR(codegen_target& target, thing_of_code* code)
 {
-  assert(!(code->airHead));
+  Assert(!(code->airHead), "Tried to generate AIR for thing_of_code that already has AIR");
   unsigned int numParams = 0u;
 
   for (auto* it = code->params.head;

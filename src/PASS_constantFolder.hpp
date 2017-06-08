@@ -37,7 +37,7 @@ void InitConstantFolderPass()
       {
         node* newNode;
 
-        assert(n->binaryOp.left->number.type == n->binaryOp.right->number.type);
+        Assert(n->binaryOp.left->number.type == n->binaryOp.right->number.type, "Number types must be the same");
         switch (n->binaryOp.left->number.type)
         {
           case number_part::constant_type::SIGNED_INT:
@@ -124,7 +124,7 @@ void InitConstantFolderPass()
 
       number_part& left = condition.left->number;
       number_part& right = condition.right->number;
-      assert(left.type == right.type);
+      Assert(left.type == right.type, "Left and right sides of branch aren't of the same type");
 
       bool comparisonResult;
 

@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <cassert>
 #include <ast.hpp>
 #include <ir.hpp>
 #include <error.hpp>
@@ -25,8 +24,8 @@ void InitTypeCheckerPass()
   PASS_typeChecker.f[VARIABLE_NODE] =
     [](parse_result& /*parse*/, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
-      assert(n->variable.isResolved);
-      assert(n->variable.var->type.isResolved);
+      Assert(n->variable.isResolved, "Tried to type-check unresolved variable");
+      Assert(n->variable.var->type.isResolved, "Tried to type-check variable with unresolved type");
       n->typeRef = &(n->variable.var->type);
       n->shouldFreeTypeRef = false;
     };
@@ -34,7 +33,7 @@ void InitTypeCheckerPass()
   PASS_typeChecker.f[MEMBER_ACCESS_NODE] =
     [](parse_result& /*parse*/, error_state& /*errorState*/, thing_of_code* /*code*/, node* n)
     {
-      assert(n->memberAccess.isResolved);
+      Assert(n->memberAccess.isResolved, "Tried to type-check unresolved member access");
       n->typeRef = &(n->memberAccess.member->type);
       n->shouldFreeTypeRef = false;
     };
@@ -148,7 +147,7 @@ void InitTypeCheckerPass()
     [](parse_result& parse, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
       // --- First, we resolve the function call to the actual `thing_of_code` being called ---
-      assert(!n->call.isResolved);
+      Assert(!n->call.isResolved, "Tried to type-check call that is already selected and resolved");
 
       for (auto* it = parse.codeThings.head;
            it < parse.codeThings.tail;
@@ -199,13 +198,13 @@ void InitTypeCheckerPass()
         {
           case VARIABLE_NODE:
           {
-            assert(variableNode->variable.isResolved);
+            Assert(variableNode->variable.isResolved, "Tried to type-check an unresolved variable in an assign");
             variable = variableNode->variable.var;
           } break;
 
           case MEMBER_ACCESS_NODE:
           {
-            assert(variableNode->memberAccess.isResolved);
+            Assert(variableNode->memberAccess.isResolved, "Tried to type-check an unresolved member access");
             variable = variableNode->memberAccess.member;
           } break;
 
@@ -213,8 +212,8 @@ void InitTypeCheckerPass()
           {
             if (variableNode->binaryOp.op == TOKEN_LEFT_BLOCK)
             {
-              assert(variableNode->binaryOp.left->type == VARIABLE_NODE);
-              assert(variableNode->binaryOp.left->variable.isResolved);
+              Assert(variableNode->binaryOp.left->type == VARIABLE_NODE, "Left side of a binary op is not an l-value");
+              Assert(variableNode->binaryOp.left->variable.isResolved, "Type-checking an unresolved l-value");
               variable = variableNode->binaryOp.left->variable.var;
               break;
             }
@@ -238,10 +237,10 @@ void InitTypeCheckerPass()
         type_ref* varType = n->variableAssignment.variable->typeRef;
         type_ref* newValueType = n->variableAssignment.newValue->typeRef;
 
-        assert(varType);
-        assert(varType->isResolved);
-        assert(newValueType);
-        assert(newValueType->isResolved);
+        Assert(varType &&
+               varType->isResolved &&
+               newValueType &&
+               newValueType->isResolved,  "Missing element of type-checking information");
 
         if (!AreTypeRefsCompatible(varType, newValueType, false))
         {
@@ -265,13 +264,13 @@ void InitTypeCheckerPass()
   
           if (variableNode->type == VARIABLE_NODE)
           {
-            assert(variableNode->variable.isResolved);
+            Assert(variableNode->variable.isResolved, "Unresolved variable while type-checking binary op");
             variable = variableNode->variable.var;
           }
           else
           {
-            assert(variableNode->type == MEMBER_ACCESS_NODE);
-            assert(variableNode->memberAccess.isResolved);
+            Assert(variableNode->type == MEMBER_ACCESS_NODE, "Binary op l-value must either be variable or member access");
+            Assert(variableNode->memberAccess.isResolved, "Tried to type-check an unresolved member access");
             variable = variableNode->memberAccess.member;
           }
     
@@ -289,9 +288,7 @@ void InitTypeCheckerPass()
         {
           type_ref* a = n->binaryOp.left->typeRef;
           
-          assert(a);
-          assert(a->isResolved);
-          assert(a->def);
+          Assert(a && a->isResolved && a->def, "Operand of one-operand operation is invalid");
 
           // TODO: check that the type has the required operator
         }
@@ -300,13 +297,8 @@ void InitTypeCheckerPass()
           type_ref* a = n->binaryOp.left->typeRef;
           type_ref* b = n->binaryOp.right->typeRef;
   
-          // NOTE(Isaac): this seems slightly defensive, design flaws showing?
-          assert(a);
-          assert(a->isResolved);
-          assert(b);
-          assert(b->isResolved);
-          assert(a->def);
-          assert(b->def);
+          Assert(a && a->isResolved && a->def, "Left side of binary op is invald");
+          Assert(b && b->isResolved && b->def, "Right side of binary op is invalid");
 
           // NOTE(Isaac): this isn't really actually type-checking, but here we resolve the operator_def to use
           for (auto* it = parse.codeThings.head;

@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <climits>
-#include <cassert>
 #include <error.hpp>
 
 #define PROGRAM_HEADER_ENTRY_SIZE 0x38
@@ -250,7 +249,7 @@ void Free<elf_object>(elf_object& object)
 
 static elf_string* ExtractString(elf_file& elf, elf_object& object, const elf_section* stringTable, uint64_t stringOffset)
 {
-  assert(stringTable);
+  Assert(stringTable, "Tried to extract string from non-existant string table in ELF object");
 
   if (stringOffset == 0u)
   {
@@ -546,7 +545,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
        it++)
   {
     elf_symbol* symbol = *it;
-    assert(symbol->name); // NOTE(Isaac): functions should probably always have names
+    Assert(symbol->name, "Extracted functions should have names");
 
     /*
      * Annoying assemblers/compilers like NASM neglect to actually include the sizes of symbols, so we have
@@ -900,8 +899,8 @@ static void CompleteRelocations(error_state& errorState, FILE* f, elf_file& elf)
        it++)
   {
     elf_relocation* relocation = *it;
-    assert(relocation->thing);
-    assert(relocation->symbol);
+    Assert(relocation->thing, "Relocation trying to be applied to a nullptr elf_thing");
+    Assert(relocation->symbol, "Relocation has a nullptr symbol");
 
     // Go to the correct position in the ELF file to apply the relocation
     uint64_t target = relocation->thing->fileOffset + relocation->offset;
@@ -954,10 +953,7 @@ static void MapSectionsToSegments(elf_file& elf)
     elf_segment* segment = it->segment;
     elf_section* section = it->section;
 
-    /*
-     * XXX: Atm, we can't tell the size of a SHT_NOBITS section, because it's size in the file is a lie
-     */
-    assert(section->type != SHT_NOBITS);
+    Assert(section->type != SHT_NOBITS, "We can't tell the size of SHT_NOBITS sections, because its file size is a lie");
 
     if (segment->isMappedDirectly)
     {

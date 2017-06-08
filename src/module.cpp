@@ -207,7 +207,7 @@ void Emit<char*>(FILE* f, char* value, error_state& errorState)
 template<>
 void Emit<variable_def*>(FILE* f, variable_def* value, error_state& errorState)
 {
-  assert(value->type.isResolved);
+  Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a variable_def");
   Emit<char*>(f, value->name, errorState);
   Emit<char*>(f, (value->type.isResolved ? value->type.def->name : value->type.name), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isMutable), errorState);
@@ -216,7 +216,7 @@ void Emit<variable_def*>(FILE* f, variable_def* value, error_state& errorState)
 
   if (value->type.isArray)
   {
-    assert(value->type.isArraySizeResolved);
+    Assert(value->type.isArraySizeResolved, "Tried to emit module info for unresolved array size");
     Emit<uint32_t>(f, static_cast<uint32_t>(value->type.arraySize), errorState);
   }
   else

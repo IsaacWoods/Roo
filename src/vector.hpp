@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <cassert>
+#include <error.hpp>
 
 template<typename T>
 void Free(T&);
@@ -198,7 +198,7 @@ void StableRemove(vector<T>& v, const T& thing)
 template<typename T>
 T PopBack(vector<T>& v)
 {
-  assert(v.size > 0u);
+  Assert(v.size > 0u, "Vector must have items to pop");
 
   T last = v[v.size - 1u];
   v.size--;
