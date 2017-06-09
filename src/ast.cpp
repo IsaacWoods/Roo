@@ -272,8 +272,7 @@ void Free<node*>(node*& n)
 
 void ApplyPassToNode(node* n, thing_of_code* code, ast_pass& pass, parse_result& parse, error_state& errorState)
 {
-  // XXX: Uhh, why are we asserting an enum on each node?? Maybe a reason
-//  assert(n->type);
+  Assert(n, "Tried to apply pass to nullptr node");
 
   if (pass.iteratePolicy == NODE_FIRST)
   {

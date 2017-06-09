@@ -993,6 +993,7 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
       if (!isInLoop)
       {
         RaiseError(parser.errorState, ERROR_UNEXPECTED, "not-in-a-loop", "break");
+        return nullptr;
       }
 
       result = CreateNode(BREAK_NODE);
@@ -1054,25 +1055,31 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
     } // NOTE(Isaac): no break
 
     default:
+    {
       Log(parser, "(EXPRESSION STATEMENT)\n");
       result = Expression(parser);
 
       /*
        * This checks that the produced expression can appear at top-level.
+       * XXX: Should we be doing this at this level - what shouldn't appear at a statement level?
        */
+      /*
       switch (result->type)
       {
         case VARIABLE_ASSIGN_NODE:
         case CALL_NODE:
         case BRANCH_NODE:
+        case BINARY_OP_NODE:
         {
         } break;
 
         default:
         {
-          RaiseError(parser.errorState, ERROR_UNEXPECTED, "statement-position", GetNodeName(result->type));
+          RaiseError(parser.errorState, ERROR_UNEXPECTED, "statement", GetNodeName(result->type));
         } break;
       }
+      */
+    }
   }
 
   Log(parser, "<-- Statement\n");

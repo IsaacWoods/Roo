@@ -5,6 +5,12 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  Print("Hello, World!\n")
+  i : mut uint
+  i = 0u
+  while (i < 5u)
+  {
+    Print("Loop\n")
+    i++
+  }
   return 0
 }
