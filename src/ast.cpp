@@ -21,7 +21,8 @@ ASTNode::~ASTNode()
 }
 
 ReturnNode::ReturnNode(ASTNode* returnValue)
-  :returnValue(returnValue)
+  :ASTNode()
+  ,returnValue(returnValue)
 {
 }
 
@@ -31,7 +32,8 @@ ReturnNode::~ReturnNode()
 }
 
 UnaryOpNode::UnaryOpNode(Operator op, ASTNode* operand)
-  :op(op)
+  :ASTNode()
+  ,op(op)
   ,operand(operand)
   ,resolvedOperator(nullptr)
 {
@@ -43,7 +45,8 @@ UnaryOpNode::~UnaryOpNode()
 }
 
 BinaryOpNode::BinaryOpNode(Operator op, ASTNode* left, ASTNode* right)
-  :op(op)
+  :ASTNode()
+  ,op(op)
   ,left(left)
   ,right(right)
   ,resolvedOperator(nullptr)
@@ -57,7 +60,8 @@ BinaryOpNode::~BinaryOpNode()
 }
 
 VariableNode::VariableNode(char* name)
-  :name(name)
+  :ASTNode()
+  ,name(name)
   ,isResolved(false)
 {
 }
@@ -71,7 +75,8 @@ VariableNode::~VariableNode()
 }
 
 ConditionNode::ConditionNode(Condition condition, ASTNode* left, ASTNode* right, bool reverseOnJump)
-  :condition(condition)
+  :ASTNode()
+  ,condition(condition)
   ,left(left)
   ,right(right)
   ,reverseOnJump(reverseOnJump)
@@ -85,7 +90,8 @@ ConditionNode::~ConditionNode()
 }
 
 BranchNode::BranchNode(ConditionNode* condition, ASTNode* thenCode, ASTNode* elseCode)
-  :condition(condition)
+  :ASTNode()
+  ,condition(condition)
   ,thenCode(thenCode)
   ,elseCode(elseCode)
 {
@@ -99,7 +105,8 @@ BranchNode::~BranchNode()
 }
 
 WhileNode::WhileNode(ConditionNode* condition, ASTNode* loopBody)
-  :condition(condition)
+  :ASTNode()
+  ,condition(condition)
   ,loopBody(loopBody)
 {
 }
@@ -111,7 +118,8 @@ WhileNode::~WhileNode()
 }
 
 StringNode::StringNode(char* string)
-  :string(string)
+  :ASTNode()
+  ,string(string)
 {
 }
 

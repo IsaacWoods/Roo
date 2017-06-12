@@ -46,7 +46,6 @@ struct variable_def;
 struct type_def;
 struct string_constant;
 struct air_instruction;
-struct node;
 struct elf_symbol;
 
 enum slot_type

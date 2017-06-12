@@ -2,7 +2,8 @@
 # See LICENCE.md
 
 CXX ?= g++
-CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc -Wno-unused-result
+#CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc -Wno-unused-result
+CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++14 -g -Isrc -Wno-unused-result
 LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc
 
 OBJS = \
@@ -18,6 +19,7 @@ OBJS = \
 	src/elf.o \
 	src/auto_doAstPasses.o \
 	src/module.o \
+	src/dotEmitter.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

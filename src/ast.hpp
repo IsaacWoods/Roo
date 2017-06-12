@@ -6,8 +6,14 @@
 #pragma once
 
 #include <type_traits>
+#include <typeinfo>
+#include <cstring>
 #include <vector.hpp>
 #include <ir.hpp>
+#include <error.hpp>
+
+template<typename T, typename R>
+struct ASTPass;
 
 struct ASTNode
 {
@@ -201,4 +207,76 @@ struct ArrayInitNode : ASTNode
   ~ArrayInitNode();
 
   vector<ASTNode*> items;
+};
+
+template<typename T, typename R>
+struct ASTPass
+{
+  enum IteratePolicy
+  {
+    NODE_FIRST,
+    CHILDREN_FIRST
+  } iteratePolicy;
+
+  ASTPass(IteratePolicy iteratePolicy)
+    :iteratePolicy(iteratePolicy)
+  {
+  }
+
+  virtual R VisitNode(BreakNode* node               , T* state = nullptr) = 0;
+  virtual R VisitNode(ReturnNode* node              , T* state = nullptr) = 0;
+  virtual R VisitNode(UnaryOpNode* node             , T* state = nullptr) = 0;
+  virtual R VisitNode(BinaryOpNode* node            , T* state = nullptr) = 0;
+  virtual R VisitNode(VariableNode* node            , T* state = nullptr) = 0;
+  virtual R VisitNode(ConditionNode* node           , T* state = nullptr) = 0;
+  virtual R VisitNode(BranchNode* node              , T* state = nullptr) = 0;
+  virtual R VisitNode(WhileNode* node               , T* state = nullptr) = 0;
+  virtual R VisitNode(NumberNode<unsigned int>* node, T* state = nullptr) = 0;
+  virtual R VisitNode(NumberNode<int>* node         , T* state = nullptr) = 0;
+  virtual R VisitNode(NumberNode<float>* node       , T* state = nullptr) = 0;
+  virtual R VisitNode(StringNode* node              , T* state = nullptr) = 0;
+  virtual R VisitNode(CallNode* node                , T* state = nullptr) = 0;
+  virtual R VisitNode(VariableAssignmentNode* node  , T* state = nullptr) = 0;
+  virtual R VisitNode(MemberAccessNode* node        , T* state = nullptr) = 0;
+  virtual R VisitNode(ArrayInitNode* node           , T* state = nullptr) = 0;
+
+  /*
+   * This is required since we can't use a normal visitor pattern (because we can't template a virtual function,
+   * so can't return whatever type we want). So this should dynamically dispatch based upon the subclass.
+   */
+  R DispatchNode(ASTNode* node, T* state = nullptr)
+  {
+    Assert(node, "Tried to dispatch on a nullptr node");
+
+    /*
+     * Poor man's dynamic dispatch - we compare the type-identifier of the node with each node type, then
+     * cast and call the correct virtual function.
+     */
+    #define DISPATCH_NODE(nodeType)\
+      if (strcmp(typeid(*node).name(), typeid(nodeType).name()) == 0)\
+      {\
+        return VisitNode(reinterpret_cast<nodeType*>(node), state);\
+      }
+
+         DISPATCH_NODE(BreakNode)
+    else DISPATCH_NODE(ReturnNode)
+    else DISPATCH_NODE(UnaryOpNode)
+    else DISPATCH_NODE(BinaryOpNode)
+    else DISPATCH_NODE(VariableNode)
+    else DISPATCH_NODE(ConditionNode)
+    else DISPATCH_NODE(BranchNode)
+    else DISPATCH_NODE(WhileNode)
+    else DISPATCH_NODE(NumberNode<unsigned int>)
+    else DISPATCH_NODE(NumberNode<int>)
+    else DISPATCH_NODE(NumberNode<float>)
+    else DISPATCH_NODE(StringNode)
+    else DISPATCH_NODE(CallNode)
+    else DISPATCH_NODE(VariableAssignmentNode)
+    else DISPATCH_NODE(MemberAccessNode)
+    else DISPATCH_NODE(ArrayInitNode)
+    else
+    {
+      RaiseError(ICE_UNHANDLED_NODE_TYPE, "DispatchNode", typeid(*node).name());
+    }
+  }
 };

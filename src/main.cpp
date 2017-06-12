@@ -18,9 +18,14 @@
   #include <chrono>
 #endif
 
+#define OUTPUT_DOT
+#ifdef OUTPUT_DOT
+  #include <dotEmitter.hpp>
+#endif
+
 /*
  * Find and compile all .roo files in the specified directory.
- * NOTE(Isaac): Returns `true` if the compilation was successful, `false` if an error occured.
+ * Returns `true` if the compilation was successful, `false` if an error occured.
  */
 static bool Compile(parse_result& parse, const char* directoryPath)
 {
@@ -111,7 +116,7 @@ int main()
     }
   }
 
-  // If we've already encoutered an error somewhere, there's no point carrying on
+  // If we've already encoutered (and hopefully correctly reported) error(s), there's no point carrying on
   if (errorState.hasErrored)
   {
     Crash(); 
@@ -119,22 +124,8 @@ int main()
 
   CompleteIR(result);
 
-#ifdef OUTPUT_DOT
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    OutputDOTOfAST(code);
-  }
-#endif
-
+  // TODO: actually apply passes
+  /*
   for (auto* it = result.codeThings.head;
        it < result.codeThings.tail;
        it++)
@@ -149,6 +140,7 @@ int main()
       }
     }
   }
+  */
 
 #ifdef OUTPUT_DOT
   for (auto* it = result.codeThings.head;
@@ -162,7 +154,7 @@ int main()
       continue;
     }
 
-    OutputDOTOfAST(code);
+    EmitDOT(code);
   }
 #endif
 
