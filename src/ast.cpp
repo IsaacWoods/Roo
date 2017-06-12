@@ -66,6 +66,13 @@ VariableNode::VariableNode(char* name)
 {
 }
 
+VariableNode::VariableNode(variable_def* variable)
+  :ASTNode()
+  ,var(variable)
+  ,isResolved(true)
+{
+}
+
 VariableNode::~VariableNode()
 {
   if (!isResolved)
@@ -117,7 +124,7 @@ WhileNode::~WhileNode()
   free(loopBody);
 }
 
-StringNode::StringNode(char* string)
+StringNode::StringNode(string_constant* string)
   :ASTNode()
   ,string(string)
 {

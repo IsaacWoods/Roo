@@ -223,7 +223,7 @@ static token LexNumber(roo_parser& parser)
 
     default:
     {
-      RaiseError(parser.errorState, ICE_UNEXPECTED_TOKEN_TYPE, "LexNumber", GetTokenName(type));
+      RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "LexNumber", GetTokenName(type));
     } break;
   }
 
@@ -755,8 +755,8 @@ static inline bool MatchNext(roo_parser& parser, token_type expectedType, bool i
 }
 
 // --- Parsing ---
-typedef node* (*prefix_parselet)(roo_parser&);
-typedef node* (*infix_parselet)(roo_parser&, node*);
+typedef ASTNode* (*prefix_parselet)(roo_parser&);
+typedef ASTNode* (*infix_parselet)(roo_parser&, ASTNode*);
 
 prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
@@ -766,7 +766,7 @@ unsigned int    g_precedenceTable[NUM_TOKENS];
  * Parses expressions.
  * If the previous operator is right-associative, the new precedence should be one less than that of the operator
  */
-static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
+static ASTNode* Expression(roo_parser& parser, unsigned int precedence = 0u)
 {
   Log(parser, "--> Expression(%u)\n", precedence);
   prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
@@ -776,7 +776,7 @@ static node* Expression(roo_parser& parser, unsigned int precedence = 0u)
     RaiseError(parser.errorState, ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
   }
 
-  node* expression = prefixParselet(parser);
+  ASTNode* expression = prefixParselet(parser);
 
   while (precedence < g_precedenceTable[PeekToken(parser, false).type])
   {
@@ -880,7 +880,7 @@ static variable_def* VariableDef(roo_parser& parser)
   ConsumeNext(parser, TOKEN_COLON);
 
   type_ref typeRef = TypeRef(parser);
-  node* initValue = nullptr;
+  ASTNode* initValue = nullptr;
 
   if (Match(parser, TOKEN_EQUALS))
   {
@@ -900,20 +900,20 @@ static variable_def* VariableDef(roo_parser& parser)
   return variable;
 }
 
-static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop = false);
-static node* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = false)
+static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop = false);
+static ASTNode* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
-  node* code = nullptr;
+  ASTNode* code = nullptr;
 
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
-    node* statement = Statement(parser, scope, isInLoop);
+    ASTNode* statement = Statement(parser, scope, isInLoop);
 
     if (code)
     {
-      node* tail = code;
+      ASTNode* tail = code;
 
       while (tail->next)
       {
@@ -933,23 +933,25 @@ static node* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = fal
   return code;
 }
 
-static node* If(roo_parser& parser, thing_of_code* scope)
+static ASTNode* If(roo_parser& parser, thing_of_code* scope)
 {
   Log(parser, "--> If\n");
 
   Consume(parser, TOKEN_IF);
   Consume(parser, TOKEN_LEFT_PAREN);
-  node* condition = Expression(parser);
+  ASTNode* conditionNode = Expression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
-  if (condition->type != CONDITION_NODE)
+  if (!IsNodeOfType<ConditionNode>(conditionNode))
   {
-    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", GetNodeName(condition->type));
+    // FIXME: Print out the source that forms the expression
+    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", "FINDSOMETHINGTOWRITEHERE");
   }
 
-  condition->condition.reverseOnJump = true;
-  node* thenCode = Block(parser, scope);
-  node* elseCode = nullptr;
+  ConditionNode* condition = reinterpret_cast<ConditionNode*>(conditionNode);
+  condition->reverseOnJump = true;
+  ASTNode* thenCode = Block(parser, scope);
+  ASTNode* elseCode = nullptr;
 
   if (Match(parser, TOKEN_ELSE))
   {
@@ -958,33 +960,34 @@ static node* If(roo_parser& parser, thing_of_code* scope)
   }
 
   Log(parser, "<-- If\n");
-  return CreateNode(BRANCH_NODE, condition, thenCode, elseCode);
+  return new BranchNode(condition, thenCode, elseCode);
 }
 
-static node* While(roo_parser& parser, thing_of_code* scope)
+static ASTNode* While(roo_parser& parser, thing_of_code* scope)
 {
   Log(parser, "--> While\n");
 
   Consume(parser, TOKEN_WHILE);
   Consume(parser, TOKEN_LEFT_PAREN);
-  node* condition = Expression(parser);
+  ASTNode* condition = Expression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
-  if (condition->type != CONDITION_NODE)
+  if (!IsNodeOfType<ConditionNode>(condition))
   {
-    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", GetNodeName(condition->type));
+    // FIXME: Print out the source that forms the expression
+    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", "");
   }
 
-  node* code = Block(parser, scope, true);
+  ASTNode* code = Block(parser, scope, true);
 
   Log(parser, "<-- While\n");
-  return CreateNode(WHILE_NODE, condition, code);
+  return new WhileNode(reinterpret_cast<ConditionNode*>(condition), code);
 }
 
-static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
+static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
-  node* result = nullptr;
+  ASTNode* result = nullptr;
 
   switch (PeekToken(parser).type)
   {
@@ -996,7 +999,7 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
         return nullptr;
       }
 
-      result = CreateNode(BREAK_NODE);
+      result = new BreakNode();
       Log(parser, "(BREAK)\n");
       NextToken(parser);
     } break;
@@ -1009,11 +1012,11 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
 
       if (Match(parser, TOKEN_LINE, false))
       {
-        result = CreateNode(RETURN_NODE, nullptr);
+        result = new ReturnNode(nullptr);
       }
       else
       {
-        result = CreateNode(RETURN_NODE, Expression(parser));
+        result = new ReturnNode(Expression(parser));
       }
     } break;
 
@@ -1040,13 +1043,8 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
         // Assign the initial value to the variable
         if (variable->initValue)
         {
-          node* variableNode = static_cast<node*>(malloc(sizeof(node)));
-          variableNode->type = VARIABLE_NODE;
-          variableNode->next = nullptr;
-          variableNode->variable.var = variable;
-          variableNode->variable.isResolved = true;
-
-          result = CreateNode(VARIABLE_ASSIGN_NODE, variableNode, variable->initValue, true);
+          VariableNode* variableNode = new VariableNode(variable);
+          result = new VariableAssignmentNode((ASTNode*)variableNode, variable->initValue, true);
         }
 
         Add<variable_def*>(scope->locals, variable);
@@ -1058,27 +1056,6 @@ static node* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
     {
       Log(parser, "(EXPRESSION STATEMENT)\n");
       result = Expression(parser);
-
-      /*
-       * This checks that the produced expression can appear at top-level.
-       * XXX: Should we be doing this at this level - what shouldn't appear at a statement level?
-       */
-      /*
-      switch (result->type)
-      {
-        case VARIABLE_ASSIGN_NODE:
-        case CALL_NODE:
-        case BRANCH_NODE:
-        case BINARY_OP_NODE:
-        {
-        } break;
-
-        default:
-        {
-          RaiseError(parser.errorState, ERROR_UNEXPECTED, "statement", GetNodeName(result->type));
-        } break;
-      }
-      */
     }
   }
 
@@ -1455,91 +1432,99 @@ static void InitParseletMaps()
 
   // --- Prefix Parselets
   g_prefixMap[TOKEN_IDENTIFIER] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Identifier\n");
       char* name = GetTextFromToken(parser, PeekToken(parser));
 
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Identifier\n");
-      return CreateNode(VARIABLE_NODE, name);
+      return new VariableNode(name);
     };
 
   g_prefixMap[TOKEN_SIGNED_INT] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Number constant (signed integer)\n");
       int value = PeekToken(parser).asSignedInt;
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (signed integer)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::SIGNED_INT, value);
+      return new NumberNode<int>(value);
     };
 
   g_prefixMap[TOKEN_UNSIGNED_INT] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Number constant (unsigned integer)\n");
       unsigned int value = PeekToken(parser).asUnsignedInt;
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (unsigned integer)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::UNSIGNED_INT, value);
+      return new NumberNode<unsigned int>(value);
     };
 
   g_prefixMap[TOKEN_FLOAT] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Number constant (floating point)\n");
       float value = PeekToken(parser).asFloat;
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
-      return CreateNode(NUMBER_CONSTANT_NODE, number_part::constant_type::FLOAT, value);
+      return new NumberNode<float>(value);
     };
 
   g_prefixMap[TOKEN_STRING] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] String\n");
       char* tokenText = GetTextFromToken(parser, PeekToken(parser));
       NextToken(parser, false);
 
       Log(parser, "<-- [PARSELET] String\n");
-      return CreateNode(STRING_CONSTANT_NODE, CreateStringConstant(parser.result, tokenText));
+      return new StringNode(CreateStringConstant(parser.result, tokenText));
     };
 
-  g_prefixMap[TOKEN_PLUS]   =
-  g_prefixMap[TOKEN_MINUS]  =
-  g_prefixMap[TOKEN_BANG]   =
-  g_prefixMap[TOKEN_TILDE]  =
-    [](roo_parser& parser) -> node*
+  g_prefixMap[TOKEN_PLUS]         =
+  g_prefixMap[TOKEN_MINUS]        =
+  g_prefixMap[TOKEN_BANG]         =
+  g_prefixMap[TOKEN_TILDE]        =
+  g_prefixMap[TOKEN_AND]          =
+  g_prefixMap[TOKEN_DOUBLE_PLUS]  =   // ++i
+  g_prefixMap[TOKEN_DOUBLE_MINUS] =   // --i
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
+      UnaryOpNode::Operator unaryOp;
+
+      switch (operation)
+      {
+        case TOKEN_PLUS:          unaryOp = UnaryOpNode::Operator::POSITIVE;          break;
+        case TOKEN_MINUS:         unaryOp = UnaryOpNode::Operator::NEGATIVE;          break;
+        case TOKEN_BANG:          unaryOp = UnaryOpNode::Operator::LOGICAL_NOT;       break;
+        case TOKEN_TILDE:         unaryOp = UnaryOpNode::Operator::NEGATE;            break;
+        case TOKEN_AND:           unaryOp = UnaryOpNode::Operator::TAKE_REFERENCE;    break;
+        case TOKEN_DOUBLE_PLUS:   unaryOp = UnaryOpNode::Operator::PRE_INCREMENT;     break;
+        case TOKEN_DOUBLE_MINUS:  unaryOp = UnaryOpNode::Operator::PRE_DECREMENT;     break;
+
+        default:
+        {
+          RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "PrefixParselet", GetTokenName(PeekToken(parser).type));
+        } break;
+      }
 
       NextToken(parser);
+      ASTNode* operand = Expression(parser, P_PREFIX);
       Log(parser, "<-- [PARSELET] Prefix operation\n");
-      return CreateNode(PREFIX_OP_NODE, operation, Expression(parser, P_PREFIX));
-    };
-
-  // NOTE(Isaac): this parses taking the reference of another expression
-  g_prefixMap[TOKEN_AND] =
-    [](roo_parser& parser) -> node*
-    {
-      Log(parser, "--> [PARSELET] Reference operator\n");
-
-      NextToken(parser);
-      node* expression = Expression(parser, P_PREFIX);
-
-      Log(parser, "<-- [PARSELET] Reference operator\n");
-      return CreateNode(PREFIX_OP_NODE, TOKEN_AND, expression);
+      return new UnaryOpNode(unaryOp, operand);
     };
 
   g_prefixMap[TOKEN_LEFT_PAREN] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Parentheses\n");
       
       NextToken(parser);
-      node* expression = Expression(parser);
+      ASTNode* expression = Expression(parser);
       Consume(parser, TOKEN_RIGHT_PAREN);
 
       Log(parser, "<-- [PARSELET] Parentheses\n");
@@ -1548,13 +1533,13 @@ static void InitParseletMaps()
 
   // Parses an array literal
   g_prefixMap[TOKEN_LEFT_BRACE] =
-    [](roo_parser& parser) -> node*
+    [](roo_parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Array literal\n");
       
       NextToken(parser);
-      vector<node*> items;
-      InitVector<node*>(items);
+      vector<ASTNode*> items;
+      InitVector<ASTNode*>(items);
 
       // Check for an empty initialiser-list
       if (Match(parser, TOKEN_RIGHT_BRACE))
@@ -1565,8 +1550,8 @@ static void InitParseletMaps()
       {
         while (true)
         {
-          node* item = Expression(parser, 0);
-          Add<node*>(items, item);
+          ASTNode* item = Expression(parser, 0);
+          Add<ASTNode*>(items, item);
 
           if (Match(parser, TOKEN_COMMA))
           {
@@ -1581,49 +1566,67 @@ static void InitParseletMaps()
       }
 
       Log(parser, "<-- [PARSELET] Array literal\n");
-      return CreateNode(ARRAY_INIT_NODE, items);
+      return new ArrayInitNode(items);
     };
 
   // --- Infix Parselets ---
   // Parses binary operators
-  g_infixMap[TOKEN_PLUS] =
-  g_infixMap[TOKEN_MINUS] =
-  g_infixMap[TOKEN_ASTERIX] =
-  g_infixMap[TOKEN_SLASH] =
-    [](roo_parser& parser, node* left) -> node*
+  g_infixMap[TOKEN_PLUS]          =
+  g_infixMap[TOKEN_MINUS]         =
+  g_infixMap[TOKEN_ASTERIX]       =
+  g_infixMap[TOKEN_SLASH]         =
+  g_infixMap[TOKEN_DOUBLE_PLUS]   =   // i++
+  g_infixMap[TOKEN_DOUBLE_MINUS]  =   // i--
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
 
-      NextToken(parser);
-      Log(parser, "<-- [PARSELET] Binary operator\n");
-      return CreateNode(BINARY_OP_NODE, operation, left, Expression(parser, g_precedenceTable[operation]));
-    };
+      // Special ones - these parse like infix operations but are actually unary ops
+      if (operation == TOKEN_DOUBLE_PLUS ||
+          operation == TOKEN_DOUBLE_MINUS)
+      {
+        NextToken(parser);
+        Log(parser, "<-- [PARSELET] Binary operator\n");
+        return new UnaryOpNode((operation == TOKEN_DOUBLE_PLUS ? UnaryOpNode::Operator::POST_INCREMENT :
+                                                                 UnaryOpNode::Operator::POST_DECREMENT),
+                               left);
+      }
 
-  // Parses binary operators that don't take a right side (like increment or decrement)
-  g_infixMap[TOKEN_DOUBLE_PLUS] =
-  g_infixMap[TOKEN_DOUBLE_MINUS] =
-    [](roo_parser& parser, node* left) -> node*
-    {
-      Log(parser, "--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
-      token_type operation = PeekToken(parser).type;
+      BinaryOpNode::Operator binaryOp;
+
+      switch (operation)
+      {
+        case TOKEN_PLUS:          binaryOp = BinaryOpNode::Operator::ADD;       break;
+        case TOKEN_MINUS:         binaryOp = BinaryOpNode::Operator::SUBTRACT;  break;
+        case TOKEN_ASTERIX:       binaryOp = BinaryOpNode::Operator::MULTIPLY;  break;
+        case TOKEN_SLASH:         binaryOp = BinaryOpNode::Operator::DIVIDE;    break;
+        case TOKEN_DOUBLE_PLUS:   binaryOp = BinaryOpNode::Operator::DIVIDE;    break;
+        case TOKEN_DOUBLE_MINUS:  binaryOp = BinaryOpNode::Operator::DIVIDE;    break;
+
+        default:
+        {
+          RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "BinaryOpParselet", GetTokenName(PeekToken(parser).type));
+        } break;
+      }
 
       NextToken(parser);
+      ASTNode* right = Expression(parser, g_precedenceTable[operation]);
       Log(parser, "<-- [PARSELET] Binary operator\n");
-      return CreateNode(BINARY_OP_NODE, operation, left, nullptr);
+      return new BinaryOpNode(binaryOp, left, right);
     };
 
   // Parses an array index
   g_infixMap[TOKEN_LEFT_BLOCK] =
-    [](roo_parser& parser, node* left) -> node*
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Array index\n");
       Consume(parser, TOKEN_LEFT_BLOCK);
-      node* indexExpression = Expression(parser, 0u);
+      ASTNode* indexExpression = Expression(parser, 0u);
       Consume(parser, TOKEN_RIGHT_BLOCK);
 
       Log(parser, "<-- [PARSELET] Array index\n");
-      return CreateNode(BINARY_OP_NODE, TOKEN_LEFT_BLOCK, left, indexExpression);
+      return new BinaryOpNode(BinaryOpNode::Operator::INDEX_ARRAY, left, indexExpression);
     };
 
   // Parses a conditional
@@ -1633,98 +1636,119 @@ static void InitParseletMaps()
   g_infixMap[TOKEN_GREATER_THAN_EQUAL_TO] =
   g_infixMap[TOKEN_LESS_THAN]             =
   g_infixMap[TOKEN_LESS_THAN_EQUAL_TO]    =
-    [](roo_parser& parser, node* left) -> node*
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Conditional\n");
 
-      token_type condition = PeekToken(parser).type;
+      token_type conditionToken = PeekToken(parser).type;
       NextToken(parser);
-      node* right = Expression(parser, g_precedenceTable[condition]);
+      ASTNode* right = Expression(parser, g_precedenceTable[conditionToken]);
+
+      ConditionNode::Condition condition;
+      switch (conditionToken)
+      {
+        case TOKEN_EQUALS_EQUALS:           condition = ConditionNode::Condition::EQUAL;                  break;
+        case TOKEN_BANG_EQUALS:             condition = ConditionNode::Condition::NOT_EQUAL;              break;
+        case TOKEN_GREATER_THAN:            condition = ConditionNode::Condition::GREATER_THAN;           break;
+        case TOKEN_GREATER_THAN_EQUAL_TO:   condition = ConditionNode::Condition::GREATER_THAN_OR_EQUAL;  break;
+        case TOKEN_LESS_THAN:               condition = ConditionNode::Condition::LESS_THAN;              break;
+        case TOKEN_LESS_THAN_EQUAL_TO:      condition = ConditionNode::Condition::LESS_THAN_OR_EQUAL;     break;
+
+        default:
+        {
+          RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "ConditionalParselet", GetTokenName(PeekToken(parser).type));
+        } break;
+      }
 
       Log(parser, "<-- [PARSELET] Conditional\n");
-      return CreateNode(CONDITION_NODE, condition, left, right);
+      return new ConditionNode(condition, left, right);
     };
 
   // Parses a function call
   g_infixMap[TOKEN_LEFT_PAREN] =
-    [](roo_parser& parser, node* left) -> node*
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Function Call\n");
 
-      if (left->type != VARIABLE_NODE)
+      if (!IsNodeOfType<VariableNode>(left))
       {
-        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "function-name", GetNodeName(left->type));
+        // FIXME: Print out the source that forms the expression
+        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "function-name", "Potato");
       }
 
-      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(left->variable.name) + 1u)));
-      strcpy(functionName, left->variable.name);
-      Free<node*>(left);
+      VariableNode* leftAsVariable = reinterpret_cast<VariableNode*>(left);
+      char* functionName = static_cast<char*>(malloc(sizeof(char) * (strlen(leftAsVariable->name) + 1u)));
+      strcpy(functionName, leftAsVariable->name);
+      delete left;
 
-      node* result = CreateNode(CALL_NODE, functionName);
+      vector<ASTNode*> params;
+      InitVector<ASTNode*>(params);
+
       Consume(parser, TOKEN_LEFT_PAREN);
-
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        Add<node*>(result->call.params, Expression(parser));
+        Add<ASTNode*>(params, Expression(parser));
       }
-
       Consume(parser, TOKEN_RIGHT_PAREN);
+
       Log(parser, "<-- [PARSELET] Function call\n");
-      return result;
+      return new CallNode(functionName, params);
     };
 
   // Parses a member access
   g_infixMap[TOKEN_DOT] =
-    [](roo_parser& parser, node* left) -> node*
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Member access\n");
 
-      if (left->type != VARIABLE_NODE &&
-          left->type != MEMBER_ACCESS_NODE)
+      if (!(IsNodeOfType<VariableNode>(left) || IsNodeOfType<MemberAccessNode>(left)))
       {
-        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "variable-binding or member-binding", GetNodeName(left->type));
+        // FIXME: Print out the source that forms the expression
+        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "variable-binding or member-binding", "Potato");
       }
 
       NextToken(parser);
-      node* child = Expression(parser, P_MEMBER_ACCESS); 
+      ASTNode* child = Expression(parser, P_MEMBER_ACCESS); 
 
       Log(parser, "<-- [PARSELET] Member access\n");
-      return CreateNode(MEMBER_ACCESS_NODE, left, child);
+      return new MemberAccessNode(left, child);
     };
 
   // Parses a ternary expression
   g_infixMap[TOKEN_QUESTION_MARK] =
-    [](roo_parser& parser, node* left) -> node*
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Ternary\n");
       
-      if (left->type != CONDITION_NODE)
+      if (!IsNodeOfType<ConditionNode>(left))
       {
-        RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", GetNodeName(left->type));
+        // FIXME: Print out the source that forms the expression
+        RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", "Potato");
       }
 
-      left->condition.reverseOnJump = true;
+      ConditionNode* condition = reinterpret_cast<ConditionNode*>(left);
+      condition->reverseOnJump = true;
 
       NextToken(parser);
-      node* thenBody = Expression(parser, P_TERNARY-1u);
+      ASTNode* thenBody = Expression(parser, P_TERNARY-1u);
       Consume(parser, TOKEN_COLON);
-      node* elseBody = Expression(parser, P_TERNARY-1u);
+      ASTNode* elseBody = Expression(parser, P_TERNARY-1u);
 
       Log(parser, "<-- [PARSELET] Ternary\n");
-      return CreateNode(BRANCH_NODE, left, thenBody, elseBody);
+      return new BranchNode(condition, thenBody, elseBody);
     };
 
   // Parses a variable assignment
   g_infixMap[TOKEN_EQUALS] =
-    [](roo_parser& parser, node* left) -> node*
+    [](roo_parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Variable assignment\n");
 
       NextToken(parser);
-      node* expression = Expression(parser, P_ASSIGNMENT-1u);
+      ASTNode* expression = Expression(parser, P_ASSIGNMENT-1u);
 
       Log(parser, "<-- [PARSELET] Variable assignment\n");
-      return CreateNode(VARIABLE_ASSIGN_NODE, left, expression, false);
+      return new VariableAssignmentNode(left, expression, false);
     };
 }
 

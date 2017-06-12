@@ -43,10 +43,11 @@ struct UnaryOpNode : ASTNode
 {
   enum Operator
   {
-    POSITIVE,
-    NEGATIVE,
-    NEGATE,
-    TAKE_REFERENCE,
+    POSITIVE,         // +x
+    NEGATIVE,         // -x
+    NEGATE,           // ~x
+    LOGICAL_NOT,      // !x
+    TAKE_REFERENCE,   // &x
     PRE_INCREMENT,    // ++i
     POST_INCREMENT,   // i++
     PRE_DECREMENT,    // --i
@@ -84,6 +85,7 @@ struct BinaryOpNode : ASTNode
 struct VariableNode : ASTNode
 {
   VariableNode(char* name);
+  VariableNode(variable_def* variable);
   ~VariableNode();
 
   union
@@ -106,7 +108,7 @@ struct ConditionNode : ASTNode
     GREATER_THAN_OR_EQUAL
   };
 
-  ConditionNode(Condition condition, ASTNode* left, ASTNode* right, bool reverseOnJump);
+  ConditionNode(Condition condition, ASTNode* left, ASTNode* right, bool reverseOnJump = false);
   ~ConditionNode();
 
   Condition condition;
@@ -157,10 +159,10 @@ struct NumberNode : ASTNode
 
 struct StringNode : ASTNode
 {
-  StringNode(char* string);
+  StringNode(string_constant* string);
   ~StringNode();
 
-  char* string;
+  string_constant* string;
 };
 
 struct CallNode : ASTNode
@@ -208,6 +210,15 @@ struct ArrayInitNode : ASTNode
 
   vector<ASTNode*> items;
 };
+
+template<typename T>
+bool IsNodeOfType(ASTNode* node)
+{
+  static const char* TYPE_NAME = typeid(T).name();
+
+  Assert(node, "Tried to find type of nullptr node");
+  return (strcmp(typeid(*node).name(), TYPE_NAME) == 0);
+}
 
 template<typename T, typename R>
 struct ASTPass

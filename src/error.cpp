@@ -90,7 +90,7 @@ void InitErrorDefs()
   E(ERROR_RETURN_VALUE_NOT_EXPECTED,DO_NOTHING,           "Shouldn't return anything, trying to return a: %s");
 
   I(ICE_GENERIC,                                          "%s");
-  I(ICE_UNEXPECTED_TOKEN_TYPE,                            "Unexpected token type in %s: %s");
+  I(ICE_UNHANDLED_TOKEN_TYPE,                             "Unhandled token type in %s: %s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");
   I(ICE_UNHANDLED_INSTRUCTION_TYPE,                       "Unhandled instruction type (%s) in %s");
   I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
@@ -126,7 +126,7 @@ error_state CreateErrorState(error_state_type stateType, ...)
     case TRAVERSING_AST:
     {
       state.astSection.code   = va_arg(args, thing_of_code*);
-      state.astSection.n      = va_arg(args, node*);
+      state.astSection.node   = va_arg(args, ASTNode*);
     } break;
 
     case CODE_GENERATION:

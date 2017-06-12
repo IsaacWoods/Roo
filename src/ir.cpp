@@ -176,7 +176,7 @@ string_constant* CreateStringConstant(parse_result* result, char* string)
   return constant;
 }
 
-variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue)
+variable_def* CreateVariableDef(char* name, type_ref& typeRef, ASTNode* initValue)
 {
   variable_def* var = static_cast<variable_def*>(malloc(sizeof(variable_def)));
   var->name         = name;
@@ -282,7 +282,7 @@ void Free<variable_def*>(variable_def*& variable)
 
   if (variable->initValue)
   {
-    Free<node*>(variable->initValue);
+    delete variable->initValue;
   }
 
   free(variable);
@@ -315,7 +315,7 @@ void Free<thing_of_code*>(thing_of_code*& code)
 
   if (HasCode(code))
   {
-    Free<node*>(code->ast);
+    delete code->ast;
   }
 
   FreeVector<slot_def*>(code->slots);
@@ -598,23 +598,20 @@ static void CompleteVariable(variable_def* var, error_state& errorState)
   {
     Assert(!(var->type.isArraySizeResolved), "Tried to resolve array size expression that already has a size");
     
-    node* sizeExpression = var->type.arraySizeExpression;
-    Assert(sizeExpression, "An array has a nullptr size expression");
-
-    if (!(sizeExpression->type == NUMBER_CONSTANT_NODE &&
-          sizeExpression->number.type == number_part::constant_type::UNSIGNED_INT))
+    if (!IsNodeOfType<NumberNode<unsigned int>>(var->type.arraySizeExpression))
     {
       RaiseError(errorState, ERROR_INVALID_ARRAY_SIZE);
     }
 
+    auto* sizeExpression = reinterpret_cast<NumberNode<unsigned int>*>(var->type.arraySizeExpression);
     var->type.isArraySizeResolved = true;
-    var->type.arraySize = sizeExpression->number.asUnsignedInt;
+    var->type.arraySize = sizeExpression->value;
 
     /*
      * NOTE(Isaac): as the `arraySizeExpression` field of the union has now been replaced and the tag changed,
-     * we must manually free it here to avoid leaking the old expression.
+     * we must free it here to avoid leaking the old expression.
      */
-    Free<node*>(sizeExpression);
+    delete sizeExpression;
   }
 }
 

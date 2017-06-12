@@ -175,7 +175,7 @@ struct type_ref
   bool isArraySizeResolved;
   union
   {
-    node*         arraySizeExpression;
+    ASTNode*      arraySizeExpression;
     unsigned int  arraySize;
   };
 };
@@ -184,7 +184,7 @@ struct variable_def
 {
   char*         name;
   type_ref      type;
-  node*         initValue;
+  ASTNode*      initValue;
   slot_def*     slot;
 
   /*
@@ -227,7 +227,7 @@ struct thing_of_code
   error_state             errorState;
   vector<thing_of_code*>  calledThings;
 
-  node*                   ast;
+  ASTNode*                ast;
   vector<slot_def*>       slots;
   unsigned int            stackFrameSize;
   air_instruction*        airHead;
@@ -251,7 +251,7 @@ char* GetSlotString(slot_def* slot);
 void CreateParseResult(parse_result& result);
 void InitAttribSet(attrib_set& set);
 string_constant* CreateStringConstant(parse_result* result, char* string);
-variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
+variable_def* CreateVariableDef(char* name, type_ref& typeRef, ASTNode* initValue);
 thing_of_code* CreateThingOfCode(thing_type type, ...);
 type_def* GetTypeByName(parse_result& parse, const char* typeName);
 char* TypeRefToString(type_ref* type);
