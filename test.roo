@@ -1,6 +1,6 @@
 #[Name(test)]
 
-import Prelude
+//import Prelude
 /*
 operator []<N : uint>(arr : mut uint[N], index : uint) -> mut uint&
 {

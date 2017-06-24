@@ -233,6 +233,7 @@ struct ASTPass
   {
   }
 
+  // TODO: specify whether this pass should error on a pass not being supplied, and provide this as a base case
   virtual R VisitNode(BreakNode* node               , T* state = nullptr) = 0;
   virtual R VisitNode(ReturnNode* node              , T* state = nullptr) = 0;
   virtual R VisitNode(UnaryOpNode* node             , T* state = nullptr) = 0;
@@ -288,5 +289,7 @@ struct ASTPass
     {
       RaiseError(ICE_UNHANDLED_NODE_TYPE, "DispatchNode", typeid(*node).name());
     }
+
+    __builtin_unreachable();
   }
 };
