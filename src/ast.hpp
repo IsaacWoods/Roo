@@ -226,30 +226,40 @@ struct ASTPass
   {
     NODE_FIRST,
     CHILDREN_FIRST
-  } iteratePolicy;
+  }     iteratePolicy;
+  bool  errorOnNonexistantPass;
 
-  ASTPass(IteratePolicy iteratePolicy)
+  ASTPass(IteratePolicy iteratePolicy, bool errorOnNonexistantPass)
     :iteratePolicy(iteratePolicy)
+    ,errorOnNonexistantPass(errorOnNonexistantPass)
   {
   }
 
-  // TODO: specify whether this pass should error on a pass not being supplied, and provide this as a base case
-  virtual R VisitNode(BreakNode* node               , T* state = nullptr) = 0;
-  virtual R VisitNode(ReturnNode* node              , T* state = nullptr) = 0;
-  virtual R VisitNode(UnaryOpNode* node             , T* state = nullptr) = 0;
-  virtual R VisitNode(BinaryOpNode* node            , T* state = nullptr) = 0;
-  virtual R VisitNode(VariableNode* node            , T* state = nullptr) = 0;
-  virtual R VisitNode(ConditionNode* node           , T* state = nullptr) = 0;
-  virtual R VisitNode(BranchNode* node              , T* state = nullptr) = 0;
-  virtual R VisitNode(WhileNode* node               , T* state = nullptr) = 0;
-  virtual R VisitNode(NumberNode<unsigned int>* node, T* state = nullptr) = 0;
-  virtual R VisitNode(NumberNode<int>* node         , T* state = nullptr) = 0;
-  virtual R VisitNode(NumberNode<float>* node       , T* state = nullptr) = 0;
-  virtual R VisitNode(StringNode* node              , T* state = nullptr) = 0;
-  virtual R VisitNode(CallNode* node                , T* state = nullptr) = 0;
-  virtual R VisitNode(VariableAssignmentNode* node  , T* state = nullptr) = 0;
-  virtual R VisitNode(MemberAccessNode* node        , T* state = nullptr) = 0;
-  virtual R VisitNode(ArrayInitNode* node           , T* state = nullptr) = 0;
+  #define BASE_CASE(nodeType)\
+  {\
+    if (errorOnNonexistantPass)\
+    {\
+      RaiseError(ICE_NONEXISTANT_AST_PASSLET, nodeType);\
+    }\
+    return R();\
+  }
+
+  virtual R VisitNode(BreakNode*                    , T* = nullptr) BASE_CASE("BreakNode");
+  virtual R VisitNode(ReturnNode*                   , T* = nullptr) BASE_CASE("ReturnNode");
+  virtual R VisitNode(UnaryOpNode*                  , T* = nullptr) BASE_CASE("UnaryOpNode");
+  virtual R VisitNode(BinaryOpNode*                 , T* = nullptr) BASE_CASE("BinaryOpNode");
+  virtual R VisitNode(VariableNode*                 , T* = nullptr) BASE_CASE("VariableNode");
+  virtual R VisitNode(ConditionNode*                , T* = nullptr) BASE_CASE("ConditionNode");
+  virtual R VisitNode(BranchNode*                   , T* = nullptr) BASE_CASE("BranchNode");
+  virtual R VisitNode(WhileNode*                    , T* = nullptr) BASE_CASE("WhileNode");
+  virtual R VisitNode(NumberNode<unsigned int>*     , T* = nullptr) BASE_CASE("NumberNode<unsigned int>");
+  virtual R VisitNode(NumberNode<int>*              , T* = nullptr) BASE_CASE("NumberNode<int>");
+  virtual R VisitNode(NumberNode<float>*            , T* = nullptr) BASE_CASE("NumberNode<float>");
+  virtual R VisitNode(StringNode*                   , T* = nullptr) BASE_CASE("StringNode");
+  virtual R VisitNode(CallNode*                     , T* = nullptr) BASE_CASE("CallNode");
+  virtual R VisitNode(VariableAssignmentNode*       , T* = nullptr) BASE_CASE("VariableAssignmentNode");
+  virtual R VisitNode(MemberAccessNode*             , T* = nullptr) BASE_CASE("MemberAccessNode");
+  virtual R VisitNode(ArrayInitNode*                , T* = nullptr) BASE_CASE("ArrayInitNode");
 
   /*
    * This is required since we can't use a normal visitor pattern (because we can't template a virtual function,

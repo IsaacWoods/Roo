@@ -21,7 +21,7 @@ struct DotState
 
 struct DotEmitterPass : ASTPass<char*, DotState>
 {
-  DotEmitterPass() : ASTPass(NODE_FIRST) { }
+  DotEmitterPass() : ASTPass(NODE_FIRST, true) { }
 
   char* VisitNode(BreakNode* node                 , DotState* state);
   char* VisitNode(ReturnNode* node                , DotState* state);

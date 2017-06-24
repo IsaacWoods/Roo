@@ -63,6 +63,7 @@ enum error
   ICE_UNHANDLED_SLOT_TYPE,        // "Unhandled slot type (%s) in %s"
   ICE_UNHANDLED_OPERATOR,         // "Unhandled operator (token=%s) in %s"
   ICE_UNHANDLED_RELOCATION,       // "Unable to handle relocation of type: %s"
+  ICE_NONEXISTANT_AST_PASSLET,    // "Nonexistant passlet for node of type: %s"
   ICE_FAILED_ASSERTION,           // "Assertion failed at (%s:%d): %s"
 
   NUM_ERRORS
