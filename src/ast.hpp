@@ -7,12 +7,12 @@
 
 #include <type_traits>
 #include <typeinfo>
+#include <vector>
 #include <cstring>
-#include <vector.hpp>
 #include <ir.hpp>
 #include <error.hpp>
 
-template<typename T, typename R>
+template<typename R, typename T>
 struct ASTPass;
 
 struct ASTNode
@@ -167,16 +167,16 @@ struct StringNode : ASTNode
 
 struct CallNode : ASTNode
 {
-  CallNode(char* name, vector<ASTNode*>& params);
+  CallNode(char* name, const std::vector<ASTNode*>& params);
   ~CallNode();
 
   union
   {
-    char*           name;
-    thing_of_code*  resolvedFunction;
+    char*               name;
+    thing_of_code*      resolvedFunction;
   };
-  bool              isResolved;
-  vector<ASTNode*>  params;
+  bool                  isResolved;
+  std::vector<ASTNode*> params;
 };
 
 struct VariableAssignmentNode : ASTNode
@@ -205,10 +205,9 @@ struct MemberAccessNode : ASTNode
 
 struct ArrayInitNode : ASTNode
 {
-  ArrayInitNode(vector<ASTNode*>& items);
-  ~ArrayInitNode();
+  ArrayInitNode(const std::vector<ASTNode*>& items);
 
-  vector<ASTNode*> items;
+  std::vector<ASTNode*> items;
 };
 
 template<typename T>
@@ -220,7 +219,7 @@ bool IsNodeOfType(ASTNode* node)
   return (strcmp(typeid(*node).name(), TYPE_NAME) == 0);
 }
 
-template<typename T, typename R>
+template<typename R, typename T>
 struct ASTPass
 {
   enum IteratePolicy

@@ -9,7 +9,6 @@
 #include <cstdarg>
 #include <common.hpp>
 #include <ast.hpp>
-#include <air.hpp>
 
 template<>
 void Free<live_range>(live_range& /*range*/)
@@ -320,12 +319,13 @@ void Free<thing_of_code*>(thing_of_code*& code)
 
   FreeVector<slot_def*>(code->slots);
 
-  while (code->airHead)
+  // TODO: free the AIR instructions
+/*  while (code->airHead)
   {
     air_instruction* temp = code->airHead;
     code->airHead = code->airHead->next;
     Free<air_instruction*>(temp);
-  }
+  }*/
 }
 
 type_def* GetTypeByName(parse_result& parse, const char* typeName)

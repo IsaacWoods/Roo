@@ -8,7 +8,6 @@
 #include <cstring>
 #include <dirent.h>
 #include <ast.hpp>
-#include <air.hpp>
 #include <sys/stat.h>
 
 #define USING_GDB

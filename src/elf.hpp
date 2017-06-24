@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <common.hpp>
 #include <ir.hpp>
-#include <air.hpp>
 
 enum elf_file_type : uint16_t
 {

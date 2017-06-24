@@ -11,15 +11,15 @@ OBJS = \
 	src/common.o \
 	src/scheduler.o \
 	src/error.o \
+	src/ast.o \
 	src/ir.o \
   src/parsing.o \
-	src/ast.o \
-	src/air.o \
-	src/codegen_x64elf.o \
-	src/elf.o \
-	src/auto_doAstPasses.o \
 	src/module.o \
 	src/dotEmitter.o \
+	#src/air.o \
+	#src/codegen_x64elf.o \
+	#src/elf.o \
+	#src/auto_doAstPasses.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

@@ -1538,8 +1538,7 @@ static void InitParseletMaps()
       Log(parser, "--> [PARSELET] Array literal\n");
       
       NextToken(parser);
-      vector<ASTNode*> items;
-      InitVector<ASTNode*>(items);
+      std::vector<ASTNode*> items;
 
       // Check for an empty initialiser-list
       if (Match(parser, TOKEN_RIGHT_BRACE))
@@ -1551,7 +1550,7 @@ static void InitParseletMaps()
         while (true)
         {
           ASTNode* item = Expression(parser, 0);
-          Add<ASTNode*>(items, item);
+          items.push_back(item);
 
           if (Match(parser, TOKEN_COMMA))
           {
@@ -1681,13 +1680,11 @@ static void InitParseletMaps()
       strcpy(functionName, leftAsVariable->name);
       delete left;
 
-      vector<ASTNode*> params;
-      InitVector<ASTNode*>(params);
-
+      std::vector<ASTNode*> params;
       Consume(parser, TOKEN_LEFT_PAREN);
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        Add<ASTNode*>(params, Expression(parser));
+        params.push_back(Expression(parser));
       }
       Consume(parser, TOKEN_RIGHT_PAREN);
 

@@ -12,7 +12,6 @@
 #include <ctgmath>
 #include <common.hpp>
 #include <ir.hpp>
-#include <air.hpp>
 #include <elf.hpp>
 #include <error.hpp>
 

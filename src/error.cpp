@@ -11,7 +11,6 @@
 #include <parsing.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
-#include <air.hpp>
 
 enum error_level
 {
@@ -217,9 +216,14 @@ void RaiseError(error_state& state, error e, ...)
 
     case GENERATING_AIR:
     {
+      Assert(false, "Can't generate AIR rn");
+    } break;
+/*
+    case GENERATING_AIR:
+    {
       fprintf(stderr, "AIR(%u): %s%s: \x1B[0m%s\n", state.instruction->index, levelColors[def.level],
           levelStrings[def.level], message);
-    } break;
+    } break;*/
 
     case CODE_GENERATION:
     {

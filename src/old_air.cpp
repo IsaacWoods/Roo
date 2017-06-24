@@ -157,8 +157,8 @@ static void ChangeSlotValue(slot_def* slot, air_instruction* changer)
   Add<live_range>(slot->liveRanges, range);
 }
 
-static slot_def* GenCall(codegen_target& target, thing_of_code* code, node* n);
-static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node* n);
+static slot_def* GenCall(codegen_target& target, thing_of_code* code, ASTNode* n)
+static slot_def* GenOperation(codegen_target& target, thing_of_code* code, ASTNode* n);
 
 /*
  * BREAK_NODE:              `
@@ -174,18 +174,18 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node*
  * VARIABLE_ASSIGN_NODE:    `Nothing
  */
 template<typename T = void>
-T GenNodeAIR(codegen_target& target, thing_of_code* code, node* n);
+T GenNodeAIR(codegen_target& target, thing_of_code* code, ASTNode* n);
 
 // --- Forward specializations ---
-template<> slot_def* GenNodeAIR<slot_def*>(codegen_target&, thing_of_code*, node*);
-template<> jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target&, thing_of_code*, node*);
-template<> void GenNodeAIR<void>(codegen_target&, thing_of_code*, node*);
-template<> instruction_label* GenNodeAIR<instruction_label*>(codegen_target&, thing_of_code*, node*);
+template<> slot_def* GenNodeAIR<slot_def*>(codegen_target&, thing_of_code*, ASTNode*);
+template<> jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target&, thing_of_code*, ASTNode*);
+template<> void GenNodeAIR<void>(codegen_target&, thing_of_code*, ASTNode*);
+template<> instruction_label* GenNodeAIR<instruction_label*>(codegen_target&, thing_of_code*, ASTNode*);
 
 template<>
-slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, node* n)
+slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, ASTNode* n)
 {
-  Assert(n, "Tried to generate AIR for nullptr AST node");
+  Assert(n, "Tried to generate AIR for nullptr AST ASTNode");
 
   switch (n->type)
   {
@@ -235,7 +235,7 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 
     case BRANCH_NODE:
     {
-      Assert(n->branch.condition->type == CONDITION_NODE, "Condition node of branch isn't actually a condition");
+      Assert(n->branch.condition->type == CONDITION_NODE, "Condition ASTNode of branch isn't actually a condition");
       Assert(n->branch.condition->condition.reverseOnJump, "Not reversing jump condition when we should");
       jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->branch.condition);
 
@@ -322,9 +322,9 @@ slot_def* GenNodeAIR<slot_def*>(codegen_target& target, thing_of_code* code, nod
 }
 
 template<>
-jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of_code* code, node* n)
+jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of_code* code, ASTNode* n)
 {
-  Assert(n, "Tried to generate AIR for nullptr AST node");
+  Assert(n, "Tried to generate AIR for nullptr AST ASTNode");
 
   switch (n->type)
   {
@@ -398,9 +398,9 @@ jump_i::condition GenNodeAIR<jump_i::condition>(codegen_target& target, thing_of
 }
 
 template<>
-void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
+void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, ASTNode* n)
 {
-  Assert(n, "Tried to generate AIR for nullptr AST node");
+  Assert(n, "Tried to generate AIR for nullptr AST ASTNode");
 
   switch (n->type)
   {
@@ -462,7 +462,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 
     case BRANCH_NODE:
     {
-      Assert(n->branch.condition->type == CONDITION_NODE, "Condition node of branch isn't actually a condition");
+      Assert(n->branch.condition->type == CONDITION_NODE, "Condition ASTNode of branch isn't actually a condition");
       Assert(n->branch.condition->condition.reverseOnJump, "Not reversing jump condition when we should");
       jump_i::condition jumpCondition = GenNodeAIR<jump_i::condition>(target, code, n->branch.condition);
 
@@ -489,7 +489,7 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 
     case WHILE_NODE:
     {
-      Assert(n->branch.condition->type == CONDITION_NODE, "Condition node of branch isn't actually a condition");
+      Assert(n->branch.condition->type == CONDITION_NODE, "Condition ASTNode of branch isn't actually a condition");
       Assert(!(n->whileThing.condition->condition.reverseOnJump), "Reversing jump when we shouldn't be");
 
       instruction_label* label = CreateInstructionLabel();
@@ -508,8 +508,8 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
   }
 
   /*
-   * Because these nodes don't produce a result, they're probably statements.
-   * They can therefore be in a block and so can have a node following them.
+   * Because these ASTNodes don't produce a result, they're probably statements.
+   * They can therefore be in a block and so can have a ASTNode following them.
    */
   if (n->next)
   {
@@ -518,9 +518,9 @@ void GenNodeAIR<void>(codegen_target& target, thing_of_code* code, node* n)
 }
 
 template<>
-instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, thing_of_code* code, node* n)
+instruction_label* GenNodeAIR<instruction_label*>(codegen_target& /*target*/, thing_of_code* code, ASTNode* n)
 {
-  Assert(n, "Tried to generate AIR for nullptr AST node");
+  Assert(n, "Tried to generate AIR for nullptr AST ASTNode");
 
   switch (n->type)
   {
@@ -573,7 +573,7 @@ static unsigned int GetSlotAccessCost(slot_def* slot)
   return 0u;
 }
 
-static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node* n)
+static slot_def* GenOperation(codegen_target& target, thing_of_code* code, ASTNode* n)
 {
   Assert(n->binaryOp.resolvedOperator, "Tried to generate operation AIR for unresolved operator");
   Add<thing_of_code*>(code->calledThings, n->binaryOp.resolvedOperator);
@@ -583,7 +583,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node*
   vector<slot_def*> params;
   InitVector<slot_def*>(params);
 
-  auto parameterize = [&](node* param)
+  auto parameterize = [&](ASTNode* param)
     {
       slot_def* slot = GenNodeAIR<slot_def*>(target, code, param);
 
@@ -660,7 +660,7 @@ static slot_def* GenOperation(codegen_target& target, thing_of_code* code, node*
 /*
  * NOTE(Isaac): returns the result of the function call in a *new* slot.
  */
-static slot_def* GenCall(codegen_target& target, thing_of_code* code, node* n)
+static slot_def* GenCall(codegen_target& target, thing_of_code* code, ASTNode* n)
 {
   Assert(n->call.isResolved, "Tried to generate AIR for unresolved function call");
   Add<thing_of_code*>(code->calledThings, n->call.code);
@@ -948,7 +948,7 @@ static void ColorSlots(codegen_target& /*target*/, thing_of_code* code)
       continue;
     }
 
-    // Find colors already used by interferring nodes
+    // Find colors already used by interferring ASTNodes
     bool usedColors[numGeneralRegisters] = {0};
     for (unsigned int i = 0u;
          i < slot->numInterferences;
@@ -1344,7 +1344,7 @@ void OutputInterferenceDOT(thing_of_code* code)
 
     if (slot->color < 0)
     {
-      fprintf(stderr, "WARNING: found uncolored node! Using red!\n");
+      fprintf(stderr, "WARNING: found uncolored ASTNode! Using red!\n");
       color = "red";
     }
     else

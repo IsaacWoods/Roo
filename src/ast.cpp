@@ -16,7 +16,8 @@ ASTNode::~ASTNode()
 {
   if (shouldFreeTypeRef)
   {
-    Free<type_ref*>(type);
+    Assert(type, "Nullptr type-ref marked as should be freed");
+    Free<type_ref>(*type);
   }
 }
 
@@ -134,7 +135,7 @@ StringNode::~StringNode()
 {
 }
 
-CallNode::CallNode(char* name, vector<ASTNode*>& params)
+CallNode::CallNode(char* name, const std::vector<ASTNode*>& params)
   :ASTNode()
   ,name(name)
   ,isResolved(false)
@@ -148,8 +149,6 @@ CallNode::~CallNode()
   {
     free(name);
   }
-
-  FreeVector<ASTNode*>(params);
 }
 
 VariableAssignmentNode::VariableAssignmentNode(ASTNode* variable, ASTNode* newValue, bool ignoreImmutability)
@@ -184,13 +183,8 @@ MemberAccessNode::~MemberAccessNode()
   }
 }
 
-ArrayInitNode::ArrayInitNode(vector<ASTNode*>& items)
+ArrayInitNode::ArrayInitNode(const std::vector<ASTNode*>& items)
   :ASTNode()
   ,items(items)
 {
-}
-
-ArrayInitNode::~ArrayInitNode()
-{
-  FreeVector<ASTNode*>(items);
 }

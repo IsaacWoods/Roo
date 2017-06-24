@@ -7,10 +7,10 @@
 #include <common.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
-#include <air.hpp>
+//#include <air.hpp>
 #include <error.hpp>
 #include <scheduler.hpp>
-#include <codegen.hpp>
+//#include <codegen.hpp>
 #include <module.hpp>
 
 #if 1
@@ -62,10 +62,10 @@ int main()
   error_state errorState = CreateErrorState(GENERAL_STUFF);
   parse_result result;
   CreateParseResult(result);
-
+/*
   // Create the target for the codegen
   codegen_target target;
-  InitCodegenTarget(target);
+  InitCodegenTarget(target);*/
 
   // Compile the current directory
   if (!Compile(result, "."))
@@ -187,7 +187,7 @@ int main()
 
   // --- Run the tasks ---
   // TODO: In the future, these are in theory parallelizable, so run them on multiple threads?
-  while (s.tasks.size > 0u)
+/*  while (s.tasks.size > 0u)
   {
     task_info* task = GetTask(s);
 
@@ -202,7 +202,7 @@ int main()
 #endif
       } break;
     }
-  }
+  }*/
 
   Free<scheduler>(s);
 
@@ -211,10 +211,10 @@ int main()
     RaiseError(errorState, ERROR_NO_PROGRAM_NAME);
   }
 
-  Generate(result.name, target, result);
+//  Generate(result.name, target, result);
 
   Free<parse_result>(result);
-  Free<codegen_target>(target);
+  //Free<codegen_target>(target);
 
 #ifdef TIME_EXECUTION
   auto end = std::chrono::high_resolution_clock::now();
