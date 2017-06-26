@@ -9,15 +9,14 @@ LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc
 OBJS = \
   src/main.o \
 	src/common.o \
-	src/scheduler.o \
 	src/error.o \
 	src/ast.o \
 	src/ir.o \
   src/parsing.o \
 	src/module.o \
 	src/dotEmitter.o \
-	#src/air.o \
-	#src/codegen_x64elf.o \
+	src/air.o \
+	src/codegen_x64elf.o \
 	#src/elf.o \
 	#src/auto_doAstPasses.o \
 

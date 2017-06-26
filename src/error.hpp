@@ -82,10 +82,10 @@ enum error_state_type
 };
 
 struct roo_parser;
-struct thing_of_code;
-struct type_def;
+struct ThingOfCode;
+struct TypeDef;
 struct ASTNode;
-struct air_instruction;
+struct AirInstruction;
 
 struct error_state
 {
@@ -96,13 +96,13 @@ struct error_state
   {
     struct
     {
-      thing_of_code*    code;
+      ThingOfCode*      code;
       ASTNode*          node;
     }                 astSection;
     roo_parser*       parser;
-    thing_of_code*    code;
-    type_def*         type;
-    air_instruction*  instruction;
+    ThingOfCode*      code;
+    TypeDef*          type;
+    AirInstruction*   instruction;
   };
 };
 

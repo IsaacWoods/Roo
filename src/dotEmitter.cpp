@@ -21,7 +21,7 @@ DotState::~DotState()
   fclose(f);
 }
 
-void EmitDOT(thing_of_code* code)
+void EmitDOT(ThingOfCode* code)
 {
   char fileName[128u] = {};
   strcpy(fileName, code->mangledName);

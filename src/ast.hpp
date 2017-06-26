@@ -21,7 +21,7 @@ struct ASTNode
   virtual ~ASTNode();
 
   ASTNode*  next;
-  type_ref* type;
+  TypeRef*  type;
   bool      shouldFreeTypeRef;    // TODO: eww
 };
 
@@ -57,9 +57,9 @@ struct UnaryOpNode : ASTNode
   UnaryOpNode(Operator op, ASTNode* operand);
   ~UnaryOpNode();
 
-  Operator        op;
-  ASTNode*        operand;
-  thing_of_code*  resolvedOperator;
+  Operator      op;
+  ASTNode*      operand;
+  ThingOfCode*  resolvedOperator;
 };
 
 struct BinaryOpNode : ASTNode
@@ -76,22 +76,22 @@ struct BinaryOpNode : ASTNode
   BinaryOpNode(Operator op, ASTNode* left, ASTNode* right);
   ~BinaryOpNode();
 
-  Operator        op;
-  ASTNode*        left;
-  ASTNode*        right;
-  thing_of_code*  resolvedOperator;
+  Operator      op;
+  ASTNode*      left;
+  ASTNode*      right;
+  ThingOfCode*  resolvedOperator;
 };
 
 struct VariableNode : ASTNode
 {
   VariableNode(char* name);
-  VariableNode(variable_def* variable);
+  VariableNode(VariableDef* variable);
   ~VariableNode();
 
   union
   {
     char*         name;
-    variable_def* var;
+    VariableDef*  var;
   };
   bool isResolved;
 };
@@ -108,13 +108,13 @@ struct ConditionNode : ASTNode
     GREATER_THAN_OR_EQUAL
   };
 
-  ConditionNode(Condition condition, ASTNode* left, ASTNode* right, bool reverseOnJump = false);
+  ConditionNode(Condition condition, ASTNode* left, ASTNode* right/*, bool reverseOnJump = false*/);
   ~ConditionNode();
 
   Condition condition;
   ASTNode*  left;
   ASTNode*  right;
-  bool      reverseOnJump;
+//  bool      reverseOnJump;
 };
 
 struct BranchNode : ASTNode
@@ -159,10 +159,10 @@ struct NumberNode : ASTNode
 
 struct StringNode : ASTNode
 {
-  StringNode(string_constant* string);
+  StringNode(StringConstant* string);
   ~StringNode();
 
-  string_constant* string;
+  StringConstant* string;
 };
 
 struct CallNode : ASTNode
@@ -173,7 +173,7 @@ struct CallNode : ASTNode
   union
   {
     char*               name;
-    thing_of_code*      resolvedFunction;
+    ThingOfCode*        resolvedFunction;
   };
   bool                  isResolved;
   std::vector<ASTNode*> params;
@@ -198,7 +198,7 @@ struct MemberAccessNode : ASTNode
   union
   {
     ASTNode*      child;
-    variable_def* member;
+    VariableDef*  member;
   };
   bool            isResolved;
 };
@@ -222,16 +222,10 @@ bool IsNodeOfType(ASTNode* node)
 template<typename R, typename T>
 struct ASTPass
 {
-  enum IteratePolicy
-  {
-    NODE_FIRST,
-    CHILDREN_FIRST
-  }     iteratePolicy;
-  bool  errorOnNonexistantPass;
+  bool errorOnNonexistantPass;
 
-  ASTPass(IteratePolicy iteratePolicy, bool errorOnNonexistantPass)
-    :iteratePolicy(iteratePolicy)
-    ,errorOnNonexistantPass(errorOnNonexistantPass)
+  ASTPass(bool errorOnNonexistantPass)
+    :errorOnNonexistantPass(errorOnNonexistantPass)
   {
   }
 
@@ -272,6 +266,9 @@ struct ASTPass
     /*
      * Poor man's dynamic dispatch - we compare the type-identifier of the node with each node type, then
      * cast and call the correct virtual function.
+     *
+     * XXX: If this is too slow, I guess we could provide a virtual function to get a id number for each node
+     *      which could then by dispatched from (but that's got the same problems as before)
      */
     #define DISPATCH_NODE(nodeType)\
       if (strcmp(typeid(*node).name(), typeid(nodeType).name()) == 0)\

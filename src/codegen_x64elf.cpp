@@ -41,25 +41,23 @@ struct register_pimpl
   uint8_t opcodeOffset;
 };
 
-void InitCodegenTarget(codegen_target& target)
+CodegenTarget::CodegenTarget()
+  :name("x64_elf")
+  ,numRegisters(16u)
+  ,registerSet(new register_def[target.numRegisters])
+  ,generalRegisterSize(8u)
+  ,numIntParamColors(6u)
+  ,intParamColors(new unsigned int[numIntParamColors])
+  ,functionReturnColor(RAX)
 {
-  target.name = "x64_elf";
-  target.numRegisters = 16u;
-  target.registerSet = static_cast<register_def*>(malloc(sizeof(register_def) * target.numRegisters));
-  target.generalRegisterSize = 8u;
+  intParamColors[0u] = RDI;
+  intParamColors[1u] = RSI;
+  intParamColors[2u] = RDX;
+  intParamColors[3u] = RCX;
+  intParamColors[4u] = R8;
+  intParamColors[5u] = R9;
 
-  target.numIntParamColors = 6u;
-  target.intParamColors = static_cast<unsigned int*>(malloc(sizeof(unsigned int) * target.numIntParamColors));
-  target.intParamColors[0u] = RDI;
-  target.intParamColors[1u] = RSI;
-  target.intParamColors[2u] = RDX;
-  target.intParamColors[3u] = RCX;
-  target.intParamColors[4u] = R8;
-  target.intParamColors[5u] = R9;
-
-  target.functionReturnColor = RAX;
-
-  #define REGISTER(index, name, usage, modRMOffset) \
+#define REGISTER(index, name, usage, modRMOffset) \
     target.registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))}; \
     target.registerSet[index].pimpl->opcodeOffset = modRMOffset;
 
@@ -81,24 +79,23 @@ void InitCodegenTarget(codegen_target& target)
   REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
 }
 
-template<>
-void Free<codegen_target>(codegen_target& target)
+CodegenTarget::~CodegenTarget()
 {
   for (unsigned int i = 0u;
-       i < target.numRegisters;
+       i < numRegisters;
        i++)
   {
-    free(target.registerSet[i].pimpl);
+    delete registerSet[i].pimpl;
   }
 
-  free(target.registerSet);
-  free(target.intParamColors);
+  delete registerSet;
+  delete intParamColors;
 }
 
 /*
  * This is used by the AIR generation system to allow us to deal with all the weird bits of the x86_64 ISA.
  */
-void PrecolorInstruction(codegen_target& /*target*/, air_instruction* instruction)
+void PrecolorInstruction(CodegenTarget& /*target*/, AirInstruction* instruction)
 {
   error_state errorState = CreateErrorState(GENERAL_STUFF);
 
@@ -586,7 +583,7 @@ static void Emit(error_state& errorState, elf_thing* thing, codegen_target& targ
 #define E(...) \
   Emit(errorState, thing, target, __VA_ARGS__);
 
-static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* thing, parse_result& parse)
+static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* thing, ParseResult& parse)
 {
   elf_symbol* entrySymbol = nullptr;
   error_state errorState = CreateErrorState(GENERAL_STUFF);
@@ -892,7 +889,7 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
   return thing;
 }
 
-void Generate(const char* outputPath, codegen_target& target, parse_result& result)
+void Generate(const char* outputPath, codegen_target& target, ParseResult& result)
 {
   elf_file elf;
   CreateElf(elf, target, result.isModule);

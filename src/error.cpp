@@ -125,24 +125,24 @@ error_state CreateErrorState(error_state_type stateType, ...)
 
     case TRAVERSING_AST:
     {
-      state.astSection.code   = va_arg(args, thing_of_code*);
+      state.astSection.code   = va_arg(args, ThingOfCode*);
       state.astSection.node   = va_arg(args, ASTNode*);
     } break;
 
     case CODE_GENERATION:
     case FUNCTION_FILLING_IN:
     {
-      state.code              = va_arg(args, thing_of_code*);
+      state.code              = va_arg(args, ThingOfCode*);
     } break;
 
     case TYPE_FILLING_IN:
     {
-      state.type              = va_arg(args, type_def*);
+      state.type              = va_arg(args, TypeDef*);
     } break;
 
     case GENERATING_AIR:
     {
-      state.instruction       = va_arg(args, air_instruction*);
+      state.instruction       = va_arg(args, AirInstruction*);
     } break;
 
     case LINKING:

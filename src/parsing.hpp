@@ -7,7 +7,7 @@
 
 #include <error.hpp>
 
-struct parse_result;
+struct ParseResult;
 
 enum token_type
 {
@@ -106,11 +106,11 @@ struct roo_parser
   token           currentToken;
   token           nextToken;
 
-  parse_result*   result;
+  ParseResult*    result;
   error_state     errorState;
 };
 
 token PeekToken(roo_parser& parser, bool ignoreLines = true);
 token NextToken(roo_parser& parser, bool ignoreLines = true);
 const char* GetTokenName(token_type type);
-bool Parse(parse_result* result, const char* sourcePath);
+bool Parse(ParseResult* result, const char* sourcePath);

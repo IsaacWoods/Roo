@@ -766,9 +766,9 @@ unsigned int    g_precedenceTable[NUM_TOKENS];
  * Parses expressions.
  * If the previous operator is right-associative, the new precedence should be one less than that of the operator
  */
-static ASTNode* Expression(roo_parser& parser, unsigned int precedence = 0u)
+static ASTNode* ParseExpression(roo_parser& parser, unsigned int precedence = 0u)
 {
-  Log(parser, "--> Expression(%u)\n", precedence);
+  Log(parser, "--> ParseExpression(%u)\n", precedence);
   prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
 
   if (!prefixParselet)
@@ -785,27 +785,20 @@ static ASTNode* Expression(roo_parser& parser, unsigned int precedence = 0u)
     // NOTE(Isaac): there is no infix expression part - just return the prefix expression
     if (!infixParselet)
     {
-      Log(parser, "<-- Expression(NO INFIX)\n");
+      Log(parser, "<-- ParseExpression(NO INFIX)\n");
       return expression;
     }
 
     expression = infixParselet(parser, expression);
   }
 
-  Log(parser, "<-- Expression\n");
+  Log(parser, "<-- ParseExpression\n");
   return expression;
 }
 
-static type_ref TypeRef(roo_parser& parser)
+static TypeRef ParseTypeRef(roo_parser& parser)
 {
-  type_ref ref;
-  ref.isMutable           = false;
-  ref.isResolved          = false;
-  ref.isReference         = false;
-  ref.isReferenceMutable  = false;
-  ref.isArray             = false;
-  ref.isArraySizeResolved = false;
-  ref.arraySizeExpression = nullptr;
+  TypeRef ref;
   
   if (Match(parser, TOKEN_MUT))
   {
@@ -820,7 +813,7 @@ static type_ref TypeRef(roo_parser& parser)
   {
     Consume(parser, TOKEN_LEFT_BLOCK);
     ref.isArray = true;
-    ref.arraySizeExpression = Expression(parser);
+    ref.arraySizeExpression = ParseExpression(parser);
     Consume(parser, TOKEN_RIGHT_BLOCK);
   }
 
@@ -840,7 +833,7 @@ static type_ref TypeRef(roo_parser& parser)
   return ref;
 }
 
-static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
+static void ParseParameterList(roo_parser& parser, std::vector<VariableDef*>& params)
 {
   Consume(parser, TOKEN_LEFT_PAREN);
 
@@ -856,11 +849,11 @@ static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
     char* varName = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_COLON);
 
-    type_ref typeRef = TypeRef(parser);
-    variable_def* param = CreateVariableDef(varName, typeRef, nullptr);
+    TypeRef typeRef = ParseTypeRef(parser);
+    VariableDef* param = new VariableDef(varName, typeRef, nullptr);
 
     Log(parser, "Param: %s of type %s\n", param->name, param->type.name);
-    Add<variable_def*>(params, param);
+    params.push_back(param);
 
     if (Match(parser, TOKEN_COMMA))
     {
@@ -874,21 +867,21 @@ static void ParameterList(roo_parser& parser, vector<variable_def*>& params)
   }
 }
 
-static variable_def* VariableDef(roo_parser& parser)
+static VariableDef* ParseVariableDef(roo_parser& parser)
 {
   char* name = GetTextFromToken(parser, PeekToken(parser));
   ConsumeNext(parser, TOKEN_COLON);
 
-  type_ref typeRef = TypeRef(parser);
+  TypeRef typeRef = ParseTypeRef(parser);
   ASTNode* initValue = nullptr;
 
   if (Match(parser, TOKEN_EQUALS))
   {
     Consume(parser, TOKEN_EQUALS);
-    initValue = Expression(parser);
+    initValue = ParseExpression(parser);
   }
 
-  variable_def* variable = CreateVariableDef(name, typeRef, initValue);
+  VariableDef* variable = new VariableDef(name, typeRef, initValue);
 
   Log(parser, "Defined variable: '%s' which is %s%s'%s', which is %s\n",
               variable->name,
@@ -900,8 +893,8 @@ static variable_def* VariableDef(roo_parser& parser)
   return variable;
 }
 
-static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop = false);
-static ASTNode* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = false)
+static ASTNode* ParseStatement(roo_parser& parser, ThingOfCode* scope, bool isInLoop = false);
+static ASTNode* ParseBlock(roo_parser& parser, ThingOfCode* scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -909,7 +902,7 @@ static ASTNode* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = 
 
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
-    ASTNode* statement = Statement(parser, scope, isInLoop);
+    ASTNode* statement = ParseStatement(parser, scope, isInLoop);
 
     if (code)
     {
@@ -933,13 +926,13 @@ static ASTNode* Block(roo_parser& parser, thing_of_code* scope, bool isInLoop = 
   return code;
 }
 
-static ASTNode* If(roo_parser& parser, thing_of_code* scope)
+static ASTNode* ParseIf(roo_parser& parser, ThingOfCode* scope)
 {
   Log(parser, "--> If\n");
 
   Consume(parser, TOKEN_IF);
   Consume(parser, TOKEN_LEFT_PAREN);
-  ASTNode* conditionNode = Expression(parser);
+  ASTNode* conditionNode = ParseExpression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
   if (!IsNodeOfType<ConditionNode>(conditionNode))
@@ -949,27 +942,27 @@ static ASTNode* If(roo_parser& parser, thing_of_code* scope)
   }
 
   ConditionNode* condition = reinterpret_cast<ConditionNode*>(conditionNode);
-  condition->reverseOnJump = true;
-  ASTNode* thenCode = Block(parser, scope);
+  //condition->reverseOnJump = true;
+  ASTNode* thenCode = ParseBlock(parser, scope);
   ASTNode* elseCode = nullptr;
 
   if (Match(parser, TOKEN_ELSE))
   {
     NextToken(parser);
-    elseCode = Block(parser, scope);
+    elseCode = ParseBlock(parser, scope);
   }
 
   Log(parser, "<-- If\n");
   return new BranchNode(condition, thenCode, elseCode);
 }
 
-static ASTNode* While(roo_parser& parser, thing_of_code* scope)
+static ASTNode* ParseWhile(roo_parser& parser, ThingOfCode* scope)
 {
   Log(parser, "--> While\n");
 
   Consume(parser, TOKEN_WHILE);
   Consume(parser, TOKEN_LEFT_PAREN);
-  ASTNode* condition = Expression(parser);
+  ASTNode* condition = ParseExpression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
   if (!IsNodeOfType<ConditionNode>(condition))
@@ -978,13 +971,13 @@ static ASTNode* While(roo_parser& parser, thing_of_code* scope)
     RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", "");
   }
 
-  ASTNode* code = Block(parser, scope, true);
+  ASTNode* code = ParseBlock(parser, scope, true);
 
   Log(parser, "<-- While\n");
   return new WhileNode(reinterpret_cast<ConditionNode*>(condition), code);
 }
 
-static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoop)
+static ASTNode* ParseStatement(roo_parser& parser, ThingOfCode* scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
   ASTNode* result = nullptr;
@@ -1016,20 +1009,20 @@ static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoo
       }
       else
       {
-        result = new ReturnNode(Expression(parser));
+        result = new ReturnNode(ParseExpression(parser));
       }
     } break;
 
     case TOKEN_IF:
     {
       Log(parser, "(IF)\n");
-      result = If(parser, scope);
+      result = ParseIf(parser, scope);
     } break;
 
     case TOKEN_WHILE:
     {
       Log(parser, "(WHILE)\n");
-      result = While(parser, scope);
+      result = ParseWhile(parser, scope);
     } break;
 
     case TOKEN_IDENTIFIER:
@@ -1038,16 +1031,16 @@ static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoo
       if (MatchNext(parser, TOKEN_COLON))
       {
         Log(parser, "(VARIABLE DEFINITION)\n");
-        variable_def* variable = VariableDef(parser);
+        VariableDef* variable = ParseVariableDef(parser);
 
         // Assign the initial value to the variable
-        if (variable->initValue)
+        if (variable->initialValue)
         {
           VariableNode* variableNode = new VariableNode(variable);
-          result = new VariableAssignmentNode((ASTNode*)variableNode, variable->initValue, true);
+          result = new VariableAssignmentNode((ASTNode*)variableNode, variable->initialValue, true);
         }
 
-        Add<variable_def*>(scope->locals, variable);
+        scope->locals.push_back(variable);
         break;
       }
     } // NOTE(Isaac): no break
@@ -1055,7 +1048,7 @@ static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoo
     default:
     {
       Log(parser, "(EXPRESSION STATEMENT)\n");
-      result = Expression(parser);
+      result = ParseExpression(parser);
     }
   }
 
@@ -1063,55 +1056,45 @@ static ASTNode* Statement(roo_parser& parser, thing_of_code* scope, bool isInLoo
   return result;
 }
 
-static void TypeDef(roo_parser& parser)
+static void ParseTypeDef(roo_parser& parser)
 {
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
-  type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
-  InitVector<variable_def*>(type->members);
-  type->errorState = CreateErrorState(TYPE_FILLING_IN, type);
-  type->size = UINT_MAX;
-
-  type->name = GetTextFromToken(parser, PeekToken(parser));
+  TypeDef* type = new TypeDef(GetTextFromToken(parser, PeekToken(parser)));
   Log(parser, "%s)\n", type->name);
   
   ConsumeNext(parser, TOKEN_LEFT_BRACE);
 
   while (PeekToken(parser).type != TOKEN_RIGHT_BRACE)
   {
-    variable_def* member = VariableDef(parser);
-    Add<variable_def*>(type->members, member);
+    VariableDef* member = ParseVariableDef(parser);
+    type->members.push_back(member);
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);
-  Add<type_def*>(parser.result->types, type);
+  parser.result->types.push_back(type);
   Log(parser, "<-- TypeDef\n");
 }
 
-static void Import(roo_parser& parser)
+static void ParseImport(roo_parser& parser)
 {
   Log(parser, "--> Import\n");
   Consume(parser, TOKEN_IMPORT);
 
-  dependency_def* dependency = static_cast<dependency_def*>(malloc(sizeof(dependency_def)));
-
+  DependencyDef* dependency;
   switch (PeekToken(parser).type)
   {
-    // NOTE(Isaac): Import a local library
-    case TOKEN_IDENTIFIER:
+    case TOKEN_IDENTIFIER:    // Local dependency
     {
       // TODO(Isaac): handle dotted identifiers
       Log(parser, "Importing: %s\n", GetTextFromToken(parser, PeekToken(parser)));
-      dependency->type = dependency_def::dependency_type::LOCAL;
-      dependency->path = GetTextFromToken(parser, PeekToken(parser));
+      dependency = new DependencyDef(DependencyDef::Type::LOCAL, GetTextFromToken(parser, PeekToken(parser)));
     } break;
 
-    // NOTE(Isaac): Import a library from a remote repository
-    case TOKEN_STRING:
+    case TOKEN_STRING:        // Remote repository
     {
       Log(parser, "Importing remote: %s\n", GetTextFromToken(parser, PeekToken(parser)));
-      dependency->type = dependency_def::dependency_type::REMOTE;
-      dependency->path = GetTextFromToken(parser, PeekToken(parser));
+      dependency = new DependencyDef(DependencyDef::Type::REMOTE, GetTextFromToken(parser, PeekToken(parser)));
     } break;
 
     default:
@@ -1120,29 +1103,29 @@ static void Import(roo_parser& parser)
     }
   }
 
-  Add<dependency_def*>(parser.result->dependencies, dependency);
+  parser.result->dependencies.push_back(dependency);
   NextToken(parser);
   Log(parser, "<-- Import\n");
 }
 
-static void Function(roo_parser& parser, attrib_set& attribs)
+static void ParseFunction(roo_parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Function(");
 
-  thing_of_code* function = CreateThingOfCode(thing_type::FUNCTION, GetTextFromToken(parser, NextToken(parser)));
+  ThingOfCode* function = new ThingOfCode(ThingOfCode::Type::FUNCTION, GetTextFromToken(parser, NextToken(parser)));
   function->attribs = attribs;
   Log(parser, "%s)\n", function->name);
-  Add<thing_of_code*>(parser.result->codeThings, function);
+  parser.result->codeThings.push_back(function);
 
   NextToken(parser);
-  ParameterList(parser, function->params);
+  ParseParameterList(parser, function->params);
 
   // Optionally parse a return type
   if (Match(parser, TOKEN_YIELDS))
   {
     Consume(parser, TOKEN_YIELDS);
-    function->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-    *(function->returnType) = TypeRef(parser);
+    function->returnType = static_cast<TypeRef*>(malloc(sizeof(TypeRef)));
+    *(function->returnType) = ParseTypeRef(parser);
     Log(parser, "Function returns a: %s\n", function->returnType->name);
   }
   else
@@ -1156,20 +1139,20 @@ static void Function(roo_parser& parser, attrib_set& attribs)
   }
   else
   {
-    function->ast = Block(parser, function);
+    function->ast = ParseBlock(parser, function);
   }
 
   Log(parser, "<-- Function\n");
 }
 
-static void Operator(roo_parser& parser, attrib_set& attribs)
+static void ParseOperator(roo_parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Operator(");
 
-  thing_of_code* operatorDef = CreateThingOfCode(thing_type::OPERATOR, NextToken(parser).type);
+  ThingOfCode* operatorDef = new ThingOfCode(ThingOfCode::Type::OPERATOR, NextToken(parser).type);
   operatorDef->attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
-  Add<thing_of_code*>(parser.result->codeThings, operatorDef);
+  parser.result->codeThings.push_back(operatorDef);
 
   switch (operatorDef->op)
   {
@@ -1194,11 +1177,11 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
     } break;
   }
 
-  ParameterList(parser, operatorDef->params);
+  ParseParameterList(parser, operatorDef->params);
 
   Consume(parser, TOKEN_YIELDS);
-  operatorDef->returnType = static_cast<type_ref*>(malloc(sizeof(type_ref)));
-  *(operatorDef->returnType) = TypeRef(parser);
+  operatorDef->returnType = new TypeRef();
+  *(operatorDef->returnType) = ParseTypeRef(parser);
   Log(parser, "Return type: %s\n", operatorDef->returnType->name);
 
   if (operatorDef->attribs.isPrototype)
@@ -1207,14 +1190,14 @@ static void Operator(roo_parser& parser, attrib_set& attribs)
   }
   else
   {
-    operatorDef->ast = Block(parser, operatorDef);
+    operatorDef->ast = ParseBlock(parser, operatorDef);
     Assert(!(operatorDef->shouldAutoReturn), "Parsed an operator that should apparently auto-return");
   }
 
   Log(parser, "<-- Operator\n");
 }
 
-static void Attribute(roo_parser& parser, attrib_set& attribs)
+static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
 {
   char* attribName = GetTextFromToken(parser, NextToken(parser));
 
@@ -1273,7 +1256,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
       return;
     }
 
-    Add<char*>(parser.result->filesToLink, GetTextFromToken(parser, PeekToken(parser)));
+    parser.result->filesToLink.push_back(GetTextFromToken(parser, PeekToken(parser)));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "DefinePrimitive") == 0)
@@ -1286,9 +1269,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
       return;
     }
 
-    type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
-    type->name = GetTextFromToken(parser, PeekToken(parser));
-    InitVector<variable_def*>(type->members);
+    TypeDef* type = new TypeDef(GetTextFromToken(parser, PeekToken(parser)));
 
     ConsumeNext(parser, TOKEN_COMMA);
     if (!Match(parser, TOKEN_UNSIGNED_INT))
@@ -1298,7 +1279,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
     }
     type->size = PeekToken(parser).asUnsignedInt;
 
-    Add<type_def*>(parser.result->types, type);
+    parser.result->types.push_back(type);
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "Prototype") == 0)
@@ -1325,7 +1306,7 @@ static void Attribute(roo_parser& parser, attrib_set& attribs)
   free(attribName);
 }
 
-bool Parse(parse_result* result, const char* sourcePath)
+bool Parse(ParseResult* result, const char* sourcePath)
 {
   roo_parser parser;
   parser.path               = sourcePath;
@@ -1338,31 +1319,31 @@ bool Parse(parse_result* result, const char* sourcePath)
   parser.nextToken          = LexNext(parser);
   parser.errorState         = CreateErrorState(PARSING_UNIT, &parser);
 
-  attrib_set attribs;
+  AttribSet attribs;
 
   while (!Match(parser, TOKEN_INVALID))
   {
     if (Match(parser, TOKEN_IMPORT))
     {
-      Import(parser);
+      ParseImport(parser);
     }
     else if (Match(parser, TOKEN_FN))
     {
-      Function(parser, attribs);
-      InitAttribSet(attribs);
+      ParseFunction(parser, attribs);
+      attribs = AttribSet();
     }
     else if (Match(parser, TOKEN_OPERATOR))
     {
-      Operator(parser, attribs);
-      InitAttribSet(attribs);
+      ParseOperator(parser, attribs);
+      attribs = AttribSet();
     }
     else if (Match(parser, TOKEN_TYPE))
     {
-      TypeDef(parser);
+      ParseTypeDef(parser);
     }
     else if (Match(parser, TOKEN_START_ATTRIBUTE))
     {
-      Attribute(parser, attribs);
+      ParseAttribute(parser, attribs);
     }
     else
     {
@@ -1370,7 +1351,7 @@ bool Parse(parse_result* result, const char* sourcePath)
     }
   }
 
-  free(parser.source);
+  delete parser.source;
   parser.source = nullptr;
   parser.currentChar = nullptr;
   parser.result = nullptr;
@@ -1480,7 +1461,7 @@ static void InitParseletMaps()
       NextToken(parser, false);
 
       Log(parser, "<-- [PARSELET] String\n");
-      return new StringNode(CreateStringConstant(parser.result, tokenText));
+      return new StringNode(new StringConstant(parser.result, tokenText));
     };
 
   g_prefixMap[TOKEN_PLUS]         =
@@ -1513,7 +1494,7 @@ static void InitParseletMaps()
       }
 
       NextToken(parser);
-      ASTNode* operand = Expression(parser, P_PREFIX);
+      ASTNode* operand = ParseExpression(parser, P_PREFIX);
       Log(parser, "<-- [PARSELET] Prefix operation\n");
       return new UnaryOpNode(unaryOp, operand);
     };
@@ -1524,7 +1505,7 @@ static void InitParseletMaps()
       Log(parser, "--> [PARSELET] Parentheses\n");
       
       NextToken(parser);
-      ASTNode* expression = Expression(parser);
+      ASTNode* expression = ParseExpression(parser);
       Consume(parser, TOKEN_RIGHT_PAREN);
 
       Log(parser, "<-- [PARSELET] Parentheses\n");
@@ -1549,7 +1530,7 @@ static void InitParseletMaps()
       {
         while (true)
         {
-          ASTNode* item = Expression(parser, 0);
+          ASTNode* item = ParseExpression(parser, 0);
           items.push_back(item);
 
           if (Match(parser, TOKEN_COMMA))
@@ -1610,7 +1591,7 @@ static void InitParseletMaps()
       }
 
       NextToken(parser);
-      ASTNode* right = Expression(parser, g_precedenceTable[operation]);
+      ASTNode* right = ParseExpression(parser, g_precedenceTable[operation]);
       Log(parser, "<-- [PARSELET] Binary operator\n");
       return new BinaryOpNode(binaryOp, left, right);
     };
@@ -1621,11 +1602,11 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] Array index\n");
       Consume(parser, TOKEN_LEFT_BLOCK);
-      ASTNode* indexExpression = Expression(parser, 0u);
+      ASTNode* indexParseExpression = ParseExpression(parser, 0u);
       Consume(parser, TOKEN_RIGHT_BLOCK);
 
       Log(parser, "<-- [PARSELET] Array index\n");
-      return new BinaryOpNode(BinaryOpNode::Operator::INDEX_ARRAY, left, indexExpression);
+      return new BinaryOpNode(BinaryOpNode::Operator::INDEX_ARRAY, left, indexParseExpression);
     };
 
   // Parses a conditional
@@ -1641,7 +1622,7 @@ static void InitParseletMaps()
 
       token_type conditionToken = PeekToken(parser).type;
       NextToken(parser);
-      ASTNode* right = Expression(parser, g_precedenceTable[conditionToken]);
+      ASTNode* right = ParseExpression(parser, g_precedenceTable[conditionToken]);
 
       ConditionNode::Condition condition;
       switch (conditionToken)
@@ -1684,7 +1665,7 @@ static void InitParseletMaps()
       Consume(parser, TOKEN_LEFT_PAREN);
       while (!Match(parser, TOKEN_RIGHT_PAREN))
       {
-        params.push_back(Expression(parser));
+        params.push_back(ParseExpression(parser));
       }
       Consume(parser, TOKEN_RIGHT_PAREN);
 
@@ -1705,7 +1686,7 @@ static void InitParseletMaps()
       }
 
       NextToken(parser);
-      ASTNode* child = Expression(parser, P_MEMBER_ACCESS); 
+      ASTNode* child = ParseExpression(parser, P_MEMBER_ACCESS); 
 
       Log(parser, "<-- [PARSELET] Member access\n");
       return new MemberAccessNode(left, child);
@@ -1724,12 +1705,12 @@ static void InitParseletMaps()
       }
 
       ConditionNode* condition = reinterpret_cast<ConditionNode*>(left);
-      condition->reverseOnJump = true;
+      //condition->reverseOnJump = true;
 
       NextToken(parser);
-      ASTNode* thenBody = Expression(parser, P_TERNARY-1u);
+      ASTNode* thenBody = ParseExpression(parser, P_TERNARY-1u);
       Consume(parser, TOKEN_COLON);
-      ASTNode* elseBody = Expression(parser, P_TERNARY-1u);
+      ASTNode* elseBody = ParseExpression(parser, P_TERNARY-1u);
 
       Log(parser, "<-- [PARSELET] Ternary\n");
       return new BranchNode(condition, thenBody, elseBody);
@@ -1742,7 +1723,7 @@ static void InitParseletMaps()
       Log(parser, "--> [PARSELET] Variable assignment\n");
 
       NextToken(parser);
-      ASTNode* expression = Expression(parser, P_ASSIGNMENT-1u);
+      ASTNode* expression = ParseExpression(parser, P_ASSIGNMENT-1u);
 
       Log(parser, "<-- [PARSELET] Variable assignment\n");
       return new VariableAssignmentNode(left, expression, false);

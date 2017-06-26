@@ -4,6 +4,7 @@
  */
 
 #include <module.hpp>
+#include <cstring>
 
 #define ROO_MOD_VERSION 0u
 
@@ -37,9 +38,9 @@ char* Read<char*>(FILE* f)
 }
 
 template<>
-variable_def* Read<variable_def*>(FILE* f)
+VariableDef* Read<VariableDef*>(FILE* f)
 {
-  variable_def* var = static_cast<variable_def*>(malloc(sizeof(variable_def)));
+  VariableDef* var = static_cast<VariableDef*>(malloc(sizeof(VariableDef)));
 
   var->name = Read<char*>(f);
   var->type.name = Read<char*>(f);
@@ -57,28 +58,27 @@ variable_def* Read<variable_def*>(FILE* f)
 }
 
 template<>
-vector<variable_def*> Read<vector<variable_def*>>(FILE* f)
+std::vector<VariableDef*> Read<std::vector<VariableDef*>>(FILE* f)
 {
   uint8_t numElements = Read<uint8_t>(f);
-  vector<variable_def*> v;
-  InitVector<variable_def*>(v, numElements);
+  std::vector<VariableDef*> v(numElements);
 
   for (size_t i = 0u;
        i < numElements;
        i++)
   {
-    Add<variable_def*>(v, Read<variable_def*>(f));
+    v.push_back(Read<VariableDef*>(f));
   }
 
   return v;
 }
 
 template<>
-type_def* Read<type_def*>(FILE* f)
+TypeDef* Read<TypeDef*>(FILE* f)
 {
-  type_def* type = static_cast<type_def*>(malloc(sizeof(type_def)));
+  TypeDef* type = static_cast<TypeDef*>(malloc(sizeof(TypeDef)));
   type->name = Read<char*>(f);
-  type->members = Read<vector<variable_def*>>(f);
+  type->members = Read<std::vector<VariableDef*>>(f);
   type->errorState = CreateErrorState(TYPE_FILLING_IN, type);
   type->size = static_cast<unsigned int>(Read<uint32_t>(f));
 
@@ -86,42 +86,30 @@ type_def* Read<type_def*>(FILE* f)
 }
 
 template<>
-thing_of_code* Read<thing_of_code*>(FILE* f)
+ThingOfCode* Read<ThingOfCode*>(FILE* f)
 {
-  thing_of_code* thing = static_cast<thing_of_code*>(malloc(sizeof(thing_of_code)));
+  ThingOfCode* thing;
 
   switch (Read<uint8_t>(f))
   {
     case 0u:
     {
-      thing->type = thing_type::FUNCTION;
-      thing->name = Read<char*>(f);
+      thing = new ThingOfCode(ThingOfCode::Type::FUNCTION, Read<char*>(f));
     } break;
 
     case 1u:
     {
-      thing->type = thing_type::OPERATOR;
-      thing->op   = static_cast<token_type>(Read<uint32_t>(f));
+      thing = new ThingOfCode(ThingOfCode::Type::OPERATOR, static_cast<token_type>(Read<uint32_t>(f)));
+    } break;
+
+    default:
+    {
+      // TODO: get the module info path from somewhere
+      RaiseError(ERROR_MALFORMED_MODULE_INFO, "ModuleFileIdk", "ThingOfCode type encoding should be 0 or 1");
     } break;
   }
 
-  thing->params = Read<vector<variable_def*>>(f);
-  thing->mangledName      = nullptr;
-  thing->shouldAutoReturn = false;
-  thing->returnType       = nullptr;
-  thing->errorState       = CreateErrorState(FUNCTION_FILLING_IN, thing);
-  thing->ast              = nullptr;
-  thing->stackFrameSize   = 0u;
-  thing->airHead          = nullptr;
-  thing->airTail          = nullptr;
-  thing->numTemporaries   = 0u;
-  thing->numReturnResults = 0u;
-  thing->symbol           = nullptr;
-
-  InitVector<variable_def*>(thing->locals);
-  InitAttribSet(thing->attribs);
-  InitVector<thing_of_code*>(thing->calledThings);
-  InitVector<slot_def*>(thing->slots);
+  thing->params = Read<std::vector<VariableDef*>>(f);
 
   /*
    * Even if it is defined in Roo in the other module, we're linking against it here and so it should be considered
@@ -132,7 +120,7 @@ thing_of_code* Read<thing_of_code*>(FILE* f)
   return thing;
 }
 
-error_state ImportModule(const char* modulePath, parse_result& parse)
+error_state ImportModule(const char* modulePath, ParseResult& parse)
 {
   error_state errorState = CreateErrorState(GENERAL_STUFF);
   FILE* f = fopen(modulePath, "rb");
@@ -169,14 +157,14 @@ error_state ImportModule(const char* modulePath, parse_result& parse)
        i < typeCount;
        i++)
   {
-    Add<type_def*>(parse.types, Read<type_def*>(f));
+    parse.types.push_back(Read<TypeDef*>(f));
   }
 
   for (size_t i = 0u;
        i < codeThingCount;
        i++)
   {
-    Add<thing_of_code*>(parse.codeThings, Read<thing_of_code*>(f));
+    parse.codeThings.push_back(Read<ThingOfCode*>(f));
   }
 
   fclose(f);
@@ -205,9 +193,9 @@ void Emit<char*>(FILE* f, char* value, error_state& errorState)
 }
 
 template<>
-void Emit<variable_def*>(FILE* f, variable_def* value, error_state& errorState)
+void Emit<VariableDef*>(FILE* f, VariableDef* value, error_state& errorState)
 {
-  Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a variable_def");
+  Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a VariableDef");
   Emit<char*>(f, value->name, errorState);
   Emit<char*>(f, (value->type.isResolved ? value->type.def->name : value->type.name), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isMutable), errorState);
@@ -226,48 +214,46 @@ void Emit<variable_def*>(FILE* f, variable_def* value, error_state& errorState)
 }
 
 template<>
-void Emit<vector<variable_def*>>(FILE* f, vector<variable_def*> value, error_state& errorState)
+void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, error_state& errorState)
 {
-  Emit<uint8_t>(f, value.size, errorState);
+  Emit<uint8_t>(f, value.size(), errorState);
 
-  for (auto* it = value.head;
-       it < value.tail;
-       it++)
+  for (VariableDef* variable : value)
   {
-    Emit<variable_def*>(f, *it, errorState);
+    Emit<VariableDef*>(f, variable, errorState);
   }
 }
 
 template<>
-void Emit<type_def*>(FILE* f, type_def* value, error_state& errorState)
+void Emit<TypeDef*>(FILE* f, TypeDef* value, error_state& errorState)
 {
   Emit<char*>(f, value->name, errorState);
-  Emit<vector<variable_def*>>(f, value->members, errorState);
+  Emit<std::vector<VariableDef*>>(f, value->members, errorState);
   Emit<uint32_t>(f, static_cast<uint32_t>(value->size), errorState);
 }
 
 template<>
-void Emit<thing_of_code*>(FILE* f, thing_of_code* thing, error_state& errorState)
+void Emit<ThingOfCode*>(FILE* f, ThingOfCode* thing, error_state& errorState)
 {
   switch (thing->type)
   {
-    case thing_type::FUNCTION:
+    case ThingOfCode::Type::FUNCTION:
     {
       Emit<uint8_t>(f, 0u, errorState);
       Emit<char*>(f, thing->name, errorState);
-      Emit<vector<variable_def*>>(f, thing->params, errorState);
+      Emit<std::vector<VariableDef*>>(f, thing->params, errorState);
     } break;
 
-    case thing_type::OPERATOR:
+    case ThingOfCode::Type::OPERATOR:
     {
       Emit<uint8_t>(f, 1u, errorState);
       Emit<uint32_t>(f, static_cast<uint32_t>(thing->op), errorState);
-      Emit<vector<variable_def*>>(f, thing->params, errorState);
+      Emit<std::vector<VariableDef*>>(f, thing->params, errorState);
     } break;
   }
 }
 
-error_state ExportModule(const char* outputPath, parse_result& parse)
+error_state ExportModule(const char* outputPath, ParseResult& parse)
 {
   error_state errorState = CreateErrorState(GENERAL_STUFF);
   FILE* f = fopen(outputPath, "wb");
@@ -285,24 +271,20 @@ error_state ExportModule(const char* outputPath, parse_result& parse)
   EMIT('O');
   EMIT(ROO_MOD_VERSION);
 
-  uint32_t typeCount      = static_cast<uint32_t>(parse.types.size);
-  uint32_t codeThingCount = static_cast<uint32_t>(parse.codeThings.size);
+  uint32_t typeCount      = static_cast<uint32_t>(parse.types.size());
+  uint32_t codeThingCount = static_cast<uint32_t>(parse.codeThings.size());
 
   fwrite(&typeCount,      sizeof(uint32_t), 1, f);
   fwrite(&codeThingCount, sizeof(uint32_t), 1, f);
 
-  for (auto* it = parse.types.head;
-       it < parse.types.tail;
-       it++)
+  for (TypeDef* type : parse.types)
   {
-    Emit<type_def*>(f, *it, errorState);
+    Emit<TypeDef*>(f, type, errorState);
   }
 
-  for (auto* it = parse.codeThings.head;
-       it < parse.codeThings.tail;
-       it++)
+  for (ThingOfCode* code : parse.codeThings)
   {
-    Emit<thing_of_code*>(f, *it, errorState);
+    Emit<ThingOfCode*>(f, code, errorState);
   }
 
   fclose(f);

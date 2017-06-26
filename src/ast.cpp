@@ -17,7 +17,7 @@ ASTNode::~ASTNode()
   if (shouldFreeTypeRef)
   {
     Assert(type, "Nullptr type-ref marked as should be freed");
-    Free<type_ref>(*type);
+    delete type;
   }
 }
 
@@ -29,7 +29,7 @@ ReturnNode::ReturnNode(ASTNode* returnValue)
 
 ReturnNode::~ReturnNode()
 {
-  free(returnValue);
+  delete returnValue;
 }
 
 UnaryOpNode::UnaryOpNode(Operator op, ASTNode* operand)
@@ -42,7 +42,7 @@ UnaryOpNode::UnaryOpNode(Operator op, ASTNode* operand)
 
 UnaryOpNode::~UnaryOpNode()
 {
-  free(operand);
+  delete operand;
 }
 
 BinaryOpNode::BinaryOpNode(Operator op, ASTNode* left, ASTNode* right)
@@ -56,8 +56,8 @@ BinaryOpNode::BinaryOpNode(Operator op, ASTNode* left, ASTNode* right)
 
 BinaryOpNode::~BinaryOpNode()
 {
-  free(left);
-  free(right);
+  delete left;
+  delete right;
 }
 
 VariableNode::VariableNode(char* name)
@@ -67,7 +67,7 @@ VariableNode::VariableNode(char* name)
 {
 }
 
-VariableNode::VariableNode(variable_def* variable)
+VariableNode::VariableNode(VariableDef* variable)
   :ASTNode()
   ,var(variable)
   ,isResolved(true)
@@ -82,19 +82,19 @@ VariableNode::~VariableNode()
   }
 }
 
-ConditionNode::ConditionNode(Condition condition, ASTNode* left, ASTNode* right, bool reverseOnJump)
+ConditionNode::ConditionNode(Condition condition, ASTNode* left, ASTNode* right/*, bool reverseOnJump*/)
   :ASTNode()
   ,condition(condition)
   ,left(left)
   ,right(right)
-  ,reverseOnJump(reverseOnJump)
+//  ,reverseOnJump(reverseOnJump)
 {
 }
 
 ConditionNode::~ConditionNode()
 {
-  free(left);
-  free(right);
+  delete left;
+  delete right;
 }
 
 BranchNode::BranchNode(ConditionNode* condition, ASTNode* thenCode, ASTNode* elseCode)
@@ -107,9 +107,9 @@ BranchNode::BranchNode(ConditionNode* condition, ASTNode* thenCode, ASTNode* els
 
 BranchNode::~BranchNode()
 {
-  free(condition);
-  free(thenCode);
-  free(elseCode);
+  delete condition;
+  delete thenCode;
+  delete elseCode;
 }
 
 WhileNode::WhileNode(ConditionNode* condition, ASTNode* loopBody)
@@ -121,11 +121,11 @@ WhileNode::WhileNode(ConditionNode* condition, ASTNode* loopBody)
 
 WhileNode::~WhileNode()
 {
-  free(condition);
-  free(loopBody);
+  delete condition;
+  delete loopBody;
 }
 
-StringNode::StringNode(string_constant* string)
+StringNode::StringNode(StringConstant* string)
   :ASTNode()
   ,string(string)
 {
@@ -161,8 +161,8 @@ VariableAssignmentNode::VariableAssignmentNode(ASTNode* variable, ASTNode* newVa
 
 VariableAssignmentNode::~VariableAssignmentNode()
 {
-  free(variable);
-  free(newValue);
+  delete variable;
+  delete newValue;
 }
 
 MemberAccessNode::MemberAccessNode(ASTNode* parent, ASTNode* child)
@@ -175,11 +175,11 @@ MemberAccessNode::MemberAccessNode(ASTNode* parent, ASTNode* child)
 
 MemberAccessNode::~MemberAccessNode()
 {
-  free(parent);
+  delete parent;
   
   if (!isResolved)
   {
-    free(child);
+    delete child;
   }
 }
 

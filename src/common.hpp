@@ -5,10 +5,10 @@
 
 #pragma once
 
+#include <vector>
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
-#include <vector.hpp>
 
 // NOTE(Isaac): Define this to output .dot files of the AST and interference graph of each function
 #define OUTPUT_DOT
@@ -17,10 +17,12 @@
 [[noreturn]] void Crash();
 
 // --- File stuff and things ---
-struct file
+struct File
 {
-  char* name;
+  File(char* name, char* extension);
+  ~File();
 
+  char* name;
   /*
    * NOTE(Isaac): if the file doesn't have an extension, this is null
    * NOTE(Isaac): this points into `name`, because it'll be at the end
@@ -28,13 +30,14 @@ struct file
   char* extension;
 };
 
-struct directory
+struct Directory
 {
-  char* path;
-  vector<file> files;
-};
+  Directory(const char* path);
+  ~Directory();
 
-void OpenDirectory(directory& dir, const char* path);
+  char*             path;
+  std::vector<File> files;
+};
 
 // --- Common functions ---
 char* itoa(int num, char* str, int base);
