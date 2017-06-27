@@ -491,4 +491,21 @@ void CompleteIR(ParseResult& parse)
   {
     CalculateSizeOfType(type);
   }
+
+  // If there were any errors completing the IR, don't bother continuing
+  for (ThingOfCode* code : parse.codeThings)
+  {
+    if (code->errorState.hasErrored)
+    {
+      RaiseError(ERROR_COMPILE_ERRORS);
+    }
+  }
+
+  for (TypeDef* type : parse.types)
+  {
+    if (type->errorState.hasErrored)
+    {
+      RaiseError(ERROR_COMPILE_ERRORS);
+    }
+  }
 }

@@ -433,12 +433,12 @@ static void GenerateInterferenceGraph(ThingOfCode* code)
           {
             a->interferences.push_back(b);
             b->interferences.push_back(a);
-            goto FoundInterferences;
+            goto FoundInterference;
           }
         }
       }
 
-FoundInterferences:
+FoundInterference:
       continue;
     }
   }
