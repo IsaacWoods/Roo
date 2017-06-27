@@ -254,6 +254,7 @@ struct ASTPass
   virtual R VisitNode(VariableAssignmentNode*       , T* = nullptr) BASE_CASE("VariableAssignmentNode");
   virtual R VisitNode(MemberAccessNode*             , T* = nullptr) BASE_CASE("MemberAccessNode");
   virtual R VisitNode(ArrayInitNode*                , T* = nullptr) BASE_CASE("ArrayInitNode");
+  #undef BASE_CASE
 
   /*
    * This is required since we can't use a normal visitor pattern (because we can't template a virtual function,
@@ -270,32 +271,33 @@ struct ASTPass
      * XXX: If this is too slow, I guess we could provide a virtual function to get a id number for each node
      *      which could then by dispatched from (but that's got the same problems as before)
      */
-    #define DISPATCH_NODE(nodeType)\
+    #define DISPATCH(nodeType)\
       if (strcmp(typeid(*node).name(), typeid(nodeType).name()) == 0)\
       {\
         return VisitNode(reinterpret_cast<nodeType*>(node), state);\
       }
 
-         DISPATCH_NODE(BreakNode)
-    else DISPATCH_NODE(ReturnNode)
-    else DISPATCH_NODE(UnaryOpNode)
-    else DISPATCH_NODE(BinaryOpNode)
-    else DISPATCH_NODE(VariableNode)
-    else DISPATCH_NODE(ConditionNode)
-    else DISPATCH_NODE(BranchNode)
-    else DISPATCH_NODE(WhileNode)
-    else DISPATCH_NODE(NumberNode<unsigned int>)
-    else DISPATCH_NODE(NumberNode<int>)
-    else DISPATCH_NODE(NumberNode<float>)
-    else DISPATCH_NODE(StringNode)
-    else DISPATCH_NODE(CallNode)
-    else DISPATCH_NODE(VariableAssignmentNode)
-    else DISPATCH_NODE(MemberAccessNode)
-    else DISPATCH_NODE(ArrayInitNode)
+         DISPATCH(BreakNode)
+    else DISPATCH(ReturnNode)
+    else DISPATCH(UnaryOpNode)
+    else DISPATCH(BinaryOpNode)
+    else DISPATCH(VariableNode)
+    else DISPATCH(ConditionNode)
+    else DISPATCH(BranchNode)
+    else DISPATCH(WhileNode)
+    else DISPATCH(NumberNode<unsigned int>)
+    else DISPATCH(NumberNode<int>)
+    else DISPATCH(NumberNode<float>)
+    else DISPATCH(StringNode)
+    else DISPATCH(CallNode)
+    else DISPATCH(VariableAssignmentNode)
+    else DISPATCH(MemberAccessNode)
+    else DISPATCH(ArrayInitNode)
     else
     {
       RaiseError(ICE_UNHANDLED_NODE_TYPE, "DispatchNode", typeid(*node).name());
     }
+    #undef DISPATCH
 
     __builtin_unreachable();
   }

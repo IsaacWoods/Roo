@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <ast.hpp>
+#include <air.hpp>
 
 /*
  * NOTE(Isaac): This allows the codegen module to store platform-dependent
@@ -41,14 +42,25 @@ struct CodegenTarget
   unsigned int  functionReturnColor;
 };
 
-struct code_generator
+struct InstructionPrecolorer : AirPass<void>
 {
-  FILE* output;
+  InstructionPrecolorer() : AirPass(true) { }
+
+  void Visit(LabelInstruction* instruction,     void*);
+  void Visit(ReturnInstruction* instruction,    void*);
+  void Visit(JumpInstruction* instruction,      void*);
+  void Visit(MovInstruction* instruction,       void*);
+  void Visit(CmpInstruction* instruction,       void*);
+  void Visit(UnaryOpInstruction* instruction,   void*);
+  void Visit(BinaryOpInstruction* instruction,  void*);
+  void Visit(CallInstruction* instruction,      void*);
 };
 
 void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result);
 
+// XXX TODO: where the fuck are these even implemented or used??
+/*
 void CreateCodeGenerator(code_generator& generator, const char* outputPath);
 void FreeCodeGenerator(code_generator& generator);
 void GenCodeSection(code_generator& generator, ParseResult& parse);
-void GenDataSection(code_generator& generator, ParseResult& parse);
+void GenDataSection(code_generator& generator, ParseResult& parse);*/

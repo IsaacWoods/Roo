@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <cstdlib>
 #include <cstdint>
@@ -19,15 +20,10 @@
 // --- File stuff and things ---
 struct File
 {
-  File(char* name, char* extension);
-  ~File();
+  File(const std::string& name, const std::string& extension);
 
-  char* name;
-  /*
-   * NOTE(Isaac): if the file doesn't have an extension, this is null
-   * NOTE(Isaac): this points into `name`, because it'll be at the end
-   */
-  char* extension;
+  std::string name;
+  std::string extension;
 };
 
 struct Directory

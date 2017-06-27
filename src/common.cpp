@@ -28,15 +28,10 @@
   }
 #endif
 
-File::File(char* name, char* extension)
+File::File(const std::string& name, const std::string& extension)
   :name(name)
   ,extension(extension)
 {
-}
-
-File::~File()
-{
-  delete name;
 }
 
 Directory::Directory(const char* path)
@@ -61,7 +56,7 @@ Directory::Directory(const char* path)
      */
     char* name = strdup(dirent->d_name);
     char* dotIndex = strchr(name, '.');
-    files.push_back(File(name, (dotIndex ? dotIndex + (ptrdiff_t)1u : nullptr)));
+    files.push_back(File(std::string(dirent->d_name), (dotIndex ? std::string(dotIndex + (ptrdiff_t)1u) : "")));
   }
 
   closedir(d);

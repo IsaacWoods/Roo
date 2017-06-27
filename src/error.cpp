@@ -95,6 +95,7 @@ void InitErrorDefs()
   I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
   I(ICE_UNHANDLED_OPERATOR,                               "Unhandled operator (token=%s) in %s");
   I(ICE_NONEXISTANT_AST_PASSLET,                          "Nonexistant passlet for node of type: %s");
+  I(ICE_NONEXISTANT_AIR_PASSLET,                          "Nonexistant passlet for instruction of type: %s");
   I(ICE_UNHANDLED_RELOCATION,                             "Unable to handle relocation of type: %s");
 
 #undef N

@@ -4,6 +4,7 @@
  */
 
 #include <elf.hpp>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -15,6 +16,13 @@
 #define SECTION_HEADER_ENTRY_SIZE 0x40
 #define SYMBOL_TABLE_ENTRY_SIZE   0x18
 
+// TODO XXX: get rid of this
+template<>
+void Free<elf_thing*>(elf_thing*& thing)
+{
+  free(thing->data);
+  free(thing);
+}
 /*
 static const char* GetSectionTypeName(section_type type)
 {
@@ -60,7 +68,7 @@ static elf_string* CreateString(elf_file& elf, const char* str)
 
   elf.stringTableTail += strlen(str) + 1u;
 
-  Add<elf_string*>(elf.strings, string);
+  elf.strings.push_back(string);
   return string;
 }
 
@@ -87,12 +95,12 @@ elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding
   }
 
   elf.numSymbols++;
-  Add<elf_symbol*>(elf.symbols, symbol);
+  elf.symbols.push_back(symbol);
   return symbol;
 }
 
 void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol,
-                      int64_t addend, const instruction_label* label)
+                      int64_t addend, const LabelInstruction* label)
 {
   elf_relocation* relocation = static_cast<elf_relocation*>(malloc(sizeof(elf_relocation)));
   relocation->thing   = thing;
@@ -102,7 +110,7 @@ void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocati
   relocation->addend  = addend;
   relocation->label   = label;
 
-  Add<elf_relocation*>(elf.relocations, relocation);
+  elf.relocations.push_back(relocation);
 }
 
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment,
@@ -119,7 +127,7 @@ elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uin
   segment->isMappedDirectly   = isMappedDirectly;
 
   elf.header.numProgramHeaderEntries++;
-  Add<elf_segment*>(elf.segments, segment);
+  elf.segments.push_back(segment);
   return segment;
 }
 
@@ -137,11 +145,11 @@ elf_section* CreateSection(elf_file& elf, const char* name, section_type type, u
   section->alignment    = alignment;
   section->entrySize    = 0u;
 
-  // NOTE(Isaac): section indices begin at 1
-  section->index = (elf.sections.size > 0u ? elf.sections[elf.sections.size - 1u]->index + 1u : 1u);
+  // NOTE(Isaac): section indices begin at 1 because 0 is the special SHT_NULL section
+  section->index = (elf.sections.size() > 0u ? elf.sections[elf.sections.size() - 1u]->index + 1u : 1u);
 
   elf.header.numSectionHeaderEntries++;
-  Add<elf_section*>(elf.sections, section);
+  elf.sections.push_back(section);
   return section;
 }
 
@@ -156,7 +164,7 @@ elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol)
   thing->fileOffset   = 0u;
   thing->address      = 0x0;
 
-  Add<elf_thing*>(elf.things, thing);
+  elf.things.push_back(thing);
   return thing;
 }
 
@@ -176,11 +184,8 @@ elf_thing* CreateRodataThing(elf_file& elf)
 
 elf_section* GetSection(elf_file& elf, const char* name)
 {
-  for (auto* it = elf.sections.head;
-       it < elf.sections.tail;
-       it++)
+  for (elf_section* section : elf.sections)
   {
-    elf_section* section = *it;
     if (strcmp(section->name->str, name) == 0)
     {
       return section;
@@ -193,12 +198,8 @@ elf_section* GetSection(elf_file& elf, const char* name)
 
 elf_symbol* GetSymbol(elf_file& elf, const char* name)
 {
-  for (auto* it = elf.symbols.head;
-       it < elf.symbols.tail;
-       it++)
+  for (elf_symbol* symbol : elf.symbols)
   {
-    elf_symbol* symbol = *it;
-
     if (!(symbol->name))
     {
       continue;
@@ -220,30 +221,26 @@ void MapSection(elf_file& elf, elf_segment* segment, elf_section* section)
   mapping.segment = segment;
   mapping.section = section;
 
-  Add<elf_mapping>(elf.mappings, mapping);
+  elf.mappings.push_back(mapping);
 }
 
 struct elf_object
 {
-  const char*               path;
-  FILE*                     f;
-  vector<elf_section*>      sections;
-  vector<elf_symbol*>       symbols;      // NOTE(Isaac): contents should not be freed
-  vector<elf_relocation*>   relocations;  // NOTE(Isaac): contents should not be freed
-  vector<elf_thing*>        things;       // NOTE(Isaac): contents should not be freed
+  const char*                     path;
+  FILE*                           f;
+  std::vector<elf_section*>       sections;
+  std::vector<elf_symbol*>        symbols;      // NOTE(Isaac): Underlying pointers should not be freed
+  std::vector<elf_relocation*>    relocations;  // NOTE(Isaac): Underlying pointers should not be freed
+  std::vector<elf_thing*>         things;       // NOTE(Isaac): Underlying pointers should not be freed
 
-  elf_symbol**              symbolRemaps;
-  unsigned int              numRemaps;
+  elf_symbol**                    symbolRemaps;
+  unsigned int                    numRemaps;
 };
 
 template<>
 void Free<elf_object>(elf_object& object)
 {
   fclose(object.f);
-  FreeVector<elf_section*>(object.sections);
-  DetachVector<elf_symbol*>(object.symbols);
-  DetachVector<elf_relocation*>(object.relocations);
-  DetachVector<elf_thing*>(object.things);
   free(object.symbolRemaps);
 }
 
@@ -312,7 +309,7 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
     /*0x38*/fread(&(section->entrySize),  sizeof(uint64_t), 1, object.f);
     /*0x40*/
 
-    Add<elf_section*>(object.sections, section);
+    object.sections.push_back(section);
   }
 
   uint16_t sectionWithNames;
@@ -320,11 +317,8 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
   fread(&sectionWithNames, sizeof(uint16_t), 1, object.f);
   elf_section* stringTable = object.sections[sectionWithNames];
 
-  for (auto* it = object.sections.head;
-       it < object.sections.tail;
-       it++)
+  for (elf_section* section : object.sections)
   {
-    elf_section* section = *it;
     section->name = ExtractString(elf, object, stringTable, section->nameOffset);
   }
 }
@@ -376,8 +370,8 @@ static void ParseSymbolTable(error_state& errorState, elf_file& elf, elf_object&
     object.symbolRemaps[i] = symbol;
 
     elf.numSymbols++;
-    Add<elf_symbol*>(elf.symbols, symbol);
-    Add<elf_symbol*>(object.symbols, symbol);
+    elf.symbols.push_back(symbol);
+    object.symbols.push_back(symbol);
   }
 }
 
@@ -414,8 +408,8 @@ static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_o
       RaiseError(errorState, ERROR_UNRESOLVED_SYMBOL, "unknown (from external relocation section)");
     }
 
-    Add<elf_relocation*>(elf.relocations, relocation);
-    Add<elf_relocation*>(object.relocations, relocation);
+    elf.relocations.push_back(relocation);
+    object.relocations.push_back(relocation);
   }
 }
 
@@ -426,10 +420,6 @@ void LinkObject(elf_file& elf, const char* objectPath)
   elf_object object;
   object.path = objectPath;
   object.f = fopen(objectPath, "rb");
-  InitVector<elf_section*>(object.sections);
-  InitVector<elf_symbol*>(object.symbols);
-  InitVector<elf_relocation*>(object.relocations);
-  InitVector<elf_thing*>(object.things);
 
   if (!(object.f))
   {
@@ -460,12 +450,8 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   // Parse the section header
   ParseSectionHeader(elf, object);
-  for (auto* it = object.sections.head;
-       it < object.sections.tail;
-       it++)
+  for (elf_section* section : object.sections)
   {
-    elf_section* section = *it;
-
     switch (section->type)
     {
       case SHT_SYMTAB:
@@ -492,11 +478,8 @@ void LinkObject(elf_file& elf, const char* objectPath)
 
   // Find the .text section
   elf_section* text = nullptr;
-  for (auto* it = object.sections.head;
-       it < object.sections.tail;
-       it++)
+  for (elf_section* section : object.sections)
   {
-    elf_section* section = *it;
     if (!(section->name))
     {
       continue;
@@ -512,16 +495,11 @@ void LinkObject(elf_file& elf, const char* objectPath)
   /*
    * NOTE(Isaac): this *borrows* symbols from the actual symbol table - don't free it, just detach it!
    */
-  vector<elf_symbol*> functionSymbols;
-  InitVector<elf_symbol*>(functionSymbols);
+  std::vector<elf_symbol*> functionSymbols;
 
   // Extract functions from the symbol table and their code from .text
-  for (auto* it = object.symbols.head;
-       it < object.symbols.tail;
-       it++)
+  for (elf_symbol* symbol : object.symbols)
   {
-    elf_symbol* symbol = *it;
-
     /*
      * NOTE(Isaac): NASM refuses to emit symbols for functions with the correct type,
      * so assume that symbols with no type that are in .text are also functions
@@ -529,19 +507,22 @@ void LinkObject(elf_file& elf, const char* objectPath)
     if (((symbol->info & 0xf) == SYM_TYPE_FUNCTION) ||
         ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
     {
-      Add<elf_symbol*>(functionSymbols, symbol);
+      functionSymbols.push_back(symbol);
     }
   }
 
   // Sort the linked list by the symbols' offsets into the section
-  SortVector<elf_symbol*>(functionSymbols, [](elf_symbol*& a, elf_symbol*& b)
+  std::sort(functionSymbols.begin(), functionSymbols.end(), [](elf_symbol*& a, elf_symbol*& b)
     {
       return (a->value < b->value);
     });
 
   // Extract functions from the external object and link them into ourselves
-  for (auto* it = functionSymbols.head;
+/*  for (auto* it = functionSymbols.head;
        it < functionSymbols.tail;
+       it++)*/
+  for (auto it = functionSymbols.begin();
+       it < functionSymbols.end();
        it++)
   {
     elf_symbol* symbol = *it;
@@ -553,7 +534,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
      */
     if (symbol->size == 0u)
     {
-      if ((it + 1) < functionSymbols.tail)
+      if ((it+1) < functionSymbols.end())
       {
         /*
          * The size is the difference between the offset of this symbol and the next one
@@ -583,29 +564,21 @@ void LinkObject(elf_file& elf, const char* objectPath)
      */
     fseek(object.f, text->offset + symbol->value, SEEK_SET);
     fread(thing->data, sizeof(uint8_t), symbol->size, object.f);
-    Add<elf_thing*>(elf.things, thing);
-    Add<elf_thing*>(object.things, thing);
+    elf.things.push_back(thing);
+    object.things.push_back(thing);
 
     /*
      * We create a new symbol for the function, so remove the old one.
-     * NOTE(Isaac): We've sorted the symbols by offset, so this must be stable.
+     * NOTE(Isaac): This must be stable, because the symbols are sorted by offset.
      */
-    StableRemove<elf_symbol*>(elf.symbols, symbol);
+    elf.symbols.erase(it);
   }
 
   // Complete the relocations loaded from the external object
-  for (auto* it = object.relocations.head;
-       it < object.relocations.tail;
-       it++)
+  for (elf_relocation* relocation : object.relocations)
   {
-    elf_relocation* relocation = *it;
-
-    for (auto* thingIt = object.things.head;
-         thingIt < object.things.tail;
-         thingIt++)
+    for (elf_thing* thing : object.things)
     {
-      elf_thing* thing = *thingIt;
-
       // NOTE(Isaac): the address should still be the offset in the external object's .text section
       if ((relocation->offset >= thing->address) &&
           (relocation->offset < thing->address + thing->length))
@@ -615,9 +588,6 @@ void LinkObject(elf_file& elf, const char* objectPath)
       }
     }
   }
-
-  DetachVector<elf_symbol*>(functionSymbols);
-  Free<elf_object>(object);
   #undef CONSUME
 }
 
@@ -630,6 +600,10 @@ void Emit_<uint8_t>(elf_thing* thing, uint8_t byte)
 template<>
 void Emit_<uint32_t>(elf_thing* thing, uint32_t i)
 {
+  /*
+   * This encodes a little-endian representation, and will need to be extended if we need to allow
+   * changing the endianness of the ELF.
+   */
   thing->data[thing->length++] = (i >> 0u)  & 0xff;
   thing->data[thing->length++] = (i >> 8u)  & 0xff;
   thing->data[thing->length++] = (i >> 16u) & 0xff;
@@ -639,6 +613,10 @@ void Emit_<uint32_t>(elf_thing* thing, uint32_t i)
 template<>
 void Emit_<uint64_t>(elf_thing* thing, uint64_t i)
 {
+  /*
+   * This encodes a little-endian representation, and will need to be extended if we need to allow
+   * changing the endianness of the ELF.
+   */
   thing->data[thing->length++] = (i >> 0u)  & 0xff;
   thing->data[thing->length++] = (i >> 8u)  & 0xff;
   thing->data[thing->length++] = (i >> 16u) & 0xff;
@@ -734,7 +712,7 @@ static void EmitSectionEntry(FILE* f, elf_section* section)
 /*0x40*/
 }
 
-static void EmitSymbolTable(FILE* f, elf_file& elf, vector<elf_symbol*>& symbols)
+static void EmitSymbolTable(FILE* f, elf_file& elf, const std::vector<elf_symbol*>& symbols)
 {
   // Emit an empty symbol table entry, because the standard says so
   GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
@@ -745,11 +723,8 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, vector<elf_symbol*>& symbols
     fputc(0x0, f);
   }
 
-  for (auto* symbolIt = symbols.head;
-       symbolIt < symbols.tail;
-       symbolIt++)
+  for (elf_symbol* symbol : symbols)
   {
-    elf_symbol* symbol = *symbolIt;
     GetSection(elf, ".symtab")->size += SYMBOL_TABLE_ENTRY_SIZE;
 
 /*n + */
@@ -773,21 +748,18 @@ static void EmitSymbolTable(FILE* f, elf_file& elf, vector<elf_symbol*>& symbols
   }
 }
 
-static void EmitStringTable(FILE* f, elf_file& elf, vector<elf_string*>& strings)
+static void EmitStringTable(FILE* f, elf_file& elf, const std::vector<elf_string*>& strings)
 {
   // Lead with a null terminator to mark the null-string
   fputc('\0', f);
   GetSection(elf, ".strtab")->size = 1u;
 
-  for (auto* it = strings.head;
-       it < strings.tail;
-       it++)
+  for (elf_string* string : strings)
   {
-    const char* string = (*it)->str;
-    GetSection(elf, ".strtab")->size += strlen(string) + 1u;
+    GetSection(elf, ".strtab")->size += strlen(string->str) + 1u;
 
     // NOTE(Isaac): add 1 to also write the included null-terminator
-    fwrite(string, sizeof(char), strlen(string) + 1u, f);
+    fwrite(string->str, sizeof(char), strlen(string->str) + 1u, f);
   }
 }
 
@@ -817,8 +789,12 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* sec
  */
 static void ResolveUndefinedSymbols(error_state& errorState, elf_file& elf)
 {
-  for (auto* it = elf.symbols.head;
-       it < elf.symbols.tail;
+  /*
+   * NOTE(Isaac): We can't start the second loop from the next symbol (to make it O(n log n)) because we can
+   * only coalesce the undefined symbol with its matching definition, not the other way around!
+   */
+  for (auto it = elf.symbols.begin();
+       it < elf.symbols.end();
        it++)
   {
     elf_symbol* symbol = *it;
@@ -830,12 +806,8 @@ static void ResolveUndefinedSymbols(error_state& errorState, elf_file& elf)
       continue;
     }
 
-    for (auto* otherIt = elf.symbols.head;
-         otherIt < elf.symbols.tail;
-         otherIt++)
+    for (elf_symbol* otherSymbol : elf.symbols)
     {
-      elf_symbol* otherSymbol = *otherIt;
-
       // NOTE(Isaac): don't coalesce with yourself!
       if ((symbol == otherSymbol) || !(otherSymbol->name))
       {
@@ -845,16 +817,12 @@ static void ResolveUndefinedSymbols(error_state& errorState, elf_file& elf)
       if (strcmp(symbol->name->str, otherSymbol->name->str) == 0u)
       {
         // Coalesce the symbols!
-        StableRemove<elf_symbol*>(elf.symbols, symbol);
+        elf.symbols.erase(it);
         symbolResolved = true;
 
         // Point relocations that refer to the undefined symbol to its defined partner
-        for (auto* relocationIt = elf.relocations.head;
-             relocationIt < elf.relocations.tail;
-             relocationIt++)
+        for (elf_relocation* relocation : elf.relocations)
         {
-          elf_relocation* relocation = *relocationIt;
-
           if (relocation->symbol->index == symbol->index)
           {
             relocation->symbol = otherSymbol;
@@ -882,8 +850,7 @@ const char* GetRelocationTypeName(relocation_type type)
 
     default:
     {
-      error_state errorState = CreateErrorState(GENERAL_STUFF);
-      RaiseError(errorState, ICE_GENERIC, "Unhandled relocation type in GetRelocationTypeName");
+      RaiseError(ICE_GENERIC, "Unhandled relocation type in GetRelocationTypeName");
     } break;
   }
 
@@ -894,11 +861,8 @@ static void CompleteRelocations(error_state& errorState, FILE* f, elf_file& elf)
 {
   long int currentPosition = ftell(f);
 
-  for (auto* it = elf.relocations.head;
-       it < elf.relocations.tail;
-       it++)
+  for (elf_relocation* relocation : elf.relocations)
   {
-    elf_relocation* relocation = *it;
     Assert(relocation->thing, "Relocation trying to be applied to a nullptr elf_thing");
     Assert(relocation->symbol, "Relocation has a nullptr symbol");
 
@@ -946,12 +910,10 @@ static void CompleteRelocations(error_state& errorState, FILE* f, elf_file& elf)
 
 static void MapSectionsToSegments(elf_file& elf)
 {
-  for (auto* it = elf.mappings.head;
-       it < elf.mappings.tail;
-       it++)
+  for (elf_mapping& mapping : elf.mappings)
   {
-    elf_segment* segment = it->segment;
-    elf_section* section = it->section;
+    elf_segment* segment = mapping.segment;
+    elf_section* section = mapping.section;
 
     Assert(section->type != SHT_NOBITS, "We can't tell the size of SHT_NOBITS sections, because its file size is a lie");
 
@@ -969,29 +931,32 @@ static void MapSectionsToSegments(elf_file& elf)
   }
 }
 
-void CreateElf(elf_file& elf, codegen_target& target, bool isRelocatable)
+elf_file::elf_file(CodegenTarget& target, bool isRelocatable)
+  :isRelocatable(isRelocatable)
+  ,target(&target)
+  ,header()
+  ,segments()
+  ,things()
+  ,symbols()
+  ,strings()
+  ,mappings()
+  ,relocations()
+  ,stringTableTail(0u)
+  ,numSymbols(0u)
+  ,rodataThing(nullptr)
 {
-  elf.isRelocatable = isRelocatable;
-  elf.target = &target;
+  header.fileType                 = (isRelocatable ? ET_REL : ET_EXEC);
+  header.entryPoint               = 0x0;
+  header.programHeaderOffset      = 0x0;
+  header.sectionHeaderOffset      = 0x0;
+  header.numProgramHeaderEntries  = 0u;
+  header.numSectionHeaderEntries  = 0u;
+  header.sectionWithSectionNames  = 0u;
+}
 
-  InitVector<elf_thing*>(elf.things);
-  InitVector<elf_symbol*>(elf.symbols);
-  InitVector<elf_segment*>(elf.segments);
-  InitVector<elf_section*>(elf.sections);
-  InitVector<elf_string*>(elf.strings);
-  InitVector<elf_mapping>(elf.mappings);
-  InitVector<elf_relocation*>(elf.relocations);
-  elf.stringTableTail = 1u;
-  elf.numSymbols = 0u;
-  elf.rodataThing = nullptr;
-
-  elf.header.fileType = (isRelocatable ? ET_REL : ET_EXEC);
-  elf.header.entryPoint = 0x0;
-  elf.header.programHeaderOffset = 0x0;
-  elf.header.sectionHeaderOffset = 0x0;
-  elf.header.numProgramHeaderEntries = 0u;
-  elf.header.numSectionHeaderEntries = 0u;
-  elf.header.sectionWithSectionNames = 0u;
+elf_file::~elf_file()
+{
+  Free<elf_thing*>(rodataThing);
 }
 
 void WriteElf(elf_file& elf, const char* path)
@@ -1012,11 +977,9 @@ void WriteElf(elf_file& elf, const char* path)
   // --- Emit all the things ---
   GetSection(elf, ".text")->offset = ftell(f);
 
-  for (auto* it = elf.things.head;
-       it < elf.things.tail;
-       it++)
+  for (elf_thing* thing : elf.things)
   {
-    EmitThing(f, elf, *it);
+    EmitThing(f, elf, thing);
   }
 
   // Manually emit the .rodata thing
@@ -1034,11 +997,9 @@ void WriteElf(elf_file& elf, const char* path)
    * If this is an executable, they should be relative to the final *virtual address*
    */
   uint64_t symbolOffset = (elf.isRelocatable ? 0u : GetSection(elf, ".text")->address);
-  for (auto* it = elf.things.head;
-       it < elf.things.tail;
-       it++)
+  for (elf_thing* thing : elf.things)
   {
-    (*it)->symbol->value += symbolOffset;
+    thing->symbol->value += symbolOffset;
   }
 
   // Calculate virtual address of .rodata symbol
@@ -1069,7 +1030,7 @@ void WriteElf(elf_file& elf, const char* path)
   // --- Emit the section header ---
   elf.header.sectionHeaderOffset = ftell(f);
 
-  // Emit an empty section header entry for reasons
+  // We need empty section header entry for reasons (because the spec says so)
   elf.header.numSectionHeaderEntries++;
   for (unsigned int i = 0u;
        i < SECTION_HEADER_ENTRY_SIZE;
@@ -1078,22 +1039,18 @@ void WriteElf(elf_file& elf, const char* path)
     fputc(0x00, f);
   }
 
-  for (auto* it = elf.sections.head;
-       it < elf.sections.tail;
-       it++)
+  for (elf_section* section : elf.sections)
   {
-    EmitSectionEntry(f, *it);
+    EmitSectionEntry(f, section);
   }
 
   // --- Emit the program header ---
-  if (elf.segments.size > 0u)
+  if (elf.segments.size() > 0u)
   {
     elf.header.programHeaderOffset = ftell(f);
-    for (auto* it = elf.segments.head;
-         it < elf.segments.tail;
-         it++)
+    for (elf_segment* segment : elf.segments)
     {
-      EmitProgramEntry(f, *it);
+      EmitProgramEntry(f, segment);
     }
   }
 
@@ -1104,13 +1061,7 @@ void WriteElf(elf_file& elf, const char* path)
   fclose(f);
 }
 
-template<>
-void Free<elf_thing*>(elf_thing*& thing)
-{
-  free(thing->data);
-  free(thing);
-}
-
+// TODO: get rid of all this
 template<>
 void Free<elf_mapping>(elf_mapping& /*mapping*/)
 {
@@ -1147,17 +1098,4 @@ void Free<elf_section*>(elf_section*& section)
 {
   // NOTE(Isaac): don't free the name, it's added to the list of strings and would be freed twice!
   free(section);
-}
-
-template<>
-void Free<elf_file>(elf_file& elf)
-{
-  FreeVector<elf_segment*>(elf.segments);
-  FreeVector<elf_section*>(elf.sections);
-  FreeVector<elf_thing*>(elf.things);
-  FreeVector<elf_symbol*>(elf.symbols);
-  FreeVector<elf_string*>(elf.strings);
-  FreeVector<elf_mapping>(elf.mappings);
-  FreeVector<elf_relocation*>(elf.relocations);
-  Free<elf_thing*>(elf.rodataThing);
 }

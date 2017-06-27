@@ -9,9 +9,10 @@
 #include <vector>
 #include <ast.hpp>
 #include <ir.hpp>
-#include <codegen.hpp>
 
 struct AirInstruction;
+struct CodegenTarget;
+
 struct LiveRange
 {
   LiveRange(AirInstruction* definition, AirInstruction* lastUse);
@@ -22,6 +23,23 @@ struct LiveRange
    */
   AirInstruction* definition;
   AirInstruction* lastUse;
+};
+
+/*
+ * XXX: This feels a bit messy, but we need a way to tell what type of slot we're dealing with and dynamically
+ * dispatching all the time is a bit of a pain in the ass.
+ */
+enum class SlotType
+{
+  VARIABLE,
+  PARAMETER,
+  MEMBER,
+  TEMPORARY,
+  RETURN_RESULT,
+  UNSIGNED_INT_CONSTANT,
+  INT_CONSTANT,
+  FLOAT_CONSTANT,
+  STRING_CONSTANT
 };
 
 struct Slot
@@ -39,6 +57,14 @@ struct Slot
   std::vector<Slot*>      interferences;
   std::vector<LiveRange>  liveRanges;
 
+  bool IsColored()
+  {
+    return (color != -1);
+  }
+
+  virtual SlotType GetType() = 0;
+  virtual bool IsConstant() = 0;
+  virtual bool ShouldColor() = 0;
   virtual void Use(AirInstruction* instruction) = 0;
   virtual void ChangeValue(AirInstruction* instruction) = 0;
 };
@@ -50,6 +76,9 @@ struct VariableSlot : Slot
 
   VariableDef* variable;
 
+  SlotType GetType()  { return SlotType::VARIABLE;  }
+  bool IsConstant()   { return false;               }
+  bool ShouldColor()  { return true;                }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
 };
@@ -61,6 +90,9 @@ struct ParameterSlot : Slot
 
   VariableDef* parameter;
 
+  SlotType GetType()  { return SlotType::PARAMETER; }
+  bool IsConstant()   { return false;               }
+  bool ShouldColor()  { return false;               }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
 };
@@ -73,6 +105,9 @@ struct MemberSlot : Slot
   Slot*         parent;
   VariableDef* member;
 
+  SlotType GetType()  { return SlotType::MEMBER;  }
+  bool IsConstant()   { return false;             }
+  bool ShouldColor()  { return false;             }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
 };
@@ -83,6 +118,9 @@ struct TemporarySlot : Slot
 
   unsigned int tag;
 
+  SlotType GetType()  { return SlotType::TEMPORARY; }
+  bool IsConstant()   { return false;               }
+  bool ShouldColor()  { return true;                }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
 };
@@ -93,6 +131,9 @@ struct ReturnResultSlot : Slot
 
   unsigned int tag;
 
+  SlotType GetType()  { return SlotType::RETURN_RESULT; }
+  bool IsConstant()   { return false;                   }
+  bool ShouldColor()  { return false;                   }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
 };
@@ -113,6 +154,28 @@ struct ConstantSlot : Slot
 
   T value;
 
+  SlotType GetType()
+  {
+    if (std::is_same<T, unsigned int>::value)
+    {
+      return SlotType::UNSIGNED_INT_CONSTANT;
+    }
+    else if (std::is_same<T, int>::value)
+    {
+      return SlotType::INT_CONSTANT;
+    }
+    else if (std::is_same<T, float>::value)
+    {
+      return SlotType::FLOAT_CONSTANT;
+    }
+    else
+    {
+      return SlotType::STRING_CONSTANT;
+    }
+  }
+
+  bool IsConstant()   { return true;  }
+  bool ShouldColor()  { return false; }
   void Use(AirInstruction* /*instruction*/) { }
   void ChangeValue(AirInstruction* /*instruction*/) { }
 };
@@ -270,3 +333,70 @@ struct AirGenerator : ASTPass<Slot*, ThingOfCode>
 };
 
 void GenerateAIR(CodegenTarget& target, ThingOfCode* code);
+bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color);
+
+/*
+ * This allows dynamic dispatch based upon the type of an AIR instruction.
+ */
+template<typename T=void>
+struct AirPass
+{
+  bool errorOnNonexistantPass;
+
+  AirPass(bool errorOnNonexistantPass)
+    :errorOnNonexistantPass(errorOnNonexistantPass)
+  {
+  }
+
+  #define BASE_CASE(nodeType)\
+  {\
+    if (errorOnNonexistantPass)\
+    {\
+      RaiseError(ICE_NONEXISTANT_AIR_PASSLET, nodeType);\
+    }\
+  }
+
+  virtual void Visit(LabelInstruction*,     T* = nullptr) BASE_CASE("LabelInstruction");
+  virtual void Visit(ReturnInstruction*,    T* = nullptr) BASE_CASE("ReturnInstruction");
+  virtual void Visit(JumpInstruction*,      T* = nullptr) BASE_CASE("JumpInstruction");
+  virtual void Visit(MovInstruction*,       T* = nullptr) BASE_CASE("MovInstruction");
+  virtual void Visit(CmpInstruction*,       T* = nullptr) BASE_CASE("CmpInstruction");
+  virtual void Visit(UnaryOpInstruction*,   T* = nullptr) BASE_CASE("UnaryOpInstruction");
+  virtual void Visit(BinaryOpInstruction*,  T* = nullptr) BASE_CASE("BinaryOpInstruction");
+  virtual void Visit(CallInstruction*,      T* = nullptr) BASE_CASE("CallInstruction");
+  #undef BASE_CASE
+
+  /*
+   * This uses the same bodged dynamic dispatch approach as the AST pass system.
+   * There is more justification for it there.
+   */
+  void Dispatch(AirInstruction* instruction, T* state = nullptr)
+  {
+    Assert(instruction, "Tried to dispatch on a nullptr instruction");
+
+    // XXX: Again, if this is too slow, we could instead compare an id returned from the node virtually
+    // (but this is more fragile because we have to manange the ids ourselves)
+    #define DISPATCH(instructionType)\
+      if (strcmp(typeid(*instruction).name(), typeid(instructionType).name()) == 0)\
+      {\
+        Visit(reinterpret_cast<instructionType*>(instruction), state);\
+        return;\
+      }
+
+         DISPATCH(LabelInstruction)
+    else DISPATCH(ReturnInstruction)
+    else DISPATCH(JumpInstruction)
+    else DISPATCH(MovInstruction)
+    else DISPATCH(CmpInstruction)
+    else DISPATCH(UnaryOpInstruction)
+    else DISPATCH(BinaryOpInstruction)
+    else DISPATCH(CallInstruction)
+    else
+    {
+      RaiseError(ICE_UNHANDLED_INSTRUCTION_TYPE, "Dispatch(AirPass)", typeid(*instruction).name());
+    }
+    #undef DISPATCH
+
+    __builtin_unreachable();
+  }
+};

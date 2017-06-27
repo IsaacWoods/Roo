@@ -33,10 +33,10 @@ static bool Compile(ParseResult& parse, const char* directoryPath)
 
   for (File& f : directory.files)
   {
-    if (f.extension && strcmp(f.extension, "roo") == 0)
+    if (f.extension == "roo")
     {
-      printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f.name);
-      bool compileSuccessful = Parse(&parse, f.name);
+      printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f.name.c_str());
+      bool compileSuccessful = Parse(&parse, f.name.c_str());
 //      printf("%20s\n", (compileSuccessful ? "\x1B[32m[PASSED]\x1B[0m" : "\x1B[31m[FAILED]\x1B[0m"));
 
       failed |= !compileSuccessful;
@@ -171,7 +171,7 @@ int main()
     RaiseError(errorState, ERROR_NO_PROGRAM_NAME);
   }
 
-//  Generate(result.name, target, result);
+  Generate(result.name, target, result);
 
 #ifdef TIME_EXECUTION
   auto end = std::chrono::high_resolution_clock::now();

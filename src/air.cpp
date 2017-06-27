@@ -4,6 +4,8 @@
  */
 
 #include <air.hpp>
+#include <climits>
+#include <codegen.hpp>
 
 static void UseSlot(Slot* slot, AirInstruction* instruction)
 {
@@ -388,12 +390,109 @@ Slot* AirGenerator::VisitNode(ArrayInitNode* node, ThingOfCode* code)
 {
 }
 
-static void GenerateInterferenceGraph(ThingOfCode* code)
+static bool DoRangesIntersect(LiveRange& a, LiveRange& b)
 {
+  unsigned int definitionA = (a.definition ? a.definition->index : 0u);
+  unsigned int definitionB = (b.definition ? b.definition->index : 0u);
+  // TODO: should this default to their definitions instead of UINT_MAX??
+  // (Because we don't care what happens to unused slots?)
+  // Maybe remove unused slots before creating the interference graph?
+  unsigned int useA = (a.lastUse ? a.lastUse->index : UINT_MAX);
+  unsigned int useB = (b.lastUse ? b.lastUse->index : UINT_MAX);
+
+  return ((definitionA <= useB) && (definitionB <= useA));
 }
 
+static void GenerateInterferenceGraph(ThingOfCode* code)
+{
+  /*
+   * We have to use iterators here, because we need to only visit each *pair* of slots once.
+   */
+  for (auto itA = code->slots.begin();
+       itA != code->slots.end();
+       itA++)
+  {
+    Slot* a = *itA;
+
+    if (a->IsConstant())
+    {
+      continue;
+    }
+
+    for (auto itB = std::next(itA);
+         itB != code->slots.end();
+         itB++)
+    {
+      Slot* b = *itB;
+
+      for (LiveRange& rangeA : a->liveRanges)
+      {
+        for (LiveRange& rangeB : b->liveRanges)
+        {
+          if (DoRangesIntersect(rangeA, rangeB))
+          {
+            a->interferences.push_back(b);
+            b->interferences.push_back(a);
+            goto FoundInterferences;
+          }
+        }
+      }
+
+FoundInterferences:
+      continue;
+    }
+  }
+}
+
+/*
+ * This assigns a color to each slot (each color then corresponds to a register) so that no edge of the
+ * interference graph is between nodes of the same color.
+ *
+ * XXX: Atm, this is very naive and could do with a lot more improvement to achieve a more efficient k-coloring,
+ * especially concerning the register pressure (or lack of it).
+ */
 static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
 {
+  // TODO: Allow the target architecture to specify this more expressively
+  const unsigned int numGeneralRegisters = 14u;
+
+  for (Slot* slot : code->slots)
+  {
+    // Skip slots that are uncolorable or already colored
+    if ((slot->color != -1) || !slot->ShouldColor())
+    {
+      continue;
+    }
+
+    // Find colors already used by interfering slots
+    bool usedColors[numGeneralRegisters] = {};
+    for (Slot* interferingSlot : slot->interferences)
+    {
+      if (interferingSlot->color != -1)
+      {
+        usedColors[interferingSlot->color] = true;
+      }
+    }
+
+    // Choose a free color
+    for (unsigned int i = 0u;
+         i < numGeneralRegisters;
+         i++)
+    {
+      if (!usedColors[i])
+      {
+        slot->color = static_cast<signed int>(i);
+        break;
+      }
+    }
+
+    // Deal with it if we can't find a free color for this slot
+    if (slot->color == -1)
+    {
+      // TODO: we should do something more helpful here, like spill something or rewrite the AIR
+      RaiseError(code->errorState, ICE_GENERIC, "Failed to find a valid k-coloring of the interference graph!");
+    }
+  }
 }
 
 void GenerateAIR(CodegenTarget& target, ThingOfCode* code)
@@ -431,11 +530,52 @@ void GenerateAIR(CodegenTarget& target, ThingOfCode* code)
   airGenerator.DispatchNode(code->ast, code);
 
   // Allow the code generator to precolor the interference graph
-  // TODO
+  InstructionPrecolorer precolorer;
+  for (AirInstruction* instruction = code->airHead;
+       instruction < code->airTail;
+       instruction++)
+  {
+    precolorer.Dispatch(instruction);
+  }
   
   // Color the interference graph
   GenerateInterferenceGraph(code);
   ColorSlots(target, code);
 
   // TODO: print the instruction and slot listings
+}
+
+bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color)
+{
+  for (Slot* slot : code->slots)
+  {
+    if (slot->IsConstant())
+    {
+      continue;
+    }
+
+    if (slot->color != color)
+    {
+      continue;
+    }
+
+    for (LiveRange& range : slot->liveRanges)
+    {
+      /*
+       * If the slot is never used, it doesn't matter if it's overwritten, so skip it
+       */
+      if (!(range.lastUse))
+      {
+        continue;
+      }
+
+      unsigned int definitionIndex = (range.definition ? range.definition->index : 0u);
+      if ((instruction->index >= definitionIndex) && (instruction->index <= range.lastUse->index))
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

@@ -17,7 +17,7 @@ OBJS = \
 	src/dotEmitter.o \
 	src/air.o \
 	src/codegen_x64elf.o \
-	#src/elf.o \
+	src/elf.o \
 	#src/auto_doAstPasses.o \
 
 STD_OBJECTS = \
