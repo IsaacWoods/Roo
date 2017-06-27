@@ -20,7 +20,7 @@
  * When this flag is set, the parser emits detailed logging throughout the parse.
  * It should probably be left off, unless debugging the lexer or parser.
  */
-#if 0
+#if 1
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -887,7 +887,7 @@ static VariableDef* ParseVariableDef(roo_parser& parser)
               variable->name,
               (variable->type.isArray ? "an array of " : "a "),
               (variable->type.isReference ? (variable->type.isReferenceMutable ? "mutable reference to a " : "reference to a ") : ""),
-              variable->type.name,
+              variable->type.name.c_str(),
               (variable->type.isMutable ? "mutable" : "immutable"));
 
   return variable;
@@ -1124,8 +1124,7 @@ static void ParseFunction(roo_parser& parser, AttribSet& attribs)
   if (Match(parser, TOKEN_YIELDS))
   {
     Consume(parser, TOKEN_YIELDS);
-    function->returnType = static_cast<TypeRef*>(malloc(sizeof(TypeRef)));
-    *(function->returnType) = ParseTypeRef(parser);
+    function->returnType = new TypeRef(ParseTypeRef(parser));
     Log(parser, "Function returns a: %s\n", function->returnType->name);
   }
   else

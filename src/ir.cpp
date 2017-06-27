@@ -74,7 +74,8 @@ TypeDef::~TypeDef()
 }
 
 TypeRef::TypeRef()
-  :name(nullptr)
+  :name()
+  ,resolvedType(nullptr)
   ,isResolved(false)
   ,isMutable(false)
   ,isReference(false)
@@ -87,11 +88,6 @@ TypeRef::TypeRef()
 
 TypeRef::~TypeRef()
 {
-  if (!isResolved)
-  {
-    delete name;
-  }
-
   if (!isArraySizeResolved)
   {
     delete arraySizeExpression;
@@ -210,18 +206,19 @@ char* TypeRefToString(TypeRef* type)
 
   if (type->isResolved)
   {
-    if (type->isArray && !(type->def))
+    if (type->isArray && !(type->resolvedType))
     {
       PUSH("EMPTY-LIST");
     }
     else
     {
-      PUSH(type->def->name);
+      PUSH(type->resolvedType->name);
     }
   }
   else
   {
-    PUSH(type->name);
+    //PUSH(type->name);
+    PUSH(type->name.c_str());
   }
 
   if (type->isArray)
@@ -274,7 +271,7 @@ bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability)
     }
   }
 
-  if (a->def != b->def)
+  if (a->resolvedType != b->resolvedType)
   {
     return false;
   }
@@ -306,16 +303,18 @@ static void ResolveTypeRef(TypeRef& ref, ParseResult& parse, error_state& errorS
 
   for (TypeDef* type : parse.types)
   {
-    if (strcmp(type->name, ref.name) == 0)
+    //if (strcmp(type->name, ref.name) == 0)
+    if (ref.name == type->name)
     {
       // XXX(Isaac): this would be a good place to increment a usage counter on `typeIt`, if we ever needed one
       ref.isResolved = true;
-      ref.def = type;
+      ref.resolvedType = type;
       return;
     }
   }
 
-  RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name);
+//  RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name);
+  RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name.c_str());
 }
 
 /*
@@ -336,7 +335,7 @@ static unsigned int CalculateSizeOfType(TypeDef* type, bool overwrite = false)
   {
     Assert(member->type.isResolved, "Tried to calculate size of type that has unresolved members");
     member->offset = type->size;
-    type->size += CalculateSizeOfType(member->type.def);
+    type->size += CalculateSizeOfType(member->type.resolvedType);
   }
 
   return type->size;
@@ -351,7 +350,7 @@ unsigned int GetSizeOfTypeRef(TypeRef& type)
   }
 
   Assert(type.isResolved, "Tried to get size of a type reference that hasn't been resolved");
-  unsigned int size = type.def->size;
+  unsigned int size = type.resolvedType->size;
 
   if (type.isArray)
   {
@@ -403,7 +402,8 @@ char* MangleName(ThingOfCode* thing)
       for (VariableDef* param : thing->params)
       {
         Assert(!(param->type.isResolved), "Tried to mangle an operator that isn't fully resolved");
-        length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
+        //length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
+        length += param->type.name.length() + 1u;   // NOTE(Isaac): add one for the underscore
       }
     
       char* mangled = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
@@ -413,7 +413,8 @@ char* MangleName(ThingOfCode* thing)
       for (VariableDef* param : thing->params)
       {
         strcat(mangled, "_");
-        strcat(mangled, param->type.name);
+        //strcat(mangled, param->type.name);
+        strcat(mangled, param->type.name.c_str());
       }
     
       return mangled;

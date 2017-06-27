@@ -178,7 +178,7 @@ void Emit(FILE* f, T value, error_state& /*errorState*/)
 }
 
 template<>
-void Emit<char*>(FILE* f, char* value, error_state& errorState)
+void Emit<const char*>(FILE* f, const char* value, error_state& errorState)
 {
   uint8_t length = static_cast<uint8_t>(strlen(value));
   Emit<uint8_t>(f, length+1u, errorState);  // We also need to include a null-terminator in the length
@@ -196,8 +196,8 @@ template<>
 void Emit<VariableDef*>(FILE* f, VariableDef* value, error_state& errorState)
 {
   Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a VariableDef");
-  Emit<char*>(f, value->name, errorState);
-  Emit<char*>(f, (value->type.isResolved ? value->type.def->name : value->type.name), errorState);
+  Emit<const char*>(f, value->name, errorState);
+  Emit<const char*>(f, (value->type.isResolved ? value->type.resolvedType->name : value->type.name.c_str()), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isMutable), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isReference), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isReferenceMutable), errorState);
@@ -227,7 +227,7 @@ void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, e
 template<>
 void Emit<TypeDef*>(FILE* f, TypeDef* value, error_state& errorState)
 {
-  Emit<char*>(f, value->name, errorState);
+  Emit<const char*>(f, value->name, errorState);
   Emit<std::vector<VariableDef*>>(f, value->members, errorState);
   Emit<uint32_t>(f, static_cast<uint32_t>(value->size), errorState);
 }
@@ -240,7 +240,7 @@ void Emit<ThingOfCode*>(FILE* f, ThingOfCode* thing, error_state& errorState)
     case ThingOfCode::Type::FUNCTION:
     {
       Emit<uint8_t>(f, 0u, errorState);
-      Emit<char*>(f, thing->name, errorState);
+      Emit<const char*>(f, thing->name, errorState);
       Emit<std::vector<VariableDef*>>(f, thing->params, errorState);
     } break;
 

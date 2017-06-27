@@ -2,9 +2,9 @@
 # See LICENCE.md
 
 CXX ?= g++
-#CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc -Wno-unused-result
-CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++14 -g -Isrc -Wno-unused-result
-LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc
+#CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc -Wno-unused-result -Wno-trigraphs
+CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++17 -g -Isrc -Wno-unused-result -Wno-trigraphs
+LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc
 
 OBJS = \
   src/main.o \

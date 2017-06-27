@@ -505,7 +505,7 @@ void GenerateAIR(CodegenTarget& target, ThingOfCode* code)
     param->slot = new ParameterSlot(param);
     param->slot->color = target.intParamColors[numParams++];
 
-    for (VariableDef* member : param->type.def->members)
+    for (VariableDef* member : param->type.resolvedType->members)
     {
       member->slot = new MemberSlot(param->slot, member);
     }
@@ -514,8 +514,9 @@ void GenerateAIR(CodegenTarget& target, ThingOfCode* code)
   for (VariableDef* local : code->locals)
   {
     local->slot = new VariableSlot(local);
+    Assert(local->type.isResolved, "Tried to generate AIR without type information");
 
-    for (VariableDef* member : local->type.def->members)
+    for (VariableDef* member : local->type.resolvedType->members)
     {
       member->slot = new MemberSlot(local->slot, member);
     }

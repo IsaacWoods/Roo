@@ -97,6 +97,7 @@ void InitErrorDefs()
   I(ICE_NONEXISTANT_AST_PASSLET,                          "Nonexistant passlet for node of type: %s");
   I(ICE_NONEXISTANT_AIR_PASSLET,                          "Nonexistant passlet for instruction of type: %s");
   I(ICE_UNHANDLED_RELOCATION,                             "Unable to handle relocation of type: %s");
+  I(ICE_FAILED_ASSERTION,                                 "Assertion failed at (%s:%d): %s");
 
 #undef N
 #undef W
@@ -163,12 +164,11 @@ static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",    
  * XXX: `Assert` must not be used in the following methods, because it executes `RaiseError` to report errors.
  * Instead, use this method to crash with a relatively helpful message.
  */
-__attribute__((noreturn))
-void ReportErrorInErrorReporter()
-{
-  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);
-  Crash();
-}
+#define REPORT_ERROR_IN_ERROR_REPORTER()\
+  {\
+  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);\
+  Crash();\
+  }
 
 void RaiseError(error_state& state, error e, ...)
 {
@@ -250,7 +250,7 @@ void RaiseError(error_state& state, error e, ...)
     {
       if (state.stateType != PARSING_UNIT)
       {
-        ReportErrorInErrorReporter();
+        REPORT_ERROR_IN_ERROR_REPORTER();
       }
 
       roo_parser& parser = *(state.parser);
@@ -285,7 +285,7 @@ void RaiseError(error_state& state, error e, ...)
     {
       if (state.stateType != PARSING_UNIT)
       {
-        ReportErrorInErrorReporter();
+        REPORT_ERROR_IN_ERROR_REPORTER();
       }
 
       roo_parser& parser = *(state.parser);
@@ -325,8 +325,12 @@ void RaiseError(error e, ...)
   va_end(args);
 
   // --- Make sure it doesn't expect us to poison anything - we can't without an error_state ---
-  if (def.poisonStrategy != DO_NOTHING)
+  if (def.poisonStrategy == GIVE_UP)
   {
-    ReportErrorInErrorReporter();
+    Crash();
+  }
+  else if (def.poisonStrategy != DO_NOTHING)
+  {
+    REPORT_ERROR_IN_ERROR_REPORTER();
   }
 }

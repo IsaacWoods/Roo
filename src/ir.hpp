@@ -90,18 +90,15 @@ struct TypeRef
   TypeRef();
   ~TypeRef();
 
-  union
-  {
-    char*     name;
-    TypeDef*  def;          // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
-  };
-  bool isResolved;
-  bool isMutable;           // NOTE(Isaac): for references, this describes the mutability of the reference
-  bool isReference;
-  bool isReferenceMutable;  // NOTE(Isaac): describes the mutability of the reference's contents
+  std::string name;
+  TypeDef*    resolvedType;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
+  bool        isResolved;
+  bool        isMutable;           // NOTE(Isaac): for references, this describes the mutability of the reference
+  bool        isReference;
+  bool        isReferenceMutable;  // NOTE(Isaac): describes the mutability of the reference's contents
 
-  bool isArray;
-  bool isArraySizeResolved;
+  bool        isArray;
+  bool        isArraySizeResolved;
   union
   {
     ASTNode*      arraySizeExpression;

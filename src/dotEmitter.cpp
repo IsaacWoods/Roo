@@ -136,11 +136,12 @@ char* DotEmitterPass::VisitNode(VariableNode* node, DotState* state)
 
   if (node->isResolved)
   {
-    fprintf(state->f, "\t%s[label=\"`%s`\"];\n", nodeName, node->var->name);
+    fprintf(state->f, "\t%s[label=\"`%s`\n(%s)\"];\n", nodeName, node->var->name, node->var->type.name.c_str());
   }
   else
   {
-    fprintf(state->f, "\t%s[label=\"`%s`\"];\n", nodeName, node->name);
+
+    fprintf(state->f, "\t%s[label=\"`%s`\n(??)\"];\n", nodeName, node->name);
   }
 
   VISIT_NEXT();
