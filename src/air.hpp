@@ -309,10 +309,15 @@ struct CallInstruction : AirInstruction
  */
 struct AirGenerator : ASTPass<Slot*, ThingOfCode>
 {
-  AirGenerator()
+  AirGenerator(CodegenTarget& target)
     :ASTPass(true)
+    ,target(target)
   {
   }
+
+  CodegenTarget& target;
+
+  void Apply(ParseResult& parse);
 
   Slot* VisitNode(BreakNode* node                 , ThingOfCode* code);
   Slot* VisitNode(ReturnNode* node                , ThingOfCode* code);
@@ -332,7 +337,6 @@ struct AirGenerator : ASTPass<Slot*, ThingOfCode>
   Slot* VisitNode(ArrayInitNode* node             , ThingOfCode* code);
 };
 
-void GenerateAIR(CodegenTarget& target, ThingOfCode* code);
 bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color);
 
 /*

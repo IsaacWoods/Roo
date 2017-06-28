@@ -23,6 +23,8 @@ struct DotEmitterPass : ASTPass<char*, DotState>
 {
   DotEmitterPass() : ASTPass(true) { }
 
+  void Apply(ParseResult& parse);
+
   char* VisitNode(BreakNode* node                 , DotState* state);
   char* VisitNode(ReturnNode* node                , DotState* state);
   char* VisitNode(UnaryOpNode* node               , DotState* state);
@@ -40,5 +42,3 @@ struct DotEmitterPass : ASTPass<char*, DotState>
   char* VisitNode(MemberAccessNode* node          , DotState* state);
   char* VisitNode(ArrayInitNode* node             , DotState* state);
 };
-
-void EmitDOT(ThingOfCode* code);

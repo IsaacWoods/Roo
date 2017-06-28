@@ -22,6 +22,9 @@
   #include <dotEmitter.hpp>
 #endif
 
+// AST Passes
+#include <variableResolver.hpp>
+
 /*
  * Find and compile all .roo files in the specified directory.
  * Returns `true` if the compilation was successful, `false` if an error occured.
@@ -107,39 +110,25 @@ int main()
   // If we've already encoutered (and hopefully correctly reported) error(s), there's no point carrying on
   if (errorState.hasErrored)
   {
-    Crash(); 
+    RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
   CompleteIR(result);
 
-  // TODO: actually apply passes
-  /*
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (!(code->attribs.isPrototype) && HasCode(code))
-    {
-      if (ApplyASTPasses(result, code, code->ast).hasErrored)
-      {
-        RaiseError(errorState, ERROR_COMPILE_ERRORS);
-      }
-    }
+  #define APPLY_PASS(PassType)\
+  {\
+    PassType pass;\
+    pass.Apply(result);\
+    if (pass.errorState.hasErrored)\
+    {\
+      RaiseError(errorState, ERROR_COMPILE_ERRORS);\
+    }\
   }
-  */
+
+  APPLY_PASS(VariableResolverPass);
 
 #ifdef OUTPUT_DOT
-  for (ThingOfCode* code : result.codeThings)
-  {
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    EmitDOT(code);
-  }
+  APPLY_PASS(DotEmitterPass);
 #endif
 
   if (result.isModule)
@@ -152,19 +141,8 @@ int main()
   }
 
   // --- Generate AIR for each code thing ---
-  for (ThingOfCode* code : result.codeThings)
-  {
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    GenerateAIR(target, code);
-
-#ifdef OUTPUT_DOT
-    //OutputInterferenceDOT(code);
-#endif
-  }
+  AirGenerator airGenerator(target);
+  airGenerator.Apply(result);
 
   if (!(result.name))
   {

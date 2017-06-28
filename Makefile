@@ -18,7 +18,7 @@ OBJS = \
 	src/air.o \
 	src/codegen_x64elf.o \
 	src/elf.o \
-	#src/auto_doAstPasses.o \
+	src/variableResolver.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

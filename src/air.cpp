@@ -172,14 +172,14 @@ Slot* AirGenerator::VisitNode(BreakNode* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(ReturnNode* node, ThingOfCode* code)
 {
-  Slot* returnValue = (node->returnValue ? DispatchNode(node->returnValue, code) : nullptr);
+  Slot* returnValue = (node->returnValue ? Dispatch(node->returnValue, code) : nullptr);
   PushInstruction(code, new ReturnInstruction(returnValue));
   return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
 {
-  Slot* operand = DispatchNode(node->operand, code);
+  Slot* operand = Dispatch(node->operand, code);
   Slot* result = new TemporarySlot(code->numTemporaries++);
 
   switch (node->op)
@@ -276,15 +276,15 @@ Slot* AirGenerator::VisitNode(VariableNode* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(ConditionNode* node, ThingOfCode* code)
 {
-  Slot* a = DispatchNode(node->left, code);
-  Slot* b = DispatchNode(node->right, code);
+  Slot* a = Dispatch(node->left, code);
+  Slot* b = Dispatch(node->right, code);
   PushInstruction(code, new CmpInstruction(a, b));
   return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(BranchNode* node, ThingOfCode* code)
 {
-  DispatchNode(node->condition, code);
+  Dispatch(node->condition, code);
 
   LabelInstruction* elseLabel = (node->elseCode ? new LabelInstruction() : nullptr);
   LabelInstruction* endLabel = new LabelInstruction();
@@ -305,11 +305,11 @@ Slot* AirGenerator::VisitNode(BranchNode* node, ThingOfCode* code)
   }
 
   PushInstruction(code, new JumpInstruction(condition, (elseLabel ? elseLabel : endLabel)));
-  DispatchNode(node->thenCode, code);
+  Dispatch(node->thenCode, code);
   if (elseLabel)
   {
     PushInstruction(code, elseLabel);
-    DispatchNode(node->elseCode, code);
+    Dispatch(node->elseCode, code);
   }
   PushInstruction(code, endLabel);
   return nullptr;
@@ -320,9 +320,9 @@ Slot* AirGenerator::VisitNode(WhileNode* node, ThingOfCode* code)
   LabelInstruction* label = new LabelInstruction();
   PushInstruction(code, label);
 
-  DispatchNode(node->loopBody, code);
+  Dispatch(node->loopBody, code);
 
-  DispatchNode(node->condition, code);
+  Dispatch(node->condition, code);
   JumpInstruction::Condition condition;
   switch (node->condition->condition)
   {
@@ -372,8 +372,8 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
 {
-  Slot* variable = DispatchNode(node->variable, code);
-  Slot* newValue = DispatchNode(node->newValue, code);
+  Slot* variable = Dispatch(node->variable, code);
+  Slot* newValue = Dispatch(node->newValue, code);
   AirInstruction* mov = new MovInstruction(newValue, variable);
   ChangeSlotValue(variable, mov);
   UseSlot(newValue, mov);
@@ -495,55 +495,67 @@ static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
   }
 }
 
-void GenerateAIR(CodegenTarget& target, ThingOfCode* code)
+void AirGenerator::Apply(ParseResult& parse)
 {
-  Assert(!(code->airHead), "Tried to generate AIR for ThingOfCode already with generated code");
-  unsigned int numParams = 0u;
-
-  for (VariableDef* param : code->params)
+  for (ThingOfCode* code : parse.codeThings)
   {
-    param->slot = new ParameterSlot(param);
-    param->slot->color = target.intParamColors[numParams++];
-
-    for (VariableDef* member : param->type.resolvedType->members)
+    if (code->attribs.isPrototype)
     {
-      member->slot = new MemberSlot(param->slot, member);
+      continue;
     }
-  }
 
-  for (VariableDef* local : code->locals)
-  {
-    local->slot = new VariableSlot(local);
-    Assert(local->type.isResolved, "Tried to generate AIR without type information");
+    Assert(!(code->airHead), "Tried to generate AIR for ThingOfCode already with generated code");
+    unsigned int numParams = 0u;
 
-    for (VariableDef* member : local->type.resolvedType->members)
+    // Generate slots for the parameters
+    for (VariableDef* param : code->params)
     {
-      member->slot = new MemberSlot(local->slot, member);
+      param->slot = new ParameterSlot(param);
+      param->slot->color = target.intParamColors[numParams++];
+
+      for (VariableDef* member : param->type.resolvedType->members)
+      {
+        member->slot = new MemberSlot(param->slot, member);
+      }
     }
+
+    // Generate slots for the locals
+    for (VariableDef* local : code->locals)
+    {
+      local->slot = new VariableSlot(local);
+      Assert(local->type.isResolved, "Tried to generate AIR without type information");
+
+      for (VariableDef* member : local->type.resolvedType->members)
+      {
+        member->slot = new MemberSlot(local->slot, member);
+      }
+    }
+
+    if (!(code->ast))
+    {
+      return;
+    }
+
+    Dispatch(code->ast, code);
+
+    // Allow the code generator to precolor the interference graph
+    InstructionPrecolorer precolorer;
+    for (AirInstruction* instruction = code->airHead;
+         instruction < code->airTail;
+         instruction++)
+    {
+      precolorer.Dispatch(instruction);
+    }
+    
+    // Color the interference graph
+    GenerateInterferenceGraph(code);
+    ColorSlots(target, code);
+
+    // TODO: print the instruction and slot listings
+#ifdef OUTPUT_DOT
+    // TODO: Output interference graph as a DOT
+#endif
   }
-
-  if (!(code->ast))
-  {
-    return;
-  }
-
-  AirGenerator airGenerator;
-  airGenerator.DispatchNode(code->ast, code);
-
-  // Allow the code generator to precolor the interference graph
-  InstructionPrecolorer precolorer;
-  for (AirInstruction* instruction = code->airHead;
-       instruction < code->airTail;
-       instruction++)
-  {
-    precolorer.Dispatch(instruction);
-  }
-  
-  // Color the interference graph
-  GenerateInterferenceGraph(code);
-  ColorSlots(target, code);
-
-  // TODO: print the instruction and slot listings
 }
 
 bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color)

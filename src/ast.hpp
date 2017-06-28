@@ -222,12 +222,14 @@ bool IsNodeOfType(ASTNode* node)
 template<typename R, typename T>
 struct ASTPass
 {
-  bool errorOnNonexistantPass;
-
   ASTPass(bool errorOnNonexistantPass)
     :errorOnNonexistantPass(errorOnNonexistantPass)
+    ,errorState(CreateErrorState(GENERAL_STUFF)) // TODO: better error state
   {
   }
+
+  bool errorOnNonexistantPass;
+  error_state errorState;
 
   #define BASE_CASE(nodeType)\
   {\
@@ -256,11 +258,13 @@ struct ASTPass
   virtual R VisitNode(ArrayInitNode*                , T* = nullptr) BASE_CASE("ArrayInitNode");
   #undef BASE_CASE
 
+  virtual void Apply(ParseResult& parse) = 0;
+
   /*
    * This is required since we can't use a normal visitor pattern (because we can't template a virtual function,
    * so can't return whatever type we want). So this should dynamically dispatch based upon the subclass.
    */
-  R DispatchNode(ASTNode* node, T* state = nullptr)
+  R Dispatch(ASTNode* node, T* state = nullptr)
   {
     Assert(node, "Tried to dispatch on a nullptr node");
 

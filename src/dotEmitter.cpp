@@ -21,18 +21,24 @@ DotState::~DotState()
   fclose(f);
 }
 
-void EmitDOT(ThingOfCode* code)
+void DotEmitterPass::Apply(ParseResult& parse)
 {
-  char fileName[128u] = {};
-  strcpy(fileName, code->mangledName);
-  strcat(fileName, ".dot");
+  for (ThingOfCode* code : parse.codeThings)
+  {
+    if (code->attribs.isPrototype)
+    {
+      continue;
+    }
 
-  DotState state(fileName);
-  DotEmitterPass dotEmitter;
+    char fileName[128u] = {};
+    strcpy(fileName, code->mangledName);
+    strcat(fileName, ".dot");
 
-  fprintf(state.f, "digraph G\n{\n");
-  free(dotEmitter.DispatchNode(code->ast, &state));
-  fprintf(state.f, "}\n");
+    DotState state(fileName);
+    fprintf(state.f, "digraph G\n{\n");
+    free(Dispatch(code->ast, &state));
+    fprintf(state.f, "}\n");
+  }
 }
 
 static char* GetNextNode(DotState* state)
@@ -50,7 +56,7 @@ static char* GetNextNode(DotState* state)
 
 #define LINK_CHILD(child)\
 {\
-  char* childName = DispatchNode(child, state);\
+  char* childName = Dispatch(child, state);\
   fprintf(state->f, "\t%s -> %s;\n", nodeName, childName);\
   free(childName);\
 }
@@ -59,7 +65,7 @@ static char* GetNextNode(DotState* state)
 {\
   if (node->next)\
   {\
-    char* nextName = DispatchNode(node->next, state);\
+    char* nextName = Dispatch(node->next, state);\
     fprintf(state->f, "\t%s -> %s[color=blue];\n", nodeName, nextName);\
     free(nextName);\
   }\
