@@ -51,6 +51,7 @@ struct Slot
   };
 
   Slot() = default;
+  virtual ~Slot() = default;
 
   Storage                 storage;
   signed int              color;          // -1 means it hasn't been colored
@@ -190,12 +191,12 @@ struct ConstantSlot : Slot
 struct AirInstruction
 {
   AirInstruction();
-  ~AirInstruction();
+  virtual ~AirInstruction();
+
+  virtual std::string AsString() = 0;
 
   unsigned int    index;
   AirInstruction* next;
-
-  void Use(AirInstruction* instruction);
 };
 
 /*
@@ -205,6 +206,8 @@ struct AirInstruction
 struct LabelInstruction : AirInstruction
 {
   LabelInstruction();
+
+  std::string AsString();
 
   /*
    * This is the offset from the symbol of the containing function.
@@ -216,6 +219,8 @@ struct ReturnInstruction : AirInstruction
 {
   ReturnInstruction(Slot* returnValue);
   ~ReturnInstruction() { }
+
+  std::string AsString();
 
   Slot* returnValue;
 };
@@ -242,6 +247,8 @@ struct JumpInstruction : AirInstruction
   JumpInstruction(Condition condition, LabelInstruction* label);
   ~JumpInstruction() { }
 
+  std::string AsString();
+
   Condition         condition;
   LabelInstruction* label;
 };
@@ -251,6 +258,8 @@ struct MovInstruction : AirInstruction
   MovInstruction(Slot* src, Slot* dest);
   ~MovInstruction() { }
 
+  std::string AsString();
+
   Slot* src;
   Slot* dest;
 };
@@ -259,6 +268,8 @@ struct CmpInstruction : AirInstruction
 {
   CmpInstruction(Slot* a, Slot* b);
   ~CmpInstruction() { }
+
+  std::string AsString();
 
   Slot* a;
   Slot* b;
@@ -276,6 +287,8 @@ struct UnaryOpInstruction : AirInstruction
 
   UnaryOpInstruction(Operation op, Slot* result, Slot* operand);
   ~UnaryOpInstruction() { }
+
+  std::string AsString();
 
   Operation op;
   Slot*     result;
@@ -295,6 +308,8 @@ struct BinaryOpInstruction : AirInstruction
   BinaryOpInstruction(Operation op, Slot* result, Slot* left, Slot* right);
   ~BinaryOpInstruction() { }
 
+  std::string AsString();
+
   Operation op;
   Slot*     result;
   Slot*     left;
@@ -305,6 +320,8 @@ struct CallInstruction : AirInstruction
 {
   CallInstruction(ThingOfCode* thing);
   ~CallInstruction() { }
+
+  std::string AsString();
 
   ThingOfCode* thing;
 };

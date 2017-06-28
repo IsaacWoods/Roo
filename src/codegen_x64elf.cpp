@@ -45,6 +45,7 @@ CodegenTarget::CodegenTarget()
   :name("x64_elf")
   ,numRegisters(16u)
   ,registerSet(new register_def[numRegisters])
+  ,numGeneralRegisters(14u)
   ,generalRegisterSize(8u)
   ,numIntParamColors(6u)
   ,intParamColors(new unsigned int[numIntParamColors])
@@ -970,8 +971,8 @@ static elf_thing* Generate(elf_file& file, CodegenTarget& target, ThingOfCode* c
   CodeGenerator codeGenerator(target, file, elfThing, code);
   
   for (AirInstruction* instruction = code->airHead;
-       instruction < code->airTail;
-       instruction++)
+       instruction;
+       instruction = instruction->next)
   {
     codeGenerator.Dispatch(instruction);
   }

@@ -145,10 +145,21 @@ LabelInstruction::LabelInstruction()
 {
 }
 
+std::string LabelInstruction::AsString()
+{
+  // TODO: can we be more helpful here?
+  return FormatString("%u: LABEL", index);
+}
+
 ReturnInstruction::ReturnInstruction(Slot* returnValue)
   :AirInstruction()
   ,returnValue(returnValue)
 {
+}
+
+std::string ReturnInstruction::AsString()
+{
+  return FormatString("%u: RETURN %s", index, (returnValue ? returnValue->AsString().c_str() : ""));
 }
 
 JumpInstruction::JumpInstruction(JumpInstruction::Condition condition, LabelInstruction* label)
@@ -158,11 +169,38 @@ JumpInstruction::JumpInstruction(JumpInstruction::Condition condition, LabelInst
 {
 }
 
+std::string JumpInstruction::AsString()
+{
+  switch (condition)
+  {
+    case JumpInstruction::Condition::UNCONDITIONAL:         return FormatString("%u: JMP L(%u)", index, label->index);  
+    case JumpInstruction::Condition::IF_EQUAL:              return FormatString("%u: JE L(%u)",  index, label->index);
+    case JumpInstruction::Condition::IF_NOT_EQUAL:          return FormatString("%u: JNE L(%u)", index, label->index);
+    case JumpInstruction::Condition::IF_OVERFLOW:           return FormatString("%u: JO L(%u)",  index, label->index);
+    case JumpInstruction::Condition::IF_NOT_OVERFLOW:       return FormatString("%u: JNO L(%u)", index, label->index);
+    case JumpInstruction::Condition::IF_SIGN:               return FormatString("%u: JS L(%u)",  index, label->index);
+    case JumpInstruction::Condition::IF_NOT_SIGN:           return FormatString("%u: JNS L(%u)", index, label->index);
+    case JumpInstruction::Condition::IF_GREATER:            return FormatString("%u: JG L(%u)",  index, label->index);
+    case JumpInstruction::Condition::IF_GREATER_OR_EQUAL:   return FormatString("%u: JGE L(%u)", index, label->index);
+    case JumpInstruction::Condition::IF_LESSER:             return FormatString("%u: JL L(%u)",  index, label->index);
+    case JumpInstruction::Condition::IF_LESSER_OR_EQUAL:    return FormatString("%u: JLE L(%u)", index, label->index);
+    case JumpInstruction::Condition::IF_PARITY_EVEN:        return FormatString("%u: JPE L(%u)", index, label->index);
+    case JumpInstruction::Condition::IF_PARITY_ODD:         return FormatString("%u: JPO L(%u)", index, label->index);
+  }
+
+  __builtin_unreachable();
+}
+
 MovInstruction::MovInstruction(Slot* src, Slot* dest)
   :AirInstruction()
   ,src(src)
   ,dest(dest)
 {
+}
+
+std::string MovInstruction::AsString()
+{
+  return FormatString("%u: MOV %s, %s", index, dest->AsString().c_str(), src->AsString().c_str());
 }
 
 CmpInstruction::CmpInstruction(Slot* a, Slot* b)
@@ -172,12 +210,30 @@ CmpInstruction::CmpInstruction(Slot* a, Slot* b)
 {
 }
 
+std::string CmpInstruction::AsString()
+{
+  return FormatString("%u: CMP %s, %s", index, a->AsString().c_str(), b->AsString().c_str());
+}
+
 UnaryOpInstruction::UnaryOpInstruction(UnaryOpInstruction::Operation op, Slot* result, Slot* operand)
   :AirInstruction()
   ,op(op)
   ,result(result)
   ,operand(operand)
 {
+}
+
+std::string UnaryOpInstruction::AsString()
+{
+  switch (op)
+  {
+    case UnaryOpInstruction::INCREMENT:   return FormatString("%u: %s = INC %s", index, result->AsString().c_str(), operand->AsString().c_str());
+    case UnaryOpInstruction::DECREMENT:   return FormatString("%u: %s = DEC %s", index, result->AsString().c_str(), operand->AsString().c_str());
+    case UnaryOpInstruction::NEGATE:      return FormatString("%u: %s = NEG %s", index, result->AsString().c_str(), operand->AsString().c_str());
+    case UnaryOpInstruction::LOGICAL_NOT: return FormatString("%u: %s = NOT %s", index, result->AsString().c_str(), operand->AsString().c_str());
+  }
+
+  __builtin_unreachable();
 }
 
 BinaryOpInstruction::BinaryOpInstruction(BinaryOpInstruction::Operation op, Slot* result, Slot* left, Slot* right)
@@ -189,15 +245,34 @@ BinaryOpInstruction::BinaryOpInstruction(BinaryOpInstruction::Operation op, Slot
 {
 }
 
+std::string BinaryOpInstruction::AsString()
+{
+  switch (op)
+  {
+    case BinaryOpInstruction::Operation::ADD:       return FormatString("%u: %s = ADD %s, %s", index, result->AsString().c_str(), left->AsString().c_str(), right->AsString().c_str());
+    case BinaryOpInstruction::Operation::SUBTRACT:  return FormatString("%u: %s = SUB %s, %s", index, result->AsString().c_str(), left->AsString().c_str(), right->AsString().c_str());
+    case BinaryOpInstruction::Operation::MULTIPLY:  return FormatString("%u: %s = MUL %s, %s", index, result->AsString().c_str(), left->AsString().c_str(), right->AsString().c_str());
+    case BinaryOpInstruction::Operation::DIVIDE:    return FormatString("%u: %s = DIV %s, %s", index, result->AsString().c_str(), left->AsString().c_str(), right->AsString().c_str());
+  }
+
+  __builtin_unreachable();
+}
+
 CallInstruction::CallInstruction(ThingOfCode* thing)
   :AirInstruction()
   ,thing(thing)
 {
 }
 
+std::string CallInstruction::AsString()
+{
+  return FormatString("%u: CALL %u", index, thing->mangledName);
+}
+
 // AirGenerator
 static void PushInstruction(ThingOfCode* code, AirInstruction* instruction)
 {
+  printf("Pushing instruction: %s\n", instruction->AsString().c_str());
   if (code->airHead)
   {
     instruction->index = code->airTail->index + 1u;
@@ -216,12 +291,15 @@ Slot* AirGenerator::VisitNode(BreakNode* node, ThingOfCode* code)
 {
   // TODO: we need to somehow link to the end of the loop (maybe we should be marking the AST with this info
   // beforehand?)
+  if (node->next) (void)Dispatch(node->next, code);
+  return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(ReturnNode* node, ThingOfCode* code)
 {
   Slot* returnValue = (node->returnValue ? Dispatch(node->returnValue, code) : nullptr);
   PushInstruction(code, new ReturnInstruction(returnValue));
+  if (node->next) (void)Dispatch(node->next, code);
   return nullptr;
 }
 
@@ -308,17 +386,22 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     } break;
   }
 
+  if (node->next) (void)Dispatch(node->next, code);
   return result;
 }
 
 Slot* AirGenerator::VisitNode(BinaryOpNode* node, ThingOfCode* code)
 {
   // TODO
+  if (node->next) (void)Dispatch(node->next, code);
+  return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(VariableNode* node, ThingOfCode* code)
 {
   Assert(node->isResolved, "Tried to generate AIR for unresolved variable");
+
+  if (node->next) (void)Dispatch(node->next, code);
   return node->var->slot;
 }
 
@@ -330,6 +413,8 @@ Slot* AirGenerator::VisitNode(ConditionNode* node, ThingOfCode* code)
   a->Use(cmp);
   b->Use(cmp);
   PushInstruction(code, cmp);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return nullptr;
 }
 
@@ -363,6 +448,8 @@ Slot* AirGenerator::VisitNode(BranchNode* node, ThingOfCode* code)
     Dispatch(node->elseCode, code);
   }
   PushInstruction(code, endLabel);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return nullptr;
 }
 
@@ -386,6 +473,8 @@ Slot* AirGenerator::VisitNode(WhileNode* node, ThingOfCode* code)
   }
 
   PushInstruction(code, new JumpInstruction(condition, label));
+
+  if (node->next) (void)Dispatch(node->next, code);
   return nullptr;
 }
 
@@ -393,6 +482,8 @@ Slot* AirGenerator::VisitNode(NumberNode<unsigned int>* node, ThingOfCode* code)
 {
   Slot* slot = new ConstantSlot<unsigned int>(node->value);
   code->slots.push_back(slot);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return slot;
 }
 
@@ -400,6 +491,8 @@ Slot* AirGenerator::VisitNode(NumberNode<int>* node, ThingOfCode* code)
 {
   Slot* slot = new ConstantSlot<int>(node->value);
   code->slots.push_back(slot);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return slot;
 }
 
@@ -407,6 +500,8 @@ Slot* AirGenerator::VisitNode(NumberNode<float>* node, ThingOfCode* code)
 {
   Slot* slot = new ConstantSlot<float>(node->value);
   code->slots.push_back(slot);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return slot;
 }
 
@@ -414,11 +509,18 @@ Slot* AirGenerator::VisitNode(StringNode* node, ThingOfCode* code)
 {
   Slot* slot = new ConstantSlot<StringConstant*>(node->string);
   code->slots.push_back(slot);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return slot;
 }
 
 Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
 {
+  // TODO: parameterise the parameters into the correct places, issue the call instruction, and return the
+  // result in a ReturnResultSlot correctly
+
+  if (node->next) (void)Dispatch(node->next, code);
+  return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
@@ -430,15 +532,23 @@ Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
   newValue->Use(mov);
 
   PushInstruction(code, mov);
+
+  if (node->next) (void)Dispatch(node->next, code);
   return variable;
 }
 
 Slot* AirGenerator::VisitNode(MemberAccessNode* node, ThingOfCode* code)
 {
+  // TODO
+  if (node->next) (void)Dispatch(node->next, code);
+  return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(ArrayInitNode* node, ThingOfCode* code)
 {
+  // TODO
+  if (node->next) (void)Dispatch(node->next, code);
+  return nullptr;
 }
 
 static bool DoRangesIntersect(LiveRange& a, LiveRange& b)
@@ -504,9 +614,6 @@ FoundInterference:
  */
 static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
 {
-  // TODO: Allow the target architecture to specify this more expressively
-  const unsigned int numGeneralRegisters = 14u;
-
   for (Slot* slot : code->slots)
   {
     // Skip slots that are uncolorable or already colored
@@ -516,7 +623,7 @@ static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
     }
 
     // Find colors already used by interfering slots
-    bool usedColors[numGeneralRegisters] = {};
+    bool usedColors[target.numGeneralRegisters] = {};
     for (Slot* interferingSlot : slot->interferences)
     {
       if (interferingSlot->color != -1)
@@ -527,7 +634,7 @@ static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
 
     // Choose a free color
     for (unsigned int i = 0u;
-         i < numGeneralRegisters;
+         i < target.numGeneralRegisters;
          i++)
     {
       if (!usedColors[i])
@@ -592,8 +699,8 @@ void AirGenerator::Apply(ParseResult& parse)
     // Allow the code generator to precolor the interference graph
     InstructionPrecolorer precolorer;
     for (AirInstruction* instruction = code->airHead;
-         instruction < code->airTail;
-         instruction++)
+         instruction;
+         instruction = instruction->next)
     {
       precolorer.Dispatch(instruction);
     }
@@ -602,13 +709,23 @@ void AirGenerator::Apply(ParseResult& parse)
     GenerateInterferenceGraph(code);
     ColorSlots(target, code);
 
+    // Print an AIR instruction listing and a slot listing
+#if 1
+    printf("Instruction listing for %s:\n", code->mangledName);
+    for (AirInstruction* instruction = code->airHead;
+         instruction;
+         instruction = instruction->next)
+    {
+      printf("%s\n", instruction->AsString().c_str());
+    }
+
     printf("Slots for %s:\n", code->mangledName);
     for (Slot* slot : code->slots)
     {
       printf("%s\n", slot->AsString().c_str());
     }
+#endif
 
-    // TODO: print the instruction and slot listings
 #ifdef OUTPUT_DOT
     // TODO: Output interference graph as a DOT
 #endif

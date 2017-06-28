@@ -31,15 +31,16 @@ struct CodegenTarget
   CodegenTarget();
   ~CodegenTarget();
 
-  const char*   name;
-  unsigned int  numRegisters;
-  register_def* registerSet;
-  unsigned int  generalRegisterSize;
+  const char*         name;
+  const unsigned int  numRegisters;
+  register_def*       registerSet;
+  const unsigned int  numGeneralRegisters;
+  const unsigned int  generalRegisterSize;
 
-  unsigned int  numIntParamColors;
-  unsigned int* intParamColors;
+  const unsigned int  numIntParamColors;
+  unsigned int*       intParamColors;
 
-  unsigned int  functionReturnColor;
+  const unsigned int  functionReturnColor;
 };
 
 struct InstructionPrecolorer : AirPass<void>
