@@ -39,3 +39,4 @@ struct Directory
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
 bool DoesFileExist(const char* path);
+std::string FormatString(const std::string& format, ...);

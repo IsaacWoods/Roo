@@ -21,8 +21,7 @@ static void UseSlot(Slot* slot, AirInstruction* instruction)
   }
   else
   {
-    // TODO: get a proper string representation of the slot
-    RaiseError(ERROR_BIND_USED_BEFORE_INIT, "SomeSlot");
+    RaiseError(ERROR_BIND_USED_BEFORE_INIT, slot->AsString().c_str());
   }
 }
 
@@ -55,10 +54,20 @@ VariableSlot::VariableSlot(VariableDef* variable)
 {
 }
 
+std::string VariableSlot::AsString()
+{
+  return FormatString("%s(V)-%c", variable->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+}
+
 ParameterSlot::ParameterSlot(VariableDef* parameter)
   :Slot()
   ,parameter(parameter)
 {
+}
+
+std::string ParameterSlot::AsString()
+{
+  return FormatString("%s(P)-%c", parameter->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
 MemberSlot::MemberSlot(Slot* parent, VariableDef* member)
@@ -68,16 +77,55 @@ MemberSlot::MemberSlot(Slot* parent, VariableDef* member)
 {
 }
 
+std::string MemberSlot::AsString()
+{
+  return FormatString("%s(M)-%c", member->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+}
+
 TemporarySlot::TemporarySlot(unsigned int tag)
   :Slot()
   ,tag(tag)
 {
 }
 
+std::string TemporarySlot::AsString()
+{
+  return FormatString("t%u", tag);
+}
+
 ReturnResultSlot::ReturnResultSlot(unsigned int tag)
   :Slot()
   ,tag(tag)
 {
+}
+
+std::string ReturnResultSlot::AsString()
+{
+  return FormatString("r%u", tag);
+}
+
+template<>
+std::string ConstantSlot<unsigned int>::AsString()
+{
+  return FormatString("#%uu", value);
+}
+
+template<>
+std::string ConstantSlot<int>::AsString()
+{
+  return FormatString("#%d", value);
+}
+
+template<>
+std::string ConstantSlot<float>::AsString()
+{
+  return FormatString("#%f", value);
+}
+
+template<>
+std::string ConstantSlot<StringConstant*>::AsString()
+{
+  return FormatString("\"%s\"", value->string);
 }
 
 AirInstruction::AirInstruction()
@@ -198,16 +246,16 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     {
       AirInstruction* neg = new UnaryOpInstruction(UnaryOpInstruction::Operation::NEGATE, result, operand);
       PushInstruction(code, neg);
-      UseSlot(operand, neg);
-      ChangeSlotValue(result, neg);
+      operand->Use(neg);
+      result->ChangeValue(neg);
     } break;
 
     case UnaryOpNode::Operator::LOGICAL_NOT:
     {
       AirInstruction* notI = new UnaryOpInstruction(UnaryOpInstruction::Operation::LOGICAL_NOT, result, operand);
       PushInstruction(code, notI);
-      UseSlot(operand, notI);
-      ChangeSlotValue(result, notI);
+      operand->Use(notI);
+      result->ChangeValue(notI);
     } break;
 
     case UnaryOpNode::Operator::TAKE_REFERENCE:
@@ -219,8 +267,8 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     {
       AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, result, operand);
       PushInstruction(code, inc);
-      UseSlot(operand, inc);
-      ChangeSlotValue(result, inc);
+      operand->Use(inc);
+      result->ChangeValue(inc);
     } break;
 
     case UnaryOpNode::Operator::POST_INCREMENT:
@@ -228,10 +276,10 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
       AirInstruction* mov = new MovInstruction(operand, result);
       AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, operand, operand);
 
-      UseSlot(operand, mov);
-      UseSlot(operand, inc);
-      ChangeSlotValue(result, mov);
-      ChangeSlotValue(operand, inc);
+      operand->Use(mov);
+      operand->Use(inc);
+      result->ChangeValue(mov);
+      operand->ChangeValue(inc);
 
       PushInstruction(code, mov);
       PushInstruction(code, inc);
@@ -241,8 +289,8 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     {
       AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, result, operand);
       PushInstruction(code, dec);
-      UseSlot(operand, dec);
-      ChangeSlotValue(result, dec);
+      operand->Use(dec);
+      result->ChangeValue(dec);
     } break;
 
     case UnaryOpNode::Operator::POST_DECREMENT:
@@ -250,10 +298,10 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
       AirInstruction* mov = new MovInstruction(operand, result);
       AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, operand, operand);
 
-      UseSlot(operand, mov);
-      UseSlot(operand, dec);
-      ChangeSlotValue(result, mov);
-      ChangeSlotValue(operand, dec);
+      operand->Use(mov);
+      operand->Use(dec);
+      result->ChangeValue(mov);
+      result->ChangeValue(dec);
 
       PushInstruction(code, mov);
       PushInstruction(code, dec);
@@ -278,7 +326,10 @@ Slot* AirGenerator::VisitNode(ConditionNode* node, ThingOfCode* code)
 {
   Slot* a = Dispatch(node->left, code);
   Slot* b = Dispatch(node->right, code);
-  PushInstruction(code, new CmpInstruction(a, b));
+  CmpInstruction* cmp = new CmpInstruction(a, b);
+  a->Use(cmp);
+  b->Use(cmp);
+  PushInstruction(code, cmp);
   return nullptr;
 }
 
@@ -375,8 +426,8 @@ Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
   Slot* variable = Dispatch(node->variable, code);
   Slot* newValue = Dispatch(node->newValue, code);
   AirInstruction* mov = new MovInstruction(newValue, variable);
-  ChangeSlotValue(variable, mov);
-  UseSlot(newValue, mov);
+  variable->ChangeValue(mov);
+  newValue->Use(mov);
 
   PushInstruction(code, mov);
   return variable;
@@ -550,6 +601,12 @@ void AirGenerator::Apply(ParseResult& parse)
     // Color the interference graph
     GenerateInterferenceGraph(code);
     ColorSlots(target, code);
+
+    printf("Slots for %s:\n", code->mangledName);
+    for (Slot* slot : code->slots)
+    {
+      printf("%s\n", slot->AsString().c_str());
+    }
 
     // TODO: print the instruction and slot listings
 #ifdef OUTPUT_DOT

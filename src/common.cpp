@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstddef>
+#include <cstdarg>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <ast.hpp>
@@ -153,4 +154,18 @@ bool DoesFileExist(const char* path)
 {
   struct stat buffer;
   return (stat(path, &buffer) == 0);
+}
+
+std::string FormatString(const std::string& format, ...)
+{
+  va_list args;
+  va_start(args, format);
+ 
+  char* str = static_cast<char*>(malloc(vsnprintf(nullptr, 0u, format.c_str(), args) + 1u));
+  vsprintf(str, format.c_str(), args);
+
+  va_end(args);
+  std::string string(str);
+  free(str);
+  return string;
 }

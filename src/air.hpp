@@ -67,6 +67,7 @@ struct Slot
   virtual bool ShouldColor() = 0;
   virtual void Use(AirInstruction* instruction) = 0;
   virtual void ChangeValue(AirInstruction* instruction) = 0;
+  virtual std::string AsString() = 0;
 };
 
 struct VariableSlot : Slot
@@ -81,6 +82,7 @@ struct VariableSlot : Slot
   bool ShouldColor()  { return true;                }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
+  std::string AsString();
 };
 
 struct ParameterSlot : Slot
@@ -95,6 +97,7 @@ struct ParameterSlot : Slot
   bool ShouldColor()  { return false;               }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
+  std::string AsString();
 };
 
 struct MemberSlot : Slot
@@ -103,13 +106,14 @@ struct MemberSlot : Slot
   ~MemberSlot() { }
 
   Slot*         parent;
-  VariableDef* member;
+  VariableDef*  member;
 
   SlotType GetType()  { return SlotType::MEMBER;  }
   bool IsConstant()   { return false;             }
   bool ShouldColor()  { return false;             }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
+  std::string AsString();
 };
 
 struct TemporarySlot : Slot
@@ -123,6 +127,7 @@ struct TemporarySlot : Slot
   bool ShouldColor()  { return true;                }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
+  std::string AsString();
 };
 
 struct ReturnResultSlot : Slot
@@ -136,6 +141,7 @@ struct ReturnResultSlot : Slot
   bool ShouldColor()  { return false;                   }
   void Use(AirInstruction* instruction);
   void ChangeValue(AirInstruction* instruction);
+  std::string AsString();
 };
 
 template<typename T>
@@ -178,6 +184,7 @@ struct ConstantSlot : Slot
   bool ShouldColor()  { return false; }
   void Use(AirInstruction* /*instruction*/) { }
   void ChangeValue(AirInstruction* /*instruction*/) { }
+  std::string AsString();
 };
 
 struct AirInstruction
