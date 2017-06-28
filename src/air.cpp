@@ -272,7 +272,6 @@ std::string CallInstruction::AsString()
 // AirGenerator
 static void PushInstruction(ThingOfCode* code, AirInstruction* instruction)
 {
-  printf("Pushing instruction: %s\n", instruction->AsString().c_str());
   if (code->airHead)
   {
     instruction->index = code->airTail->index + 1u;
@@ -298,7 +297,9 @@ Slot* AirGenerator::VisitNode(BreakNode* node, ThingOfCode* code)
 Slot* AirGenerator::VisitNode(ReturnNode* node, ThingOfCode* code)
 {
   Slot* returnValue = (node->returnValue ? Dispatch(node->returnValue, code) : nullptr);
-  PushInstruction(code, new ReturnInstruction(returnValue));
+  ReturnInstruction* ret = new ReturnInstruction(returnValue);
+  PushInstruction(code, ret);
+
   if (node->next) (void)Dispatch(node->next, code);
   return nullptr;
 }
@@ -711,7 +712,7 @@ void AirGenerator::Apply(ParseResult& parse)
 
     // Print an AIR instruction listing and a slot listing
 #if 1
-    printf("Instruction listing for %s:\n", code->mangledName);
+    printf("\nInstruction listing for %s:\n", code->mangledName);
     for (AirInstruction* instruction = code->airHead;
          instruction;
          instruction = instruction->next)
@@ -719,7 +720,7 @@ void AirGenerator::Apply(ParseResult& parse)
       printf("%s\n", instruction->AsString().c_str());
     }
 
-    printf("Slots for %s:\n", code->mangledName);
+    printf("\nSlots for %s:\n", code->mangledName);
     for (Slot* slot : code->slots)
     {
       printf("%s\n", slot->AsString().c_str());

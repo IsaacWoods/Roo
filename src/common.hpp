@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
@@ -39,4 +40,12 @@ struct Directory
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
 bool DoesFileExist(const char* path);
-std::string FormatString(const std::string& format, ...);
+
+template<typename... Args>
+std::string FormatString(const std::string& format, Args... args)
+{
+  size_t size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1u;
+  std::unique_ptr<char[]> buffer(new char[size]);
+  std::snprintf(buffer.get(), size, format.c_str(), args...);
+  return std::string(buffer.get(), buffer.get() + size - 1u);
+}
