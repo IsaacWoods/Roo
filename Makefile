@@ -35,10 +35,6 @@ roo: $(OBJS) $(STD_OBJECTS)
 %.o: %.s
 	nasm -felf64 -o $@ $<
 
-src/auto_doAstPasses.o:
-#	python genPassFile.py
-	$(CXX) -o $@ -c src/auto_doAstPasses.cpp $(CFLAGS)
-
 clean:
 	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo
 	rm -f Prelude Prelude.roomod

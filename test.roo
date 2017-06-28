@@ -2,10 +2,12 @@
 
 //import Prelude
 
+#[DefinePrimitive("int", 4u)]
+
 #[Entry]
 fn Main() -> int
 {
-  i : mut uint
-  i = 0u
+  i : mut int
+  i = 0
   return 0
 }

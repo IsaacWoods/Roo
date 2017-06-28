@@ -20,7 +20,7 @@
  * When this flag is set, the parser emits detailed logging throughout the parse.
  * It should probably be left off, unless debugging the lexer or parser.
  */
-#if 1
+#if 0
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
@@ -1125,7 +1125,7 @@ static void ParseFunction(roo_parser& parser, AttribSet& attribs)
   {
     Consume(parser, TOKEN_YIELDS);
     function->returnType = new TypeRef(ParseTypeRef(parser));
-    Log(parser, "Function returns a: %s\n", function->returnType->name);
+    Log(parser, "Function returns a: %s\n", function->returnType->name.c_str());
   }
   else
   {
