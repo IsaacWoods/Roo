@@ -2,16 +2,14 @@
 [![Build Status](https://travis-ci.org/IsaacWoods/Roo.svg?branch=master)](https://travis-ci.org/IsaacWoods/Roo)
 
 Roo is a imperitive, toy programming language that takes concepts from functional programming. Its central goal
-is to design a language with good programmers in mind, instead of protecting against bad ones. It aims to avoid
-the kitchen-sink-esque hodgepodge of languages like C++, expressing the logic of a program through a few powerful
+is to avoid the kitchen-sink-esque hodgepodge of languages like C++, instead expressing logic through fewer, more powerful
 features.
 
 ### Aims
 * No separation of definition and implementation (no headers)
-* Easier build process - nice dependency management and source management
+* Easier build process - nice source and dependency management
 * Safety - strong type-checking and powerful expression of programmer intent
-* Terse, expressive syntax - no extranious semi-colons or extra punctuation
-* Access to the 'sharp tools' - doesn't shy away from raw pointers or manual memory management
+* Terse, expressive syntax - no extranious punctuation
 
 It looks something like this:
 ``` roo
@@ -29,7 +27,7 @@ type color
 
 fn PrintColor(color : color&)
 {
-  PrintFmt("Color: (%f, %f, %f, %f)\n", color.r, color.g, color.b, color.a)
+  PrintFmt("Color: ({}, {}, {}, {})\n", color.r, color.g, color.b, color.a)
 }
 
 #[Entry]
