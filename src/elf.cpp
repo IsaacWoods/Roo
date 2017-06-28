@@ -941,7 +941,7 @@ elf_file::elf_file(CodegenTarget& target, bool isRelocatable)
   ,strings()
   ,mappings()
   ,relocations()
-  ,stringTableTail(0u)
+  ,stringTableTail(1u)
   ,numSymbols(0u)
   ,rodataThing(nullptr)
 {
