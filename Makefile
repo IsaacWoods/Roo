@@ -2,22 +2,22 @@
 # See LICENCE.md
 
 CXX ?= g++
-CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc -Wno-unused-result
-LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++14 -g -Isrc
+CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc -Wno-unused-result -Wno-trigraphs -Wno-vla
+LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc
 
 OBJS = \
   src/main.o \
 	src/common.o \
-	src/scheduler.o \
 	src/error.o \
+	src/ast.o \
 	src/ir.o \
   src/parsing.o \
-	src/ast.o \
+	src/module.o \
+	src/dotEmitter.o \
 	src/air.o \
 	src/codegen_x64elf.o \
 	src/elf.o \
-	src/auto_doAstPasses.o \
-	src/module.o \
+	src/variableResolver.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \
@@ -33,10 +33,6 @@ roo: $(OBJS) $(STD_OBJECTS)
 
 %.o: %.s
 	nasm -felf64 -o $@ $<
-
-src/auto_doAstPasses.o:
-#	python genPassFile.py
-	$(CXX) -o $@ -c src/auto_doAstPasses.cpp $(CFLAGS)
 
 clean:
 	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo

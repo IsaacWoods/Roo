@@ -12,7 +12,6 @@
 #include <ctgmath>
 #include <common.hpp>
 #include <ir.hpp>
-#include <air.hpp>
 #include <elf.hpp>
 #include <error.hpp>
 
@@ -42,27 +41,26 @@ struct register_pimpl
   uint8_t opcodeOffset;
 };
 
-void InitCodegenTarget(codegen_target& target)
+CodegenTarget::CodegenTarget()
+  :name("x64_elf")
+  ,numRegisters(16u)
+  ,registerSet(new register_def[numRegisters])
+  ,numGeneralRegisters(14u)
+  ,generalRegisterSize(8u)
+  ,numIntParamColors(6u)
+  ,intParamColors(new unsigned int[numIntParamColors])
+  ,functionReturnColor(RAX)
 {
-  target.name = "x64_elf";
-  target.numRegisters = 16u;
-  target.registerSet = static_cast<register_def*>(malloc(sizeof(register_def) * target.numRegisters));
-  target.generalRegisterSize = 8u;
+  intParamColors[0u] = RDI;
+  intParamColors[1u] = RSI;
+  intParamColors[2u] = RDX;
+  intParamColors[3u] = RCX;
+  intParamColors[4u] = R8;
+  intParamColors[5u] = R9;
 
-  target.numIntParamColors = 6u;
-  target.intParamColors = static_cast<unsigned int*>(malloc(sizeof(unsigned int) * target.numIntParamColors));
-  target.intParamColors[0u] = RDI;
-  target.intParamColors[1u] = RSI;
-  target.intParamColors[2u] = RDX;
-  target.intParamColors[3u] = RCX;
-  target.intParamColors[4u] = R8;
-  target.intParamColors[5u] = R9;
-
-  target.functionReturnColor = RAX;
-
-  #define REGISTER(index, name, usage, modRMOffset) \
-    target.registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))}; \
-    target.registerSet[index].pimpl->opcodeOffset = modRMOffset;
+#define REGISTER(index, name, usage, modRMOffset)\
+    registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))};\
+    registerSet[index].pimpl->opcodeOffset = modRMOffset;
 
   REGISTER(RAX, "RAX", register_def::reg_usage::GENERAL, 0u);
   REGISTER(RBX, "RBX", register_def::reg_usage::GENERAL, 3u);
@@ -82,112 +80,47 @@ void InitCodegenTarget(codegen_target& target)
   REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
 }
 
-template<>
-void Free<codegen_target>(codegen_target& target)
+CodegenTarget::~CodegenTarget()
 {
   for (unsigned int i = 0u;
-       i < target.numRegisters;
+       i < numRegisters;
        i++)
   {
-    free(target.registerSet[i].pimpl);
+    delete registerSet[i].pimpl;
   }
 
-  free(target.registerSet);
-  free(target.intParamColors);
+  delete registerSet;
+  delete intParamColors;
 }
 
-/*
- * This is used by the AIR generation system to allow us to deal with all the weird bits of the x86_64 ISA.
- */
-void PrecolorInstruction(codegen_target& /*target*/, air_instruction* instruction)
+// TODO: precolor division instructions (stuff has to be in weird registers on x86)
+void InstructionPrecolorer::Visit(LabelInstruction* /*instruction*/,     void*) { }
+void InstructionPrecolorer::Visit(ReturnInstruction* /*instruction*/,    void*) { }
+void InstructionPrecolorer::Visit(JumpInstruction* /*instruction*/,      void*) { }
+void InstructionPrecolorer::Visit(MovInstruction* /*instruction*/,       void*) { }
+void InstructionPrecolorer::Visit(UnaryOpInstruction* /*instruction*/,   void*) { }
+void InstructionPrecolorer::Visit(BinaryOpInstruction* /*instruction*/,  void*) { }
+void InstructionPrecolorer::Visit(CallInstruction* /*instruction*/,      void*) { }
+
+void InstructionPrecolorer::Visit(CmpInstruction* instruction, void*)
 {
-  error_state errorState = CreateErrorState(GENERAL_STUFF);
+  /*
+   * We should be able to assume that not both of the slots are constants, otherwise the comparison should have
+   * been eliminated by the optimizer.
+   */
+  Assert(!(instruction->a->IsConstant() && instruction->b->IsConstant()), "Constant comparison not eliminated");
 
-  switch (instruction->type)
+  /*
+   * x86 only allows us to compare a immediate against RAX, so the slot that isn't the immediate must be colored
+   * as being RAX before register allocation.
+   */
+  if (instruction->a->IsConstant())
   {
-    case I_RETURN:
-    {
-    } break;
-
-    case I_JUMP:
-    {
-    } break;
-
-    case I_MOV:
-    {
-    } break;
-
-    case I_CMP:
-    {
-      /*
-       * NOTE(Isaac): We should be able to assume that they're not both immediate values, because that should be
-       * dealt with by the constant folder.
-       */
-      if (instruction->slotPair.left->type == SIGNED_INT_CONSTANT   ||
-          instruction->slotPair.left->type == UNSIGNED_INT_CONSTANT ||
-          instruction->slotPair.left->type == FLOAT_CONSTANT        ||
-          instruction->slotPair.left->type == STRING_CONSTANT)
-      {
-        instruction->slotPair.right->color = RAX;
-      }
-      else if ( instruction->slotPair.right->type == SIGNED_INT_CONSTANT  ||
-                instruction->slotPair.right->type == UNSIGNED_INT_CONSTANT ||
-                instruction->slotPair.right->type == FLOAT_CONSTANT        ||
-                instruction->slotPair.right->type == STRING_CONSTANT)
-      {
-        instruction->slotPair.left->color = RAX;
-      }
-    } break;
-
-    case I_BINARY_OP:
-    {
-      switch (instruction->binaryOp.operation)
-      {
-        case binary_op_i::op::ADD_I:
-        {
-        } break;
-
-        case binary_op_i::op::SUB_I:
-        {
-        } break;
-
-        case binary_op_i::op::MUL_I:
-        {
-        } break;
-
-        case binary_op_i::op::DIV_I:
-        {
-          printf("Precoloring DIV_I operator\n");
-        } break;
-
-        default:
-        {
-          // TODO: get a string of the actual operator in the binary_op_i
-          RaiseError(errorState, ICE_UNHANDLED_OPERATOR, "operator", "PrecolorInstruction:X64:I_BINARY_OP");
-        } break;
-      }
-    } break;
-
-    case I_INC:
-    {
-    } break;
-
-    case I_DEC:
-    {
-    } break;
-
-    case I_CALL:
-    {
-    } break;
-
-    case I_LABEL:
-    {
-    } break;
-
-    case I_NUM_INSTRUCTIONS:
-    {
-      RaiseError(errorState, ICE_UNHANDLED_INSTRUCTION_TYPE, GetInstructionName(instruction), "PrecolorInstruction:X86_64");
-    }
+    instruction->b->color = RAX;
+  }
+  else if (instruction->b->IsConstant())
+  {
+    instruction->a->color = RAX;
   }
 }
 
@@ -217,6 +150,8 @@ enum class i
   MOV_REG_BASE_DISP,    // [opcodeSize] (ModR/M) (1-byte/4-byte displacement)
   INC_REG,              // (ModR/M [extension])
   DEC_REG,              // (ModR/M [extension])
+  NOT_REG,              // (ModR/M [extension])
+  NEG_REG,              // (ModR/M [extension])
   CALL32,               // (4-byte offset to RIP)
   INT_IMM8,             // (1-byte immediate)
   LEAVE,
@@ -270,7 +205,7 @@ enum class i
  * `index`  : the index register to use
  * `base`   : the base register to use
  */
-static void EmitRegisterModRM(elf_thing* thing, codegen_target& target, reg a, reg b)
+static void EmitRegisterModRM(elf_thing* thing, CodegenTarget& target, reg a, reg b)
 {
   uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
   modRM |= target.registerSet[a].pimpl->opcodeOffset << 3u;
@@ -281,7 +216,7 @@ static void EmitRegisterModRM(elf_thing* thing, codegen_target& target, reg a, r
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(elf_thing* thing, codegen_target& target, reg dest, reg base, uint32_t displacement, reg index = NUM_REGISTERS, unsigned int scale = 0u)
+static void EmitIndirectModRM(elf_thing* thing, CodegenTarget& target, reg dest, reg base, uint32_t displacement, reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
   modRM |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
@@ -334,7 +269,7 @@ static void EmitIndirectModRM(elf_thing* thing, codegen_target& target, reg dest
   }
 }
 
-static void EmitExtensionModRM(elf_thing* thing, codegen_target& target, uint8_t extension, reg r)
+static void EmitExtensionModRM(elf_thing* thing, CodegenTarget& target, uint8_t extension, reg r)
 {
   uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   modRM |= extension << 3u;
@@ -342,7 +277,7 @@ static void EmitExtensionModRM(elf_thing* thing, codegen_target& target, uint8_t
   Emit<uint8_t>(thing, modRM);
 }
 
-static void Emit(error_state& errorState, elf_thing* thing, codegen_target& target, i instruction, ...)
+static void Emit(error_state& errorState, elf_thing* thing, CodegenTarget& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -524,6 +459,22 @@ static void Emit(error_state& errorState, elf_thing* thing, codegen_target& targ
       EmitExtensionModRM(thing, target, 1u, r);
     } break;
 
+    case i::NOT_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0xF7);
+      EmitExtensionModRM(thing, target, 2u, r);
+    } break;
+
+    case i::NEG_REG:
+    {
+      reg r = static_cast<reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0xF7);
+      EmitExtensionModRM(thing, target, 3u, r);
+    } break;
+
     case i::CALL32:
     {
       uint32_t offset = va_arg(args, uint32_t);
@@ -587,18 +538,14 @@ static void Emit(error_state& errorState, elf_thing* thing, codegen_target& targ
 #define E(...) \
   Emit(errorState, thing, target, __VA_ARGS__);
 
-static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* thing, parse_result& parse)
+static void GenerateBootstrap(elf_file& elf, CodegenTarget& target, elf_thing* thing, ParseResult& parse)
 {
   elf_symbol* entrySymbol = nullptr;
   error_state errorState = CreateErrorState(GENERAL_STUFF);
 
-  for (auto* it = parse.codeThings.head;
-       it < parse.codeThings.tail;
-       it++)
+  for (ThingOfCode* thing : parse.codeThings)
   {
-    thing_of_code* thing = *it;
-
-    if (thing->type != thing_type::FUNCTION)
+    if (thing->type != ThingOfCode::Type::FUNCTION)
     {
       continue;
     }
@@ -629,11 +576,384 @@ static void GenerateBootstrap(elf_file& elf, codegen_target& target, elf_thing* 
   E(i::INT_IMM8, 0x80);
 }
 
+struct CodeGenerator : AirPass<void>
+{
+  CodeGenerator(CodegenTarget& target, elf_file& file, elf_thing* elfThing, ThingOfCode* code)
+    :AirPass(true)
+    ,target(target)
+    ,file(file)
+    ,elfThing(elfThing)
+    ,code(code)
+  {
+  }
+  ~CodeGenerator() { }
+
+  CodegenTarget&  target;
+  elf_file&       file;
+  elf_thing*      elfThing;
+  ThingOfCode*    code;
+
+  void Visit(LabelInstruction* instruction,     void*);
+  void Visit(ReturnInstruction* instruction,    void*);
+  void Visit(JumpInstruction* instruction,      void*);
+  void Visit(MovInstruction* instruction,       void*);
+  void Visit(CmpInstruction* instruction,       void*);
+  void Visit(UnaryOpInstruction* instruction,   void*);
+  void Visit(BinaryOpInstruction* instruction,  void*);
+  void Visit(CallInstruction* instruction,      void*);
+};
+
 #undef E
 #define E(...) \
-  Emit(code->errorState, thing, target, __VA_ARGS__);
+  Emit(code->errorState, elfThing, target, __VA_ARGS__);
 
-static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code* code)
+void CodeGenerator::Visit(LabelInstruction* instruction, void*)
+{
+  /*
+   * This doesn't correspond to a real instruction, so we don't emit anything.
+   *
+   * However, we do need to know where this label lies in the stream as it's emitted, so we can refer to it
+   * while doing relocations later.
+   */
+  instruction->offset = elfThing->length;
+}
+
+void CodeGenerator::Visit(ReturnInstruction* instruction, void*)
+{
+  if (instruction->returnValue)
+  {
+    switch (instruction->returnValue->GetType())
+    {
+      case SlotType::INT_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, RAX, dynamic_cast<ConstantSlot<int>*>(instruction->returnValue)->value);
+      } break;
+
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, RAX, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->returnValue)->value);
+      } break;
+
+      case SlotType::FLOAT_CONSTANT:
+      {
+        // TODO: work out how floats work
+      } break;
+
+      case SlotType::STRING_CONSTANT:
+      {
+        E(i::MOV_REG_IMM64, RAX, 0x00);
+        CreateRelocation(file, elfThing, elfThing->length-sizeof(uint64_t), R_X86_64_64, file.rodataThing->symbol,
+                         dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->returnValue)->value->offset);
+      } break;
+
+      case SlotType::VARIABLE:
+      case SlotType::PARAMETER:
+      case SlotType::TEMPORARY:
+      case SlotType::RETURN_RESULT:
+      {
+        Assert(instruction->returnValue->IsColored(), "Vars etc. need to be in registers atm");
+        E(i::MOV_REG_REG, RAX, instruction->returnValue->color);
+      } break;
+
+      case SlotType::MEMBER:
+      {
+        MemberSlot* returnValue = dynamic_cast<MemberSlot*>(instruction->returnValue);
+        Assert(returnValue->parent->IsColored(), "Parent must be in a register");
+        E(i::MOV_REG_BASE_DISP, RAX, returnValue->parent->color, returnValue->member->offset);
+      } break;
+    }
+  }
+
+  E(i::LEAVE);
+  E(i::RET);
+}
+
+void CodeGenerator::Visit(JumpInstruction* instruction, void*)
+{
+  switch (instruction->condition)
+  {
+    /*
+     * TODO: The instructions we actually need to emit here depend on whether the operands of the comparison
+     * were unsigned or signed. We should take this into accound
+     */
+    case JumpInstruction::Condition::UNCONDITIONAL:       E(i::JMP, 0x00);  break;
+    case JumpInstruction::Condition::IF_EQUAL:            E(i::JE,  0x00);  break;
+    case JumpInstruction::Condition::IF_NOT_EQUAL:        E(i::JNE, 0x00);  break;
+    case JumpInstruction::Condition::IF_OVERFLOW:         E(i::JO,  0x00);  break;
+    case JumpInstruction::Condition::IF_NOT_OVERFLOW:     E(i::JNO, 0x00);  break;
+    case JumpInstruction::Condition::IF_SIGN:             E(i::JS,  0x00);  break;
+    case JumpInstruction::Condition::IF_NOT_SIGN:         E(i::JNS, 0x00);  break;
+    case JumpInstruction::Condition::IF_GREATER:          E(i::JG,  0x00);  break;
+    case JumpInstruction::Condition::IF_GREATER_OR_EQUAL: E(i::JGE, 0x00);  break;
+    case JumpInstruction::Condition::IF_LESSER:           E(i::JL,  0x00);  break;
+    case JumpInstruction::Condition::IF_LESSER_OR_EQUAL:  E(i::JLE, 0x00);  break;
+    case JumpInstruction::Condition::IF_PARITY_EVEN:      E(i::JPE, 0x00);  break;
+    case JumpInstruction::Condition::IF_PARITY_ODD:       E(i::JPO, 0x00);  break;
+  }
+
+  CreateRelocation(file, elfThing, elfThing->length - sizeof(uint32_t), R_X86_64_PC32, code->symbol, -0x4, instruction->label);
+}
+
+void CodeGenerator::Visit(MovInstruction* instruction, void*)
+{
+  switch (instruction->src->GetType())
+  {
+    case SlotType::INT_CONSTANT:
+    {
+      E(i::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<int>*>(instruction->src)->value);
+    } break;
+
+    case SlotType::UNSIGNED_INT_CONSTANT:
+    {
+      E(i::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->src)->value);
+    } break;
+
+    case SlotType::FLOAT_CONSTANT:
+    {
+      // TODO
+    } break;
+
+    case SlotType::STRING_CONSTANT:
+    {
+      E(i::MOV_REG_IMM64, 0x00);
+      CreateRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), R_X86_64_64, file.rodataThing->symbol,
+                       dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
+    } break;
+
+    case SlotType::VARIABLE:
+    case SlotType::PARAMETER:
+    case SlotType::MEMBER:
+    case SlotType::TEMPORARY:
+    case SlotType::RETURN_RESULT:
+    {
+      Assert(instruction->src->IsColored(), "Should be in a register");
+      E(i::MOV_REG_REG, instruction->dest->color, instruction->src->color);
+    } break;
+  }
+}
+
+void CodeGenerator::Visit(CmpInstruction* instruction, void*)
+{
+  if (instruction->a->IsColored() && instruction->b->IsColored())
+  {
+    E(i::CMP_REG_REG, instruction->a->color, instruction->b->color);
+  }
+  else
+  {
+    Slot* reg;
+    Slot* immediate;
+
+    if (instruction->a->IsConstant())
+    {
+      immediate = instruction->a;
+      reg       = instruction->b;
+    }
+    else
+    {
+      Assert(instruction->b->IsConstant(), "Either both sides must be colored, or one must be a constant");
+      immediate = instruction->b;
+      reg       = instruction->a;
+    }
+
+    Assert(reg->color == RAX, "Can only compare immediate against RAX on x86");
+    switch (immediate->GetType())
+    {
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      {
+        E(i::CMP_RAX_IMM32, dynamic_cast<ConstantSlot<unsigned int>*>(immediate)->value);
+      } break;
+
+      case SlotType::INT_CONSTANT:
+      {
+        E(i::CMP_RAX_IMM32, dynamic_cast<ConstantSlot<int>*>(immediate)->value);
+      } break;
+
+      case SlotType::FLOAT_CONSTANT:
+      {
+        // TODO
+      } break;
+
+      default:
+      {
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::CmpInstruction");
+      } break;
+    }
+  }
+}
+
+void CodeGenerator::Visit(UnaryOpInstruction* instruction, void*)
+{
+  Assert(instruction->result->IsColored(), "Result must be in a register");
+  if (instruction->operand->IsConstant())
+  {
+    switch (instruction->operand->GetType())
+    {
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->operand)->value);
+      } break;
+
+      case SlotType::INT_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, dynamic_cast<ConstantSlot<int>*>(instruction->operand)->value);
+      };
+
+      case SlotType::FLOAT_CONSTANT:
+      {
+        // TODO
+      } break;
+
+      default:
+      {
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::UnaryOpInstruction");
+      }
+    }
+  }
+  else
+  {
+    E(i::MOV_REG_REG, instruction->result->color, instruction->operand->color);
+  }
+
+  switch (instruction->op)
+  {
+    case UnaryOpInstruction::Operation::INCREMENT:    E(i::INC_REG, instruction->result->color);  break;
+    case UnaryOpInstruction::Operation::DECREMENT:    E(i::DEC_REG, instruction->result->color);  break;
+    case UnaryOpInstruction::Operation::NEGATE:       E(i::NEG_REG, instruction->result->color);  break;
+    case UnaryOpInstruction::Operation::LOGICAL_NOT:  E(i::NOT_REG, instruction->result->color);  break;
+  }
+}
+
+void CodeGenerator::Visit(BinaryOpInstruction* instruction, void*)
+{
+  Assert(instruction->result->IsColored(), "Result must be in a register");
+  if (instruction->left->IsConstant())
+  {
+    switch (instruction->left->GetType())
+    {
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->left)->value);
+      } break;
+
+      case SlotType::INT_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, dynamic_cast<ConstantSlot<int>*>(instruction->left)->value);
+      };
+
+      case SlotType::FLOAT_CONSTANT:
+      {
+        // TODO
+      } break;
+
+      default:
+      {
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::BinaryOpInstruction");
+      } break;
+    }
+  }
+  else
+  {
+    E(i::MOV_REG_REG, instruction->result->color, instruction->left->color);
+  }
+
+  if (instruction->right->IsColored())
+  {
+    switch (instruction->op)
+    {
+      case BinaryOpInstruction::Operation::ADD:       E(i::ADD_REG_REG, instruction->result->color, instruction->right->color); break;
+      case BinaryOpInstruction::Operation::SUBTRACT:  E(i::SUB_REG_REG, instruction->result->color, instruction->right->color); break;
+      case BinaryOpInstruction::Operation::MULTIPLY:  E(i::MUL_REG_REG, instruction->result->color, instruction->right->color); break;
+      case BinaryOpInstruction::Operation::DIVIDE:    E(i::DIV_REG_REG, instruction->result->color, instruction->right->color); break;
+    }
+  }
+  else
+  {
+    switch (instruction->right->GetType())
+    {
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      {
+        ConstantSlot<unsigned int>* slot = dynamic_cast<ConstantSlot<unsigned int>*>(instruction->right);
+        switch (instruction->op)
+        {
+          case BinaryOpInstruction::Operation::ADD:       E(i::ADD_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::SUBTRACT:  E(i::SUB_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::MULTIPLY:  E(i::MUL_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::DIVIDE:    E(i::DIV_REG_IMM32, instruction->result->color, slot->value); break;
+        }
+      } break;
+
+      case SlotType::INT_CONSTANT:
+      {
+        ConstantSlot<int>* slot = dynamic_cast<ConstantSlot<int>*>(instruction->right);
+        switch (instruction->op)
+        {
+          case BinaryOpInstruction::Operation::ADD:       E(i::ADD_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::SUBTRACT:  E(i::SUB_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::MULTIPLY:  E(i::MUL_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::DIVIDE:    E(i::DIV_REG_IMM32, instruction->result->color, slot->value); break;
+        }
+      } break;
+
+      case SlotType::FLOAT_CONSTANT:
+      {
+        // TODO
+      } break;
+
+      default:
+      {
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::BinaryOp");
+      } break;
+    }
+  }
+}
+
+void CodeGenerator::Visit(CallInstruction* instruction, void*)
+{
+  #define SAVE_REG(reg)\
+    if (IsColorInUseAtPoint(code, instruction, reg))\
+    {\
+      E(i::PUSH_REG, reg);\
+    }
+
+  #define RESTORE_REG(reg)\
+    if (IsColorInUseAtPoint(code, instruction, reg))\
+    {\
+      E(i::POP_REG, reg);\
+    }
+
+  /*
+   * These are the registers that must be saved by the caller (if it cares about their contents).
+   * NOTE(Isaac): RSP is technically caller-saved, but functions shouldn't leave anything on the stack unless
+   * they're specifically meant to, so we don't need to (or occasionally spefically don't want to) restore it.
+   */
+  SAVE_REG(RAX);
+  SAVE_REG(RCX);
+  SAVE_REG(RDX);
+  SAVE_REG(RSI);
+  SAVE_REG(RDI);
+  SAVE_REG(R8 );
+  SAVE_REG(R9 );
+  SAVE_REG(R10);
+  SAVE_REG(R11);
+
+  E(i::CALL32, 0x00);
+  CreateRelocation(file, elfThing, elfThing->length-sizeof(uint32_t), R_X86_64_PC32, instruction->thing->symbol, -0x4);
+
+  RESTORE_REG(R11);
+  RESTORE_REG(R10);
+  RESTORE_REG(R9 );
+  RESTORE_REG(R8 );
+  RESTORE_REG(RDI);
+  RESTORE_REG(RSI);
+  RESTORE_REG(RDX);
+  RESTORE_REG(RCX);
+  RESTORE_REG(RAX);
+
+  #undef SAVE_REG
+  #undef RESTORE_REG
+}
+
+static elf_thing* Generate(elf_file& file, CodegenTarget& target, ThingOfCode* code)
 {
   // NOTE(Isaac): we don't generate empty functions
   if (!(code->airHead))
@@ -641,262 +961,42 @@ static elf_thing* Generate(elf_file& elf, codegen_target& target, thing_of_code*
     return nullptr;
   }
 
-  elf_thing* thing = CreateThing(elf, code->symbol);
+  elf_thing* elfThing = CreateThing(file, code->symbol);
 
   // Enter a new stack frame
   E(i::PUSH_REG, RBP);
   E(i::MOV_REG_REG, RBP, RSP);
 
-  for (air_instruction* instruction = code->airHead;
+  // Emit the instructions for the body of the thing
+  CodeGenerator codeGenerator(target, file, elfThing, code);
+  
+  for (AirInstruction* instruction = code->airHead;
        instruction;
        instruction = instruction->next)
   {
-    switch (instruction->type)
-    {
-      case I_RETURN:
-      {
-        if (instruction->slot)
-        {
-          switch (instruction->slot->type)
-          {
-            case slot_type::SIGNED_INT_CONSTANT:
-            {
-              E(i::MOV_REG_IMM32, RAX, instruction->slot->i);
-            } break;
-
-            case slot_type::UNSIGNED_INT_CONSTANT:
-            {
-              E(i::MOV_REG_IMM32, RAX, instruction->slot->u);
-            } break;
-
-            case slot_type::STRING_CONSTANT:
-            {
-              E(i::MOV_REG_IMM64, RAX, 0x0);
-              CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, instruction->slot->string->offset);
-            } break;
-
-            case slot_type::VARIABLE:
-            case slot_type::PARAMETER:
-            case slot_type::TEMPORARY:
-            case slot_type::RETURN_RESULT:
-            {
-              Assert(instruction->slot->color != -1, "Not in a register when it should be");
-              E(i::MOV_REG_REG, RAX, instruction->slot->color);
-            } break;
-
-            case slot_type::MEMBER:
-            {
-              Assert(instruction->slot->member.parent->color != -1, "Not in a register when it should be");
-              E(i::MOV_REG_BASE_DISP, RAX, instruction->slot->member.parent->color, instruction->slot->member.memberVar->offset);
-            } break;
-
-            default:
-            {
-              RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, GetSlotString(instruction->slot), "Generate_X64::I_RETURN");
-            } break;
-          }
-        }
-
-        E(i::LEAVE);
-        E(i::RET);
-      } break;
-
-      case I_JUMP:
-      {
-        jump_i& jump = instruction->jump;
-
-        switch (jump.cond)
-        {
-          // TODO: the instructions we use for greater, greater or equal, less and less or equal depend
-          // on whether the operands are signed or unsigned - take this into account
-          
-          /*
-           * NOTE(Isaac): Because we're jumping to a label we don't have an address for yet,
-           * we're emitting 0 and adding a relocation to do it later
-           */
-          case jump_i::condition::UNCONDITIONAL:        E(i::JMP,   0x00); break;
-          case jump_i::condition::IF_EQUAL:             E(i::JE,    0x00); break;
-          case jump_i::condition::IF_NOT_EQUAL:         E(i::JNE,   0x00); break;
-          case jump_i::condition::IF_OVERFLOW:          E(i::JO,    0x00); break;
-          case jump_i::condition::IF_NOT_OVERFLOW:      E(i::JNO,   0x00); break;
-          case jump_i::condition::IF_SIGN:              E(i::JS,    0x00); break;
-          case jump_i::condition::IF_NOT_SIGN:          E(i::JNS,   0x00); break;
-          case jump_i::condition::IF_GREATER:           E(i::JG,    0x00); break;
-          case jump_i::condition::IF_GREATER_OR_EQUAL:  E(i::JGE,   0x00); break;
-          case jump_i::condition::IF_LESSER:            E(i::JL,    0x00); break;
-          case jump_i::condition::IF_LESSER_OR_EQUAL:   E(i::JLE,   0x00); break;
-          case jump_i::condition::IF_PARITY_EVEN:       E(i::JPE,   0x00); break;
-          case jump_i::condition::IF_PARITY_ODD:        E(i::JPO,   0x00); break;
-        }
-
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, thing->symbol, -0x4, instruction->jump.label);
-      } break;
-
-      case I_MOV:
-      {
-        mov_i& mov = instruction->mov;
-
-        if (mov.src->type == slot_type::SIGNED_INT_CONSTANT)
-        {
-          E(i::MOV_REG_IMM32, mov.dest->color, mov.src->i);
-        }
-        else if (mov.src->type == slot_type::UNSIGNED_INT_CONSTANT)
-        {
-          E(i::MOV_REG_IMM32, mov.dest->color, mov.src->u);
-        }
-        else if (mov.src->type == slot_type::STRING_CONSTANT)
-        {
-          E(i::MOV_REG_IMM64, mov.dest->color, 0x0);
-          CreateRelocation(elf, thing, thing->length - sizeof(uint64_t), R_X86_64_64, elf.rodataThing->symbol, mov.src->string->offset);
-        }
-        else
-        {
-          // NOTE(Isaac): if we're here, `src` should be colored
-          Assert(mov.src->color != -1, "Should be in a register and it isn't");
-
-          E(i::MOV_REG_REG, mov.dest->color, mov.src->color);
-        }
-      } break;
-
-      case I_CMP:
-      {
-        slot_pair& pair = instruction->slotPair;
-
-        if ((pair.left->color != -1) && (pair.right->color != -1))
-        {
-          E(i::CMP_REG_REG, pair.left->color, pair.right->color);
-        }
-        else
-        {
-          if (pair.left->color != -1)
-          {
-            Assert(pair.left->color == RAX, "Compare instructions should be precolored to be in RAX on x64");
-            E(i::CMP_RAX_IMM32, pair.right->i);
-          }
-        }
-      } break;
-
-      case I_BINARY_OP:
-      {
-        binary_op_i& op = instruction->binaryOp;
-
-        if (op.left->color != -1)
-        {
-          E(i::MOV_REG_REG, op.result->color, op.left->color);
-        }
-        else
-        {
-          E(i::MOV_REG_IMM32, op.result->color, op.left->i);
-        }
-
-        if (op.right->color != -1)
-        {
-          switch (op.operation)
-          {
-            case binary_op_i::op::ADD_I: E(i::ADD_REG_REG, op.result->color, op.right->color); break;
-            case binary_op_i::op::SUB_I: E(i::SUB_REG_REG, op.result->color, op.right->color); break;
-            case binary_op_i::op::MUL_I: E(i::MUL_REG_REG, op.result->color, op.right->color); break;
-            case binary_op_i::op::DIV_I: E(i::DIV_REG_REG, op.result->color, op.right->color); break;
-          }
-        }
-        else
-        {
-          switch (op.operation)
-          {
-            case binary_op_i::op::ADD_I: E(i::ADD_REG_IMM32, op.result->color, op.right->i); break;
-            case binary_op_i::op::SUB_I: E(i::SUB_REG_IMM32, op.result->color, op.right->i); break;
-            case binary_op_i::op::MUL_I: E(i::MUL_REG_IMM32, op.result->color, op.right->i); break;
-            case binary_op_i::op::DIV_I: E(i::DIV_REG_IMM32, op.result->color, op.right->i); break;
-          }
-        }
-      } break;
-
-      case I_INC:
-      {
-        Assert(instruction->slot->color != -1, "Should be in a register");
-        E(i::INC_REG, instruction->slot->color);
-      } break;
-
-      case I_DEC:
-      {
-        Assert(instruction->slot->color != -1, "Should be in a register");
-        E(i::DEC_REG, instruction->slot->color);
-      } break;
-
-      case I_CALL:
-      {
-
-        #define SAVE_REG(reg) \
-          if (IsColorInUseAtPoint(code, instruction, reg)) \
-          { \
-            E(i::PUSH_REG, reg); \
-          }
-
-        #define RESTORE_REG(reg) \
-          if (IsColorInUseAtPoint(code, instruction, reg)) \
-          { \
-            E(i::POP_REG, reg); \
-          }
-
-        /*
-         * These are the registers that must be saved by the caller if it cares about their contents
-         * NOTE(Isaac): While RSP is caller-saved, we don't care about its contents
-         */
-        SAVE_REG(RAX)
-        SAVE_REG(RCX)
-        SAVE_REG(RDX)
-        SAVE_REG(RSI)
-        SAVE_REG(RDI)
-        SAVE_REG(R8)
-        SAVE_REG(R9)
-        SAVE_REG(R10)
-        SAVE_REG(R11)
-
-        // NOTE(Isaac): yeah I don't know why we need an addend of -0x4 in the relocation, but we do (probably should work that out)
-        E(i::CALL32, 0x0);
-        CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, instruction->call->symbol, -0x4);
-
-        // NOTE(Isaac): We restore the saved registers in the reverse order to match the stack's layout
-        RESTORE_REG(R11)
-        RESTORE_REG(R10)
-        RESTORE_REG(R9)
-        RESTORE_REG(R8)
-        RESTORE_REG(RDI)
-        RESTORE_REG(RSI)
-        RESTORE_REG(RDX)
-        RESTORE_REG(RCX)
-        RESTORE_REG(RAX)
-
-        #undef SAVE_REGISTER
-        #undef RESTORE_REGISTER
-      } break;
-
-      case I_LABEL:
-      {
-        instruction->label->offset = thing->length;
-      } break;
-
-      case I_NUM_INSTRUCTIONS:
-      {
-        RaiseError(code->errorState, ICE_GENERIC, "AIR instruction of type I_NUM_INSTRUCTIONS in code generator");
-      }
-    }
+    codeGenerator.Dispatch(instruction);
   }
 
-  // If we should auto-return, leave the stack frame and return
+  /*
+   * If we should auto-return, leave the stack frame and return.
+   * Otherwise, it will be done by return statements in the function's code
+   */
   if (code->shouldAutoReturn)
   {
     E(i::LEAVE);
     E(i::RET);
   }
 
-  return thing;
+  return elfThing;
 }
 
-void Generate(const char* outputPath, codegen_target& target, parse_result& result)
+void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result)
 {
-  elf_file elf;
-  CreateElf(elf, target, result.isModule);
+  /*
+   * If we're compiling a module, we need to produce a relocatable.
+   * If not, we want to produce a normal executable.
+   */
+  elf_file elf(target, result.isModule);
 
   CreateSection(elf, ".text",   SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A|SECTION_ATTRIB_E;
   CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
@@ -920,20 +1020,15 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   elf.rodataThing = CreateRodataThing(elf);
 
   // Link with any files we've been told to
-  for (auto* it = result.filesToLink.head;
-       it < result.filesToLink.tail;
-       it++)
+  for (char* file : result.filesToLink)
   {
-    LinkObject(elf, *it);
+    LinkObject(elf, file);
   }
 
   // Emit string constants into the .rodata thing
   unsigned int tail = 0u;
-  for (auto* it = result.strings.head;
-       it < result.strings.tail;
-       it++)
+  for (StringConstant* constant : result.strings)
   {
-    string_constant* constant = *it;
     constant->offset = tail;
 
     for (char* c = constant->string;
@@ -950,11 +1045,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   }
 
   // --- Generate error states and symbols for things of code ---
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
+  for (ThingOfCode* thing : result.codeThings)
   {
-    thing_of_code* thing = *it;
     thing->errorState = CreateErrorState(CODE_GENERATION, thing);
 
     /*
@@ -962,12 +1054,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
      */
     if (thing->attribs.isPrototype)
     {
-      for (auto* thingIt = elf.things.head;
-           thingIt < elf.things.tail;
-           thingIt++)
+      for (elf_thing* elfThing : elf.things)
       {
-        elf_thing* elfThing = *thingIt;
-
         if (strcmp(thing->mangledName, elfThing->symbol->name->str) == 0)
         {
           thing->symbol = elfThing->symbol;
@@ -994,12 +1082,8 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   }
 
   // --- Generate `elf_thing`s for each thing of code ---
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
+  for (ThingOfCode* thing : result.codeThings)
   {
-    thing_of_code* thing = *it;
-
     if (thing->attribs.isPrototype)
     {
       continue;
@@ -1009,5 +1093,4 @@ void Generate(const char* outputPath, codegen_target& target, parse_result& resu
   }
 
   WriteElf(elf, outputPath);
-  Free<elf_file>(elf);
 }

@@ -6,128 +6,48 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include <common.hpp>
-#include <vector.hpp>
 #include <parsing.hpp>
 #include <error.hpp>
 
-/*
- * NOTE(Isaac): This allows the codegen module to store platform-dependent
- * information about each register.
- */
-struct register_pimpl;
+struct Slot;
+struct AirInstruction;
 
-struct register_def
-{
-  enum reg_usage
-  {
-    GENERAL,
-    SPECIAL
-  }               usage;
-  const char*     name;
-  register_pimpl* pimpl;
-};
-
-struct codegen_target
-{
-  const char*   name;
-  unsigned int  numRegisters;
-  register_def* registerSet;
-  unsigned int  generalRegisterSize;
-
-  unsigned int  numIntParamColors;
-  unsigned int* intParamColors;
-
-  unsigned int  functionReturnColor;
-};
-
-struct dependency_def;
-struct variable_def;
-struct type_def;
-struct string_constant;
-struct air_instruction;
-struct node;
+struct DependencyDef;
+struct ThingOfCode;
+struct VariableDef;
+struct TypeDef;
+struct StringConstant;
 struct elf_symbol;
 
-enum slot_type
+struct ParseResult
 {
-  VARIABLE,               // `var`    field of payload is valid
-  PARAMETER,              // `var`    field of payload is valid
-  MEMBER,                 // `member` field of payload is valid
-  TEMPORARY,              // `tag`    field of payload is valid
-  RETURN_RESULT,          // `tag`    field of payload is valid
-  SIGNED_INT_CONSTANT,    // `i`      field of payload is valid
-  UNSIGNED_INT_CONSTANT,  // `u`      field of payload is valid
-  FLOAT_CONSTANT,         // `f`      field of payload is valid
-  STRING_CONSTANT,        // `string` field of payload is valid
+  ParseResult();
+  ~ParseResult();
+
+  bool                          isModule;
+  char*                         name;
+  char*                         targetArch;     // `nullptr` leaves the compiler to assume the correct target arch
+  std::vector<DependencyDef*>   dependencies;
+  std::vector<ThingOfCode*>     codeThings;
+  std::vector<TypeDef*>         types;
+  std::vector<StringConstant*>  strings;
+  std::vector<char*>            filesToLink;
 };
 
-enum slot_storage
+struct DependencyDef
 {
-  REGISTER,
-  STACK,
-};
-
-struct live_range
-{
-  /*
-   * For slots of type `PARAMETER`, the defining instruction may be `nullptr`, as they have a value when coming
-   * into the function.
-   */
-  air_instruction* definition;
-  air_instruction* lastUse;
-};
-
-#define MAX_SLOT_INTERFERENCES 32u
-struct slot_def
-{
-  union
-  {
-    struct
-    {
-      slot_def*     parent;
-      variable_def* memberVar;
-    }                 member;
-    variable_def*     variable;
-    unsigned int      tag;
-    int               i;
-    unsigned int      u;
-    float             f;
-    string_constant*  string;
-  };
-
-  slot_type           type;
-  slot_storage        storage;
-  signed int          color;  // NOTE(Isaac): -1 means it hasn't been colored
-  unsigned int        numInterferences;
-  slot_def*           interferences[MAX_SLOT_INTERFERENCES];
-  vector<live_range>  liveRanges;
-
-#ifdef OUTPUT_DOT
-  unsigned int dotTag;
-#endif
-};
-
-struct parse_result
-{
-  bool                      isModule;
-  char*                     name;
-  char*                     targetArch;     // `nullptr` leaves the compiler to assume the correct target arch
-  vector<dependency_def*>   dependencies;
-  vector<thing_of_code*>    codeThings;
-  vector<type_def*>         types;
-  vector<string_constant*>  strings;
-  vector<char*>             filesToLink;
-};
-
-struct dependency_def
-{
-  enum dependency_type
+  enum Type
   {
     LOCAL,
     REMOTE
-  } type;
+  };
 
+  DependencyDef(Type type, char* path);
+  ~DependencyDef();
+
+  Type type;
   /*
    * LOCAL:   the name of a local package
    * REMOTE:  a URL to a Git repository containing a Roo project
@@ -135,8 +55,11 @@ struct dependency_def
   char* path;
 };
 
-struct string_constant
+struct StringConstant
 {
+  StringConstant(ParseResult* parse, char* string);
+  ~StringConstant();
+
   unsigned int      handle;
   char*             string;
 
@@ -146,47 +69,52 @@ struct string_constant
   uint64_t offset;
 };
 
-struct type_def
+struct TypeDef
 {
-  char*                 name;
-  vector<variable_def*> members;
-  error_state           errorState;
+  TypeDef(char* name);
+  ~TypeDef();
+
+  char*                       name;
+  std::vector<VariableDef*>   members;
+  error_state                 errorState;
 
   /*
    * Size of this structure in bytes.
    * NOTE(Isaac): provided for inbuilt types, calculated for composite types by `CalculateTypeSizes`.
    */
-  unsigned int          size;
+  unsigned int                size;
 };
 
-struct type_ref
+struct TypeRef
 {
+  TypeRef();
+  ~TypeRef();
+
+  std::string name;
+  TypeDef*    resolvedType;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
+  bool        isResolved;
+  bool        isMutable;           // NOTE(Isaac): for references, this describes the mutability of the reference
+  bool        isReference;
+  bool        isReferenceMutable;  // NOTE(Isaac): describes the mutability of the reference's contents
+
+  bool        isArray;
+  bool        isArraySizeResolved;
   union
   {
-    char*     name;
-    type_def* def;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
-  };
-
-  bool isResolved;
-  bool isMutable;          // NOTE(Isaac): for references, this describes the mutability of the reference
-  bool isReference;
-  bool isReferenceMutable; // NOTE(Isaac): describes the mutability of the reference's contents
-
-  bool isArray;
-  bool isArraySizeResolved;
-  union
-  {
-    node*         arraySizeExpression;
+    ASTNode*      arraySizeExpression;
     unsigned int  arraySize;
   };
 };
 
-struct variable_def
+struct VariableDef
 {
-  char*         name;
-  type_ref      type;
-  node*         initValue;
-  slot_def*     slot;
+  VariableDef(char* name, const TypeRef& typeRef, ASTNode* initialValue);
+  ~VariableDef();
+
+  char*     name;
+  TypeRef   type;
+  ASTNode*  initialValue;
+  Slot*     slot;
 
   /*
    * NOTE(Isaac): this can be used to represent multiple things:
@@ -195,68 +123,60 @@ struct variable_def
   unsigned int  offset;
 };
 
-struct attrib_set
+struct AttribSet
 {
+  AttribSet();
+
   bool isEntry      : 1;
   bool isPrototype  : 1;
   bool isInline     : 1;
   bool isNoInline   : 1;
 };
 
-enum class thing_type
+struct ThingOfCode
 {
-  FUNCTION,
-  OPERATOR,
-};
-
-struct thing_of_code
-{
-  thing_type              type;
-  union
+  enum Type
   {
-    char*                 name;
-    token_type            op;
+    FUNCTION,
+    OPERATOR
   };
 
-  char*                   mangledName;
-  vector<variable_def*>   params;
-  vector<variable_def*>   locals;
-  bool                    shouldAutoReturn;
-  attrib_set              attribs;
-  type_ref*               returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
+  ThingOfCode(Type type, ...);
+  ~ThingOfCode();
 
-  error_state             errorState;
-  vector<thing_of_code*>  calledThings;
+  Type                        type;
+  union
+  {
+    char*                     name;
+    token_type                op;
+  };
 
-  node*                   ast;
-  vector<slot_def*>       slots;
-  unsigned int            stackFrameSize;
-  air_instruction*        airHead;
-  air_instruction*        airTail;
-  unsigned int            numTemporaries;
-  unsigned int            numReturnResults;
-  elf_symbol*             symbol;
+  char*                       mangledName;
+  std::vector<VariableDef*>   params;
+  std::vector<VariableDef*>   locals;
+  bool                        shouldAutoReturn;
+  AttribSet                   attribs;
+  TypeRef*                    returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
+
+  error_state                 errorState;
+  std::vector<ThingOfCode*>   calledThings;
+
+  // AST representation
+  ASTNode*                    ast;
+
+  // AIR representation
+  std::vector<Slot*>          slots;
+  unsigned int                stackFrameSize;
+  AirInstruction*             airHead;
+  AirInstruction*             airTail;
+  unsigned int                numTemporaries;
+  unsigned int                numReturnResults;
+  elf_symbol*                 symbol;
 };
 
-/*
- * Returns whether a given `thing_of_code` contains code, or is empty.
- * Abstracts the requirement to know that empty things' ASTs are `nullptr`
- */
-inline bool HasCode(thing_of_code* code)
-{
-  return (code->ast);
-}
-
-slot_def* CreateSlot(codegen_target& target, thing_of_code* code, slot_type type, ...);
-char* GetSlotString(slot_def* slot);
-void CreateParseResult(parse_result& result);
-void InitAttribSet(attrib_set& set);
-string_constant* CreateStringConstant(parse_result* result, char* string);
-variable_def* CreateVariableDef(char* name, type_ref& typeRef, node* initValue);
-thing_of_code* CreateThingOfCode(thing_type type, ...);
-type_def* GetTypeByName(parse_result& parse, const char* typeName);
-char* TypeRefToString(type_ref* type);
-bool AreTypeRefsCompatible(type_ref* a, type_ref* b, bool careAboutMutability = true);
-unsigned int GetSizeOfTypeRef(type_ref& type);
-char* MangleName(thing_of_code* thing);
-void CompleteIR(parse_result& parse);
+TypeDef* GetTypeByName(ParseResult& parse, const char* typeName);
+char* TypeRefToString(TypeRef* type);
+bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
+unsigned int GetSizeOfTypeRef(TypeRef& type);
+char* MangleName(ThingOfCode* thing);
+void CompleteIR(ParseResult& parse);

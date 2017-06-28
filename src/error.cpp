@@ -11,7 +11,6 @@
 #include <parsing.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
-#include <air.hpp>
 
 enum error_level
 {
@@ -90,12 +89,15 @@ void InitErrorDefs()
   E(ERROR_RETURN_VALUE_NOT_EXPECTED,DO_NOTHING,           "Shouldn't return anything, trying to return a: %s");
 
   I(ICE_GENERIC,                                          "%s");
-  I(ICE_UNEXPECTED_TOKEN_TYPE,                            "Unexpected token type in %s: %s");
+  I(ICE_UNHANDLED_TOKEN_TYPE,                             "Unhandled token type in %s: %s");
   I(ICE_UNHANDLED_NODE_TYPE,                              "Unhandled node type in %s: %s");
   I(ICE_UNHANDLED_INSTRUCTION_TYPE,                       "Unhandled instruction type (%s) in %s");
   I(ICE_UNHANDLED_SLOT_TYPE,                              "Unhandled slot type (%s) in %s");
   I(ICE_UNHANDLED_OPERATOR,                               "Unhandled operator (token=%s) in %s");
+  I(ICE_NONEXISTANT_AST_PASSLET,                          "Nonexistant passlet for node of type: %s");
+  I(ICE_NONEXISTANT_AIR_PASSLET,                          "Nonexistant passlet for instruction of type: %s");
   I(ICE_UNHANDLED_RELOCATION,                             "Unable to handle relocation of type: %s");
+  I(ICE_FAILED_ASSERTION,                                 "Assertion failed at (%s:%d): %s");
 
 #undef N
 #undef W
@@ -125,24 +127,24 @@ error_state CreateErrorState(error_state_type stateType, ...)
 
     case TRAVERSING_AST:
     {
-      state.astSection.code   = va_arg(args, thing_of_code*);
-      state.astSection.n      = va_arg(args, node*);
+      state.astSection.code   = va_arg(args, ThingOfCode*);
+      state.astSection.node   = va_arg(args, ASTNode*);
     } break;
 
     case CODE_GENERATION:
     case FUNCTION_FILLING_IN:
     {
-      state.code              = va_arg(args, thing_of_code*);
+      state.code              = va_arg(args, ThingOfCode*);
     } break;
 
     case TYPE_FILLING_IN:
     {
-      state.type              = va_arg(args, type_def*);
+      state.type              = va_arg(args, TypeDef*);
     } break;
 
     case GENERATING_AIR:
     {
-      state.instruction       = va_arg(args, air_instruction*);
+      state.instruction       = va_arg(args, AirInstruction*);
     } break;
 
     case LINKING:
@@ -162,12 +164,11 @@ static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",    
  * XXX: `Assert` must not be used in the following methods, because it executes `RaiseError` to report errors.
  * Instead, use this method to crash with a relatively helpful message.
  */
-__attribute__((noreturn))
-void ReportErrorInErrorReporter()
-{
-  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);
-  Crash();
-}
+#define REPORT_ERROR_IN_ERROR_REPORTER()\
+  {\
+  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);\
+  Crash();\
+  }
 
 void RaiseError(error_state& state, error e, ...)
 {
@@ -217,9 +218,14 @@ void RaiseError(error_state& state, error e, ...)
 
     case GENERATING_AIR:
     {
+      Assert(false, "Can't generate AIR rn");
+    } break;
+/*
+    case GENERATING_AIR:
+    {
       fprintf(stderr, "AIR(%u): %s%s: \x1B[0m%s\n", state.instruction->index, levelColors[def.level],
           levelStrings[def.level], message);
-    } break;
+    } break;*/
 
     case CODE_GENERATION:
     {
@@ -244,7 +250,7 @@ void RaiseError(error_state& state, error e, ...)
     {
       if (state.stateType != PARSING_UNIT)
       {
-        ReportErrorInErrorReporter();
+        REPORT_ERROR_IN_ERROR_REPORTER();
       }
 
       roo_parser& parser = *(state.parser);
@@ -279,7 +285,7 @@ void RaiseError(error_state& state, error e, ...)
     {
       if (state.stateType != PARSING_UNIT)
       {
-        ReportErrorInErrorReporter();
+        REPORT_ERROR_IN_ERROR_REPORTER();
       }
 
       roo_parser& parser = *(state.parser);
@@ -319,8 +325,12 @@ void RaiseError(error e, ...)
   va_end(args);
 
   // --- Make sure it doesn't expect us to poison anything - we can't without an error_state ---
-  if (def.poisonStrategy != DO_NOTHING)
+  if (def.poisonStrategy == GIVE_UP)
   {
-    ReportErrorInErrorReporter();
+    Crash();
+  }
+  else if (def.poisonStrategy != DO_NOTHING)
+  {
+    REPORT_ERROR_IN_ERROR_REPORTER();
   }
 }

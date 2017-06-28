@@ -9,7 +9,6 @@
 #include <ast.hpp>
 #include <air.hpp>
 #include <error.hpp>
-#include <scheduler.hpp>
 #include <codegen.hpp>
 #include <module.hpp>
 
@@ -18,31 +17,35 @@
   #include <chrono>
 #endif
 
+#define OUTPUT_DOT
+#ifdef OUTPUT_DOT
+  #include <dotEmitter.hpp>
+#endif
+
+// AST Passes
+#include <variableResolver.hpp>
+
 /*
  * Find and compile all .roo files in the specified directory.
- * NOTE(Isaac): Returns `true` if the compilation was successful, `false` if an error occured.
+ * Returns `true` if the compilation was successful, `false` if an error occured.
  */
-static bool Compile(parse_result& parse, const char* directoryPath)
+static bool Compile(ParseResult& parse, const char* directoryPath)
 {
-  directory dir;
-  OpenDirectory(dir, directoryPath);
+  Directory directory(directoryPath);
   bool failed = false;
 
-  for (auto* f = dir.files.head;
-       f < dir.files.tail;
-       f++)
+  for (File& f : directory.files)
   {
-    if (f->extension && strcmp(f->extension, "roo") == 0)
+    if (f.extension == "roo")
     {
-      printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f->name);
-      bool compileSuccessful = Parse(&parse, f->name);
+      printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f.name.c_str());
+      bool compileSuccessful = Parse(&parse, f.name.c_str());
 //      printf("%20s\n", (compileSuccessful ? "\x1B[32m[PASSED]\x1B[0m" : "\x1B[31m[FAILED]\x1B[0m"));
 
       failed |= !compileSuccessful;
     }
   }
 
-  Free<directory>(dir);
   return !failed;
 }
 
@@ -55,12 +58,8 @@ int main()
 #endif
 
   error_state errorState = CreateErrorState(GENERAL_STUFF);
-  parse_result result;
-  CreateParseResult(result);
-
-  // Create the target for the codegen
-  codegen_target target;
-  InitCodegenTarget(target);
+  ParseResult result;
+  CodegenTarget target;
 
   // Compile the current directory
   if (!Compile(result, "."))
@@ -69,12 +68,8 @@ int main()
   }
 
   // Compile the dependencies
-  for (auto* it = result.dependencies.head;
-       it < result.dependencies.tail;
-       it++)
+  for (DependencyDef* dependency : result.dependencies)
   {
-    dependency_def* dependency = *it;
-
     switch (dependency->type)
     {
       /*
@@ -82,7 +77,7 @@ int main()
        *  - An ELF relocatable called `Prelude` that should be linked against
        *  - A binary file called `Prelude.roomod` that should be imported using `ImportModule`
        */
-      case dependency_def::dependency_type::LOCAL:
+      case DependencyDef::Type::LOCAL:
       {
         // Check the relocatable exists and say to link against it
         if (!DoesFileExist(dependency->path))
@@ -90,7 +85,7 @@ int main()
           RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
         }
 
-        Add<char*>(result.filesToLink, dependency->path);
+        result.filesToLink.push_back(dependency->path);
 
         // Import the module info file
         char* modInfoPath = static_cast<char*>(malloc(sizeof(char)*(strlen(dependency->path)+strlen(ROO_MODULE_EXT)+1u)));
@@ -105,65 +100,35 @@ int main()
         free(modInfoPath);
       } break;
 
-      case dependency_def::dependency_type::REMOTE:
+      case DependencyDef::Type::REMOTE:
       {
+        // TODO
       } break;
     }
   }
 
-  // If we've already encoutered an error somewhere, there's no point carrying on
+  // If we've already encoutered (and hopefully correctly reported) error(s), there's no point carrying on
   if (errorState.hasErrored)
   {
-    Crash(); 
+    RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
   CompleteIR(result);
 
-#ifdef OUTPUT_DOT
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    OutputDOTOfAST(code);
+  #define APPLY_PASS(PassType)\
+  {\
+    PassType pass;\
+    pass.Apply(result);\
+    if (pass.errorState.hasErrored)\
+    {\
+      RaiseError(errorState, ERROR_COMPILE_ERRORS);\
+    }\
   }
-#endif
 
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (!(code->attribs.isPrototype) && HasCode(code))
-    {
-      if (ApplyASTPasses(result, code, code->ast).hasErrored)
-      {
-        RaiseError(errorState, ERROR_COMPILE_ERRORS);
-      }
-    }
-  }
+  APPLY_PASS(VariableResolverPass);
 
 #ifdef OUTPUT_DOT
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    OutputDOTOfAST(code);
-  }
+  APPLY_PASS(DotEmitterPass);
 #endif
 
   if (result.isModule)
@@ -175,44 +140,9 @@ int main()
     free(modulePath);
   }
 
-  // --- Create tasks for generating AIR for functions and operators ---
-  scheduler s;
-  InitScheduler(s);
-
-  for (auto* it = result.codeThings.head;
-       it < result.codeThings.tail;
-       it++)
-  {
-    thing_of_code* code = *it;
-
-    if (code->attribs.isPrototype)
-    {
-      continue;
-    }
-
-    AddTask(s, task_type::GENERATE_AIR, code);
-  }
-
-  // --- Run the tasks ---
-  // TODO: In the future, these are in theory parallelizable, so run them on multiple threads?
-  while (s.tasks.size > 0u)
-  {
-    task_info* task = GetTask(s);
-
-    switch (task->type)
-    {
-      case task_type::GENERATE_AIR:
-      {
-        GenerateAIR(target, task->code);
-
-#ifdef OUTPUT_DOT
-        OutputInterferenceDOT(task->code);
-#endif
-      } break;
-    }
-  }
-
-  Free<scheduler>(s);
+  // --- Generate AIR for each code thing ---
+  AirGenerator airGenerator(target);
+  airGenerator.Apply(result);
 
   if (!(result.name))
   {
@@ -220,9 +150,6 @@ int main()
   }
 
   Generate(result.name, target, result);
-
-  Free<parse_result>(result);
-  Free<codegen_target>(target);
 
 #ifdef TIME_EXECUTION
   auto end = std::chrono::high_resolution_clock::now();

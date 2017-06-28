@@ -3,10 +3,16 @@
  * See LICENCE.md
  */
 
+/*
+ * XXX: This is far more coupled to the rest of the compiler than I'd like (given that all we're doing here is
+ * encoding and decoding ELF files, but this isn't a priority
+ */
+
 #include <cstdio>
 #include <common.hpp>
 #include <ir.hpp>
 #include <air.hpp>
+#include <codegen.hpp>
 
 enum elf_file_type : uint16_t
 {
@@ -199,16 +205,16 @@ enum relocation_type : uint32_t
 
 struct elf_relocation
 {
-  elf_thing*                thing;
-  uint64_t                  offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
-  relocation_type           type;
-  elf_symbol*               symbol;
+  elf_thing*              thing;
+  uint64_t                offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
+  relocation_type         type;
+  elf_symbol*             symbol;
 
   /*
    * NOTE(Isaac): the final addend will be the sum of the offset from the label (if not null) and the constant
    */
-  int64_t                   addend;
-  const instruction_label*  label;
+  int64_t                 addend;
+  const LabelInstruction* label;
 };
 
 // XXX(Isaac): do not call this directly!
@@ -233,25 +239,32 @@ struct elf_symbol;
 
 struct elf_file
 {
-  bool                    isRelocatable;
-  codegen_target*         target;
+  elf_file(CodegenTarget& target, bool isRelocatable);
+  ~elf_file();
 
-  elf_header              header;
-  vector<elf_segment*>    segments;
-  vector<elf_section*>    sections;
-  vector<elf_thing*>      things;
-  vector<elf_symbol*>     symbols;
-  vector<elf_string*>     strings;
-  vector<elf_mapping>     mappings;
-  vector<elf_relocation*> relocations;
-  unsigned int            stringTableTail; // Tail of the string table, relative to the start of the table
-  unsigned int            numSymbols;
-  elf_thing*              rodataThing;
+  bool                          isRelocatable;
+  CodegenTarget*                target;
+
+  elf_header                    header;
+  std::vector<elf_segment*>     segments;
+  std::vector<elf_section*>     sections;
+  std::vector<elf_thing*>       things;
+  std::vector<elf_symbol*>      symbols;
+  std::vector<elf_string*>      strings;
+  std::vector<elf_mapping>      mappings;
+  std::vector<elf_relocation*>  relocations;
+  unsigned int                  stringTableTail; // Tail of the string table, relative to the start of the table
+  unsigned int                  numSymbols;
+  elf_thing*                    rodataThing;
 };
 
-void CreateElf(elf_file& elf, codegen_target& target, bool isRelocatable);
+// TODO XXX FIXME: Temporary measure
+template<typename T>
+void Free(T&);
+// XXX Bleach my eyes
+
 elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const instruction_label* label = nullptr);
+void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const LabelInstruction* label = nullptr);
 elf_thing* CreateRodataThing(elf_file& elf);
 elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol);
 elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);

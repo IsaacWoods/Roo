@@ -1,32 +1,13 @@
 #[Name(test)]
 
-import Prelude
-/*
-operator []<N : uint>(arr : mut uint[N], index : uint) -> mut uint&
-{
-  // TODO: how to represent that we want to do raw pointer arithmetic
-  #[AllowRawPointers]
-  return Cast<mut uint&>(arr) + index
-}
+//import Prelude
+
+#[DefinePrimitive("int", 4u)]
 
 #[Entry]
 fn Main() -> int
 {
-  arr : mut uint[5u]
-  arr[0u] = 7u
-  return 0
-}
-*/
-
-#[Entry]
-fn Main() -> int
-{
-  i : mut uint
-  i = 0u
-  while (i < 5u)
-  {
-    Print("Loop\n")
-    i++
-  }
+  i : mut int
+  i = 5
   return 0
 }

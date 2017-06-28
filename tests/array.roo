@@ -29,3 +29,22 @@ fn Main() -> int
   Print(a[0u])
   return 0
 }
+
+// ORRRR
+
+/*
+operator []<N : uint>(arr : mut uint[N], index : uint) -> mut uint&
+{
+  // TODO: how to represent that we want to do raw pointer arithmetic
+  #[AllowRawPointers]
+  return Cast<mut uint&>(arr) + index
+}
+
+#[Entry]
+fn Main() -> int
+{
+  arr : mut uint[5u]
+  arr[0u] = 7u
+  return 0
+}
+*/

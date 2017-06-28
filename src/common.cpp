@@ -6,10 +6,11 @@
 #include <common.hpp>
 #include <algorithm>
 #include <cstring>
+#include <cstddef>
+#include <cstdarg>
 #include <dirent.h>
-#include <ast.hpp>
-#include <air.hpp>
 #include <sys/stat.h>
+#include <ast.hpp>
 
 #define USING_GDB
 
@@ -28,25 +29,16 @@
   }
 #endif
 
-template<>
-void Free<directory>(directory& dir)
+File::File(const std::string& name, const std::string& extension)
+  :name(name)
+  ,extension(extension)
 {
-  free(dir.path);
-  FreeVector<file>(dir.files);
 }
 
-template<>
-void Free<file>(file& f)
+Directory::Directory(const char* path)
+  :path(strdup(path))
+  ,files()
 {
-  free(f.name);
-  // NOTE(Isaac): don't free the extension string, it shares memory with the path
-}
-
-void OpenDirectory(directory& dir, const char* path)
-{
-  dir.path = strdup(path);
-  InitVector<file>(dir.files);
-
   DIR* d;
   struct dirent* dirent;
 
@@ -58,23 +50,22 @@ void OpenDirectory(directory& dir, const char* path)
 
   while ((dirent = readdir(d)))
   {
-    file f;
-    f.name = strdup(dirent->d_name);
-    f.extension = nullptr;
-
     /*
-     * NOTE(Isaac): if the path is of the form '~/.test', the extension may actually be the base name
+     * XXX: If the path is of the form '~/.test', the extension may actually be the base name.
+     * I don't really think this will be a problem (why would we compile in a hidden directory?) but we may need
+     * to develop a more robust parsing solution for the path.
      */
-    char* dotIndex = strchr(f.name, '.');
-    if (dotIndex)
-    {
-      f.extension = dotIndex + (ptrdiff_t)1u;
-    }
-
-    Add<file>(dir.files, f);
+    char* name = strdup(dirent->d_name);
+    char* dotIndex = strchr(name, '.');
+    files.push_back(File(std::string(dirent->d_name), (dotIndex ? std::string(dotIndex + (ptrdiff_t)1u) : "")));
   }
 
   closedir(d);
+}
+
+Directory::~Directory()
+{
+  delete path;
 }
 
 char* itoa(int num, char* str, int base)

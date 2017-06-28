@@ -5,10 +5,12 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+#include <memory>
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
-#include <vector.hpp>
 
 // NOTE(Isaac): Define this to output .dot files of the AST and interference graph of each function
 #define OUTPUT_DOT
@@ -17,26 +19,33 @@
 [[noreturn]] void Crash();
 
 // --- File stuff and things ---
-struct file
+struct File
 {
-  char* name;
+  File(const std::string& name, const std::string& extension);
 
-  /*
-   * NOTE(Isaac): if the file doesn't have an extension, this is null
-   * NOTE(Isaac): this points into `name`, because it'll be at the end
-   */
-  char* extension;
+  std::string name;
+  std::string extension;
 };
 
-struct directory
+struct Directory
 {
-  char* path;
-  vector<file> files;
-};
+  Directory(const char* path);
+  ~Directory();
 
-void OpenDirectory(directory& dir, const char* path);
+  char*             path;
+  std::vector<File> files;
+};
 
 // --- Common functions ---
 char* itoa(int num, char* str, int base);
 char* ReadFile(const char* path);
 bool DoesFileExist(const char* path);
+
+template<typename... Args>
+std::string FormatString(const std::string& format, Args... args)
+{
+  size_t size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1u;
+  std::unique_ptr<char[]> buffer(new char[size]);
+  std::snprintf(buffer.get(), size, format.c_str(), args...);
+  return std::string(buffer.get(), buffer.get() + size - 1u);
+}

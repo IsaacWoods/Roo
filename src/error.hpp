@@ -57,12 +57,14 @@ enum error
   ERROR_RETURN_VALUE_NOT_EXPECTED,// "Shouldn't return anything, trying to return a: %s"
 
   ICE_GENERIC,                    // "%s"
-  ICE_UNEXPECTED_TOKEN_TYPE,      // "Unexpected token type in %s: %s"
+  ICE_UNHANDLED_TOKEN_TYPE,       // "Unhandled token type in %s: %s"
   ICE_UNHANDLED_NODE_TYPE,        // "Unhandled node type in %s: %s"
   ICE_UNHANDLED_INSTRUCTION_TYPE, // "Unhandled instruction type (%s) in %s"
   ICE_UNHANDLED_SLOT_TYPE,        // "Unhandled slot type (%s) in %s"
   ICE_UNHANDLED_OPERATOR,         // "Unhandled operator (token=%s) in %s"
   ICE_UNHANDLED_RELOCATION,       // "Unable to handle relocation of type: %s"
+  ICE_NONEXISTANT_AST_PASSLET,    // "Nonexistant passlet for node of type: %s"
+  ICE_NONEXISTANT_AIR_PASSLET,    // "Nonexistant passlet for instruction of type: %s"
   ICE_FAILED_ASSERTION,           // "Assertion failed at (%s:%d): %s"
 
   NUM_ERRORS
@@ -81,10 +83,10 @@ enum error_state_type
 };
 
 struct roo_parser;
-struct thing_of_code;
-struct node;
-struct type_def;
-struct air_instruction;
+struct ThingOfCode;
+struct TypeDef;
+struct ASTNode;
+struct AirInstruction;
 
 struct error_state
 {
@@ -95,13 +97,13 @@ struct error_state
   {
     struct
     {
-      thing_of_code*    code;
-      node*             n;
+      ThingOfCode*      code;
+      ASTNode*          node;
     }                 astSection;
     roo_parser*       parser;
-    thing_of_code*    code;
-    type_def*         type;
-    air_instruction*  instruction;
+    ThingOfCode*      code;
+    TypeDef*          type;
+    AirInstruction*   instruction;
   };
 };
 
