@@ -5,8 +5,7 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  i : mut int
-  i = 5
+  i : mut int = 5
   Print("Hello, World!")
   return 0
 }
