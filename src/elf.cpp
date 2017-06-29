@@ -508,6 +508,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
         ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
     {
       functionSymbols.push_back(symbol);
+      printf("Extracting symbol with name: %s\n", symbol->name->str);
     }
   }
 
@@ -518,9 +519,6 @@ void LinkObject(elf_file& elf, const char* objectPath)
     });
 
   // Extract functions from the external object and link them into ourselves
-/*  for (auto* it = functionSymbols.head;
-       it < functionSymbols.tail;
-       it++)*/
   for (auto it = functionSymbols.begin();
        it < functionSymbols.end();
        it++)
@@ -534,12 +532,12 @@ void LinkObject(elf_file& elf, const char* objectPath)
      */
     if (symbol->size == 0u)
     {
-      if ((it+1) < functionSymbols.end())
+      if (std::next(it) < functionSymbols.end())
       {
         /*
          * The size is the difference between the offset of this symbol and the next one
          */
-        symbol->size = (*(it + 1))->value - symbol->value;
+        symbol->size = (*std::next(it))->value - symbol->value;
       }
       else
       {
@@ -571,7 +569,7 @@ void LinkObject(elf_file& elf, const char* objectPath)
      * We create a new symbol for the function, so remove the old one.
      * NOTE(Isaac): This must be stable, because the symbols are sorted by offset.
      */
-    elf.symbols.erase(it);
+    elf.symbols.erase(std::remove(elf.symbols.begin(), elf.symbols.end(), symbol), elf.symbols.end());
   }
 
   // Complete the relocations loaded from the external object

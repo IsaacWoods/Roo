@@ -303,17 +303,15 @@ static void ResolveTypeRef(TypeRef& ref, ParseResult& parse, error_state& errorS
 
   for (TypeDef* type : parse.types)
   {
-    //if (strcmp(type->name, ref.name) == 0)
     if (ref.name == type->name)
     {
-      // XXX(Isaac): this would be a good place to increment a usage counter on `typeIt`, if we ever needed one
+      // XXX(Isaac): this would be a good place to increment a usage counter on the type, if we ever needed one
       ref.isResolved = true;
       ref.resolvedType = type;
       return;
     }
   }
 
-//  RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name);
   RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name.c_str());
 }
 
@@ -463,6 +461,7 @@ void CompleteIR(ParseResult& parse)
   
     for (VariableDef* param : thing->params)
     {
+      Assert(param, "Tried to resolve nullptr parameter");
       ResolveTypeRef(param->type, parse, thing->errorState);
       CompleteVariable(param, thing->errorState);
     }

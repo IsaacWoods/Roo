@@ -40,44 +40,41 @@ char* Read<char*>(FILE* f)
 template<>
 VariableDef* Read<VariableDef*>(FILE* f)
 {
-  VariableDef* var = static_cast<VariableDef*>(malloc(sizeof(VariableDef)));
+  TypeRef type;
+  char* name = Read<char*>(f);
+  type.name = Read<char*>(f);
+  type.isResolved = false;
+  type.isMutable = static_cast<bool>(Read<uint8_t>(f));
+  type.isReference = static_cast<bool>(Read<uint8_t>(f));
+  type.isReferenceMutable = static_cast<bool>(Read<uint8_t>(f));
+  type.arraySize = Read<uint32_t>(f);
+  type.isArray = (type.arraySize > 0u);
+  type.isArraySizeResolved = true;
 
-  var->name = Read<char*>(f);
-  var->type.name = Read<char*>(f);
-  var->type.isResolved = false;
-  var->type.isMutable = static_cast<bool>(Read<uint8_t>(f));
-  var->type.isReference = static_cast<bool>(Read<uint8_t>(f));
-  var->type.isReferenceMutable = static_cast<bool>(Read<uint8_t>(f));
-
-  uint32_t arraySize = Read<uint32_t>(f);
-  var->type.isArray = (arraySize > 0u);
-  var->type.isArraySizeResolved = true;
-  var->type.arraySize = static_cast<unsigned int>(arraySize);
-
-  return var;
+  return new VariableDef(name, type, nullptr);
 }
 
 template<>
 std::vector<VariableDef*> Read<std::vector<VariableDef*>>(FILE* f)
 {
+  std::vector<VariableDef*> vec;
   uint8_t numElements = Read<uint8_t>(f);
-  std::vector<VariableDef*> v(numElements);
 
   for (size_t i = 0u;
        i < numElements;
        i++)
   {
-    v.push_back(Read<VariableDef*>(f));
+    vec.push_back(Read<VariableDef*>(f));
   }
 
-  return v;
+  return vec;
 }
 
 template<>
 TypeDef* Read<TypeDef*>(FILE* f)
 {
-  TypeDef* type = static_cast<TypeDef*>(malloc(sizeof(TypeDef)));
-  type->name = Read<char*>(f);
+  char* name = Read<char*>(f);
+  TypeDef* type = new TypeDef(name);
   type->members = Read<std::vector<VariableDef*>>(f);
   type->errorState = CreateErrorState(TYPE_FILLING_IN, type);
   type->size = static_cast<unsigned int>(Read<uint32_t>(f));
