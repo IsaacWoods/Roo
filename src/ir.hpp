@@ -57,7 +57,7 @@ struct DependencyDef
 
 struct StringConstant
 {
-  StringConstant(ParseResult* parse, char* string);
+  StringConstant(const ParseResult& parse, char* string);
   ~StringConstant();
 
   unsigned int      handle;
@@ -76,7 +76,7 @@ struct TypeDef
 
   char*                       name;
   std::vector<VariableDef*>   members;
-  error_state                 errorState;
+  ErrorState                  errorState;
 
   /*
    * Size of this structure in bytes.
@@ -158,7 +158,7 @@ struct ThingOfCode
   AttribSet                   attribs;
   TypeRef*                    returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
 
-  error_state                 errorState;
+  ErrorState                  errorState;
   std::vector<ThingOfCode*>   calledThings;
 
   // AST representation

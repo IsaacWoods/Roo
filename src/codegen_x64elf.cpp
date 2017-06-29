@@ -277,7 +277,7 @@ static void EmitExtensionModRM(elf_thing* thing, CodegenTarget& target, uint8_t 
   Emit<uint8_t>(thing, modRM);
 }
 
-static void Emit(error_state& errorState, elf_thing* thing, CodegenTarget& target, i instruction, ...)
+static void Emit(ErrorState& errorState, elf_thing* thing, CodegenTarget& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -541,7 +541,7 @@ static void Emit(error_state& errorState, elf_thing* thing, CodegenTarget& targe
 static void GenerateBootstrap(elf_file& elf, CodegenTarget& target, elf_thing* thing, ParseResult& parse)
 {
   elf_symbol* entrySymbol = nullptr;
-  error_state errorState = CreateErrorState(GENERAL_STUFF);
+  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
 
   for (ThingOfCode* thing : parse.codeThings)
   {
@@ -1047,7 +1047,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
   // --- Generate error states and symbols for things of code ---
   for (ThingOfCode* thing : result.codeThings)
   {
-    thing->errorState = CreateErrorState(CODE_GENERATION, thing);
+    thing->errorState = ErrorState(ErrorState::Type::CODE_GENERATION, thing);
 
     /*
      * If it's a prototype, we want to reference the symbol of an already loaded (hopefully) function.

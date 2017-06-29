@@ -16,7 +16,7 @@
 #define Assert(expression, message)\
   (void)((expression) || (RaiseError(ICE_FAILED_ASSERTION, __FILE__, __LINE__, message),false));
 
-enum error
+enum Error
 {
   NOTE_IGNORED_ELF_SECTION,       // "Ignoring section in ELF relocatable: %s"
 
@@ -70,28 +70,30 @@ enum error
   NUM_ERRORS
 };
 
-enum error_state_type
-{
-  GENERAL_STUFF,
-  PARSING_UNIT,         // `parser`     field is valid
-  TRAVERSING_AST,       // `astSection` field is valid
-  FUNCTION_FILLING_IN,  // `code`       field is valid
-  TYPE_FILLING_IN,      // `type`       field is valid
-  GENERATING_AIR,       // `instuction` field is valid
-  CODE_GENERATION,      // `code`       field is valid
-  LINKING
-};
-
-struct roo_parser;
+struct Parser;
 struct ThingOfCode;
 struct TypeDef;
 struct ASTNode;
 struct AirInstruction;
 
-struct error_state
+struct ErrorState
 {
-  error_state_type  stateType;
-  bool              hasErrored;
+  enum Type
+  {
+    GENERAL_STUFF,
+    PARSING_UNIT,         // `parser`     field is valid
+    TRAVERSING_AST,       // `astSection` field is valid
+    FUNCTION_FILLING_IN,  // `code`       field is valid
+    TYPE_FILLING_IN,      // `type`       field is valid
+    GENERATING_AIR,       // `instuction` field is valid
+    CODE_GENERATION,      // `code`       field is valid
+    LINKING
+  };
+
+  ErrorState(Type type, ...);
+
+  Type stateType;
+  bool hasErrored;
 
   union
   {
@@ -99,14 +101,13 @@ struct error_state
     {
       ThingOfCode*      code;
       ASTNode*          node;
-    }                 astSection;
-    roo_parser*       parser;
-    ThingOfCode*      code;
-    TypeDef*          type;
-    AirInstruction*   instruction;
+    }               astSection;
+    Parser*         parser;
+    ThingOfCode*    code;
+    TypeDef*        type;
+    AirInstruction* instruction;
   };
 };
 
-error_state CreateErrorState(error_state_type type, ...);
-void RaiseError(error_state& state, error e, ...);
-void RaiseError(error e, ...);
+void RaiseError(ErrorState& state, Error e, ...);
+void RaiseError(Error e, ...);

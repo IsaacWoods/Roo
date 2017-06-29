@@ -15,7 +15,7 @@ struct DotState
   ~DotState();
 
   unsigned int  nodeCounter;
-  error_state   errorState;
+  ErrorState    errorState;
   FILE*         f;
 };
 

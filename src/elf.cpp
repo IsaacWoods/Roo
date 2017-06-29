@@ -323,7 +323,7 @@ static void ParseSectionHeader(elf_file& elf, elf_object& object)
   }
 }
 
-static void ParseSymbolTable(error_state& errorState, elf_file& elf, elf_object& object, elf_section* table)
+static void ParseSymbolTable(ErrorState& errorState, elf_file& elf, elf_object& object, elf_section* table)
 {
   if (table->entrySize != SYMBOL_TABLE_ENTRY_SIZE)
   {
@@ -375,7 +375,7 @@ static void ParseSymbolTable(error_state& errorState, elf_file& elf, elf_object&
   }
 }
 
-static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_object& object, elf_section* section)
+static void ParseRelocationSection(ErrorState& errorState, elf_file& elf, elf_object& object, elf_section* section)
 {
   const unsigned int RELOCATION_ENTRY_SIZE = 0x18;
 
@@ -415,7 +415,7 @@ static void ParseRelocationSection(error_state& errorState, elf_file& elf, elf_o
 
 void LinkObject(elf_file& elf, const char* objectPath)
 {
-  error_state errorState = CreateErrorState(LINKING);
+  ErrorState errorState(ErrorState::Type::LINKING);
 
   elf_object object;
   object.path = objectPath;
@@ -785,7 +785,7 @@ static void EmitThing(FILE* f, elf_file& elf, elf_thing* thing, elf_section* sec
  * This resolves the symbols in the symbol table that are actually referencing symbols
  * that haven't been linked yet.
  */
-static void ResolveUndefinedSymbols(error_state& errorState, elf_file& elf)
+static void ResolveUndefinedSymbols(ErrorState& errorState, elf_file& elf)
 {
   /*
    * NOTE(Isaac): We can't start the second loop from the next symbol (to make it O(n log n)) because we can
@@ -855,7 +855,7 @@ const char* GetRelocationTypeName(relocation_type type)
   return nullptr;
 }
 
-static void CompleteRelocations(error_state& errorState, FILE* f, elf_file& elf)
+static void CompleteRelocations(ErrorState& errorState, FILE* f, elf_file& elf)
 {
   long int currentPosition = ftell(f);
 
@@ -939,7 +939,7 @@ elf_file::elf_file(CodegenTarget& target, bool isRelocatable)
   ,strings()
   ,mappings()
   ,relocations()
-  ,stringTableTail(1u)
+  ,stringTableTail(1u)    // The ELF standard requires us to have a null byte at the beginning of string tables
   ,numSymbols(0u)
   ,rodataThing(nullptr)
 {
@@ -960,7 +960,7 @@ elf_file::~elf_file()
 void WriteElf(elf_file& elf, const char* path)
 {
   FILE* f = fopen(path, "wb");
-  error_state errorState = CreateErrorState(LINKING);
+  ErrorState errorState(ErrorState::Type::LINKING);
 
   if (!f)
   {

@@ -11,8 +11,9 @@
 #include <parsing.hpp>
 #include <ir.hpp>
 #include <ast.hpp>
+#include <air.hpp>
 
-enum error_level
+enum ErrorLevel
 {
   NOTE,
   WARNING,
@@ -20,7 +21,7 @@ enum error_level
   ICE,
 };
 
-enum poison_strategy
+enum PoisonStrategy
 {
   DO_NOTHING,
   SKIP_TOKEN,
@@ -32,22 +33,22 @@ enum poison_strategy
   GIVE_UP
 };
 
-struct error_def
+struct ErrorDef
 {
-  error_level level;
-  poison_strategy poisonStrategy;
-  const char* messageFmt;
+  ErrorLevel      level;
+  PoisonStrategy  poisonStrategy;
+  const char*     messageFmt;
 };
 
-error_def errors[NUM_ERRORS] = {};
+ErrorDef errors[NUM_ERRORS] = {};
 
 __attribute__((constructor))
 void InitErrorDefs()
 {
-#define N(tag, msg)             errors[tag] = error_def{error_level::NOTE, poison_strategy::DO_NOTHING, msg};
-#define W(tag, msg)             errors[tag] = error_def{error_level::WARNING, poison_strategy::DO_NOTHING, msg};
-#define E(tag, poisoning, msg)  errors[tag] = error_def{error_level::ERROR, poison_strategy::poisoning, msg};
-#define I(tag, msg)             errors[tag] = error_def{error_level::ICE, poison_strategy::GIVE_UP, msg};
+#define N(tag, msg)             errors[tag] = ErrorDef{ErrorLevel::NOTE,    PoisonStrategy::DO_NOTHING, msg};
+#define W(tag, msg)             errors[tag] = ErrorDef{ErrorLevel::WARNING, PoisonStrategy::DO_NOTHING, msg};
+#define E(tag, poisoning, msg)  errors[tag] = ErrorDef{ErrorLevel::ERROR,   PoisonStrategy::poisoning,  msg};
+#define I(tag, msg)             errors[tag] = ErrorDef{ErrorLevel::ICE,     PoisonStrategy::GIVE_UP,    msg};
 
   N(NOTE_IGNORED_ELF_SECTION,                             "Ignored section in ELF relocatable: %s");
 
@@ -105,55 +106,47 @@ void InitErrorDefs()
 #undef I
 }
 
-error_state CreateErrorState(error_state_type stateType, ...)
+ErrorState::ErrorState(ErrorState::Type stateType, ...)
+  :stateType(stateType)
+  ,hasErrored(false)
 {
   va_list args;
   va_start(args, stateType);
 
-  error_state state;
-  state.stateType = stateType;
-  state.hasErrored = false;
-
   switch (stateType)
   {
-    case GENERAL_STUFF:
+    case ErrorState::Type::GENERAL_STUFF:
+    case ErrorState::Type::LINKING:
     {
     } break;
 
-    case PARSING_UNIT:
+    case ErrorState::Type::PARSING_UNIT:
     {
-      state.parser            = va_arg(args, roo_parser*);
+      parser = va_arg(args, Parser*);
     } break;
 
-    case TRAVERSING_AST:
+    case ErrorState::Type::TRAVERSING_AST:
     {
-      state.astSection.code   = va_arg(args, ThingOfCode*);
-      state.astSection.node   = va_arg(args, ASTNode*);
+      astSection.code = va_arg(args, ThingOfCode*);
+      astSection.node = va_arg(args, ASTNode*);
     } break;
 
-    case CODE_GENERATION:
-    case FUNCTION_FILLING_IN:
+    case ErrorState::Type::CODE_GENERATION:
+    case ErrorState::Type::FUNCTION_FILLING_IN:
     {
-      state.code              = va_arg(args, ThingOfCode*);
+      code = va_arg(args, ThingOfCode*);
     } break;
 
-    case TYPE_FILLING_IN:
+    case ErrorState::Type::TYPE_FILLING_IN:
     {
-      state.type              = va_arg(args, TypeDef*);
+      type = va_arg(args, TypeDef*);
     } break;
 
     case GENERATING_AIR:
     {
-      state.instruction       = va_arg(args, AirInstruction*);
-    } break;
-
-    case LINKING:
-    {
+      instruction = va_arg(args, AirInstruction*);
     } break;
   }
-
-  va_end(args);
-  return state;
 }
 
 //                                   White          Light Purple    Orange          Cyan
@@ -170,11 +163,11 @@ static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",    
   Crash();\
   }
 
-void RaiseError(error_state& state, error e, ...)
+void RaiseError(ErrorState& state, Error e, ...)
 {
   va_list args;
   va_start(args, e);
-  const error_def& def = errors[e];
+  const ErrorDef& def = errors[e];
 
   // Mark to the error state that an error has occured in its domain
   state.hasErrored = true;
@@ -188,51 +181,45 @@ void RaiseError(error_state& state, error e, ...)
 
   switch (state.stateType)
   {
-    case GENERAL_STUFF:
+    case ErrorState::Type::GENERAL_STUFF:
     {
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
     } break;
 
-    case PARSING_UNIT:
+    case ErrorState::Type::PARSING_UNIT:
     {
       fprintf(stderr, "\x1B[1;37m%s(%u:%u):\x1B[0m %s%s: \x1B[0m%s\n", state.parser->path,
           state.parser->currentLine, state.parser->currentLineOffset, levelColors[def.level],
           levelStrings[def.level], message);
     } break;
 
-    case TRAVERSING_AST:
+    case ErrorState::Type::TRAVERSING_AST:
     {
       // TODO(Isaac): be more helpful by working out where the AST node is in the source
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
     } break;
 
-    case FUNCTION_FILLING_IN:
+    case ErrorState::Type::FUNCTION_FILLING_IN:
     {
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
     } break;
 
-    case TYPE_FILLING_IN:
+    case ErrorState::Type::TYPE_FILLING_IN:
     {
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
     } break;
 
-    case GENERATING_AIR:
+    case ErrorState::Type::GENERATING_AIR:
     {
-      Assert(false, "Can't generate AIR rn");
+      fprintf(stderr, "AIR(%u): %s%s: \x1B[0m%s\n", state.instruction->index, levelColors[def.level], levelStrings[def.level], message);
     } break;
-/*
-    case GENERATING_AIR:
-    {
-      fprintf(stderr, "AIR(%u): %s%s: \x1B[0m%s\n", state.instruction->index, levelColors[def.level],
-          levelStrings[def.level], message);
-    } break;*/
 
-    case CODE_GENERATION:
+    case ErrorState::Type::CODE_GENERATION:
     {
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
     } break;
 
-    case LINKING:
+    case ErrorState::Type::LINKING:
     {
       fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
     } break;
@@ -248,12 +235,12 @@ void RaiseError(error_state& state, error e, ...)
 
     case SKIP_TOKEN:
     {
-      if (state.stateType != PARSING_UNIT)
+      if (state.stateType != ErrorState::Type::PARSING_UNIT)
       {
         REPORT_ERROR_IN_ERROR_REPORTER();
       }
 
-      roo_parser& parser = *(state.parser);
+      Parser& parser = *(state.parser);
       NextToken(parser, false);
     } break;
     
@@ -265,9 +252,9 @@ void RaiseError(error_state& state, error e, ...)
 
     case TO_END_OF_STATEMENT:
     {
-      if (state.stateType == PARSING_UNIT)
+      if (state.stateType == ErrorState::Type::PARSING_UNIT)
       {
-        roo_parser& parser = *(state.parser);
+        Parser& parser = *(state.parser);
         while (PeekToken(parser, false).type != TOKEN_LINE)
         {
           NextToken(parser, false);
@@ -283,12 +270,12 @@ void RaiseError(error_state& state, error e, ...)
 
     case TO_END_OF_ATTRIBUTE:
     {
-      if (state.stateType != PARSING_UNIT)
+      if (state.stateType != ErrorState::Type::PARSING_UNIT)
       {
         REPORT_ERROR_IN_ERROR_REPORTER();
       }
 
-      roo_parser& parser = *(state.parser);
+      Parser& parser = *(state.parser);
       while (PeekToken(parser).type != TOKEN_RIGHT_BLOCK)
       {
         NextToken(parser);
@@ -312,11 +299,11 @@ void RaiseError(error_state& state, error e, ...)
   }
 }
 
-void RaiseError(error e, ...)
+void RaiseError(Error e, ...)
 {
   va_list args;
   va_start(args, e);
-  const error_def& def = errors[e];
+  const ErrorDef& def = errors[e];
 
   char message[1024u];
   vsnprintf(message, 1024u, def.messageFmt, args);
@@ -324,7 +311,7 @@ void RaiseError(error e, ...)
   fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
   va_end(args);
 
-  // --- Make sure it doesn't expect us to poison anything - we can't without an error_state ---
+  // --- Make sure it doesn't expect us to poison anything - we can't without an ErrorState ---
   if (def.poisonStrategy == GIVE_UP)
   {
     Crash();

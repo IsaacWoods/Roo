@@ -8,5 +8,5 @@
 #include <error.hpp>
 #include <ir.hpp>
 
-error_state ImportModule(const char* modulePath, ParseResult& parse);
-error_state ExportModule(const char* outputPath, ParseResult& parse);
+ErrorState ImportModule(const char* modulePath, ParseResult& parse);
+ErrorState ExportModule(const char* outputPath, ParseResult& parse);

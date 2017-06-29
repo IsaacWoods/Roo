@@ -41,13 +41,13 @@ DependencyDef::~DependencyDef()
   delete path;
 }
 
-StringConstant::StringConstant(ParseResult* parse, char* string)
+StringConstant::StringConstant(const ParseResult& parse, char* string)
   :string(string)
   ,offset(0u)
 {
-  if (parse->strings.size() > 0u)
+  if (parse.strings.size() > 0u)
   {
-    handle = parse->strings.back()->handle + 1u;
+    handle = parse.strings.back()->handle + 1u;
   }
   else
   {
@@ -63,7 +63,7 @@ StringConstant::~StringConstant()
 TypeDef::TypeDef(char* name)
   :name(name)
   ,members()
-  ,errorState(CreateErrorState(TYPE_FILLING_IN, this))
+  ,errorState(ErrorState::Type::TYPE_FILLING_IN, this)
   ,size(UINT_MAX)
 {
 }
@@ -123,7 +123,7 @@ ThingOfCode::ThingOfCode(ThingOfCode::Type type, ...)
   ,shouldAutoReturn(false)
   ,attribs()
   ,returnType(nullptr)
-  ,errorState(CreateErrorState(FUNCTION_FILLING_IN, this))
+  ,errorState(ErrorState::Type::FUNCTION_FILLING_IN, this)
   ,ast(nullptr)
   ,stackFrameSize(0u)
   ,airHead(nullptr)
@@ -297,7 +297,7 @@ bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability)
   return true;
 }
 
-static void ResolveTypeRef(TypeRef& ref, ParseResult& parse, error_state& errorState)
+static void ResolveTypeRef(TypeRef& ref, ParseResult& parse, ErrorState& errorState)
 {
   Assert(!(ref.isResolved), "Tried to resolve type reference that is already resolved");
 
@@ -422,7 +422,7 @@ char* MangleName(ThingOfCode* thing)
   return nullptr;
 }
 
-static void CompleteVariable(VariableDef* var, error_state& errorState)
+static void CompleteVariable(VariableDef* var, ErrorState& errorState)
 {
   // If it's an array, resolve the size
   if (var->type.isArray)

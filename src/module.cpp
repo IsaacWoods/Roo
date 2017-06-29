@@ -76,7 +76,6 @@ TypeDef* Read<TypeDef*>(FILE* f)
   char* name = Read<char*>(f);
   TypeDef* type = new TypeDef(name);
   type->members = Read<std::vector<VariableDef*>>(f);
-  type->errorState = CreateErrorState(TYPE_FILLING_IN, type);
   type->size = static_cast<unsigned int>(Read<uint32_t>(f));
 
   return type;
@@ -117,9 +116,9 @@ ThingOfCode* Read<ThingOfCode*>(FILE* f)
   return thing;
 }
 
-error_state ImportModule(const char* modulePath, ParseResult& parse)
+ErrorState ImportModule(const char* modulePath, ParseResult& parse)
 {
-  error_state errorState = CreateErrorState(GENERAL_STUFF);
+  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
   FILE* f = fopen(modulePath, "rb");
 
   if (!f)
@@ -169,13 +168,13 @@ error_state ImportModule(const char* modulePath, ParseResult& parse)
 }
 
 template<typename T>
-void Emit(FILE* f, T value, error_state& /*errorState*/)
+void Emit(FILE* f, T value, ErrorState& /*errorState*/)
 {
   fwrite(&value, sizeof(T), 1, f);
 }
 
 template<>
-void Emit<const char*>(FILE* f, const char* value, error_state& errorState)
+void Emit<const char*>(FILE* f, const char* value, ErrorState& errorState)
 {
   uint8_t length = static_cast<uint8_t>(strlen(value));
   Emit<uint8_t>(f, length+1u, errorState);  // We also need to include a null-terminator in the length
@@ -190,7 +189,7 @@ void Emit<const char*>(FILE* f, const char* value, error_state& errorState)
 }
 
 template<>
-void Emit<VariableDef*>(FILE* f, VariableDef* value, error_state& errorState)
+void Emit<VariableDef*>(FILE* f, VariableDef* value, ErrorState& errorState)
 {
   Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a VariableDef");
   Emit<const char*>(f, value->name, errorState);
@@ -211,7 +210,7 @@ void Emit<VariableDef*>(FILE* f, VariableDef* value, error_state& errorState)
 }
 
 template<>
-void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, error_state& errorState)
+void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, ErrorState& errorState)
 {
   Emit<uint8_t>(f, value.size(), errorState);
 
@@ -222,7 +221,7 @@ void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, e
 }
 
 template<>
-void Emit<TypeDef*>(FILE* f, TypeDef* value, error_state& errorState)
+void Emit<TypeDef*>(FILE* f, TypeDef* value, ErrorState& errorState)
 {
   Emit<const char*>(f, value->name, errorState);
   Emit<std::vector<VariableDef*>>(f, value->members, errorState);
@@ -230,7 +229,7 @@ void Emit<TypeDef*>(FILE* f, TypeDef* value, error_state& errorState)
 }
 
 template<>
-void Emit<ThingOfCode*>(FILE* f, ThingOfCode* thing, error_state& errorState)
+void Emit<ThingOfCode*>(FILE* f, ThingOfCode* thing, ErrorState& errorState)
 {
   switch (thing->type)
   {
@@ -250,9 +249,9 @@ void Emit<ThingOfCode*>(FILE* f, ThingOfCode* thing, error_state& errorState)
   }
 }
 
-error_state ExportModule(const char* outputPath, ParseResult& parse)
+ErrorState ExportModule(const char* outputPath, ParseResult& parse)
 {
-  error_state errorState = CreateErrorState(GENERAL_STUFF);
+  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
   FILE* f = fopen(outputPath, "wb");
 
   if (!f)

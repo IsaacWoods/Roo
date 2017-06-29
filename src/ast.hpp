@@ -224,12 +224,12 @@ struct ASTPass
 {
   ASTPass(bool errorOnNonexistantPass)
     :errorOnNonexistantPass(errorOnNonexistantPass)
-    ,errorState(CreateErrorState(GENERAL_STUFF)) // TODO: better error state
+    ,errorState(ErrorState::Type::GENERAL_STUFF) // TODO: better error state
   {
   }
 
-  bool errorOnNonexistantPass;
-  error_state errorState;
+  bool        errorOnNonexistantPass;
+  ErrorState  errorState;
 
   #define BASE_CASE(nodeType)\
   {\

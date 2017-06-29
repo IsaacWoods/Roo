@@ -39,10 +39,10 @@ static bool Compile(ParseResult& parse, const char* directoryPath)
     if (f.extension == "roo")
     {
       printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f.name.c_str());
-      bool compileSuccessful = Parse(&parse, f.name.c_str());
+      Parser parser(parse, f.name.c_str());
 //      printf("%20s\n", (compileSuccessful ? "\x1B[32m[PASSED]\x1B[0m" : "\x1B[31m[FAILED]\x1B[0m"));
 
-      failed |= !compileSuccessful;
+      failed |= parser.errorState.hasErrored;
     }
   }
 
@@ -57,7 +57,7 @@ int main()
   auto begin = std::chrono::high_resolution_clock::now();
 #endif
 
-  error_state errorState = CreateErrorState(GENERAL_STUFF);
+  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
   ParseResult result;
   CodegenTarget target;
 

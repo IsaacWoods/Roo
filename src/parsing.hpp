@@ -95,8 +95,11 @@ struct token
   };
 };
 
-struct roo_parser
+struct Parser
 {
+  Parser(ParseResult& result, const char* sourcePath);
+  ~Parser();
+
   const char*     path;               // NOTE(Isaac): the path of the thing we are compiling
   char*           source;
   const char*     currentChar;        // NOTE(Isaac): this points into `source`
@@ -106,11 +109,10 @@ struct roo_parser
   token           currentToken;
   token           nextToken;
 
-  ParseResult*    result;
-  error_state     errorState;
+  ParseResult&    result;
+  ErrorState      errorState;
 };
 
-token PeekToken(roo_parser& parser, bool ignoreLines = true);
-token NextToken(roo_parser& parser, bool ignoreLines = true);
+token PeekToken(Parser& parser, bool ignoreLines = true);
+token NextToken(Parser& parser, bool ignoreLines = true);
 const char* GetTokenName(token_type type);
-bool Parse(ParseResult* result, const char* sourcePath);

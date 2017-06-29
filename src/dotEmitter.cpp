@@ -7,7 +7,7 @@
 
 DotState::DotState(const char* fileName)
   :nodeCounter(0u)
-  ,errorState(CreateErrorState(GENERAL_STUFF))
+  ,errorState(ErrorState::Type::GENERAL_STUFF)
   ,f(fopen(fileName, "w"))
 {
   if (!f)

@@ -23,7 +23,7 @@
 #if 0
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
-  static void Log_(roo_parser& /*parser*/, const char* fmt, ...)
+  static void Log_(Parser& /*parser*/, const char* fmt, ...)
   {
     va_list args;
     va_start(args, fmt);
@@ -34,7 +34,7 @@
   #define Log(parser, ...)
 #endif
 
-static inline char* GetTextFromToken(roo_parser& parser, const token& tkn)
+static inline char* GetTextFromToken(Parser& parser, const token& tkn)
 {
   // NOTE(Isaac): this is the upper bound of the amount of memory we need to store the string representation
   char* text = static_cast<char*>(malloc(sizeof(char) * (tkn.textLength + 1u)));
@@ -81,7 +81,7 @@ static inline char* GetTextFromToken(roo_parser& parser, const token& tkn)
   return text;
 }
 
-static char NextChar(roo_parser& parser)
+static char NextChar(Parser& parser)
 {
   // Don't dereference memory past the end of the string
   if (*(parser.currentChar) == '\0')
@@ -128,13 +128,13 @@ static bool IsHexDigit(char c)
   return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
 }
 
-static inline token MakeToken(roo_parser& parser, token_type type, unsigned int offset, const char* startChar,
+static inline token MakeToken(Parser& parser, token_type type, unsigned int offset, const char* startChar,
     unsigned int length)
 {
   return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-static token LexName(roo_parser& parser)
+static token LexName(Parser& parser)
 {
   // NOTE(Isaac): Minus one to get the current char as well
   const char* startChar = parser.currentChar - 1u;
@@ -170,7 +170,7 @@ static token LexName(roo_parser& parser)
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
 }
 
-static token LexNumber(roo_parser& parser)
+static token LexNumber(Parser& parser)
 {
   const char* startChar = parser.currentChar - 1u;
   token_type type = TOKEN_SIGNED_INT;
@@ -231,7 +231,7 @@ static token LexNumber(roo_parser& parser)
   return tkn;
 }
 
-static token LexHexNumber(roo_parser& parser)
+static token LexHexNumber(Parser& parser)
 {
   NextChar(parser); // NOTE(Isaac): skip over the 'x'
   const char* startChar = parser.currentChar;
@@ -252,7 +252,7 @@ static token LexHexNumber(roo_parser& parser)
   return tkn;
 }
 
-static token LexBinaryNumber(roo_parser& parser)
+static token LexBinaryNumber(Parser& parser)
 {
   NextChar(parser); // NOTE(Isaac): skip over the 'b'
   const char* startChar = parser.currentChar;
@@ -274,7 +274,7 @@ static token LexBinaryNumber(roo_parser& parser)
   return tkn;
 }
 
-static token LexString(roo_parser& parser)
+static token LexString(Parser& parser)
 {
   const char* startChar = parser.currentChar;
 
@@ -292,7 +292,7 @@ static token LexString(roo_parser& parser)
   return MakeToken(parser, TOKEN_STRING, tokenOffset, startChar, (unsigned int)length);
 }
 
-static token LexCharConstant(roo_parser& parser)
+static token LexCharConstant(Parser& parser)
 {
   const char* c = parser.currentChar;
   NextChar(parser);
@@ -305,7 +305,7 @@ static token LexCharConstant(roo_parser& parser)
   return MakeToken(parser, TOKEN_CHAR_CONSTANT, (unsigned int)((uintptr_t)c - (uintptr_t)parser.source), c, 1u);
 }
 
-static token LexNext(roo_parser& parser)
+static token LexNext(Parser& parser)
 {
   token_type type = TOKEN_INVALID;
 
@@ -629,7 +629,7 @@ EmitSimpleToken:
   return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
 }
 
-token PeekToken(roo_parser& parser, bool ignoreLines)
+token PeekToken(Parser& parser, bool ignoreLines)
 {
   if (ignoreLines)
   {
@@ -642,7 +642,7 @@ token PeekToken(roo_parser& parser, bool ignoreLines)
   return parser.currentToken;
 }
 
-token NextToken(roo_parser& parser, bool ignoreLines)
+token NextToken(Parser& parser, bool ignoreLines)
 {
   parser.currentToken = parser.nextToken;
   parser.nextToken = LexNext(parser);
@@ -658,7 +658,7 @@ token NextToken(roo_parser& parser, bool ignoreLines)
   return parser.currentToken;
 }
 
-static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
+static token PeekNextToken(Parser& parser, bool ignoreLines = true)
 {
   if (!ignoreLines)
   {
@@ -685,7 +685,7 @@ static token PeekNextToken(roo_parser& parser, bool ignoreLines = true)
 }
 
 #if 0
-static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
+static void PeekNPrint(Parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
@@ -703,7 +703,7 @@ static void PeekNPrint(roo_parser& parser, bool ignoreLines = true)
   }
 }
 
-static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
+static void PeekNPrintNext(Parser& parser, bool ignoreLines = true)
 {
   if (PeekNextToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
   {
@@ -722,7 +722,7 @@ static void PeekNPrintNext(roo_parser& parser, bool ignoreLines = true)
 }
 #endif
 
-static inline void Consume(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline void Consume(Parser& parser, token_type expectedType, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type != expectedType)
   {
@@ -732,7 +732,7 @@ static inline void Consume(roo_parser& parser, token_type expectedType, bool ign
   NextToken(parser, ignoreLines);
 }
 
-static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline void ConsumeNext(Parser& parser, token_type expectedType, bool ignoreLines = true)
 {
   token_type next = NextToken(parser, ignoreLines).type;
   
@@ -744,19 +744,19 @@ static inline void ConsumeNext(roo_parser& parser, token_type expectedType, bool
   NextToken(parser, ignoreLines);
 }
 
-static inline bool Match(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline bool Match(Parser& parser, token_type expectedType, bool ignoreLines = true)
 {
   return (PeekToken(parser, ignoreLines).type == expectedType);
 }
 
-static inline bool MatchNext(roo_parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline bool MatchNext(Parser& parser, token_type expectedType, bool ignoreLines = true)
 {
   return (PeekNextToken(parser, ignoreLines).type == expectedType);
 }
 
 // --- Parsing ---
-typedef ASTNode* (*prefix_parselet)(roo_parser&);
-typedef ASTNode* (*infix_parselet)(roo_parser&, ASTNode*);
+typedef ASTNode* (*prefix_parselet)(Parser&);
+typedef ASTNode* (*infix_parselet)(Parser&, ASTNode*);
 
 prefix_parselet g_prefixMap[NUM_TOKENS];
 infix_parselet  g_infixMap[NUM_TOKENS];
@@ -766,7 +766,7 @@ unsigned int    g_precedenceTable[NUM_TOKENS];
  * Parses expressions.
  * If the previous operator is right-associative, the new precedence should be one less than that of the operator
  */
-static ASTNode* ParseExpression(roo_parser& parser, unsigned int precedence = 0u)
+static ASTNode* ParseExpression(Parser& parser, unsigned int precedence = 0u)
 {
   Log(parser, "--> ParseExpression(%u)\n", precedence);
   prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
@@ -796,7 +796,7 @@ static ASTNode* ParseExpression(roo_parser& parser, unsigned int precedence = 0u
   return expression;
 }
 
-static TypeRef ParseTypeRef(roo_parser& parser)
+static TypeRef ParseTypeRef(Parser& parser)
 {
   TypeRef ref;
   
@@ -833,7 +833,7 @@ static TypeRef ParseTypeRef(roo_parser& parser)
   return ref;
 }
 
-static void ParseParameterList(roo_parser& parser, std::vector<VariableDef*>& params)
+static void ParseParameterList(Parser& parser, std::vector<VariableDef*>& params)
 {
   Consume(parser, TOKEN_LEFT_PAREN);
 
@@ -867,7 +867,7 @@ static void ParseParameterList(roo_parser& parser, std::vector<VariableDef*>& pa
   }
 }
 
-static VariableDef* ParseVariableDef(roo_parser& parser)
+static VariableDef* ParseVariableDef(Parser& parser)
 {
   char* name = GetTextFromToken(parser, PeekToken(parser));
   ConsumeNext(parser, TOKEN_COLON);
@@ -893,8 +893,8 @@ static VariableDef* ParseVariableDef(roo_parser& parser)
   return variable;
 }
 
-static ASTNode* ParseStatement(roo_parser& parser, ThingOfCode* scope, bool isInLoop = false);
-static ASTNode* ParseBlock(roo_parser& parser, ThingOfCode* scope, bool isInLoop = false)
+static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope, bool isInLoop = false);
+static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope, bool isInLoop = false)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -926,7 +926,7 @@ static ASTNode* ParseBlock(roo_parser& parser, ThingOfCode* scope, bool isInLoop
   return code;
 }
 
-static ASTNode* ParseIf(roo_parser& parser, ThingOfCode* scope)
+static ASTNode* ParseIf(Parser& parser, ThingOfCode* scope)
 {
   Log(parser, "--> If\n");
 
@@ -956,7 +956,7 @@ static ASTNode* ParseIf(roo_parser& parser, ThingOfCode* scope)
   return new BranchNode(condition, thenCode, elseCode);
 }
 
-static ASTNode* ParseWhile(roo_parser& parser, ThingOfCode* scope)
+static ASTNode* ParseWhile(Parser& parser, ThingOfCode* scope)
 {
   Log(parser, "--> While\n");
 
@@ -977,7 +977,7 @@ static ASTNode* ParseWhile(roo_parser& parser, ThingOfCode* scope)
   return new WhileNode(reinterpret_cast<ConditionNode*>(condition), code);
 }
 
-static ASTNode* ParseStatement(roo_parser& parser, ThingOfCode* scope, bool isInLoop)
+static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope, bool isInLoop)
 {
   Log(parser, "--> Statement");
   ASTNode* result = nullptr;
@@ -1056,7 +1056,7 @@ static ASTNode* ParseStatement(roo_parser& parser, ThingOfCode* scope, bool isIn
   return result;
 }
 
-static void ParseTypeDef(roo_parser& parser)
+static void ParseTypeDef(Parser& parser)
 {
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
@@ -1072,11 +1072,11 @@ static void ParseTypeDef(roo_parser& parser)
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);
-  parser.result->types.push_back(type);
+  parser.result.types.push_back(type);
   Log(parser, "<-- TypeDef\n");
 }
 
-static void ParseImport(roo_parser& parser)
+static void ParseImport(Parser& parser)
 {
   Log(parser, "--> Import\n");
   Consume(parser, TOKEN_IMPORT);
@@ -1103,19 +1103,19 @@ static void ParseImport(roo_parser& parser)
     }
   }
 
-  parser.result->dependencies.push_back(dependency);
+  parser.result.dependencies.push_back(dependency);
   NextToken(parser);
   Log(parser, "<-- Import\n");
 }
 
-static void ParseFunction(roo_parser& parser, AttribSet& attribs)
+static void ParseFunction(Parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Function(");
 
   ThingOfCode* function = new ThingOfCode(ThingOfCode::Type::FUNCTION, GetTextFromToken(parser, NextToken(parser)));
   function->attribs = attribs;
   Log(parser, "%s)\n", function->name);
-  parser.result->codeThings.push_back(function);
+  parser.result.codeThings.push_back(function);
 
   NextToken(parser);
   ParseParameterList(parser, function->params);
@@ -1144,14 +1144,14 @@ static void ParseFunction(roo_parser& parser, AttribSet& attribs)
   Log(parser, "<-- Function\n");
 }
 
-static void ParseOperator(roo_parser& parser, AttribSet& attribs)
+static void ParseOperator(Parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Operator(");
 
   ThingOfCode* operatorDef = new ThingOfCode(ThingOfCode::Type::OPERATOR, NextToken(parser).type);
   operatorDef->attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
-  parser.result->codeThings.push_back(operatorDef);
+  parser.result.codeThings.push_back(operatorDef);
 
   switch (operatorDef->op)
   {
@@ -1196,7 +1196,7 @@ static void ParseOperator(roo_parser& parser, AttribSet& attribs)
   Log(parser, "<-- Operator\n");
 }
 
-static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
+static void ParseAttribute(Parser& parser, AttribSet& attribs)
 {
   char* attribName = GetTextFromToken(parser, NextToken(parser));
 
@@ -1215,7 +1215,7 @@ static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
       return;
     }
 
-    parser.result->name = GetTextFromToken(parser, PeekToken(parser));
+    parser.result.name = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "TargetArch") == 0)
@@ -1228,7 +1228,7 @@ static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
       return;
     }
 
-    parser.result->targetArch = GetTextFromToken(parser, PeekToken(parser));
+    parser.result.targetArch = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "Module") == 0)
@@ -1241,8 +1241,8 @@ static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
       return;
     }
 
-    parser.result->isModule = true;
-    parser.result->name = GetTextFromToken(parser, PeekToken(parser));
+    parser.result.isModule = true;
+    parser.result.name = GetTextFromToken(parser, PeekToken(parser));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "LinkFile") == 0)
@@ -1255,7 +1255,7 @@ static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
       return;
     }
 
-    parser.result->filesToLink.push_back(GetTextFromToken(parser, PeekToken(parser)));
+    parser.result.filesToLink.push_back(GetTextFromToken(parser, PeekToken(parser)));
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "DefinePrimitive") == 0)
@@ -1278,7 +1278,7 @@ static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
     }
     type->size = PeekToken(parser).asUnsignedInt;
 
-    parser.result->types.push_back(type);
+    parser.result.types.push_back(type);
     ConsumeNext(parser, TOKEN_RIGHT_PAREN);
   }
   else if (strcmp(attribName, "Prototype") == 0)
@@ -1305,57 +1305,53 @@ static void ParseAttribute(roo_parser& parser, AttribSet& attribs)
   free(attribName);
 }
 
-bool Parse(ParseResult* result, const char* sourcePath)
+Parser::Parser(ParseResult& result, const char* sourcePath)
+  :path(sourcePath)
+  ,source(ReadFile(sourcePath))
+  ,currentChar(source)
+  ,currentLine(1u)
+  ,currentLineOffset(0u)
+  ,currentToken(LexNext(*this))
+  ,nextToken(LexNext(*this))
+  ,result(result)
+  ,errorState(ErrorState::Type::PARSING_UNIT, this)
 {
-  roo_parser parser;
-  parser.path               = sourcePath;
-  parser.source             = ReadFile(sourcePath);
-  parser.currentChar        = parser.source;
-  parser.currentLine        = 1u;   // NOTE(Isaac): lines are indexed from 1 in text editors etc.
-  parser.currentLineOffset  = 0u;
-  parser.result             = result;
-  parser.currentToken       = LexNext(parser);
-  parser.nextToken          = LexNext(parser);
-  parser.errorState         = CreateErrorState(PARSING_UNIT, &parser);
-
   AttribSet attribs;
 
-  while (!Match(parser, TOKEN_INVALID))
+  while (!Match(*this, TOKEN_INVALID))
   {
-    if (Match(parser, TOKEN_IMPORT))
+    if (Match(*this, TOKEN_IMPORT))
     {
-      ParseImport(parser);
+      ParseImport(*this);
     }
-    else if (Match(parser, TOKEN_FN))
+    else if (Match(*this, TOKEN_FN))
     {
-      ParseFunction(parser, attribs);
+      ParseFunction(*this, attribs);
       attribs = AttribSet();
     }
-    else if (Match(parser, TOKEN_OPERATOR))
+    else if (Match(*this, TOKEN_OPERATOR))
     {
-      ParseOperator(parser, attribs);
+      ParseOperator(*this, attribs);
       attribs = AttribSet();
     }
-    else if (Match(parser, TOKEN_TYPE))
+    else if (Match(*this, TOKEN_TYPE))
     {
-      ParseTypeDef(parser);
+      ParseTypeDef(*this);
     }
-    else if (Match(parser, TOKEN_START_ATTRIBUTE))
+    else if (Match(*this, TOKEN_START_ATTRIBUTE))
     {
-      ParseAttribute(parser, attribs);
+      ParseAttribute(*this, attribs);
     }
     else
     {
-      RaiseError(parser.errorState, ERROR_UNEXPECTED, "top-level", GetTokenName(PeekToken(parser).type));
+      RaiseError(errorState, ERROR_UNEXPECTED, "top-level", GetTokenName(PeekToken(*this).type));
     }
   }
+}
 
-  delete parser.source;
-  parser.source = nullptr;
-  parser.currentChar = nullptr;
-  parser.result = nullptr;
-
-  return !(parser.errorState.hasErrored);
+Parser::~Parser()
+{
+  delete source;
 }
 
 __attribute__((constructor))
@@ -1412,7 +1408,7 @@ static void InitParseletMaps()
 
   // --- Prefix Parselets
   g_prefixMap[TOKEN_IDENTIFIER] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Identifier\n");
       char* name = GetTextFromToken(parser, PeekToken(parser));
@@ -1423,7 +1419,7 @@ static void InitParseletMaps()
     };
 
   g_prefixMap[TOKEN_SIGNED_INT] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Number constant (signed integer)\n");
       int value = PeekToken(parser).asSignedInt;
@@ -1433,7 +1429,7 @@ static void InitParseletMaps()
     };
 
   g_prefixMap[TOKEN_UNSIGNED_INT] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Number constant (unsigned integer)\n");
       unsigned int value = PeekToken(parser).asUnsignedInt;
@@ -1443,7 +1439,7 @@ static void InitParseletMaps()
     };
 
   g_prefixMap[TOKEN_FLOAT] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Number constant (floating point)\n");
       float value = PeekToken(parser).asFloat;
@@ -1453,7 +1449,7 @@ static void InitParseletMaps()
     };
 
   g_prefixMap[TOKEN_STRING] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] String\n");
       char* tokenText = GetTextFromToken(parser, PeekToken(parser));
@@ -1470,7 +1466,7 @@ static void InitParseletMaps()
   g_prefixMap[TOKEN_AND]          =
   g_prefixMap[TOKEN_DOUBLE_PLUS]  =   // ++i
   g_prefixMap[TOKEN_DOUBLE_MINUS] =   // --i
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
@@ -1499,7 +1495,7 @@ static void InitParseletMaps()
     };
 
   g_prefixMap[TOKEN_LEFT_PAREN] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Parentheses\n");
       
@@ -1513,7 +1509,7 @@ static void InitParseletMaps()
 
   // Parses an array literal
   g_prefixMap[TOKEN_LEFT_BRACE] =
-    [](roo_parser& parser) -> ASTNode*
+    [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Array literal\n");
       
@@ -1556,7 +1552,7 @@ static void InitParseletMaps()
   g_infixMap[TOKEN_SLASH]         =
   g_infixMap[TOKEN_DOUBLE_PLUS]   =   // i++
   g_infixMap[TOKEN_DOUBLE_MINUS]  =   // i--
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
       token_type operation = PeekToken(parser).type;
@@ -1597,7 +1593,7 @@ static void InitParseletMaps()
 
   // Parses an array index
   g_infixMap[TOKEN_LEFT_BLOCK] =
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Array index\n");
       Consume(parser, TOKEN_LEFT_BLOCK);
@@ -1615,7 +1611,7 @@ static void InitParseletMaps()
   g_infixMap[TOKEN_GREATER_THAN_EQUAL_TO] =
   g_infixMap[TOKEN_LESS_THAN]             =
   g_infixMap[TOKEN_LESS_THAN_EQUAL_TO]    =
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Conditional\n");
 
@@ -1645,7 +1641,7 @@ static void InitParseletMaps()
 
   // Parses a function call
   g_infixMap[TOKEN_LEFT_PAREN] =
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Function Call\n");
 
@@ -1674,7 +1670,7 @@ static void InitParseletMaps()
 
   // Parses a member access
   g_infixMap[TOKEN_DOT] =
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Member access\n");
 
@@ -1693,7 +1689,7 @@ static void InitParseletMaps()
 
   // Parses a ternary expression
   g_infixMap[TOKEN_QUESTION_MARK] =
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Ternary\n");
       
@@ -1717,7 +1713,7 @@ static void InitParseletMaps()
 
   // Parses a variable assignment
   g_infixMap[TOKEN_EQUALS] =
-    [](roo_parser& parser, ASTNode* left) -> ASTNode*
+    [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Variable assignment\n");
 
