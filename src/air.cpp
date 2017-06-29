@@ -519,9 +519,61 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
 {
   // TODO: parameterise the parameters into the correct places, issue the call instruction, and return the
   // result in a ReturnResultSlot correctly
+  std::vector<Slot*> paramSlots;
+  unsigned int numGeneralParams = 0u;
+
+  for (ASTNode* paramNode : node->params)
+  {
+    Assert(numGeneralParams < target.numGeneralRegisters, "Filled up general registers");
+    Slot* slot = Dispatch(paramNode, code);
+
+    switch (slot->GetType())
+    {
+      case SlotType::VARIABLE:
+      case SlotType::PARAMETER:
+      case SlotType::MEMBER:
+      case SlotType::TEMPORARY:
+      {
+        slot->color = target.intParamColors[numGeneralParams++];
+        paramSlots.push_back(slot);
+      } break;
+
+      case SlotType::RETURN_RESULT:
+      case SlotType::INT_CONSTANT:
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      case SlotType::FLOAT_CONSTANT:
+      case SlotType::STRING_CONSTANT:
+      {
+        TemporarySlot* tempSlot = new TemporarySlot(code->numTemporaries++);
+        tempSlot->color = target.intParamColors[numGeneralParams++];
+        AirInstruction* mov = new MovInstruction(slot, tempSlot);
+        PushInstruction(code, mov);
+        paramSlots.push_back(tempSlot);
+
+        slot->Use(mov);
+        tempSlot->ChangeValue(mov);
+      } break;
+    }
+  }
+
+  Assert(node->isResolved, "Tried to emit call to unresolved function");
+  AirInstruction* call = new CallInstruction(node->resolvedFunction);
+
+  for (Slot* paramSlot : paramSlots)
+  {
+    paramSlot->Use(call);
+  }
+
+  Slot* returnSlot = nullptr;
+  if (node->resolvedFunction->returnType)
+  {
+    returnSlot = new ReturnResultSlot(code->numReturnResults++);
+    returnSlot->ChangeValue(call);
+    returnSlot->color = target.functionReturnColor;
+  }
 
   if (node->next) (void)Dispatch(node->next, code);
-  return nullptr;
+  return returnSlot;
 }
 
 Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)

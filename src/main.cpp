@@ -24,6 +24,7 @@
 
 // AST Passes
 #include <variableResolver.hpp>
+#include <callResolver.hpp>
 
 /*
  * Find and compile all .roo files in the specified directory.
@@ -40,8 +41,6 @@ static bool Compile(ParseResult& parse, const char* directoryPath)
     {
       printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f.name.c_str());
       Parser parser(parse, f.name.c_str());
-//      printf("%20s\n", (compileSuccessful ? "\x1B[32m[PASSED]\x1B[0m" : "\x1B[31m[FAILED]\x1B[0m"));
-
       failed |= parser.errorState.hasErrored;
     }
   }
@@ -126,6 +125,7 @@ int main()
   }
 
   APPLY_PASS(VariableResolverPass);
+  APPLY_PASS(CallResolverPass);
 
 #ifdef OUTPUT_DOT
   APPLY_PASS(DotEmitterPass);

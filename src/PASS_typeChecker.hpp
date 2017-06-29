@@ -143,6 +143,7 @@ void InitTypeCheckerPass()
       }
     };
 
+  // XXX: This should't be done by the type checker
   PASS_typeChecker.f[CALL_NODE] =
     [](parse_result& parse, error_state& errorState, thing_of_code* /*code*/, node* n)
     {
