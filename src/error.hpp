@@ -55,6 +55,7 @@ enum Error
   ERROR_UNLEXABLE_CHARACTER,      // "Failed to lex character: '%c'. Trying to skip."
   ERROR_MUST_RETURN_SOMETHING,    // "Expected to return something of type: %s"
   ERROR_RETURN_VALUE_NOT_EXPECTED,// "Shouldn't return anything, trying to return a: %s"
+  ERROR_MISSING_TYPE_INFORMATION, // "Missing type information: %s"
 
   ICE_GENERIC,                    // "%s"
   ICE_UNHANDLED_TOKEN_TYPE,       // "Unhandled token type in %s: %s"

@@ -24,7 +24,7 @@
 
 // AST Passes
 #include <variableResolver.hpp>
-#include <callResolver.hpp>
+#include <typeChecker.hpp>
 
 /*
  * Find and compile all .roo files in the specified directory.
@@ -125,7 +125,7 @@ int main()
   }
 
   APPLY_PASS(VariableResolverPass);
-  APPLY_PASS(CallResolverPass);
+  APPLY_PASS(TypeChecker);
 
 #ifdef OUTPUT_DOT
   APPLY_PASS(DotEmitterPass);

@@ -18,7 +18,7 @@ OBJS = \
 	src/codegen_x64elf.o \
 	src/elf.o \
 	src/variableResolver.o \
-	src/callResolver.o \
+	src/typeChecker.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

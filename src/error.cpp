@@ -88,6 +88,7 @@ void InitErrorDefs()
   E(ERROR_UNLEXABLE_CHARACTER,      SKIP_CHARACTER,       "Failed to lex character: '%c'. Trying to skip.");
   E(ERROR_MUST_RETURN_SOMETHING,    DO_NOTHING,           "Expected to return something of type: %s");
   E(ERROR_RETURN_VALUE_NOT_EXPECTED,DO_NOTHING,           "Shouldn't return anything, trying to return a: %s");
+  E(ERROR_MISSING_TYPE_INFORMATION, DO_NOTHING,           "Missing type information: %s");
 
   I(ICE_GENERIC,                                          "%s");
   I(ICE_UNHANDLED_TOKEN_TYPE,                             "Unhandled token type in %s: %s");

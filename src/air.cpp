@@ -15,7 +15,7 @@ static void UseSlot(Slot* slot, AirInstruction* instruction)
 
     if (lastRange.definition)
     {
-      Assert(lastRange.definition->index < instruction->index, "Slot used before being defined");
+      Assert(lastRange.definition->index < instruction->index, FormatString("Slot used before being defined: %s", slot->AsString().c_str()).c_str());
       lastRange.lastUse = instruction;
     }
   }
@@ -558,6 +558,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
 
   Assert(node->isResolved, "Tried to emit call to unresolved function");
   AirInstruction* call = new CallInstruction(node->resolvedFunction);
+  PushInstruction(code, call);
 
   for (Slot* paramSlot : paramSlots)
   {

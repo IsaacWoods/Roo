@@ -5,9 +5,10 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
 #include <type_traits>
 #include <typeinfo>
-#include <vector>
 #include <cstring>
 #include <ir.hpp>
 #include <error.hpp>
@@ -20,6 +21,8 @@ struct ASTNode
   ASTNode();
   virtual ~ASTNode();
 
+  virtual std::string AsString() = 0;
+
   ASTNode*  next;
   TypeRef*  type;
   bool      shouldFreeTypeRef;    // TODO: eww
@@ -29,12 +32,16 @@ struct BreakNode : ASTNode
 {
   BreakNode() : ASTNode() {}
   ~BreakNode() {}
+
+  std::string AsString();
 };
 
 struct ReturnNode : ASTNode
 {
   ReturnNode(ASTNode* returnValue);
   ~ReturnNode();
+
+  std::string AsString();
   
   ASTNode* returnValue;
 };
@@ -57,6 +64,8 @@ struct UnaryOpNode : ASTNode
   UnaryOpNode(Operator op, ASTNode* operand);
   ~UnaryOpNode();
 
+  std::string AsString();
+
   Operator      op;
   ASTNode*      operand;
   ThingOfCode*  resolvedOperator;
@@ -76,6 +85,8 @@ struct BinaryOpNode : ASTNode
   BinaryOpNode(Operator op, ASTNode* left, ASTNode* right);
   ~BinaryOpNode();
 
+  std::string AsString();
+
   Operator      op;
   ASTNode*      left;
   ASTNode*      right;
@@ -87,6 +98,8 @@ struct VariableNode : ASTNode
   VariableNode(char* name);
   VariableNode(VariableDef* variable);
   ~VariableNode();
+
+  std::string AsString();
 
   union
   {
@@ -108,6 +121,8 @@ struct ConditionNode : ASTNode
     GREATER_THAN_OR_EQUAL
   };
 
+  std::string AsString();
+
   ConditionNode(Condition condition, ASTNode* left, ASTNode* right/*, bool reverseOnJump = false*/);
   ~ConditionNode();
 
@@ -122,6 +137,8 @@ struct BranchNode : ASTNode
   BranchNode(ConditionNode* condition, ASTNode* thenCode, ASTNode* elseCode);
   ~BranchNode();
 
+  std::string AsString();
+
   ConditionNode*  condition;
   ASTNode*        thenCode;
   ASTNode*        elseCode;
@@ -131,6 +148,8 @@ struct WhileNode : ASTNode
 {
   WhileNode(ConditionNode* condition, ASTNode* loopBody);
   ~WhileNode();
+
+  std::string AsString();
 
   ConditionNode*  condition;
   ASTNode*        loopBody;
@@ -154,6 +173,8 @@ struct NumberNode : ASTNode
   }
   ~NumberNode() {}
 
+  std::string AsString();
+
   T value;
 };
 
@@ -162,6 +183,8 @@ struct StringNode : ASTNode
   StringNode(StringConstant* string);
   ~StringNode();
 
+  std::string AsString();
+
   StringConstant* string;
 };
 
@@ -169,6 +192,8 @@ struct CallNode : ASTNode
 {
   CallNode(char* name, const std::vector<ASTNode*>& params);
   ~CallNode();
+
+  std::string AsString();
 
   union
   {
@@ -184,6 +209,8 @@ struct VariableAssignmentNode : ASTNode
   VariableAssignmentNode(ASTNode* variable, ASTNode* newValue, bool ignoreImmutability);
   ~VariableAssignmentNode();
 
+  std::string AsString();
+
   ASTNode*  variable;   // Should either be a VariableNode or a MemberAccessNode
   ASTNode*  newValue;
   bool      ignoreImmutability;
@@ -193,6 +220,8 @@ struct MemberAccessNode : ASTNode
 {
   MemberAccessNode(ASTNode* parent, ASTNode* child);
   ~MemberAccessNode();
+
+  std::string AsString();
 
   ASTNode*        parent;
   union
@@ -206,6 +235,8 @@ struct MemberAccessNode : ASTNode
 struct ArrayInitNode : ASTNode
 {
   ArrayInitNode(const std::vector<ASTNode*>& items);
+
+  std::string AsString();
 
   std::vector<ASTNode*> items;
 };
