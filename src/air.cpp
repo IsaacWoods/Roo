@@ -545,6 +545,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
       case SlotType::STRING_CONSTANT:
       {
         TemporarySlot* tempSlot = new TemporarySlot(code->numTemporaries++);
+        code->slots.push_back(tempSlot);
         tempSlot->color = target.intParamColors[numGeneralParams++];
         AirInstruction* mov = new MovInstruction(slot, tempSlot);
         PushInstruction(code, mov);
@@ -707,6 +708,72 @@ static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
   }
 }
 
+#ifdef OUTPUT_DOT
+static void EmitInterferenceGraphDOT(ThingOfCode* code)
+{
+  if (!(code->airHead))
+  {
+    return;
+  }
+
+  std::string fileName = std::string(code->mangledName) + "_interference.dot";
+  FILE* f = fopen(fileName.c_str(), "w");
+
+  if (!f)
+  {
+    RaiseError(ERROR_FAILED_TO_OPEN_FILE, fileName.c_str());
+  }
+
+  fprintf(f, "digraph G\n{\n");
+  unsigned int i = 0u;
+
+  const char* snazzyColors[] =
+  {
+    "cyan2",      "deeppink",   "darkgoldenrod2",     "mediumpurple2",  "slategray",    "goldenrod",
+    "green3",     "lightblue2", "mediumspringgreeen", "orange1",        "mistyrose3",   "maroon2",
+    "steelblue2", "blue",       "lightseagreen",      "plum",           "dodgerblue4",  "darkorchid1",
+  };
+
+  // First emit a colored node for each slot
+  for (Slot* slot : code->slots)
+  {
+    if (slot->IsConstant())
+    {
+      continue;
+    }
+
+    const char* color = "black";
+
+    if (slot->color < 0)
+    {
+      fprintf(stderr, "WARNING: Found uncolored slot! Presenting as red on interference graph!\n");
+      color = "red";
+    }
+    else
+    {
+      color = snazzyColors[slot->color];
+    }
+
+    fprintf(f, "\t%u[label=\"%s\" color=\"%s\" fontcolor=\"%s\"];\n", i, slot->AsString().c_str(), color, color);
+    slot->dotTag = i;
+    i++;
+  }
+
+  // Then emit the interferences between slots
+  for (Slot* slot : code->slots)
+  {
+    for (Slot* interference : slot->interferences)
+    {
+      // NOTE(Isaac): This stops us from emitting duplicate lines, as this will only be true one way around
+      fprintf(f, "\t%u -> %u[dir=none];\n", slot->dotTag, interference->dotTag);
+    }
+  }
+
+  fprintf(f, "}\n");
+  fclose(f);
+}
+#endif
+
 void AirGenerator::Apply(ParseResult& parse)
 {
   for (ThingOfCode* code : parse.codeThings)
@@ -781,7 +848,7 @@ void AirGenerator::Apply(ParseResult& parse)
 #endif
 
 #ifdef OUTPUT_DOT
-    // TODO: Output interference graph as a DOT
+    EmitInterferenceGraphDOT(code);
 #endif
   }
 }

@@ -715,7 +715,7 @@ void CodeGenerator::Visit(MovInstruction* instruction, void*)
 
     case SlotType::STRING_CONSTANT:
     {
-      E(i::MOV_REG_IMM64, 0x00);
+      E(i::MOV_REG_IMM64, instruction->dest->color, 0x00);
       CreateRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), R_X86_64_64, file.rodataThing->symbol,
                        dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
     } break;

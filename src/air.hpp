@@ -57,6 +57,9 @@ struct Slot
   signed int              color;          // -1 means it hasn't been colored
   std::vector<Slot*>      interferences;
   std::vector<LiveRange>  liveRanges;
+#ifdef OUTPUT_DOT
+  unsigned int dotTag;
+#endif
 
   bool IsColored()
   {

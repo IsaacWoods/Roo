@@ -57,7 +57,7 @@ struct DependencyDef
 
 struct StringConstant
 {
-  StringConstant(const ParseResult& parse, char* string);
+  StringConstant(ParseResult& parse, char* string);
   ~StringConstant();
 
   unsigned int      handle;

@@ -508,7 +508,6 @@ void LinkObject(elf_file& elf, const char* objectPath)
         ((symbol->info & 0xf) == SYM_TYPE_NONE && symbol->sectionIndex == text->index))
     {
       functionSymbols.push_back(symbol);
-      printf("Extracting symbol with name: %s\n", symbol->name->str);
     }
   }
 

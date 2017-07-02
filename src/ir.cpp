@@ -41,7 +41,7 @@ DependencyDef::~DependencyDef()
   delete path;
 }
 
-StringConstant::StringConstant(const ParseResult& parse, char* string)
+StringConstant::StringConstant(ParseResult& parse, char* string)
   :string(string)
   ,offset(0u)
 {
@@ -53,6 +53,8 @@ StringConstant::StringConstant(const ParseResult& parse, char* string)
   {
     handle = 0u;
   }
+
+  parse.strings.push_back(this);
 }
 
 StringConstant::~StringConstant()

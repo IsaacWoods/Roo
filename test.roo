@@ -6,6 +6,6 @@ import Prelude
 fn Main() -> int
 {
   i : mut int = 5
-  Print("Hello, World!")
+  Print("Hello, World!\n")
   return 0
 }
