@@ -148,12 +148,11 @@ std::string VariableNode::AsString()
   }
 }
 
-ConditionNode::ConditionNode(Condition condition, ASTNode* left, ASTNode* right/*, bool reverseOnJump*/)
+ConditionNode::ConditionNode(Condition condition, ASTNode* left, ASTNode* right)
   :ASTNode()
   ,condition(condition)
   ,left(left)
   ,right(right)
-//  ,reverseOnJump(reverseOnJump)
 {
 }
 

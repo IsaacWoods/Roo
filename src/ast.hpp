@@ -123,13 +123,12 @@ struct ConditionNode : ASTNode
 
   std::string AsString();
 
-  ConditionNode(Condition condition, ASTNode* left, ASTNode* right/*, bool reverseOnJump = false*/);
+  ConditionNode(Condition condition, ASTNode* left, ASTNode* right);
   ~ConditionNode();
 
   Condition condition;
   ASTNode*  left;
   ASTNode*  right;
-//  bool      reverseOnJump;
 };
 
 struct BranchNode : ASTNode
