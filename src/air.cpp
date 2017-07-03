@@ -9,6 +9,8 @@
 
 static void UseSlot(Slot* slot, AirInstruction* instruction)
 {
+  Assert(instruction->index != -1, "Instruction must have been pushed");
+
   if (slot->liveRanges.size() >= 1u)
   {
     LiveRange& lastRange = slot->liveRanges.back();
@@ -33,6 +35,7 @@ void ReturnResultSlot ::Use(AirInstruction* instruction) { UseSlot(this, instruc
 
 static void ChangeSlotValue(Slot* slot, AirInstruction* instruction)
 {
+  Assert(instruction->index != -1, "Instruction must have been pushed");
   slot->liveRanges.push_back(LiveRange(instruction, nullptr));
 }
 
@@ -48,8 +51,20 @@ LiveRange::LiveRange(AirInstruction* definition, AirInstruction* lastUse)
 {
 }
 
-VariableSlot::VariableSlot(VariableDef* variable)
-  :Slot()
+Slot::Slot(ThingOfCode* code)
+  :storage(Slot::Storage::REGISTER)
+  ,color(-1)
+  ,interferences()
+  ,liveRanges()
+#ifdef OUTPUT_DOT
+  ,dotTag(0u)
+#endif
+{
+  code->slots.push_back(this);
+}
+
+VariableSlot::VariableSlot(ThingOfCode* code, VariableDef* variable)
+  :Slot(code)
   ,variable(variable)
 {
 }
@@ -59,8 +74,8 @@ std::string VariableSlot::AsString()
   return FormatString("%s(V)-%c", variable->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
-ParameterSlot::ParameterSlot(VariableDef* parameter)
-  :Slot()
+ParameterSlot::ParameterSlot(ThingOfCode* code, VariableDef* parameter)
+  :Slot(code)
   ,parameter(parameter)
 {
 }
@@ -70,8 +85,8 @@ std::string ParameterSlot::AsString()
   return FormatString("%s(P)-%c", parameter->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
-MemberSlot::MemberSlot(Slot* parent, VariableDef* member)
-  :Slot()
+MemberSlot::MemberSlot(ThingOfCode* code, Slot* parent, VariableDef* member)
+  :Slot(code)
   ,parent(parent)
   ,member(member)
 {
@@ -82,9 +97,9 @@ std::string MemberSlot::AsString()
   return FormatString("%s(M)-%c", member->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
-TemporarySlot::TemporarySlot(unsigned int tag)
-  :Slot()
-  ,tag(tag)
+TemporarySlot::TemporarySlot(ThingOfCode* code)
+  :Slot(code)
+  ,tag(code->numTemporaries++)
 {
 }
 
@@ -93,9 +108,9 @@ std::string TemporarySlot::AsString()
   return FormatString("t%u", tag);
 }
 
-ReturnResultSlot::ReturnResultSlot(unsigned int tag)
-  :Slot()
-  ,tag(tag)
+ReturnResultSlot::ReturnResultSlot(ThingOfCode* code)
+  :Slot(code)
+  ,tag(code->numReturnResults++)
 {
 }
 
@@ -129,7 +144,7 @@ std::string ConstantSlot<StringConstant*>::AsString()
 }
 
 AirInstruction::AirInstruction()
-  :index(0u)
+  :index(-1)
   ,next(nullptr)
 {
 }
@@ -266,12 +281,14 @@ CallInstruction::CallInstruction(ThingOfCode* thing)
 
 std::string CallInstruction::AsString()
 {
-  return FormatString("%u: CALL %u", index, thing->mangledName);
+  return FormatString("%u: CALL %s", index, thing->mangledName);
 }
 
 // AirGenerator
 static void PushInstruction(ThingOfCode* code, AirInstruction* instruction)
 {
+  Assert(instruction->index == -1, "Instruction has already been pushed");
+
   if (code->airHead)
   {
     instruction->index = code->airTail->index + 1u;
@@ -307,7 +324,7 @@ Slot* AirGenerator::VisitNode(ReturnNode* node, ThingOfCode* code)
 Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
 {
   Slot* operand = Dispatch(node->operand, code);
-  Slot* result = new TemporarySlot(code->numTemporaries++);
+  Slot* result = new TemporarySlot(code);
 
   switch (node->op)
   {
@@ -355,13 +372,13 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
       AirInstruction* mov = new MovInstruction(operand, result);
       AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, operand, operand);
 
+      PushInstruction(code, mov);
+      PushInstruction(code, inc);
+
       operand->Use(mov);
       operand->Use(inc);
       result->ChangeValue(mov);
       operand->ChangeValue(inc);
-
-      PushInstruction(code, mov);
-      PushInstruction(code, inc);
     } break;
 
     case UnaryOpNode::Operator::PRE_DECREMENT:
@@ -377,13 +394,13 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
       AirInstruction* mov = new MovInstruction(operand, result);
       AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, operand, operand);
 
+      PushInstruction(code, mov);
+      PushInstruction(code, dec);
+
       operand->Use(mov);
       operand->Use(dec);
       result->ChangeValue(mov);
       result->ChangeValue(dec);
-
-      PushInstruction(code, mov);
-      PushInstruction(code, dec);
     } break;
   }
 
@@ -410,10 +427,12 @@ Slot* AirGenerator::VisitNode(ConditionNode* node, ThingOfCode* code)
 {
   Slot* a = Dispatch(node->left, code);
   Slot* b = Dispatch(node->right, code);
+
   CmpInstruction* cmp = new CmpInstruction(a, b);
+  PushInstruction(code, cmp);
+
   a->Use(cmp);
   b->Use(cmp);
-  PushInstruction(code, cmp);
 
   if (node->next) (void)Dispatch(node->next, code);
   return nullptr;
@@ -481,8 +500,7 @@ Slot* AirGenerator::VisitNode(WhileNode* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(NumberNode<unsigned int>* node, ThingOfCode* code)
 {
-  Slot* slot = new ConstantSlot<unsigned int>(node->value);
-  code->slots.push_back(slot);
+  Slot* slot = new ConstantSlot<unsigned int>(code, node->value);
 
   if (node->next) (void)Dispatch(node->next, code);
   return slot;
@@ -490,8 +508,7 @@ Slot* AirGenerator::VisitNode(NumberNode<unsigned int>* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(NumberNode<int>* node, ThingOfCode* code)
 {
-  Slot* slot = new ConstantSlot<int>(node->value);
-  code->slots.push_back(slot);
+  Slot* slot = new ConstantSlot<int>(code, node->value);
 
   if (node->next) (void)Dispatch(node->next, code);
   return slot;
@@ -499,8 +516,7 @@ Slot* AirGenerator::VisitNode(NumberNode<int>* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(NumberNode<float>* node, ThingOfCode* code)
 {
-  Slot* slot = new ConstantSlot<float>(node->value);
-  code->slots.push_back(slot);
+  Slot* slot = new ConstantSlot<float>(code, node->value);
 
   if (node->next) (void)Dispatch(node->next, code);
   return slot;
@@ -508,8 +524,7 @@ Slot* AirGenerator::VisitNode(NumberNode<float>* node, ThingOfCode* code)
 
 Slot* AirGenerator::VisitNode(StringNode* node, ThingOfCode* code)
 {
-  Slot* slot = new ConstantSlot<StringConstant*>(node->string);
-  code->slots.push_back(slot);
+  Slot* slot = new ConstantSlot<StringConstant*>(code, node->string);
 
   if (node->next) (void)Dispatch(node->next, code);
   return slot;
@@ -544,8 +559,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
       case SlotType::FLOAT_CONSTANT:
       case SlotType::STRING_CONSTANT:
       {
-        TemporarySlot* tempSlot = new TemporarySlot(code->numTemporaries++);
-        code->slots.push_back(tempSlot);
+        TemporarySlot* tempSlot = new TemporarySlot(code);
         tempSlot->color = target.intParamColors[numGeneralParams++];
         AirInstruction* mov = new MovInstruction(slot, tempSlot);
         PushInstruction(code, mov);
@@ -569,7 +583,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
   Slot* returnSlot = nullptr;
   if (node->resolvedFunction->returnType)
   {
-    returnSlot = new ReturnResultSlot(code->numReturnResults++);
+    returnSlot = new ReturnResultSlot(code);
     returnSlot->ChangeValue(call);
     returnSlot->color = target.functionReturnColor;
   }
@@ -582,11 +596,12 @@ Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
 {
   Slot* variable = Dispatch(node->variable, code);
   Slot* newValue = Dispatch(node->newValue, code);
+
   AirInstruction* mov = new MovInstruction(newValue, variable);
+  PushInstruction(code, mov);
+
   variable->ChangeValue(mov);
   newValue->Use(mov);
-
-  PushInstruction(code, mov);
 
   if (node->next) (void)Dispatch(node->next, code);
   return variable;
@@ -789,24 +804,24 @@ void AirGenerator::Apply(ParseResult& parse)
     // Generate slots for the parameters
     for (VariableDef* param : code->params)
     {
-      param->slot = new ParameterSlot(param);
+      param->slot = new ParameterSlot(code, param);
       param->slot->color = target.intParamColors[numParams++];
 
       for (VariableDef* member : param->type.resolvedType->members)
       {
-        member->slot = new MemberSlot(param->slot, member);
+        member->slot = new MemberSlot(code, param->slot, member);
       }
     }
 
     // Generate slots for the locals
     for (VariableDef* local : code->locals)
     {
-      local->slot = new VariableSlot(local);
+      local->slot = new VariableSlot(code, local);
       Assert(local->type.isResolved, "Tried to generate AIR without type information");
 
       for (VariableDef* member : local->type.resolvedType->members)
       {
-        member->slot = new MemberSlot(local->slot, member);
+        member->slot = new MemberSlot(code, local->slot, member);
       }
     }
 
@@ -877,7 +892,7 @@ bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed 
         continue;
       }
 
-      unsigned int definitionIndex = (range.definition ? range.definition->index : 0u);
+      signed int definitionIndex = (range.definition ? range.definition->index : 0u);
       if ((instruction->index >= definitionIndex) && (instruction->index <= range.lastUse->index))
       {
         return true;

@@ -5,7 +5,13 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  i : mut int = 5
-  Print("Hello, World!\n")
+//  i : mut uint = 0u
+  i : mut uint
+  i = 0u
+  while (i < 5u)
+  {
+    Print("Hello, World!\n")
+    i++
+  }
   return 0
 }

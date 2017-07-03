@@ -50,7 +50,7 @@ struct Slot
     STACK
   };
 
-  Slot() = default;
+  Slot(ThingOfCode* code);
   virtual ~Slot() = default;
 
   Storage                 storage;
@@ -76,7 +76,7 @@ struct Slot
 
 struct VariableSlot : Slot
 {
-  VariableSlot(VariableDef* variable);
+  VariableSlot(ThingOfCode* code, VariableDef* variable);
   ~VariableSlot() { }
 
   VariableDef* variable;
@@ -91,7 +91,7 @@ struct VariableSlot : Slot
 
 struct ParameterSlot : Slot
 {
-  ParameterSlot(VariableDef* parameter);
+  ParameterSlot(ThingOfCode* code, VariableDef* parameter);
   ~ParameterSlot() { }
 
   VariableDef* parameter;
@@ -106,7 +106,7 @@ struct ParameterSlot : Slot
 
 struct MemberSlot : Slot
 {
-  MemberSlot(Slot* parent, VariableDef* member);
+  MemberSlot(ThingOfCode* code, Slot* parent, VariableDef* member);
   ~MemberSlot() { }
 
   Slot*         parent;
@@ -122,7 +122,7 @@ struct MemberSlot : Slot
 
 struct TemporarySlot : Slot
 {
-  TemporarySlot(unsigned int tag);
+  TemporarySlot(ThingOfCode* code);
 
   unsigned int tag;
 
@@ -136,7 +136,7 @@ struct TemporarySlot : Slot
 
 struct ReturnResultSlot : Slot
 {
-  ReturnResultSlot(unsigned int tag);
+  ReturnResultSlot(ThingOfCode* code);
 
   unsigned int tag;
 
@@ -151,8 +151,8 @@ struct ReturnResultSlot : Slot
 template<typename T>
 struct ConstantSlot : Slot
 {
-  ConstantSlot(T value)
-    :Slot()
+  ConstantSlot(ThingOfCode* code, T value)
+    :Slot(code)
     ,value(value)
   {
     static_assert(std::is_same<T, unsigned int>::value  ||
@@ -198,7 +198,7 @@ struct AirInstruction
 
   virtual std::string AsString() = 0;
 
-  unsigned int    index;
+  signed int      index;    // NOTE(Isaac): value of -1 used to detect instructions that haven't been pushed yet
   AirInstruction* next;
 };
 

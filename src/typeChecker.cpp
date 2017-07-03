@@ -79,16 +79,28 @@ void TypeChecker::VisitNode(VariableNode* node, TypeCheckingContext* context)
 
 void TypeChecker::VisitNode(ConditionNode* node, TypeCheckingContext* context)
 {
+  Dispatch(node->left, context);
+  Dispatch(node->right, context);
+
+  // TODO: check that we can compare `left` and `right`
+
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(BranchNode* node, TypeCheckingContext* context)
 {
+  Dispatch(node->condition, context);
+  Dispatch(node->thenCode, context);
+  Dispatch(node->elseCode, context);
+
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(WhileNode* node, TypeCheckingContext* context)
 {
+  Dispatch(node->condition, context);
+  Dispatch(node->loopBody, context);
+
   if (node->next) Dispatch(node->next, context);
 }
 
