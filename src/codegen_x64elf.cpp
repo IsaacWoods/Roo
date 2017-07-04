@@ -205,7 +205,7 @@ enum class i
  * `index`  : the index register to use
  * `base`   : the base register to use
  */
-static void EmitRegisterModRM(elf_thing* thing, CodegenTarget& target, reg a, reg b)
+static void EmitRegisterModRM(ElfThing* thing, CodegenTarget& target, reg a, reg b)
 {
   uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
   modRM |= target.registerSet[a].pimpl->opcodeOffset << 3u;
@@ -216,7 +216,7 @@ static void EmitRegisterModRM(elf_thing* thing, CodegenTarget& target, reg a, re
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(elf_thing* thing, CodegenTarget& target, reg dest, reg base, uint32_t displacement, reg index = NUM_REGISTERS, unsigned int scale = 0u)
+static void EmitIndirectModRM(ElfThing* thing, CodegenTarget& target, reg dest, reg base, uint32_t displacement, reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
   modRM |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
@@ -269,7 +269,7 @@ static void EmitIndirectModRM(elf_thing* thing, CodegenTarget& target, reg dest,
   }
 }
 
-static void EmitExtensionModRM(elf_thing* thing, CodegenTarget& target, uint8_t extension, reg r)
+static void EmitExtensionModRM(ElfThing* thing, CodegenTarget& target, uint8_t extension, reg r)
 {
   uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   modRM |= extension << 3u;
@@ -277,7 +277,7 @@ static void EmitExtensionModRM(elf_thing* thing, CodegenTarget& target, uint8_t 
   Emit<uint8_t>(thing, modRM);
 }
 
-static void Emit(ErrorState& errorState, elf_thing* thing, CodegenTarget& target, i instruction, ...)
+static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target, i instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -538,9 +538,9 @@ static void Emit(ErrorState& errorState, elf_thing* thing, CodegenTarget& target
 #define E(...) \
   Emit(errorState, thing, target, __VA_ARGS__);
 
-static void GenerateBootstrap(elf_file& elf, CodegenTarget& target, elf_thing* thing, ParseResult& parse)
+static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thing, ParseResult& parse)
 {
-  elf_symbol* entrySymbol = nullptr;
+  ElfSymbol* entrySymbol = nullptr;
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
 
   for (ThingOfCode* thing : parse.codeThings)
@@ -567,7 +567,7 @@ static void GenerateBootstrap(elf_file& elf, CodegenTarget& target, elf_thing* t
 
   // Call the entry point
   E(i::CALL32, 0x0);
-  CreateRelocation(elf, thing, thing->length - sizeof(uint32_t), R_X86_64_PC32, entrySymbol, -0x4);
+  new ElfRelocation(elf, thing, thing->length - sizeof(uint32_t), ElfRelocation::Type::R_X86_64_PC32, entrySymbol, -0x4);
 
   // Call the SYS_EXIT system call
   // The return value of Main() should be in RAX
@@ -578,20 +578,22 @@ static void GenerateBootstrap(elf_file& elf, CodegenTarget& target, elf_thing* t
 
 struct CodeGenerator : AirPass<void>
 {
-  CodeGenerator(CodegenTarget& target, elf_file& file, elf_thing* elfThing, ThingOfCode* code)
+  CodeGenerator(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, ThingOfCode* code, ElfThing* rodataThing)
     :AirPass(true)
     ,target(target)
     ,file(file)
     ,elfThing(elfThing)
     ,code(code)
+    ,rodataThing(rodataThing)
   {
   }
   ~CodeGenerator() { }
 
   CodegenTarget&  target;
-  elf_file&       file;
-  elf_thing*      elfThing;
+  ElfFile&        file;
+  ElfThing*       elfThing;
   ThingOfCode*    code;
+  ElfThing*       rodataThing;
 
   void Visit(LabelInstruction* instruction,     void*);
   void Visit(ReturnInstruction* instruction,    void*);
@@ -642,8 +644,8 @@ void CodeGenerator::Visit(ReturnInstruction* instruction, void*)
       case SlotType::STRING_CONSTANT:
       {
         E(i::MOV_REG_IMM64, RAX, 0x00);
-        CreateRelocation(file, elfThing, elfThing->length-sizeof(uint64_t), R_X86_64_64, file.rodataThing->symbol,
-                         dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->returnValue)->value->offset);
+        new ElfRelocation(file, elfThing, elfThing->length-sizeof(uint64_t), ElfRelocation::Type::R_X86_64_64,
+                          rodataThing->symbol, dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->returnValue)->value->offset);
       } break;
 
       case SlotType::VARIABLE:
@@ -691,7 +693,7 @@ void CodeGenerator::Visit(JumpInstruction* instruction, void*)
     case JumpInstruction::Condition::IF_PARITY_ODD:       E(i::JPO, 0x00);  break;
   }
 
-  CreateRelocation(file, elfThing, elfThing->length - sizeof(uint32_t), R_X86_64_PC32, code->symbol, -0x4, instruction->label);
+  new ElfRelocation(file, elfThing, elfThing->length-sizeof(uint32_t), ElfRelocation::Type::R_X86_64_PC32, code->symbol, -0x4, instruction->label);
 }
 
 void CodeGenerator::Visit(MovInstruction* instruction, void*)
@@ -716,8 +718,8 @@ void CodeGenerator::Visit(MovInstruction* instruction, void*)
     case SlotType::STRING_CONSTANT:
     {
       E(i::MOV_REG_IMM64, instruction->dest->color, 0x00);
-      CreateRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), R_X86_64_64, file.rodataThing->symbol,
-                       dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
+      new ElfRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), ElfRelocation::Type::R_X86_64_64,
+                        rodataThing->symbol, dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
     } break;
 
     case SlotType::VARIABLE:
@@ -937,7 +939,7 @@ void CodeGenerator::Visit(CallInstruction* instruction, void*)
   SAVE_REG(R11);
 
   E(i::CALL32, 0x00);
-  CreateRelocation(file, elfThing, elfThing->length-sizeof(uint32_t), R_X86_64_PC32, instruction->thing->symbol, -0x4);
+  new ElfRelocation(file, elfThing, elfThing->length-sizeof(uint32_t), ElfRelocation::Type::R_X86_64_PC32, instruction->thing->symbol, -0x4);
 
   RESTORE_REG(R11);
   RESTORE_REG(R10);
@@ -953,7 +955,7 @@ void CodeGenerator::Visit(CallInstruction* instruction, void*)
   #undef RESTORE_REG
 }
 
-static elf_thing* Generate(elf_file& file, CodegenTarget& target, ThingOfCode* code)
+static ElfThing* Generate(ElfFile& file, CodegenTarget& target, ThingOfCode* code, ElfThing* rodataThing)
 {
   // NOTE(Isaac): we don't generate empty functions
   if (!(code->airHead))
@@ -961,14 +963,14 @@ static elf_thing* Generate(elf_file& file, CodegenTarget& target, ThingOfCode* c
     return nullptr;
   }
 
-  elf_thing* elfThing = CreateThing(file, code->symbol);
+  ElfThing* elfThing = new ElfThing(GetSection(file, ".text"), code->symbol);
 
   // Enter a new stack frame
   E(i::PUSH_REG, RBP);
   E(i::MOV_REG_REG, RBP, RSP);
 
   // Emit the instructions for the body of the thing
-  CodeGenerator codeGenerator(target, file, elfThing, code);
+  CodeGenerator codeGenerator(target, file, elfThing, code, rodataThing);
   
   for (AirInstruction* instruction = code->airHead;
        instruction;
@@ -996,28 +998,37 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
    * If we're compiling a module, we need to produce a relocatable.
    * If not, we want to produce a normal executable.
    */
-  elf_file elf(target, result.isModule);
+  ElfFile elf(target, result.isModule);
 
-  CreateSection(elf, ".text",   SHT_PROGBITS, 0x10)->flags = SECTION_ATTRIB_A|SECTION_ATTRIB_E;
-  CreateSection(elf, ".rodata", SHT_PROGBITS, 0x04)->flags = SECTION_ATTRIB_A;
-  CreateSection(elf, ".strtab", SHT_STRTAB,   0x04);
-  CreateSection(elf, ".symtab", SHT_SYMTAB,   0x04);
+  // .text
+  ElfSection* textSection = new ElfSection(elf, ".text", ElfSection::Type::SHT_PROGBITS, 0x10);
+  textSection->flags = SECTION_ATTRIB_A|SECTION_ATTRIB_E;
 
-  GetSection(elf, ".symtab")->link = GetSection(elf, ".strtab")->index;
-  GetSection(elf, ".symtab")->entrySize = 0x18;
+  // .rodata
+  ElfSection* rodataSection = new ElfSection(elf, ".rodata", ElfSection::Type::SHT_PROGBITS, 0x04);
+  rodataSection->flags = SECTION_ATTRIB_A;
+
+  // .strtab
+  ElfSection* stringTableSection = new ElfSection(elf, ".strtab", ElfSection::Type::SHT_STRTAB, 0x04);
+
+  // .symtab
+  ElfSection* symbolTableSection = new ElfSection(elf, ".symtab", ElfSection::Type::SHT_SYMTAB, 0x04);
+  symbolTableSection->link = stringTableSection->index;
+  symbolTableSection->entrySize = 0x18;
+
+  // Create an ElfThing to put the contents of .rodata into
+  ElfSymbol* rodataSymbol = new ElfSymbol(elf, nullptr, ElfSymbol::Binding::SYM_BIND_GLOBAL, ElfSymbol::Type::SYM_TYPE_SECTION, rodataSection->index, 0x00);
+  ElfThing* rodataThing = new ElfThing(rodataSection, rodataSymbol);
 
   if (!(result.isModule))
   {
-    elf_segment* loadSegment = CreateSegment(elf, PT_LOAD, SEGMENT_ATTRIB_X|SEGMENT_ATTRIB_R, 0x400000, 0x200000);
+    ElfSegment* loadSegment = new ElfSegment(elf, ElfSegment::Type::PT_LOAD, SEGMENT_ATTRIB_X|SEGMENT_ATTRIB_R, 0x400000, 0x200000);
     loadSegment->offset = 0x00;
     loadSegment->size.inFile = 0x40;  // NOTE(Isaac): set the tail to the end of the ELF header
 
-    MapSection(elf, loadSegment, GetSection(elf, ".text"));
-    MapSection(elf, loadSegment, GetSection(elf, ".rodata"));
+    MapSection(elf, loadSegment, textSection);
+    MapSection(elf, loadSegment, rodataSection);
   }
-
-  // Create a symbol to reference the .rodata section with
-  elf.rodataThing = CreateRodataThing(elf);
 
   // Link with any files we've been told to
   for (char* file : result.filesToLink)
@@ -1035,12 +1046,12 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
          *c;
          c++)
     {
-      Emit<uint8_t>(elf.rodataThing, *c);
-      tail++;    
+      Emit<uint8_t>(rodataThing, *c);
+      tail++;
     }
 
     // Add a null terminator
-    Emit<uint8_t>(elf.rodataThing, '\0');
+    Emit<uint8_t>(rodataThing, '\0');
     tail++;
   }
 
@@ -1054,7 +1065,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
      */
     if (thing->attribs.isPrototype)
     {
-      for (elf_thing* elfThing : elf.things)
+      for (ElfThing* elfThing : textSection->things)
       {
         if (strcmp(thing->mangledName, elfThing->symbol->name->str) == 0)
         {
@@ -1069,19 +1080,19 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
     }
     else
     {
-      thing->symbol = CreateSymbol(elf, thing->mangledName, SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
+      thing->symbol = new ElfSymbol(elf, thing->mangledName, ElfSymbol::Binding::SYM_BIND_GLOBAL, ElfSymbol::Type::SYM_TYPE_FUNCTION, textSection->index, 0x00);
     }
   }
 
   // --- Create a thing for the bootstrap, if this isn't a module ---
   if (!(result.isModule))
   {
-    elf_symbol* bootstrapSymbol = CreateSymbol(elf, "_start", SYM_BIND_GLOBAL, SYM_TYPE_FUNCTION, GetSection(elf, ".text")->index, 0x00);
-    elf_thing* bootstrapThing = CreateThing(elf, bootstrapSymbol);
+    ElfSymbol* bootstrapSymbol = new ElfSymbol(elf, "_start", ElfSymbol::Binding::SYM_BIND_GLOBAL, ElfSymbol::Type::SYM_TYPE_FUNCTION, textSection->index, 0x00);
+    ElfThing* bootstrapThing = new ElfThing(textSection, bootstrapSymbol);
     GenerateBootstrap(elf, target, bootstrapThing, result);
   }
 
-  // --- Generate `elf_thing`s for each thing of code ---
+  // --- Generate `ElfThing`s for each thing of code ---
   for (ThingOfCode* thing : result.codeThings)
   {
     if (thing->attribs.isPrototype)
@@ -1089,7 +1100,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
       continue;
     }
 
-    Generate(elf, target, thing);
+    Generate(elf, target, thing, rodataThing);
   }
 
   WriteElf(elf, outputPath);

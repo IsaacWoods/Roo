@@ -14,7 +14,9 @@
 #include <air.hpp>
 #include <codegen.hpp>
 
-enum elf_file_type : uint16_t
+struct ElfFile;
+
+enum ElfFileType : uint16_t
 {
   ET_NONE   = 0x0,
   ET_REL    = 0x1,
@@ -27,19 +29,25 @@ enum elf_file_type : uint16_t
   ET_HIPROC = 0xFFFF
 };
 
-struct elf_header
+struct ElfHeader
 {
-  elf_file_type fileType;
-  uint64_t      entryPoint;
-  uint64_t      programHeaderOffset;
-  uint64_t      sectionHeaderOffset;
-  uint16_t      numProgramHeaderEntries;
-  uint16_t      numSectionHeaderEntries;
-  uint16_t      sectionWithSectionNames;
+  ElfFileType fileType;
+  uint64_t    entryPoint;
+  uint64_t    programHeaderOffset;
+  uint64_t    sectionHeaderOffset;
+  uint16_t    numProgramHeaderEntries;
+  uint16_t    numSectionHeaderEntries;
+  uint16_t    sectionWithSectionNames;
 };
 
-struct elf_string
+/*
+ * The string passed to this is duplicated and then managed separately.
+ */
+struct ElfString
 {
+  ElfString(ElfFile& elf, const char* str);
+  ~ElfString();
+
   unsigned int  offset;
   char*         str;
 };
@@ -50,30 +58,33 @@ struct elf_string
 #define SEGMENT_ATTRIB_MASKOS   0x00FF0000
 #define SEGMENT_ATTRIB_MASKPROC 0xFF000000
 
-enum segment_type : uint32_t
+struct ElfSegment
 {
-  PT_NULL,
-  PT_LOAD,
-  PT_DYNAMIC,
-  PT_INTERP,
-  PT_NOTE,
-  PT_SHLIB,
-  PT_PHDR,
-  PT_TLS,
-  PT_LOOS     = 0x60000000,
-  PT_HIOS     = 0x6FFFFFFF,
-  PT_LOPROC   = 0x70000000,
-  PT_HIPROC   = 0x7FFFFFFF
-};
+  enum Type : uint32_t
+  {
+    PT_NULL,
+    PT_LOAD,
+    PT_DYNAMIC,
+    PT_INTERP,
+    PT_NOTE,
+    PT_SHLIB,
+    PT_PHDR,
+    PT_TLS,
+    PT_LOOS     = 0x60000000,
+    PT_HIOS     = 0x6FFFFFFF,
+    PT_LOPROC   = 0x70000000,
+    PT_HIPROC   = 0x7FFFFFFF
+  };
 
-struct elf_segment
-{
-  segment_type  type;
-  uint32_t      flags;
-  uint64_t      offset;
-  uint64_t      virtualAddress;
-  uint64_t      physicalAddress;
-  uint64_t      alignment;        // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this alignment
+  ElfSegment(ElfFile& elf, Type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);
+  ~ElfSegment() { }
+
+  Type      type;
+  uint32_t  flags;
+  uint64_t  offset;
+  uint64_t  virtualAddress;
+  uint64_t  physicalAddress;
+  uint64_t  alignment;        // NOTE(Isaac): `virtualAddress` should equal `offset`, modulo this alignment
 
   union
   {
@@ -86,7 +97,8 @@ struct elf_segment
   } size;
 
   /*
-   * Set if the size in the memory image is the same as in the file
+   * True if the size in the memory image is the same as in the file.
+   * This isn't true for things like BSS segments that are expanded during loading.
    */
   bool isMappedDirectly;
 };
@@ -97,37 +109,41 @@ struct elf_segment
 #define SECTION_ATTRIB_MASKOS   0x0F000000  // Environment-specific
 #define SECTION_ATTRIB_MASKPROC 0xF0000000  // Processor-specific
 
-enum section_type : uint32_t
+struct ElfThing;
+struct ElfSection
 {
-  SHT_NULL            = 0u,
-  SHT_PROGBITS        = 1u,
-  SHT_SYMTAB          = 2u,
-  SHT_STRTAB          = 3u,
-  SHT_RELA            = 4u,
-  SHT_HASH            = 5u,
-  SHT_DYNAMIC         = 6u,
-  SHT_NOTE            = 7u,
-  SHT_NOBITS          = 8u,
-  SHT_REL             = 9u,
-  SHT_SHLIB           = 10u,
-  SHT_DYNSYM          = 11u,
-  SHT_INIT_ARRAY      = 14u,
-  SHT_FINI_ARRAY      = 15u,
-  SHT_PREINIT_ARRAY   = 16u,
-  SHT_GROUP           = 17u,
-  SHT_SYMTAB_SHNDX    = 18u,
-  SHT_LOOS            = 0x60000000,
-  SHT_HIOS            = 0x6FFFFFFF,
-  SHT_LOPROC          = 0x70000000,
-  SHT_HIPROC          = 0x7FFFFFFF,
-  SHT_LOUSER          = 0x80000000,
-  SHT_HIUSER          = 0x8FFFFFFF
-};
+  enum Type : uint32_t
+  {
+    SHT_NULL            = 0u,
+    SHT_PROGBITS        = 1u,
+    SHT_SYMTAB          = 2u,
+    SHT_STRTAB          = 3u,
+    SHT_RELA            = 4u,
+    SHT_HASH            = 5u,
+    SHT_DYNAMIC         = 6u,
+    SHT_NOTE            = 7u,
+    SHT_NOBITS          = 8u,
+    SHT_REL             = 9u,
+    SHT_SHLIB           = 10u,
+    SHT_DYNSYM          = 11u,
+    SHT_INIT_ARRAY      = 14u,
+    SHT_FINI_ARRAY      = 15u,
+    SHT_PREINIT_ARRAY   = 16u,
+    SHT_GROUP           = 17u,
+    SHT_SYMTAB_SHNDX    = 18u,
+    SHT_LOOS            = 0x60000000,
+    SHT_HIOS            = 0x6FFFFFFF,
+    SHT_LOPROC          = 0x70000000,
+    SHT_HIPROC          = 0x7FFFFFFF,
+    SHT_LOUSER          = 0x80000000,
+    SHT_HIUSER          = 0x8FFFFFFF
+  };
 
-struct elf_section
-{
-  elf_string*   name;       // Offset in the string table to the section name
-  section_type  type;
+  ElfSection(ElfFile& elf, const char* name, Type type, uint64_t alignment, bool addtoElf=true);
+  ~ElfSection() { }
+
+  ElfString*    name;       // Offset in the string table to the section name
+  Type          type;
   uint64_t      flags;
   uint64_t      address;    // Virtual address of the beginning of the section in memory
   uint64_t      offset;     // Offset of the beginning of the section in the file
@@ -137,43 +153,51 @@ struct elf_section
   uint64_t      alignment;  // Required alignment of this section
   uint64_t      entrySize;  // Size of each section entry (if fixed, zero otherwise)
 
-  unsigned int index;       // Index in the section header
-  unsigned int nameOffset;  // NOTE(Isaac): Used when parsing external objects before we can parse the string table
+  unsigned int  index;      // Index in the section header
+  unsigned int  nameOffset; // NOTE(Isaac): Used when parsing external objects before we can parse the string table
+
+  /*
+   * For sections of type SHT_PROGBITS, this is the list of things that should be emitted into the section.
+   */
+  std::vector<ElfThing*> things;
 };
 
-struct elf_mapping
+struct ElfMapping
 {
-  elf_segment* segment;
-  elf_section* section;
+  ElfSegment* segment;
+  ElfSection* section;
 };
 
-enum symbol_binding : uint8_t
+struct ElfSymbol
 {
-  SYM_BIND_LOCAL      = 0x0,
-  SYM_BIND_GLOBAL     = 0x1,
-  SYM_BIND_WEAK       = 0x2,
-  SYM_BIND_LOOS       = 0xA,
-  SYM_BIND_HIOS       = 0xC,
-  SYM_BIND_LOPROC     = 0xD,
-  SYM_BIND_HIGHPROC   = 0xF,
-};
+  enum Binding : uint8_t
+  {
+    SYM_BIND_LOCAL      = 0x0,
+    SYM_BIND_GLOBAL     = 0x1,
+    SYM_BIND_WEAK       = 0x2,
+    SYM_BIND_LOOS       = 0xA,
+    SYM_BIND_HIOS       = 0xC,
+    SYM_BIND_LOPROC     = 0xD,
+    SYM_BIND_HIGHPROC   = 0xF,
+  };
 
-enum symbol_type : uint8_t
-{
-  SYM_TYPE_NONE,
-  SYM_TYPE_OBJECT,
-  SYM_TYPE_FUNCTION,
-  SYM_TYPE_SECTION,
-  SYM_TYPE_FILE,
-  SYM_TYPE_LOOS,
-  SYM_TYPE_HIOS,
-  SYM_TYPE_LOPROC,
-  SYM_TYPE_HIPROC,
-};
+  enum Type : uint8_t
+  {
+    SYM_TYPE_NONE,
+    SYM_TYPE_OBJECT,
+    SYM_TYPE_FUNCTION,
+    SYM_TYPE_SECTION,
+    SYM_TYPE_FILE,
+    SYM_TYPE_LOOS,
+    SYM_TYPE_HIOS,
+    SYM_TYPE_LOPROC,
+    SYM_TYPE_HIPROC,
+  };
 
-struct elf_symbol
-{
-  elf_string*   name;
+  ElfSymbol(ElfFile& elf, const char* name, Binding binding, Type type, uint16_t sectionIndex, uint64_t value);
+  ~ElfSymbol() { }
+
+  ElfString*    name;
   uint8_t       info;
   uint16_t      sectionIndex;
   uint64_t      value;
@@ -185,30 +209,36 @@ struct elf_symbol
 /*
  * Describes a piece of relocatable data that can be moved around and stuff.
  */
-struct elf_thing
+struct ElfThing
 {
-  elf_symbol* symbol;
-  unsigned int length;
-  unsigned int capacity;
-  uint8_t* data;  // NOTE(Isaac): this should be `capacity` elements long
+  ElfThing(ElfSection* section, ElfSymbol* symbol);
+  ~ElfThing();
 
-  unsigned int fileOffset;
-  unsigned int address;
+  ElfSymbol*    symbol;
+  unsigned int  length;
+  unsigned int  capacity;
+  uint8_t*      data;  // NOTE(Isaac): this should be `capacity` elements long
+
+  unsigned int  fileOffset;
+  unsigned int  address;
 };
 
-enum relocation_type : uint32_t
+struct ElfRelocation
 {
-  R_X86_64_64   = 1u,
-  R_X86_64_PC32 = 2u,
-  R_X86_64_32   = 10u,
-};
+  enum Type : uint32_t
+  {
+    R_X86_64_64   = 1u,
+    R_X86_64_PC32 = 2u,
+    R_X86_64_32   = 10u,
+  };
 
-struct elf_relocation
-{
-  elf_thing*              thing;
-  uint64_t                offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
-  relocation_type         type;
-  elf_symbol*             symbol;
+  ElfRelocation(ElfFile& elf, ElfThing* thing, uint64_t offset, Type type, ElfSymbol* symbol, int64_t addend, const LabelInstruction* label = nullptr);
+  ~ElfRelocation() { }
+
+  ElfThing*   thing;
+  uint64_t    offset;   // NOTE(Isaac): this is relative to the beginning of `thing`
+  Type        type;
+  ElfSymbol*  symbol;
 
   /*
    * NOTE(Isaac): the final addend will be the sum of the offset from the label (if not null) and the constant
@@ -219,10 +249,10 @@ struct elf_relocation
 
 // XXX(Isaac): do not call this directly!
 template<typename T>
-void Emit_(elf_thing* thing, T);
+void Emit_(ElfThing* thing, T);
 
 template<typename T>
-void Emit(elf_thing* thing, T t)
+void Emit(ElfThing* thing, T t)
 {
   const unsigned int THING_EXPAND_CONSTANT = 2u;
 
@@ -235,42 +265,27 @@ void Emit(elf_thing* thing, T t)
   Emit_(thing, t);
 }
 
-struct elf_symbol;
-
-struct elf_file
+struct ElfFile
 {
-  elf_file(CodegenTarget& target, bool isRelocatable);
-  ~elf_file();
+  ElfFile(CodegenTarget& target, bool isRelocatable);
+  ~ElfFile() { }
 
-  bool                          isRelocatable;
-  CodegenTarget*                target;
+  bool                        isRelocatable;
+  CodegenTarget*              target;
 
-  elf_header                    header;
-  std::vector<elf_segment*>     segments;
-  std::vector<elf_section*>     sections;
-  std::vector<elf_thing*>       things;
-  std::vector<elf_symbol*>      symbols;
-  std::vector<elf_string*>      strings;
-  std::vector<elf_mapping>      mappings;
-  std::vector<elf_relocation*>  relocations;
-  unsigned int                  stringTableTail; // Tail of the string table, relative to the start of the table
-  unsigned int                  numSymbols;
-  elf_thing*                    rodataThing;
+  ElfHeader                   header;
+  std::vector<ElfSegment*>    segments;
+  std::vector<ElfSection*>    sections;
+  std::vector<ElfSymbol*>     symbols;
+  std::vector<ElfString*>     strings;
+  std::vector<ElfMapping>     mappings;
+  std::vector<ElfRelocation*> relocations;
+  unsigned int                stringTableTail; // Tail of the string table, relative to the start of the table
+  unsigned int                numSymbols;
 };
 
-// TODO XXX FIXME: Temporary measure
-template<typename T>
-void Free(T&);
-// XXX Bleach my eyes
-
-elf_symbol* CreateSymbol(elf_file& elf, const char* name, symbol_binding binding, symbol_type type, uint16_t sectionIndex, uint64_t value);
-void CreateRelocation(elf_file& elf, elf_thing* thing, uint64_t offset, relocation_type type, elf_symbol* symbol, int64_t addend, const LabelInstruction* label = nullptr);
-elf_thing* CreateRodataThing(elf_file& elf);
-elf_thing* CreateThing(elf_file& elf, elf_symbol* symbol);
-elf_segment* CreateSegment(elf_file& elf, segment_type type, uint32_t flags, uint64_t address, uint64_t alignment, bool isMappedDirectly = true);
-elf_section* CreateSection(elf_file& elf, const char* name, section_type type, uint64_t alignment);
-elf_section* GetSection(elf_file& elf, const char* name);
-elf_symbol* GetSymbol(elf_file& elf, const char* name);
-void MapSection(elf_file& elf, elf_segment* segment, elf_section* section);
-void LinkObject(elf_file& elf, const char* objectPath);
-void WriteElf(elf_file& elf, const char* path);
+ElfSection* GetSection(ElfFile& elf, const char* name);
+ElfSymbol* GetSymbol(ElfFile& elf, const char* name);
+void MapSection(ElfFile& elf, ElfSegment* segment, ElfSection* section);
+void LinkObject(ElfFile& elf, const char* objectPath);
+void WriteElf(ElfFile& elf, const char* path);

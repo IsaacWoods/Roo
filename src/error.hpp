@@ -67,6 +67,7 @@ enum Error
   ICE_NONEXISTANT_AST_PASSLET,    // "Nonexistant passlet for node of type: %s"
   ICE_NONEXISTANT_AIR_PASSLET,    // "Nonexistant passlet for instruction of type: %s"
   ICE_FAILED_ASSERTION,           // "Assertion failed at (%s:%d): %s"
+  ICE_MISSING_ELF_SECTION,        // "Failed to find ELF section with name: %s"
 
   NUM_ERRORS
 };

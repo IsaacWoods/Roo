@@ -19,7 +19,7 @@ struct ThingOfCode;
 struct VariableDef;
 struct TypeDef;
 struct StringConstant;
-struct elf_symbol;
+struct ElfSymbol;
 
 struct ParseResult
 {
@@ -144,34 +144,34 @@ struct ThingOfCode
   ThingOfCode(Type type, ...);
   ~ThingOfCode();
 
-  Type                        type;
+  Type                      type;
   union
   {
-    char*                     name;
-    token_type                op;
+    char*                   name;
+    token_type              op;
   };
 
-  char*                       mangledName;
-  std::vector<VariableDef*>   params;
-  std::vector<VariableDef*>   locals;
-  bool                        shouldAutoReturn;
-  AttribSet                   attribs;
-  TypeRef*                    returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
+  char*                     mangledName;
+  std::vector<VariableDef*> params;
+  std::vector<VariableDef*> locals;
+  bool                      shouldAutoReturn;
+  AttribSet                 attribs;
+  TypeRef*                  returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
 
-  ErrorState                  errorState;
-  std::vector<ThingOfCode*>   calledThings;
+  ErrorState                errorState;
+  std::vector<ThingOfCode*> calledThings;
 
   // AST representation
-  ASTNode*                    ast;
+  ASTNode*                  ast;
 
   // AIR representation
-  std::vector<Slot*>          slots;
-  unsigned int                stackFrameSize;
-  AirInstruction*             airHead;
-  AirInstruction*             airTail;
-  unsigned int                numTemporaries;
-  unsigned int                numReturnResults;
-  elf_symbol*                 symbol;
+  std::vector<Slot*>        slots;
+  unsigned int              stackFrameSize;
+  AirInstruction*           airHead;
+  AirInstruction*           airTail;
+  unsigned int              numTemporaries;
+  unsigned int              numReturnResults;
+  ElfSymbol*                symbol;
 };
 
 TypeDef* GetTypeByName(ParseResult& parse, const char* typeName);
