@@ -110,17 +110,22 @@ void VariableResolverPass::VisitNode(WhileNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(NumberNode<unsigned int>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<unsigned int>* node, ThingOfCode* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(NumberNode<int>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<int>* node, ThingOfCode* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(NumberNode<float>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<float>* node, ThingOfCode* code)
+{
+   if (node->next) Dispatch(node->next, code);
+}
+
+void VariableResolverPass::VisitNode(ConstantNode<bool>* node, ThingOfCode* code)
 {
    if (node->next) Dispatch(node->next, code);
 }

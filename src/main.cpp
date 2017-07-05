@@ -118,10 +118,6 @@ int main()
   {\
     PassType pass;\
     pass.Apply(result);\
-    if (pass.errorState.hasErrored)\
-    {\
-      RaiseError(errorState, ERROR_COMPILE_ERRORS);\
-    }\
   }
 
   APPLY_PASS(VariableResolverPass);
@@ -130,6 +126,19 @@ int main()
 #ifdef OUTPUT_DOT
   APPLY_PASS(DotEmitterPass);
 #endif
+
+  for (ThingOfCode* thing : result.codeThings)
+  {
+    if (thing->attribs.isPrototype)
+    {
+      continue;
+    }
+
+    if (thing->errorState.hasErrored)
+    {
+      RaiseError(errorState, ERROR_COMPILE_ERRORS);
+    }
+  }
 
   if (result.isModule)
   {

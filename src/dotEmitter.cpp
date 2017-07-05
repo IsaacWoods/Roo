@@ -204,7 +204,7 @@ char* DotEmitterPass::VisitNode(WhileNode* node, DotState* state)
   return nodeName;
 }
 
-char* DotEmitterPass::VisitNode(NumberNode<unsigned int>* node, DotState* state)
+char* DotEmitterPass::VisitNode(ConstantNode<unsigned int>* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);
   fprintf(state->f, "\t%s[label=\"%uu\"];\n", nodeName, node->value);
@@ -212,7 +212,7 @@ char* DotEmitterPass::VisitNode(NumberNode<unsigned int>* node, DotState* state)
   return nodeName;
 }
 
-char* DotEmitterPass::VisitNode(NumberNode<int>* node, DotState* state)
+char* DotEmitterPass::VisitNode(ConstantNode<int>* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);
   fprintf(state->f, "\t%s[label=\"%d\"];\n", nodeName, node->value);
@@ -220,10 +220,18 @@ char* DotEmitterPass::VisitNode(NumberNode<int>* node, DotState* state)
   return nodeName;
 }
 
-char* DotEmitterPass::VisitNode(NumberNode<float>* node, DotState* state)
+char* DotEmitterPass::VisitNode(ConstantNode<float>* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);
   fprintf(state->f, "\t%s[label=\"%f\"];\n", nodeName, node->value);
+  VISIT_NEXT();
+  return nodeName;
+}
+
+char* DotEmitterPass::VisitNode(ConstantNode<bool>* node, DotState* state)
+{
+  char* nodeName = GetNextNode(state);
+  fprintf(state->f, "\t%s[label=\"%s\"];\n", nodeName, (node->value ? "TRUE" : "FALSE"));
   VISIT_NEXT();
   return nodeName;
 }

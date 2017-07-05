@@ -641,6 +641,11 @@ void CodeGenerator::Visit(ReturnInstruction* instruction, void*)
         // TODO: work out how floats work
       } break;
 
+      case SlotType::BOOL_CONSTANT:
+      {
+        E(i::MOV_REG_IMM32, RAX, (dynamic_cast<ConstantSlot<bool>*>(instruction->returnValue) ? 1u : 0u));
+      } break;
+
       case SlotType::STRING_CONSTANT:
       {
         E(i::MOV_REG_IMM64, RAX, 0x00);
@@ -713,6 +718,11 @@ void CodeGenerator::Visit(MovInstruction* instruction, void*)
     case SlotType::FLOAT_CONSTANT:
     {
       // TODO
+    } break;
+
+    case SlotType::BOOL_CONSTANT:
+    {
+      E(i::MOV_REG_IMM32, instruction->dest->color, (dynamic_cast<ConstantSlot<bool>*>(instruction->src) ? 1u : 0u));
     } break;
 
     case SlotType::STRING_CONSTANT:

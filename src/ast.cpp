@@ -183,7 +183,7 @@ std::string ConditionNode::AsString()
   __builtin_unreachable();
 }
 
-BranchNode::BranchNode(ConditionNode* condition, ASTNode* thenCode, ASTNode* elseCode)
+BranchNode::BranchNode(ASTNode* condition, ASTNode* thenCode, ASTNode* elseCode)
   :ASTNode()
   ,condition(condition)
   ,thenCode(thenCode)
@@ -204,7 +204,7 @@ std::string BranchNode::AsString()
                                                                             elseCode->AsString().c_str());
 }
 
-WhileNode::WhileNode(ConditionNode* condition, ASTNode* loopBody)
+WhileNode::WhileNode(ASTNode* condition, ASTNode* loopBody)
   :ASTNode()
   ,condition(condition)
   ,loopBody(loopBody)
@@ -223,21 +223,27 @@ std::string WhileNode::AsString()
 }
 
 template<>
-std::string NumberNode<unsigned int>::AsString()
+std::string ConstantNode<unsigned int>::AsString()
 {
   return FormatString("#%uu", value);
 }
 
 template<>
-std::string NumberNode<int>::AsString()
+std::string ConstantNode<int>::AsString()
 {
   return FormatString("#%d", value);
 }
 
 template<>
-std::string NumberNode<float>::AsString()
+std::string ConstantNode<float>::AsString()
 {
   return FormatString("#%ff", value);
+}
+
+template<>
+std::string ConstantNode<bool>::AsString()
+{
+  return FormatString("#%s", (value ? "TRUE" : "FALSE"));
 }
 
 StringNode::StringNode(StringConstant* string)

@@ -25,20 +25,21 @@ struct TypeChecker : ASTPass<void,TypeCheckingContext>
   
   void Apply(ParseResult& parse);
 
-  void VisitNode(BreakNode* node                 , TypeCheckingContext* context);
-  void VisitNode(ReturnNode* node                , TypeCheckingContext* context);
-  void VisitNode(UnaryOpNode* node               , TypeCheckingContext* context);
-  void VisitNode(BinaryOpNode* node              , TypeCheckingContext* context);
-  void VisitNode(VariableNode* node              , TypeCheckingContext* context);
-  void VisitNode(ConditionNode* node             , TypeCheckingContext* context);
-  void VisitNode(BranchNode* node                , TypeCheckingContext* context);
-  void VisitNode(WhileNode* node                 , TypeCheckingContext* context);
-  void VisitNode(NumberNode<unsigned int>* node  , TypeCheckingContext* context);
-  void VisitNode(NumberNode<int>* node           , TypeCheckingContext* context);
-  void VisitNode(NumberNode<float>* node         , TypeCheckingContext* context);
-  void VisitNode(StringNode* node                , TypeCheckingContext* context);
-  void VisitNode(CallNode* node                  , TypeCheckingContext* context);
-  void VisitNode(VariableAssignmentNode* node    , TypeCheckingContext* context);
-  void VisitNode(MemberAccessNode* node          , TypeCheckingContext* context);
-  void VisitNode(ArrayInitNode* node             , TypeCheckingContext* context);
+  void VisitNode(BreakNode* node                  , TypeCheckingContext* context);
+  void VisitNode(ReturnNode* node                 , TypeCheckingContext* context);
+  void VisitNode(UnaryOpNode* node                , TypeCheckingContext* context);
+  void VisitNode(BinaryOpNode* node               , TypeCheckingContext* context);
+  void VisitNode(VariableNode* node               , TypeCheckingContext* context);
+  void VisitNode(ConditionNode* node              , TypeCheckingContext* context);
+  void VisitNode(BranchNode* node                 , TypeCheckingContext* context);
+  void VisitNode(WhileNode* node                  , TypeCheckingContext* context);
+  void VisitNode(ConstantNode<unsigned int>* node , TypeCheckingContext* context);
+  void VisitNode(ConstantNode<int>* node          , TypeCheckingContext* context);
+  void VisitNode(ConstantNode<float>* node        , TypeCheckingContext* context);
+  void VisitNode(ConstantNode<bool>* node         , TypeCheckingContext* context);
+  void VisitNode(StringNode* node                 , TypeCheckingContext* context);
+  void VisitNode(CallNode* node                   , TypeCheckingContext* context);
+  void VisitNode(VariableAssignmentNode* node     , TypeCheckingContext* context);
+  void VisitNode(MemberAccessNode* node           , TypeCheckingContext* context);
+  void VisitNode(ArrayInitNode* node              , TypeCheckingContext* context);
 };

@@ -431,12 +431,13 @@ static void CompleteVariable(VariableDef* var, ErrorState& errorState)
   {
     Assert(!(var->type.isArraySizeResolved), "Tried to resolve array size expression that already has a size");
     
-    if (!IsNodeOfType<NumberNode<unsigned int>>(var->type.arraySizeExpression))
+    if (!IsNodeOfType<ConstantNode<unsigned int>>(var->type.arraySizeExpression))
     {
       RaiseError(errorState, ERROR_INVALID_ARRAY_SIZE);
+      return;
     }
 
-    auto* sizeExpression = reinterpret_cast<NumberNode<unsigned int>*>(var->type.arraySizeExpression);
+    auto* sizeExpression = reinterpret_cast<ConstantNode<unsigned int>*>(var->type.arraySizeExpression);
     var->type.isArraySizeResolved = true;
     var->type.arraySize = sizeExpression->value;
 

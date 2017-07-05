@@ -133,25 +133,25 @@ struct ConditionNode : ASTNode
 
 struct BranchNode : ASTNode
 {
-  BranchNode(ConditionNode* condition, ASTNode* thenCode, ASTNode* elseCode);
+  BranchNode(ASTNode* condition, ASTNode* thenCode, ASTNode* elseCode);
   ~BranchNode();
 
   std::string AsString();
 
-  ConditionNode*  condition;
-  ASTNode*        thenCode;
-  ASTNode*        elseCode;
+  ASTNode* condition;
+  ASTNode* thenCode;
+  ASTNode* elseCode;
 };
 
 struct WhileNode : ASTNode
 {
-  WhileNode(ConditionNode* condition, ASTNode* loopBody);
+  WhileNode(ASTNode* condition, ASTNode* loopBody);
   ~WhileNode();
 
   std::string AsString();
 
-  ConditionNode*  condition;
-  ASTNode*        loopBody;
+  ASTNode* condition;
+  ASTNode* loopBody;
 };
 
 /*
@@ -159,18 +159,20 @@ struct WhileNode : ASTNode
  *    `unsigned int`
  *    `int`
  *    `float`
+ *    `bool`
  */
 template<typename T>
-struct NumberNode : ASTNode
+struct ConstantNode : ASTNode
 {
-  NumberNode(T value)
+  ConstantNode(T value)
     :value(value)
   {
-    static_assert(std::is_same<T, unsigned int>::value ||
-                  std::is_same<T, int>::value ||
-                  std::is_same<T, float>::value, "NumberNode only supports unsigned int, int and float");
+    static_assert(std::is_same<T, unsigned int>::value  ||
+                  std::is_same<T, int>::value           ||
+                  std::is_same<T, float>::value         ||
+                  std::is_same<T, bool>::value, "NumberNode only supports unsigned int, int, float and bool");
   }
-  ~NumberNode() {}
+  ~ConstantNode() {}
 
   std::string AsString();
 
@@ -254,12 +256,10 @@ struct ASTPass
 {
   ASTPass(bool errorOnNonexistantPass)
     :errorOnNonexistantPass(errorOnNonexistantPass)
-    ,errorState(ErrorState::Type::GENERAL_STUFF) // TODO: better error state
   {
   }
 
-  bool        errorOnNonexistantPass;
-  ErrorState  errorState;
+  bool errorOnNonexistantPass;
 
   #define BASE_CASE(nodeType)\
   {\
@@ -278,9 +278,10 @@ struct ASTPass
   virtual R VisitNode(ConditionNode*                , T* = nullptr) BASE_CASE("ConditionNode");
   virtual R VisitNode(BranchNode*                   , T* = nullptr) BASE_CASE("BranchNode");
   virtual R VisitNode(WhileNode*                    , T* = nullptr) BASE_CASE("WhileNode");
-  virtual R VisitNode(NumberNode<unsigned int>*     , T* = nullptr) BASE_CASE("NumberNode<unsigned int>");
-  virtual R VisitNode(NumberNode<int>*              , T* = nullptr) BASE_CASE("NumberNode<int>");
-  virtual R VisitNode(NumberNode<float>*            , T* = nullptr) BASE_CASE("NumberNode<float>");
+  virtual R VisitNode(ConstantNode<unsigned int>*   , T* = nullptr) BASE_CASE("ConstantNode<unsigned int>");
+  virtual R VisitNode(ConstantNode<int>*            , T* = nullptr) BASE_CASE("ConstantNode<int>");
+  virtual R VisitNode(ConstantNode<float>*          , T* = nullptr) BASE_CASE("ConstantNode<float>");
+  virtual R VisitNode(ConstantNode<bool>*           , T* = nullptr) BASE_CASE("ConstantNode<float>");
   virtual R VisitNode(StringNode*                   , T* = nullptr) BASE_CASE("StringNode");
   virtual R VisitNode(CallNode*                     , T* = nullptr) BASE_CASE("CallNode");
   virtual R VisitNode(VariableAssignmentNode*       , T* = nullptr) BASE_CASE("VariableAssignmentNode");
@@ -319,9 +320,10 @@ struct ASTPass
     else DISPATCH(ConditionNode)
     else DISPATCH(BranchNode)
     else DISPATCH(WhileNode)
-    else DISPATCH(NumberNode<unsigned int>)
-    else DISPATCH(NumberNode<int>)
-    else DISPATCH(NumberNode<float>)
+    else DISPATCH(ConstantNode<unsigned int>)
+    else DISPATCH(ConstantNode<int>)
+    else DISPATCH(ConstantNode<float>)
+    else DISPATCH(ConstantNode<bool>)
     else DISPATCH(StringNode)
     else DISPATCH(CallNode)
     else DISPATCH(VariableAssignmentNode)

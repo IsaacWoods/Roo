@@ -138,6 +138,12 @@ std::string ConstantSlot<float>::AsString()
 }
 
 template<>
+std::string ConstantSlot<bool>::AsString()
+{
+  return FormatString("#%s", (value ? "TRUE" : "FALSE"));
+}
+
+template<>
 std::string ConstantSlot<StringConstant*>::AsString()
 {
   return FormatString("\"%s\"", value->string);
@@ -285,6 +291,21 @@ std::string CallInstruction::AsString()
 }
 
 // AirGenerator
+static JumpInstruction::Condition MapReverseCondition(ConditionNode::Condition condition)
+{
+  switch (condition)
+  {
+    case ConditionNode::Condition::EQUAL:                   return JumpInstruction::Condition::IF_NOT_EQUAL;
+    case ConditionNode::Condition::NOT_EQUAL:               return JumpInstruction::Condition::IF_EQUAL;
+    case ConditionNode::Condition::LESS_THAN:               return JumpInstruction::Condition::IF_GREATER_OR_EQUAL;
+    case ConditionNode::Condition::LESS_THAN_OR_EQUAL:      return JumpInstruction::Condition::IF_GREATER;
+    case ConditionNode::Condition::GREATER_THAN:            return JumpInstruction::Condition::IF_LESSER_OR_EQUAL;
+    case ConditionNode::Condition::GREATER_THAN_OR_EQUAL:   return JumpInstruction::Condition::IF_LESSER;
+  }
+
+  __builtin_unreachable();
+}
+
 static void PushInstruction(ThingOfCode* code, AirInstruction* instruction)
 {
   Assert(instruction->index == -1, "Instruction has already been pushed");
@@ -303,28 +324,29 @@ static void PushInstruction(ThingOfCode* code, AirInstruction* instruction)
   }
 }
 
-Slot* AirGenerator::VisitNode(BreakNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(BreakNode* node, AirState* state)
 {
-  // TODO: we need to somehow link to the end of the loop (maybe we should be marking the AST with this info
-  // beforehand?)
-  if (node->next) (void)Dispatch(node->next, code);
+  Assert(state->breakLabel, "No valid break label to jump to from BreakNode");
+  PushInstruction(state->code, new JumpInstruction(JumpInstruction::Condition::UNCONDITIONAL, state->breakLabel));
+  
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(ReturnNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ReturnNode* node, AirState* state)
 {
-  Slot* returnValue = (node->returnValue ? Dispatch(node->returnValue, code) : nullptr);
+  Slot* returnValue = (node->returnValue ? Dispatch(node->returnValue, state) : nullptr);
   ReturnInstruction* ret = new ReturnInstruction(returnValue);
-  PushInstruction(code, ret);
+  PushInstruction(state->code, ret);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
 {
-  Slot* operand = Dispatch(node->operand, code);
-  Slot* result = new TemporarySlot(code);
+  Slot* operand = Dispatch(node->operand, state);
+  Slot* result = new TemporarySlot(state->code);
 
   switch (node->op)
   {
@@ -341,7 +363,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     case UnaryOpNode::Operator::NEGATE:
     {
       AirInstruction* neg = new UnaryOpInstruction(UnaryOpInstruction::Operation::NEGATE, result, operand);
-      PushInstruction(code, neg);
+      PushInstruction(state->code, neg);
       operand->Use(neg);
       result->ChangeValue(neg);
     } break;
@@ -349,7 +371,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     case UnaryOpNode::Operator::LOGICAL_NOT:
     {
       AirInstruction* notI = new UnaryOpInstruction(UnaryOpInstruction::Operation::LOGICAL_NOT, result, operand);
-      PushInstruction(code, notI);
+      PushInstruction(state->code, notI);
       operand->Use(notI);
       result->ChangeValue(notI);
     } break;
@@ -362,7 +384,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     case UnaryOpNode::Operator::PRE_INCREMENT:
     {
       AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, result, operand);
-      PushInstruction(code, inc);
+      PushInstruction(state->code, inc);
       operand->Use(inc);
       result->ChangeValue(inc);
     } break;
@@ -372,8 +394,8 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
       AirInstruction* mov = new MovInstruction(operand, result);
       AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, operand, operand);
 
-      PushInstruction(code, mov);
-      PushInstruction(code, inc);
+      PushInstruction(state->code, mov);
+      PushInstruction(state->code, inc);
 
       operand->Use(mov);
       operand->Use(inc);
@@ -384,7 +406,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     case UnaryOpNode::Operator::PRE_DECREMENT:
     {
       AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, result, operand);
-      PushInstruction(code, dec);
+      PushInstruction(state->code, dec);
       operand->Use(dec);
       result->ChangeValue(dec);
     } break;
@@ -394,8 +416,8 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
       AirInstruction* mov = new MovInstruction(operand, result);
       AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, operand, operand);
 
-      PushInstruction(code, mov);
-      PushInstruction(code, dec);
+      PushInstruction(state->code, mov);
+      PushInstruction(state->code, dec);
 
       operand->Use(mov);
       operand->Use(dec);
@@ -404,133 +426,129 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, ThingOfCode* code)
     } break;
   }
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return result;
 }
 
-Slot* AirGenerator::VisitNode(BinaryOpNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(BinaryOpNode* node, AirState* state)
 {
   // TODO
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(VariableNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(VariableNode* node, AirState* state)
 {
   Assert(node->isResolved, "Tried to generate AIR for unresolved variable");
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return node->var->slot;
 }
 
-Slot* AirGenerator::VisitNode(ConditionNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ConditionNode* node, AirState* state)
 {
-  Slot* a = Dispatch(node->left, code);
-  Slot* b = Dispatch(node->right, code);
+  Slot* a = Dispatch(node->left, state);
+  Slot* b = Dispatch(node->right, state);
 
   CmpInstruction* cmp = new CmpInstruction(a, b);
-  PushInstruction(code, cmp);
+  PushInstruction(state->code, cmp);
 
   a->Use(cmp);
   b->Use(cmp);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(BranchNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(BranchNode* node, AirState* state)
 {
-  Dispatch(node->condition, code);
+  Dispatch(node->condition, state);
 
   LabelInstruction* elseLabel = (node->elseCode ? new LabelInstruction() : nullptr);
   LabelInstruction* endLabel = new LabelInstruction();
 
-  JumpInstruction::Condition condition;
-  switch (node->condition->condition)
-  {
-    /*
-     * We reverse the jump condition here, because we want to jump (and skip the 'then' branch) if the
-     * condition is *not* true.
-     */
-    case ConditionNode::Condition::EQUAL:                   condition = JumpInstruction::Condition::IF_NOT_EQUAL;         break;
-    case ConditionNode::Condition::NOT_EQUAL:               condition = JumpInstruction::Condition::IF_EQUAL;             break;
-    case ConditionNode::Condition::LESS_THAN:               condition = JumpInstruction::Condition::IF_GREATER_OR_EQUAL;  break;
-    case ConditionNode::Condition::LESS_THAN_OR_EQUAL:      condition = JumpInstruction::Condition::IF_GREATER;           break;
-    case ConditionNode::Condition::GREATER_THAN:            condition = JumpInstruction::Condition::IF_LESSER_OR_EQUAL;   break;
-    case ConditionNode::Condition::GREATER_THAN_OR_EQUAL:   condition = JumpInstruction::Condition::IF_LESSER;            break;
-  }
-
-  PushInstruction(code, new JumpInstruction(condition, (elseLabel ? elseLabel : endLabel)));
-  Dispatch(node->thenCode, code);
+  /*
+   * We reverse the jump condition here, because we want to jump (and skip the 'then' branch) if the
+   * condition is *not* true.
+   */
+  Assert(IsNodeOfType<ConditionNode>(node->condition), "Complete AST must have `ConditionNode`s as conditions");
+  JumpInstruction::Condition condition = MapReverseCondition(dynamic_cast<ConditionNode*>(node->condition)->condition);
+  PushInstruction(state->code, new JumpInstruction(condition, (elseLabel ? elseLabel : endLabel)));
+  Dispatch(node->thenCode, state);
+  PushInstruction(state->code, new JumpInstruction(JumpInstruction::Condition::UNCONDITIONAL, endLabel));
   if (elseLabel)
   {
-    PushInstruction(code, elseLabel);
-    Dispatch(node->elseCode, code);
+    PushInstruction(state->code, elseLabel);
+    Dispatch(node->elseCode, state);
   }
-  PushInstruction(code, endLabel);
+  PushInstruction(state->code, endLabel);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(WhileNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(WhileNode* node, AirState* state)
 {
-  LabelInstruction* label = new LabelInstruction();
-  PushInstruction(code, label);
+  state->breakLabel = new LabelInstruction();
 
-  Dispatch(node->loopBody, code);
+  LabelInstruction* startLabel = new LabelInstruction();
+  PushInstruction(state->code, startLabel);
 
-  Dispatch(node->condition, code);
-  JumpInstruction::Condition condition;
-  switch (node->condition->condition)
-  {
-    case ConditionNode::Condition::EQUAL:                   condition = JumpInstruction::Condition::IF_EQUAL;             break;
-    case ConditionNode::Condition::NOT_EQUAL:               condition = JumpInstruction::Condition::IF_NOT_EQUAL;         break;
-    case ConditionNode::Condition::LESS_THAN:               condition = JumpInstruction::Condition::IF_LESSER;            break;
-    case ConditionNode::Condition::LESS_THAN_OR_EQUAL:      condition = JumpInstruction::Condition::IF_LESSER_OR_EQUAL;   break;
-    case ConditionNode::Condition::GREATER_THAN:            condition = JumpInstruction::Condition::IF_GREATER;           break;
-    case ConditionNode::Condition::GREATER_THAN_OR_EQUAL:   condition = JumpInstruction::Condition::IF_GREATER_OR_EQUAL;  break;
-  }
+  Dispatch(node->condition, state);
+  Assert(IsNodeOfType<ConditionNode>(node->condition), "Complete AST must have `ConditionNode`s as conditions");
 
-  PushInstruction(code, new JumpInstruction(condition, label));
+  JumpInstruction::Condition condition = MapReverseCondition(dynamic_cast<ConditionNode*>(node->condition)->condition);
+  PushInstruction(state->code, new JumpInstruction(condition, state->breakLabel));
+  Dispatch(node->loopBody, state);
+  PushInstruction(state->code, new JumpInstruction(JumpInstruction::Condition::UNCONDITIONAL, startLabel));
+  PushInstruction(state->code, state->breakLabel);
+  state->breakLabel = nullptr;
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(NumberNode<unsigned int>* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ConstantNode<unsigned int>* node, AirState* state)
 {
-  Slot* slot = new ConstantSlot<unsigned int>(code, node->value);
+  Slot* slot = new ConstantSlot<unsigned int>(state->code, node->value);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return slot;
 }
 
-Slot* AirGenerator::VisitNode(NumberNode<int>* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ConstantNode<int>* node, AirState* state)
 {
-  Slot* slot = new ConstantSlot<int>(code, node->value);
+  Slot* slot = new ConstantSlot<int>(state->code, node->value);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return slot;
 }
 
-Slot* AirGenerator::VisitNode(NumberNode<float>* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ConstantNode<float>* node, AirState* state)
 {
-  Slot* slot = new ConstantSlot<float>(code, node->value);
+  Slot* slot = new ConstantSlot<float>(state->code, node->value);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return slot;
 }
 
-Slot* AirGenerator::VisitNode(StringNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ConstantNode<bool>* node, AirState* state)
 {
-  Slot* slot = new ConstantSlot<StringConstant*>(code, node->string);
+  Slot* slot = new ConstantSlot<bool>(state->code, node->value);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return slot;
 }
 
-Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(StringNode* node, AirState* state)
+{
+  Slot* slot = new ConstantSlot<StringConstant*>(state->code, node->string);
+
+  if (node->next) (void)Dispatch(node->next, state);
+  return slot;
+}
+
+Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
 {
   // TODO: parameterise the parameters into the correct places, issue the call instruction, and return the
   // result in a ReturnResultSlot correctly
@@ -540,7 +558,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
   for (ASTNode* paramNode : node->params)
   {
     Assert(numGeneralParams < target.numGeneralRegisters, "Filled up general registers");
-    Slot* slot = Dispatch(paramNode, code);
+    Slot* slot = Dispatch(paramNode, state);
 
     switch (slot->GetType())
     {
@@ -557,12 +575,13 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
       case SlotType::INT_CONSTANT:
       case SlotType::UNSIGNED_INT_CONSTANT:
       case SlotType::FLOAT_CONSTANT:
+      case SlotType::BOOL_CONSTANT:
       case SlotType::STRING_CONSTANT:
       {
-        TemporarySlot* tempSlot = new TemporarySlot(code);
+        TemporarySlot* tempSlot = new TemporarySlot(state->code);
         tempSlot->color = target.intParamColors[numGeneralParams++];
         AirInstruction* mov = new MovInstruction(slot, tempSlot);
-        PushInstruction(code, mov);
+        PushInstruction(state->code, mov);
         paramSlots.push_back(tempSlot);
 
         slot->Use(mov);
@@ -573,7 +592,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
 
   Assert(node->isResolved, "Tried to emit call to unresolved function");
   AirInstruction* call = new CallInstruction(node->resolvedFunction);
-  PushInstruction(code, call);
+  PushInstruction(state->code, call);
 
   for (Slot* paramSlot : paramSlots)
   {
@@ -583,41 +602,41 @@ Slot* AirGenerator::VisitNode(CallNode* node, ThingOfCode* code)
   Slot* returnSlot = nullptr;
   if (node->resolvedFunction->returnType)
   {
-    returnSlot = new ReturnResultSlot(code);
+    returnSlot = new ReturnResultSlot(state->code);
     returnSlot->ChangeValue(call);
     returnSlot->color = target.functionReturnColor;
   }
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return returnSlot;
 }
 
-Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, AirState* state)
 {
-  Slot* variable = Dispatch(node->variable, code);
-  Slot* newValue = Dispatch(node->newValue, code);
+  Slot* variable = Dispatch(node->variable, state);
+  Slot* newValue = Dispatch(node->newValue, state);
 
   AirInstruction* mov = new MovInstruction(newValue, variable);
-  PushInstruction(code, mov);
+  PushInstruction(state->code, mov);
 
   variable->ChangeValue(mov);
   newValue->Use(mov);
 
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return variable;
 }
 
-Slot* AirGenerator::VisitNode(MemberAccessNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(MemberAccessNode* node, AirState* state)
 {
   // TODO
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
-Slot* AirGenerator::VisitNode(ArrayInitNode* node, ThingOfCode* code)
+Slot* AirGenerator::VisitNode(ArrayInitNode* node, AirState* state)
 {
   // TODO
-  if (node->next) (void)Dispatch(node->next, code);
+  if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }
 
@@ -830,7 +849,9 @@ void AirGenerator::Apply(ParseResult& parse)
       return;
     }
 
-    Dispatch(code->ast, code);
+    // Generate AIR from the AST
+    AirState state(code);
+    Dispatch(code->ast, &state);
 
     // Allow the code generator to precolor the interference graph
     InstructionPrecolorer precolorer;

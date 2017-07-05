@@ -9,9 +9,9 @@ GetStringLength:
 
   xor rcx, rcx
   not rcx       ; Sets rcx to -1
-  xor al, al    ; al=0 - look for the '\0' character
+  xor al, al    ; al=0 - specify that we're looking for a '\0' character
   cld
-  repnz scasb   ; decrement rcx til nullptr
+  repnz scasb   ; decrement rcx til we get to a '\0'
   not rcx       ; make the length positive
   dec rcx       ; don't include the null-terminator
 

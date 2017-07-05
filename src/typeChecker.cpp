@@ -104,7 +104,7 @@ void TypeChecker::VisitNode(WhileNode* node, TypeCheckingContext* context)
   if (node->next) Dispatch(node->next, context);
 }
 
-void TypeChecker::VisitNode(NumberNode<unsigned int>* node, TypeCheckingContext* context)
+void TypeChecker::VisitNode(ConstantNode<unsigned int>* node, TypeCheckingContext* context)
 {
   node->type = new TypeRef();
   node->type->isResolved           = true;
@@ -120,7 +120,7 @@ void TypeChecker::VisitNode(NumberNode<unsigned int>* node, TypeCheckingContext*
   if (node->next) Dispatch(node->next, context);
 }
 
-void TypeChecker::VisitNode(NumberNode<int>* node, TypeCheckingContext* context)
+void TypeChecker::VisitNode(ConstantNode<int>* node, TypeCheckingContext* context)
 {
   node->type = new TypeRef();
   node->type->isResolved           = true;
@@ -136,11 +136,27 @@ void TypeChecker::VisitNode(NumberNode<int>* node, TypeCheckingContext* context)
   if (node->next) Dispatch(node->next, context);
 }
 
-void TypeChecker::VisitNode(NumberNode<float>* node, TypeCheckingContext* context)
+void TypeChecker::VisitNode(ConstantNode<float>* node, TypeCheckingContext* context)
 {
   node->type = new TypeRef();
   node->type->isResolved           = true;
   node->type->resolvedType         = GetTypeByName(context->parse, "float");
+  node->type->isMutable            = false;
+  node->type->isReference          = false;
+  node->type->isReferenceMutable   = false;
+  node->type->isArray              = false;
+  node->type->isArraySizeResolved  = true;
+  node->type->arraySize            = 0u;
+  node->shouldFreeTypeRef          = true;
+
+  if (node->next) Dispatch(node->next, context);
+}
+
+void TypeChecker::VisitNode(ConstantNode<bool>* node, TypeCheckingContext* context)
+{
+  node->type = new TypeRef();
+  node->type->isResolved           = true;
+  node->type->resolvedType         = GetTypeByName(context->parse, "bool");
   node->type->isMutable            = false;
   node->type->isReference          = false;
   node->type->isReferenceMutable   = false;

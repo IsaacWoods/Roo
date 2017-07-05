@@ -8,6 +8,7 @@
 
 #[LinkFile("stuff.o")]
 
+#[DefinePrimitive("bool",   1u)]
 #[DefinePrimitive("char",   1u)]
 #[DefinePrimitive("int",    4u)]
 #[DefinePrimitive("uint",   4u)]

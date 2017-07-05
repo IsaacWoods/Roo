@@ -39,6 +39,7 @@ enum class SlotType
   UNSIGNED_INT_CONSTANT,
   INT_CONSTANT,
   FLOAT_CONSTANT,
+  BOOL_CONSTANT,
   STRING_CONSTANT
 };
 
@@ -155,9 +156,10 @@ struct ConstantSlot : Slot
     :Slot(code)
     ,value(value)
   {
-    static_assert(std::is_same<T, unsigned int>::value  ||
-                  std::is_same<T, int>::value           ||
-                  std::is_same<T, float>::value         ||
+    static_assert(std::is_same<T, unsigned int>::value    ||
+                  std::is_same<T, int>::value             ||
+                  std::is_same<T, float>::value           ||
+                  std::is_same<T, bool>::value            ||
                   std::is_same<T, StringConstant*>::value,
                   "ConstantSlot can only be: unsigned int, int, float, StringConstant*");
   }
@@ -177,6 +179,10 @@ struct ConstantSlot : Slot
     else if (std::is_same<T, float>::value)
     {
       return SlotType::FLOAT_CONSTANT;
+    }
+    else if (std::is_same<T, bool>::value)
+    {
+      return SlotType::BOOL_CONSTANT;
     }
     else
     {
@@ -334,7 +340,24 @@ struct CallInstruction : AirInstruction
  * Most of these obviously actually generate AIR instructions, but they don't have to (for example, constants
  * simply return a Slot with the correct constant value).
  */
-struct AirGenerator : ASTPass<Slot*, ThingOfCode>
+struct AirState
+{
+  AirState(ThingOfCode* code)
+    :code(code)
+    ,breakLabel(nullptr)
+  {
+  }
+  ~AirState() { }
+
+  ThingOfCode* code;
+
+  /*
+   * If we're inside a loop, we set this to the label that should be jumped to upon a `break`
+   */
+  LabelInstruction* breakLabel;
+};
+
+struct AirGenerator : ASTPass<Slot*, AirState>
 {
   AirGenerator(CodegenTarget& target)
     :ASTPass(true)
@@ -346,22 +369,23 @@ struct AirGenerator : ASTPass<Slot*, ThingOfCode>
 
   void Apply(ParseResult& parse);
 
-  Slot* VisitNode(BreakNode* node                 , ThingOfCode* code);
-  Slot* VisitNode(ReturnNode* node                , ThingOfCode* code);
-  Slot* VisitNode(UnaryOpNode* node               , ThingOfCode* code);
-  Slot* VisitNode(BinaryOpNode* node              , ThingOfCode* code);
-  Slot* VisitNode(VariableNode* node              , ThingOfCode* code);
-  Slot* VisitNode(ConditionNode* node             , ThingOfCode* code);
-  Slot* VisitNode(BranchNode* node                , ThingOfCode* code);
-  Slot* VisitNode(WhileNode* node                 , ThingOfCode* code);
-  Slot* VisitNode(NumberNode<unsigned int>* node  , ThingOfCode* code);
-  Slot* VisitNode(NumberNode<int>* node           , ThingOfCode* code);
-  Slot* VisitNode(NumberNode<float>* node         , ThingOfCode* code);
-  Slot* VisitNode(StringNode* node                , ThingOfCode* code);
-  Slot* VisitNode(CallNode* node                  , ThingOfCode* code);
-  Slot* VisitNode(VariableAssignmentNode* node    , ThingOfCode* code);
-  Slot* VisitNode(MemberAccessNode* node          , ThingOfCode* code);
-  Slot* VisitNode(ArrayInitNode* node             , ThingOfCode* code);
+  Slot* VisitNode(BreakNode* node                   , AirState* state);
+  Slot* VisitNode(ReturnNode* node                  , AirState* state);
+  Slot* VisitNode(UnaryOpNode* node                 , AirState* state);
+  Slot* VisitNode(BinaryOpNode* node                , AirState* state);
+  Slot* VisitNode(VariableNode* node                , AirState* state);
+  Slot* VisitNode(ConditionNode* node               , AirState* state);
+  Slot* VisitNode(BranchNode* node                  , AirState* state);
+  Slot* VisitNode(WhileNode* node                   , AirState* state);
+  Slot* VisitNode(ConstantNode<unsigned int>* node  , AirState* state);
+  Slot* VisitNode(ConstantNode<int>* node           , AirState* state);
+  Slot* VisitNode(ConstantNode<float>* node         , AirState* state);
+  Slot* VisitNode(ConstantNode<bool>* node          , AirState* state);
+  Slot* VisitNode(StringNode* node                  , AirState* state);
+  Slot* VisitNode(CallNode* node                    , AirState* state);
+  Slot* VisitNode(VariableAssignmentNode* node      , AirState* state);
+  Slot* VisitNode(MemberAccessNode* node            , AirState* state);
+  Slot* VisitNode(ArrayInitNode* node               , AirState* state);
 };
 
 bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color);

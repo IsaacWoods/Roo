@@ -105,6 +105,7 @@ struct Parser
   const char*     currentChar;        // NOTE(Isaac): this points into `source`
   unsigned int    currentLine;
   unsigned int    currentLineOffset;
+  bool            isInLoop;           // NOTE(Isaac): This dictates whether we can use the `break` command
 
   token           currentToken;
   token           nextToken;

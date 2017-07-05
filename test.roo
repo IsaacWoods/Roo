@@ -5,13 +5,18 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-//  i : mut uint = 0u
-  i : mut uint
-  i = 0u
-  while (i < 5u)
+  i : mut uint = 0u
+  while (i < 2000u)
   {
-    Print("Hello, World!\n")
-    i++
+    if (i < 5u)
+    {
+      Print("Loop\n")
+      i++
+    }
+    else
+    {
+      break
+    }
   }
   return 0
 }

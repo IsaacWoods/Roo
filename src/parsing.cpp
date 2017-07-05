@@ -774,6 +774,7 @@ static ASTNode* ParseExpression(Parser& parser, unsigned int precedence = 0u)
   if (!prefixParselet)
   {
     RaiseError(parser.errorState, ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken(parser).type));
+    RaiseError(parser.errorState, ERROR_COMPILE_ERRORS);
   }
 
   ASTNode* expression = prefixParselet(parser);
@@ -893,8 +894,8 @@ static VariableDef* ParseVariableDef(Parser& parser)
   return variable;
 }
 
-static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope, bool isInLoop = false);
-static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope, bool isInLoop = false)
+static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope);
+static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -902,7 +903,7 @@ static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope, bool isInLoop = f
 
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
-    ASTNode* statement = ParseStatement(parser, scope, isInLoop);
+    ASTNode* statement = ParseStatement(parser, scope);
 
     if (code)
     {
@@ -932,17 +933,9 @@ static ASTNode* ParseIf(Parser& parser, ThingOfCode* scope)
 
   Consume(parser, TOKEN_IF);
   Consume(parser, TOKEN_LEFT_PAREN);
-  ASTNode* conditionNode = ParseExpression(parser);
+  ASTNode* condition = ParseExpression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
-  if (!IsNodeOfType<ConditionNode>(conditionNode))
-  {
-    // FIXME: Print out the source that forms the expression
-    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", "FINDSOMETHINGTOWRITEHERE");
-  }
-
-  ConditionNode* condition = reinterpret_cast<ConditionNode*>(conditionNode);
-  //condition->reverseOnJump = true;
   ASTNode* thenCode = ParseBlock(parser, scope);
   ASTNode* elseCode = nullptr;
 
@@ -959,36 +952,31 @@ static ASTNode* ParseIf(Parser& parser, ThingOfCode* scope)
 static ASTNode* ParseWhile(Parser& parser, ThingOfCode* scope)
 {
   Log(parser, "--> While\n");
+  parser.isInLoop = true;
 
   Consume(parser, TOKEN_WHILE);
   Consume(parser, TOKEN_LEFT_PAREN);
   ASTNode* condition = ParseExpression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
+  ASTNode* code = ParseBlock(parser, scope);
 
-  if (!IsNodeOfType<ConditionNode>(condition))
-  {
-    // FIXME: Print out the source that forms the expression
-    RaiseError(parser.errorState, ERROR_UNEXPECTED_EXPRESSION, "conditional", "");
-  }
-
-  ASTNode* code = ParseBlock(parser, scope, true);
-
+  parser.isInLoop = false;
   Log(parser, "<-- While\n");
-  return new WhileNode(reinterpret_cast<ConditionNode*>(condition), code);
+  return new WhileNode(condition, code);
 }
 
-static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope, bool isInLoop)
+static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope)
 {
-  Log(parser, "--> Statement");
+  Log(parser, "--> Statement(%s)", (parser.isInLoop ? "IN LOOP" : "NOT IN LOOP"));
   ASTNode* result = nullptr;
 
   switch (PeekToken(parser).type)
   {
     case TOKEN_BREAK:
     {
-      if (!isInLoop)
+      if (!(parser.isInLoop))
       {
-        RaiseError(parser.errorState, ERROR_UNEXPECTED, "not-in-a-loop", "break");
+        RaiseError(parser.errorState, ERROR_UNEXPECTED, "not-in-a-loop", GetTokenName(TOKEN_BREAK));
         return nullptr;
       }
 
@@ -1425,7 +1413,7 @@ static void InitParseletMaps()
       int value = PeekToken(parser).asSignedInt;
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (signed integer)\n");
-      return new NumberNode<int>(value);
+      return new ConstantNode<int>(value);
     };
 
   g_prefixMap[TOKEN_UNSIGNED_INT] =
@@ -1435,7 +1423,7 @@ static void InitParseletMaps()
       unsigned int value = PeekToken(parser).asUnsignedInt;
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (unsigned integer)\n");
-      return new NumberNode<unsigned int>(value);
+      return new ConstantNode<unsigned int>(value);
     };
 
   g_prefixMap[TOKEN_FLOAT] =
@@ -1445,7 +1433,19 @@ static void InitParseletMaps()
       float value = PeekToken(parser).asFloat;
       NextToken(parser, false);
       Log(parser, "<-- [PARSELET] Number constant (floating point)\n");
-      return new NumberNode<float>(value);
+      return new ConstantNode<float>(value);
+    };
+
+  g_prefixMap[TOKEN_TRUE]  =
+  g_prefixMap[TOKEN_FALSE] =
+    [](Parser& parser) -> ASTNode*
+    {
+      Log(parser, "--> [PARSELET] Bool\n");
+      bool value = (PeekToken(parser).type == TOKEN_TRUE);
+      NextToken(parser, false);
+
+      Log(parser, "<-- [PARSELET] Bool\n");
+      return new ConstantNode<bool>(value);
     };
 
   g_prefixMap[TOKEN_STRING] =
