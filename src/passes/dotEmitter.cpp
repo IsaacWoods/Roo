@@ -3,23 +3,26 @@
  * See LICENCE.md
  */
 
-#include <dotEmitter.hpp>
+#include <passes/passes.hpp>
 
-DotState::DotState(const char* fileName)
-  :nodeCounter(0u)
-  ,errorState(ErrorState::Type::GENERAL_STUFF)
-  ,f(fopen(fileName, "w"))
+struct DotState
 {
-  if (!f)
+  DotState(const char* fileName)
+    :nodeCounter(0u)
+    ,errorState(ErrorState::Type::GENERAL_STUFF)
+    ,f(fopen(fileName, "w"))
   {
-    RaiseError(errorState, ERROR_FAILED_TO_OPEN_FILE, fileName);
   }
-}
 
-DotState::~DotState()
-{
-  fclose(f);
-}
+  ~DotState()
+  {
+    fclose(f);
+  }
+
+  unsigned int  nodeCounter;
+  ErrorState    errorState;
+  FILE*         f;
+};
 
 void DotEmitterPass::Apply(ParseResult& parse)
 {

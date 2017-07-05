@@ -1,7 +1,7 @@
 # Roo
 [![Build Status](https://travis-ci.org/IsaacWoods/Roo.svg?branch=master)](https://travis-ci.org/IsaacWoods/Roo)
 
-Roo is a imperitive, toy programming language that takes concepts from functional programming. Its central goal
+Roo is a imperitive programming language that takes concepts from functional programming. Its central goal
 is to avoid the kitchen-sink-esque hodgepodge of languages like C++, instead expressing logic through fewer, more powerful
 features.
 

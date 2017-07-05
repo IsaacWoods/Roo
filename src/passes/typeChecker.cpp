@@ -3,7 +3,19 @@
  * See LICENCE.md
  */
 
-#include <typeChecker.hpp>
+#include <passes/passes.hpp>
+
+struct TypeCheckingContext
+{
+  TypeCheckingContext(ParseResult& parse, ThingOfCode* code)
+    :parse(parse)
+    ,code(code)
+  { }
+  ~TypeCheckingContext() { }
+
+  ParseResult& parse;
+  ThingOfCode* code;
+};
 
 void TypeChecker::Apply(ParseResult& parse)
 {

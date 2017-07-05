@@ -13,12 +13,12 @@ OBJS = \
 	src/ir.o \
   src/parsing.o \
 	src/module.o \
-	src/dotEmitter.o \
 	src/air.o \
 	src/codegen_x64elf.o \
 	src/elf.o \
-	src/variableResolver.o \
-	src/typeChecker.o \
+	src/passes/dotEmitter.o \
+	src/passes/variableResolver.o \
+	src/passes/typeChecker.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

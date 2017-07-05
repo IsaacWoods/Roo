@@ -3,7 +3,7 @@
  * See LICENCE.md
  */
 
-#include <variableResolver.hpp>
+#include <passes/passes.hpp>
 
 void VariableResolverPass::Apply(ParseResult& parse)
 {

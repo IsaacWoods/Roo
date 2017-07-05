@@ -11,20 +11,12 @@
 #include <error.hpp>
 #include <codegen.hpp>
 #include <module.hpp>
+#include <passes/passes.hpp>
 
 #if 1
   #define TIME_EXECUTION
   #include <chrono>
 #endif
-
-#define OUTPUT_DOT
-#ifdef OUTPUT_DOT
-  #include <dotEmitter.hpp>
-#endif
-
-// AST Passes
-#include <variableResolver.hpp>
-#include <typeChecker.hpp>
 
 /*
  * Find and compile all .roo files in the specified directory.
