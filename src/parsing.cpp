@@ -34,18 +34,18 @@
   #define Log(parser, ...)
 #endif
 
-static inline char* GetTextFromToken(Parser& parser, const token& tkn)
+static inline char* GetTextFromToken(Parser& parser, const Token& token)
 {
   // NOTE(Isaac): this is the upper bound of the amount of memory we need to store the string representation
-  char* text = static_cast<char*>(malloc(sizeof(char) * (tkn.textLength + 1u)));
+  char* text = static_cast<char*>(malloc(sizeof(char) * (token.textLength + 1u)));
 
   // We need to manually escape string constants into actually correct chars
-  if (tkn.type == TOKEN_STRING)
+  if (token.type == TOKEN_STRING)
   {
     unsigned int i = 0u;
 
-    for (const char* c = tkn.textStart;
-         c < (tkn.textStart + static_cast<uintptr_t>(tkn.textLength));
+    for (const char* c = token.textStart;
+         c < (token.textStart + static_cast<uintptr_t>(token.textLength));
          c++)
     {
       if (*c == '\\')
@@ -74,8 +74,8 @@ static inline char* GetTextFromToken(Parser& parser, const token& tkn)
   else
   {
     // NOTE(Isaac): In this case, we just need to shove the thing into the other thing
-    memcpy(text, tkn.textStart, tkn.textLength);
-    text[tkn.textLength] = '\0';
+    memcpy(text, token.textStart, token.textLength);
+    text[token.textLength] = '\0';
   }
 
   return text;
@@ -128,13 +128,13 @@ static bool IsHexDigit(char c)
   return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
 }
 
-static inline token MakeToken(Parser& parser, token_type type, unsigned int offset, const char* startChar,
+static inline Token MakeToken(Parser& parser, TokenType type, unsigned int offset, const char* startChar,
     unsigned int length)
 {
-  return token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
+  return Token{type, offset, parser.currentLine, parser.currentLineOffset, startChar, length, 0u};
 }
 
-static token LexName(Parser& parser)
+static Token LexName(Parser& parser)
 {
   // NOTE(Isaac): Minus one to get the current char as well
   const char* startChar = parser.currentChar - 1u;
@@ -170,10 +170,10 @@ static token LexName(Parser& parser)
   return MakeToken(parser, TOKEN_IDENTIFIER, tokenOffset, startChar, (unsigned int)length);
 }
 
-static token LexNumber(Parser& parser)
+static Token LexNumber(Parser& parser)
 {
   const char* startChar = parser.currentChar - 1u;
-  token_type type = TOKEN_SIGNED_INT;
+  TokenType type = TOKEN_SIGNED_INT;
 
   while (IsDigit(*(parser.currentChar)))
   {
@@ -201,24 +201,24 @@ static token LexNumber(Parser& parser)
     type = TOKEN_UNSIGNED_INT;
   }
 
-  token tkn = MakeToken(parser, type, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(parser, tkn);
+  Token token = MakeToken(parser, type, tokenOffset, startChar, (unsigned int)length);
+  char* text = GetTextFromToken(parser, token);
 
   switch (type)
   {
     case TOKEN_SIGNED_INT:
     {
-      tkn.asSignedInt = strtol(text, nullptr, 10);
+      token.asSignedInt = strtol(text, nullptr, 10);
     } break;
 
     case TOKEN_UNSIGNED_INT:
     {
-      tkn.asUnsignedInt = strtol(text, nullptr, 10);
+      token.asUnsignedInt = strtol(text, nullptr, 10);
     } break;
 
     case TOKEN_FLOAT:
     {
-      tkn.asFloat = strtof(text, nullptr);
+      token.asFloat = strtof(text, nullptr);
     } break;
 
     default:
@@ -228,10 +228,10 @@ static token LexNumber(Parser& parser)
   }
 
   free(text);
-  return tkn;
+  return token;
 }
 
-static token LexHexNumber(Parser& parser)
+static Token LexHexNumber(Parser& parser)
 {
   NextChar(parser); // NOTE(Isaac): skip over the 'x'
   const char* startChar = parser.currentChar;
@@ -244,15 +244,15 @@ static token LexHexNumber(Parser& parser)
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
-  token tkn = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(parser, tkn);
-  tkn.asUnsignedInt = strtol(text, nullptr, 16);
+  Token token = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
+  char* text = GetTextFromToken(parser, token);
+  token.asUnsignedInt = strtol(text, nullptr, 16);
   free(text);
 
-  return tkn;
+  return token;
 }
 
-static token LexBinaryNumber(Parser& parser)
+static Token LexBinaryNumber(Parser& parser)
 {
   NextChar(parser); // NOTE(Isaac): skip over the 'b'
   const char* startChar = parser.currentChar;
@@ -266,15 +266,15 @@ static token LexBinaryNumber(Parser& parser)
   ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
-  token tkn = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(parser, tkn);
-  tkn.asUnsignedInt = strtol(text, nullptr, 2);
+  Token token = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
+  char* text = GetTextFromToken(parser, token);
+  token.asUnsignedInt = strtol(text, nullptr, 2);
   free(text);
 
-  return tkn;
+  return token;
 }
 
-static token LexString(Parser& parser)
+static Token LexString(Parser& parser)
 {
   const char* startChar = parser.currentChar;
 
@@ -292,7 +292,7 @@ static token LexString(Parser& parser)
   return MakeToken(parser, TOKEN_STRING, tokenOffset, startChar, (unsigned int)length);
 }
 
-static token LexCharConstant(Parser& parser)
+static Token LexCharConstant(Parser& parser)
 {
   const char* c = parser.currentChar;
   NextChar(parser);
@@ -305,9 +305,9 @@ static token LexCharConstant(Parser& parser)
   return MakeToken(parser, TOKEN_CHAR_CONSTANT, (unsigned int)((uintptr_t)c - (uintptr_t)parser.source), c, 1u);
 }
 
-static token LexNext(Parser& parser)
+static Token LexNext(Parser& parser)
 {
-  token_type type = TOKEN_INVALID;
+  TokenType type = TOKEN_INVALID;
 
   while (*(parser.currentChar) != '\0')
   {
@@ -629,7 +629,7 @@ EmitSimpleToken:
   return MakeToken(parser, type, (uintptr_t)parser.currentChar - (uintptr_t)parser.source, nullptr, 0u);
 }
 
-token PeekToken(Parser& parser, bool ignoreLines)
+Token PeekToken(Parser& parser, bool ignoreLines)
 {
   if (ignoreLines)
   {
@@ -642,7 +642,7 @@ token PeekToken(Parser& parser, bool ignoreLines)
   return parser.currentToken;
 }
 
-token NextToken(Parser& parser, bool ignoreLines)
+Token NextToken(Parser& parser, bool ignoreLines)
 {
   parser.currentToken = parser.nextToken;
   parser.nextToken = LexNext(parser);
@@ -658,7 +658,7 @@ token NextToken(Parser& parser, bool ignoreLines)
   return parser.currentToken;
 }
 
-static token PeekNextToken(Parser& parser, bool ignoreLines = true)
+static Token PeekNextToken(Parser& parser, bool ignoreLines = true)
 {
   if (!ignoreLines)
   {
@@ -666,11 +666,11 @@ static token PeekNextToken(Parser& parser, bool ignoreLines = true)
   }
 
   // NOTE(Isaac): We need to skip tokens denoting line breaks, without advancing the token stream
-  const char* cachedChar = parser.currentChar;
-  unsigned int cachedLine = parser.currentLine;
-  unsigned int cachedLineOffset = parser.currentLineOffset;
+  const char*  cachedChar        = parser.currentChar;
+  unsigned int cachedLine        = parser.currentLine;
+  unsigned int cachedLineOffset  = parser.currentLineOffset;
 
-  token next = parser.nextToken;
+  Token next = parser.nextToken;
 
   while (next.type == TOKEN_LINE)
   {
@@ -722,7 +722,7 @@ static void PeekNPrintNext(Parser& parser, bool ignoreLines = true)
 }
 #endif
 
-static inline void Consume(Parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline void Consume(Parser& parser, TokenType expectedType, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type != expectedType)
   {
@@ -732,9 +732,9 @@ static inline void Consume(Parser& parser, token_type expectedType, bool ignoreL
   NextToken(parser, ignoreLines);
 }
 
-static inline void ConsumeNext(Parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline void ConsumeNext(Parser& parser, TokenType expectedType, bool ignoreLines = true)
 {
-  token_type next = NextToken(parser, ignoreLines).type;
+  TokenType next = NextToken(parser, ignoreLines).type;
   
   if (next != expectedType)
   {
@@ -744,23 +744,23 @@ static inline void ConsumeNext(Parser& parser, token_type expectedType, bool ign
   NextToken(parser, ignoreLines);
 }
 
-static inline bool Match(Parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline bool Match(Parser& parser, TokenType expectedType, bool ignoreLines = true)
 {
   return (PeekToken(parser, ignoreLines).type == expectedType);
 }
 
-static inline bool MatchNext(Parser& parser, token_type expectedType, bool ignoreLines = true)
+static inline bool MatchNext(Parser& parser, TokenType expectedType, bool ignoreLines = true)
 {
   return (PeekNextToken(parser, ignoreLines).type == expectedType);
 }
 
 // --- Parsing ---
-typedef ASTNode* (*prefix_parselet)(Parser&);
-typedef ASTNode* (*infix_parselet)(Parser&, ASTNode*);
+typedef ASTNode* (*PrefixParselet)(Parser&);
+typedef ASTNode* (*InfixParselet)(Parser&, ASTNode*);
 
-prefix_parselet g_prefixMap[NUM_TOKENS];
-infix_parselet  g_infixMap[NUM_TOKENS];
-unsigned int    g_precedenceTable[NUM_TOKENS];
+PrefixParselet g_prefixMap      [NUM_TOKENS];
+InfixParselet  g_infixMap       [NUM_TOKENS];
+unsigned int   g_precedenceTable[NUM_TOKENS];
 
 /*
  * Parses expressions.
@@ -769,7 +769,7 @@ unsigned int    g_precedenceTable[NUM_TOKENS];
 static ASTNode* ParseExpression(Parser& parser, unsigned int precedence = 0u)
 {
   Log(parser, "--> ParseExpression(%u)\n", precedence);
-  prefix_parselet prefixParselet = g_prefixMap[PeekToken(parser).type];
+  PrefixParselet prefixParselet = g_prefixMap[PeekToken(parser).type];
 
   if (!prefixParselet)
   {
@@ -781,7 +781,7 @@ static ASTNode* ParseExpression(Parser& parser, unsigned int precedence = 0u)
 
   while (precedence < g_precedenceTable[PeekToken(parser, false).type])
   {
-    infix_parselet infixParselet = g_infixMap[PeekToken(parser, false).type];
+    InfixParselet infixParselet = g_infixMap[PeekToken(parser, false).type];
 
     // NOTE(Isaac): there is no infix expression part - just return the prefix expression
     if (!infixParselet)
@@ -1299,6 +1299,7 @@ Parser::Parser(ParseResult& result, const char* sourcePath)
   ,currentChar(source)
   ,currentLine(1u)
   ,currentLineOffset(0u)
+  ,isInLoop(false)
   ,currentToken(LexNext(*this))
   ,nextToken(LexNext(*this))
   ,result(result)
@@ -1391,8 +1392,8 @@ static void InitParseletMaps()
   g_precedenceTable[TOKEN_LESS_THAN_EQUAL_TO]     = P_COMPARATIVE_RELATIONAL;
 
   // --- Parselets ---
-  memset(g_prefixMap, 0, sizeof(prefix_parselet)  * NUM_TOKENS);
-  memset(g_infixMap,  0, sizeof(infix_parselet)   * NUM_TOKENS);
+  memset(g_prefixMap, 0, sizeof(PrefixParselet) * NUM_TOKENS);
+  memset(g_infixMap,  0, sizeof(InfixParselet)  * NUM_TOKENS);
 
   // --- Prefix Parselets
   g_prefixMap[TOKEN_IDENTIFIER] =
@@ -1469,7 +1470,7 @@ static void InitParseletMaps()
     [](Parser& parser) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Prefix operator (%s)\n", GetTokenName(PeekToken(parser).type));
-      token_type operation = PeekToken(parser).type;
+      TokenType operation = PeekToken(parser).type;
       UnaryOpNode::Operator unaryOp;
 
       switch (operation)
@@ -1555,7 +1556,7 @@ static void InitParseletMaps()
     [](Parser& parser, ASTNode* left) -> ASTNode*
     {
       Log(parser, "--> [PARSELET] Binary operator (%s)\n", GetTokenName(PeekToken(parser).type));
-      token_type operation = PeekToken(parser).type;
+      TokenType operation = PeekToken(parser).type;
 
       // Special ones - these parse like infix operations but are actually unary ops
       if (operation == TOKEN_DOUBLE_PLUS ||
@@ -1615,7 +1616,7 @@ static void InitParseletMaps()
     {
       Log(parser, "--> [PARSELET] Conditional\n");
 
-      token_type conditionToken = PeekToken(parser).type;
+      TokenType conditionToken = PeekToken(parser).type;
       NextToken(parser);
       ASTNode* right = ParseExpression(parser, g_precedenceTable[conditionToken]);
 
@@ -1725,7 +1726,7 @@ static void InitParseletMaps()
     };
 }
 
-const char* GetTokenName(token_type type)
+const char* GetTokenName(TokenType type)
 {
   switch (type)
   {

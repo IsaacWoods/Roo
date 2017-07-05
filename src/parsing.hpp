@@ -9,7 +9,7 @@
 
 struct ParseResult;
 
-enum token_type
+enum TokenType
 {
   // Keywords
   TOKEN_TYPE,
@@ -77,9 +77,9 @@ enum token_type
   NUM_TOKENS
 };
 
-struct token
+struct Token
 {
-  token_type   type;
+  TokenType    type;
   unsigned int offset;
   unsigned int line;
   unsigned int lineOffset;
@@ -107,13 +107,13 @@ struct Parser
   unsigned int    currentLineOffset;
   bool            isInLoop;           // NOTE(Isaac): This dictates whether we can use the `break` command
 
-  token           currentToken;
-  token           nextToken;
+  Token           currentToken;
+  Token           nextToken;
 
   ParseResult&    result;
   ErrorState      errorState;
 };
 
-token PeekToken(Parser& parser, bool ignoreLines = true);
-token NextToken(Parser& parser, bool ignoreLines = true);
-const char* GetTokenName(token_type type);
+Token PeekToken(Parser& parser, bool ignoreLines = true);
+Token NextToken(Parser& parser, bool ignoreLines = true);
+const char* GetTokenName(TokenType type);

@@ -148,7 +148,7 @@ struct ThingOfCode
   union
   {
     char*                   name;
-    token_type              op;
+    TokenType               op;
   };
 
   char*                     mangledName;

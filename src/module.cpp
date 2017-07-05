@@ -95,7 +95,7 @@ ThingOfCode* Read<ThingOfCode*>(FILE* f)
 
     case 1u:
     {
-      thing = new ThingOfCode(ThingOfCode::Type::OPERATOR, static_cast<token_type>(Read<uint32_t>(f)));
+      thing = new ThingOfCode(ThingOfCode::Type::OPERATOR, static_cast<TokenType>(Read<uint32_t>(f)));
     } break;
 
     default:

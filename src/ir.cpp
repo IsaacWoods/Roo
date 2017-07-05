@@ -146,7 +146,7 @@ ThingOfCode::ThingOfCode(ThingOfCode::Type type, ...)
 
     case ThingOfCode::Type::OPERATOR:
     {
-      op = static_cast<token_type>(va_arg(args, int));
+      op = static_cast<TokenType>(va_arg(args, int));
     } break;
   }
 
