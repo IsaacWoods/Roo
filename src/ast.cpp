@@ -7,6 +7,7 @@
 
 ASTNode::ASTNode()
   :next(nullptr)
+  ,prev(nullptr)
   ,type(nullptr)
   ,shouldFreeTypeRef(false)
 {
@@ -19,6 +20,8 @@ ASTNode::~ASTNode()
     Assert(type, "Nullptr type-ref marked as should be freed");
     delete type;
   }
+
+  delete next;
 }
 
 std::string BreakNode::AsString()
@@ -366,4 +369,40 @@ std::string ArrayInitNode::AsString()
   }
   itemString += FormatString("(%s)", items.back()->AsString().c_str());
   return itemString;
+}
+
+void AppendNode(ASTNode* parent, ASTNode* child)
+{
+  Assert(parent != child, "Can't append a node to itself");
+  Assert(!(parent->next), "Parent already has next node");
+  parent->next = child;
+  child->prev = parent;
+}
+
+void AppendNodeOntoTail(ASTNode* parent, ASTNode* child)
+{
+  Assert(parent, "Tried to append onto nullptr node");
+  ASTNode* tail = parent;
+
+  while (tail->next)
+  {
+    tail = tail->next;
+  }
+
+  AppendNode(tail, child);
+}
+
+void ReplaceNode(ASTNode* oldNode, ASTNode* newNode)
+{
+  Assert(oldNode != newNode, "Can't replace old node with new node");
+  Assert(oldNode->prev, "Old node has nullptr prev pointer");
+
+  oldNode->prev->next = newNode;
+  newNode->prev       = oldNode->prev;
+
+  if (oldNode->next)
+  {
+    oldNode->next->prev = newNode;
+    newNode->next       = oldNode->next;
+  }
 }

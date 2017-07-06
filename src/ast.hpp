@@ -23,10 +23,24 @@ struct ASTNode
 
   virtual std::string AsString() = 0;
 
-  ASTNode*  next;
-  TypeRef*  type;
-  bool      shouldFreeTypeRef;    // TODO: eww
+  /*
+   * XXX: These should not be set manually, as it is very easy to end up with a malformed AST.
+   * Instead, use functions like `AppendNode` or `ReplaceNode`
+   */
+  ASTNode* next;
+  ASTNode* prev;
+
+  TypeRef* type;
+  bool     shouldFreeTypeRef;    // TODO: eww
 };
+
+/*
+ * Functions for organising and mutating the AST.
+ * NOTE(Isaac): These never change the memory of the nodes (i.e. they must still be manually freed)
+ */
+void AppendNode(ASTNode* parent, ASTNode* child);
+void AppendNodeOntoTail(ASTNode* parent, ASTNode* child);
+void ReplaceNode(ASTNode* oldNode, ASTNode* newNode);
 
 struct BreakNode : ASTNode
 {

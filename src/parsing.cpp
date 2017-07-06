@@ -907,14 +907,7 @@ static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope)
 
     if (code)
     {
-      ASTNode* tail = code;
-
-      while (tail->next)
-      {
-        tail = tail->next;
-      }
-
-      tail->next = statement;
+      AppendNodeOntoTail(code, statement);
     }
     else
     {
