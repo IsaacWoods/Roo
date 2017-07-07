@@ -98,6 +98,8 @@ struct TypeRef
   TypeRef();
   ~TypeRef();
 
+  std::string AsString();
+
   std::string name;
   TypeDef*    resolvedType;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
   bool        isResolved;
@@ -197,7 +199,6 @@ struct ThingOfCode
 };
 
 TypeDef* GetTypeByName(ParseResult& parse, const char* typeName);
-char* TypeRefToString(TypeRef* type);
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
 unsigned int GetSizeOfTypeRef(TypeRef& type);
 void CompleteIR(ParseResult& parse);

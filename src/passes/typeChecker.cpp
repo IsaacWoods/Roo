@@ -45,13 +45,13 @@ void TypeChecker::VisitNode(ReturnNode* node, TypeCheckingContext* context)
    */
   if (!(context->code->returnType) && node->returnValue)
   {
-    RaiseError(context->code->errorState, ERROR_RETURN_VALUE_NOT_EXPECTED, TypeRefToString(node->returnValue->type));
+    RaiseError(context->code->errorState, ERROR_RETURN_VALUE_NOT_EXPECTED, node->returnValue->type->AsString().c_str());
     goto Errored;
   }
 
   if (context->code->returnType && !(node->returnValue))
   {
-    RaiseError(context->code->errorState, ERROR_RETURN_VALUE_NOT_EXPECTED, TypeRefToString(context->code->returnType));
+    RaiseError(context->code->errorState, ERROR_RETURN_VALUE_NOT_EXPECTED, context->code->returnType->AsString().c_str());
     goto Errored;
   }
 
@@ -60,8 +60,8 @@ void TypeChecker::VisitNode(ReturnNode* node, TypeCheckingContext* context)
    */
   if (!AreTypeRefsCompatible(context->code->returnType, node->returnValue->type))
   {
-    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_TYPE, TypeRefToString(context->code->returnType),
-                                                                  TypeRefToString(node->returnValue->type));
+    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_TYPE, context->code->returnType->AsString().c_str(),
+                                                                   node->returnValue->type->AsString().c_str());
   }
 Errored:
   if (node->next) Dispatch(node->next, context);

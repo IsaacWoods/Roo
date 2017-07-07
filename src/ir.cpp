@@ -96,6 +96,46 @@ TypeRef::~TypeRef()
   }
 }
 
+std::string TypeRef::AsString()
+{
+  std::string result;
+
+  if (isMutable)
+  {
+    result += "mut ";
+  }
+
+  if (isResolved)
+  {
+    if (isArray && !resolvedType)
+    {
+      result += "EMPTY-LIST";
+    }
+    else
+    {
+      result += resolvedType->name;
+    }
+  }
+  else
+  {
+    result += name;
+  }
+
+  if (isArray)
+  {
+    if (isArraySizeResolved)
+    {
+      result += FormatString("[%u]", arraySize);
+    }
+    else
+    {
+      result += "[??]";
+    }
+  }
+
+  return result;
+}
+
 VariableDef::VariableDef(char* name, const TypeRef& type, ASTNode* initialValue)
   :name(name)
   ,type(type)
@@ -186,76 +226,6 @@ TypeDef* GetTypeByName(ParseResult& parse, const char* typeName)
   }
 
   return nullptr;
-}
-
-/*
- * NOTE(Isaac): the returned string must be freed by the caller
- */
-char* TypeRefToString(TypeRef* type)
-{
-  // This is probably fairly unlikely to overflow, and is easier
-  char buffer[1024u] = {};
-  unsigned int length = 0u;
-
-  #define PUSH(str)\
-    strcat(buffer, str);\
-    length += strlen(str);
-
-  if (type->isMutable)
-  {
-    PUSH("mut ");
-  }
-
-  if (type->isResolved)
-  {
-    if (type->isArray && !(type->resolvedType))
-    {
-      PUSH("EMPTY-LIST");
-    }
-    else
-    {
-      PUSH(type->resolvedType->name);
-    }
-  }
-  else
-  {
-    //PUSH(type->name);
-    PUSH(type->name.c_str());
-  }
-
-  if (type->isArray)
-  {
-    PUSH("[");
-
-    if (type->isArraySizeResolved)
-    {
-      char arraySizeBuffer[8u] = {};
-      itoa(type->arraySize, arraySizeBuffer, 10);
-      PUSH(arraySizeBuffer);
-      PUSH("]");
-    }
-    else
-    {
-      PUSH("?]");
-    }
-  }
-
-  if (type->isReference)
-  {
-    if (type->isReferenceMutable)
-    {
-      PUSH(" mut&");
-    }
-    else
-    {
-      PUSH("&");
-    }
-  }
-  #undef PUSH
-
-  char* str = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
-  strcpy(str, buffer);
-  return str;
 }
 
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability)
