@@ -136,6 +136,26 @@ std::string TypeRef::AsString()
   return result;
 }
 
+unsigned int TypeRef::GetSize()
+{
+  if (isReference)
+  {
+    // TODO: actually get the size of an address on the target arch
+    return 8u;
+  }
+
+  Assert(isResolved, "Tried to calc size of an unresolved TypeRef");
+  unsigned int size = resolvedType->size;
+
+  if (isArray)
+  {
+    Assert(isArraySizeResolved, "Tried to calc size of an array who's size expression is unresolved");
+    size *= arraySize;
+  }
+
+  return size;
+}
+
 VariableDef::VariableDef(char* name, const TypeRef& type, ASTNode* initialValue)
   :name(name)
   ,type(type)
@@ -309,26 +329,6 @@ static unsigned int CalculateSizeOfType(TypeDef* type, bool overwrite = false)
   }
 
   return type->size;
-}
-
-unsigned int GetSizeOfTypeRef(TypeRef& type)
-{
-  if (type.isReference)
-  {
-    // TODO: this should come from the target or something
-    return 8u;  // Return the size of an address on the target architecture
-  }
-
-  Assert(type.isResolved, "Tried to get size of a type reference that hasn't been resolved");
-  unsigned int size = type.resolvedType->size;
-
-  if (type.isArray)
-  {
-    Assert(type.isArraySizeResolved, "Tried to find size of an array type who's size if unresolved");
-    size *= type.arraySize;
-  }
-
-  return size;
 }
 
 static char* MangleName(ThingOfCode* thing)

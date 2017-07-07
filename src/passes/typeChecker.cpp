@@ -91,7 +91,7 @@ void TypeChecker::VisitNode(VariableNode* node, TypeCheckingContext* context)
 
 void TypeChecker::VisitNode(ConditionNode* node, TypeCheckingContext* context)
 {
-  Dispatch(node->left, context);
+  Dispatch(node->left,  context);
   Dispatch(node->right, context);
 
   // TODO: check that we can compare `left` and `right`
