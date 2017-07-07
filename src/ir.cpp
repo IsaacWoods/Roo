@@ -361,7 +361,7 @@ unsigned int GetSizeOfTypeRef(TypeRef& type)
   return size;
 }
 
-char* MangleName(ThingOfCode* thing)
+static char* MangleName(ThingOfCode* thing)
 {
   switch (thing->type)
   {

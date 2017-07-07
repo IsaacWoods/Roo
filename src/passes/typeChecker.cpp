@@ -242,6 +242,7 @@ void TypeChecker::VisitNode(CallNode* node, TypeCheckingContext* context)
     free(node->name);
     node->resolvedFunction = thing;
     node->isResolved = true;
+    context->code->calledThings.push_back(thing);
 
     /*
      * We can then retrieve the return type from the definition of the function/operator.

@@ -69,6 +69,10 @@ struct StringConstant
   uint64_t offset;
 };
 
+/*
+ * This describes the definition of a type. The error state should be used to report errors with the definition
+ * (and not the usage) of this type.
+ */
 struct TypeDef
 {
   TypeDef(char* name);
@@ -85,6 +89,10 @@ struct TypeDef
   unsigned int                size;
 };
 
+/*
+ * This describes the *usage* of a type, unlike `TypeDef`. For example, a `TypeRef` should be used to represent
+ * the type of a variable, and stores extra information such as whether it is a reference or mutable.
+ */
 struct TypeRef
 {
   TypeRef();
@@ -106,6 +114,10 @@ struct TypeRef
   };
 };
 
+/*
+ * This describes the definition of a variable, and can also be used to refer to variables that have already
+ * been defined. Its initial value should be assigned to its allocated register/memory when it enters scope.
+ */
 struct VariableDef
 {
   VariableDef(char* name, const TypeRef& typeRef, ASTNode* initialValue);
@@ -120,19 +132,29 @@ struct VariableDef
    * NOTE(Isaac): this can be used to represent multiple things:
    *    * Offset inside a parent structure
    */
-  unsigned int  offset;
+  unsigned int offset;
 };
 
+/*
+ * This bitfield describes the attributes of a type, function or entire program. Attributes are used to provide
+ * extra information to the compiler about how the thing they have been applied to should be handled.
+ */
 struct AttribSet
 {
   AttribSet();
 
-  bool isEntry      : 1;
-  bool isPrototype  : 1;
-  bool isInline     : 1;
-  bool isNoInline   : 1;
+  bool isEntry      : 1;        // (Function) - Defines a function as the entry point of the program
+  bool isPrototype  : 1;        // (Function) - Defines a prototype function (one not implemented in Roo)
+  bool isInline     : 1;        // (Function) - Will always inline the function
+  bool isNoInline   : 1;        // (Function) - Will never inline the function
 };
 
+/*
+ * This describes a function (either parsed as an actual function or as an operator) that takes inputs (parameters)
+ * does stuff to them (described by the AST and then the AIR code), and produces an output (the return value).
+ * Functions supply a name in the `name` field, whereas operators supply the type of the token used to denote the
+ * operation (addition uses TOKEN_PLUS, multiplication TOKEN_ASTERIX etc.) in the `op` field.
+ */
 struct ThingOfCode
 {
   enum Type
@@ -178,5 +200,4 @@ TypeDef* GetTypeByName(ParseResult& parse, const char* typeName);
 char* TypeRefToString(TypeRef* type);
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
 unsigned int GetSizeOfTypeRef(TypeRef& type);
-char* MangleName(ThingOfCode* thing);
 void CompleteIR(ParseResult& parse);
