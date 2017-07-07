@@ -73,7 +73,7 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, ThingOfCode* code)
 
 bool ConditionFolderPass::VisitNode(WhileNode* node, ThingOfCode* code)
 {
-  WhileNode* oldNode = node;
+  ASTNode* nextNode = node->next;
   if (IsNodeOfType<ConstantNode<bool>>(node->condition))
   {
     bool value = dynamic_cast<ConstantNode<bool>*>(node->condition)->value;
@@ -81,17 +81,19 @@ bool ConditionFolderPass::VisitNode(WhileNode* node, ThingOfCode* code)
     if (value)
     {
       // Turn the WhileNode into an InfiniteLoopNode
+      (void)Dispatch(node->loopBody, code);
+      nextNode = node->next;
       ReplaceNode(node, new InfiniteLoopNode(node->loopBody));
-
-      delete node->condition;
-      free(node);  // NOTE: We want to free the memory without freeing `loopBody` - bit messy
+      node->loopBody = nullptr;
     }
     else
     {
       // If we never even do one iteration, there's no point generating code for the loop
+      nextNode = node->next;
       RemoveNode(code, node);
-      delete node;
     }
+
+    delete node;
   }
   else if (IsNodeOfType<ConditionNode>(node->condition))
   {
@@ -102,8 +104,7 @@ bool ConditionFolderPass::VisitNode(WhileNode* node, ThingOfCode* code)
     RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::WhileNode", node->condition->AsString());
   }
 
-  (void)Dispatch(oldNode->loopBody, code);
-  if (oldNode->next) (void)Dispatch(oldNode->next, code);
+  if (nextNode) (void)Dispatch(nextNode, code);
   return false;
 }
 
