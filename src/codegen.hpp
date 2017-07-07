@@ -45,7 +45,7 @@ struct CodegenTarget
 
 struct InstructionPrecolorer : AirPass<void>
 {
-  InstructionPrecolorer() : AirPass(true) { }
+  InstructionPrecolorer() : AirPass() { }
 
   void Visit(LabelInstruction* instruction,     void*);
   void Visit(ReturnInstruction* instruction,    void*);

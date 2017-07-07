@@ -162,3 +162,9 @@ void VariableResolverPass::VisitNode(ArrayInitNode* node, ThingOfCode* code)
 
    if (node->next) Dispatch(node->next, code);
 }
+
+void VariableResolverPass::VisitNode(InfiniteLoopNode* node, ThingOfCode* code)
+{
+  Dispatch(node->loopBody, code);
+  if (node->next) Dispatch(node->next, code);
+}

@@ -36,11 +36,12 @@ struct ASTNode
 
 /*
  * Functions for organising and mutating the AST.
- * NOTE(Isaac): These never change the memory of the nodes (i.e. they must still be manually freed)
+ * NOTE(Isaac): These never change the memory allocated for the nodes (i.e. they must still be manually freed)
  */
 void AppendNode(ASTNode* parent, ASTNode* child);
 void AppendNodeOntoTail(ASTNode* parent, ASTNode* child);
 void ReplaceNode(ASTNode* oldNode, ASTNode* newNode);
+void RemoveNode(ThingOfCode* code, ASTNode* node);
 
 struct BreakNode : ASTNode
 {
@@ -256,6 +257,16 @@ struct ArrayInitNode : ASTNode
   std::vector<ASTNode*> items;
 };
 
+struct InfiniteLoopNode : ASTNode
+{
+  InfiniteLoopNode(ASTNode* loopBody);
+  ~InfiniteLoopNode();
+
+  std::string AsString();
+
+  ASTNode* loopBody;
+};
+
 template<typename T>
 bool IsNodeOfType(ASTNode* node)
 {
@@ -268,40 +279,26 @@ bool IsNodeOfType(ASTNode* node)
 template<typename R, typename T>
 struct ASTPass
 {
-  ASTPass(bool errorOnNonexistantPass)
-    :errorOnNonexistantPass(errorOnNonexistantPass)
-  {
-  }
+  ASTPass() = default;
 
-  bool errorOnNonexistantPass;
-
-  #define BASE_CASE(nodeType)\
-  {\
-    if (errorOnNonexistantPass)\
-    {\
-      RaiseError(ICE_NONEXISTANT_AST_PASSLET, nodeType);\
-    }\
-    return R();\
-  }
-
-  virtual R VisitNode(BreakNode*                    , T* = nullptr) BASE_CASE("BreakNode");
-  virtual R VisitNode(ReturnNode*                   , T* = nullptr) BASE_CASE("ReturnNode");
-  virtual R VisitNode(UnaryOpNode*                  , T* = nullptr) BASE_CASE("UnaryOpNode");
-  virtual R VisitNode(BinaryOpNode*                 , T* = nullptr) BASE_CASE("BinaryOpNode");
-  virtual R VisitNode(VariableNode*                 , T* = nullptr) BASE_CASE("VariableNode");
-  virtual R VisitNode(ConditionNode*                , T* = nullptr) BASE_CASE("ConditionNode");
-  virtual R VisitNode(BranchNode*                   , T* = nullptr) BASE_CASE("BranchNode");
-  virtual R VisitNode(WhileNode*                    , T* = nullptr) BASE_CASE("WhileNode");
-  virtual R VisitNode(ConstantNode<unsigned int>*   , T* = nullptr) BASE_CASE("ConstantNode<unsigned int>");
-  virtual R VisitNode(ConstantNode<int>*            , T* = nullptr) BASE_CASE("ConstantNode<int>");
-  virtual R VisitNode(ConstantNode<float>*          , T* = nullptr) BASE_CASE("ConstantNode<float>");
-  virtual R VisitNode(ConstantNode<bool>*           , T* = nullptr) BASE_CASE("ConstantNode<float>");
-  virtual R VisitNode(StringNode*                   , T* = nullptr) BASE_CASE("StringNode");
-  virtual R VisitNode(CallNode*                     , T* = nullptr) BASE_CASE("CallNode");
-  virtual R VisitNode(VariableAssignmentNode*       , T* = nullptr) BASE_CASE("VariableAssignmentNode");
-  virtual R VisitNode(MemberAccessNode*             , T* = nullptr) BASE_CASE("MemberAccessNode");
-  virtual R VisitNode(ArrayInitNode*                , T* = nullptr) BASE_CASE("ArrayInitNode");
-  #undef BASE_CASE
+  virtual R VisitNode(BreakNode*                    , T* = nullptr) = 0;
+  virtual R VisitNode(ReturnNode*                   , T* = nullptr) = 0;
+  virtual R VisitNode(UnaryOpNode*                  , T* = nullptr) = 0;
+  virtual R VisitNode(BinaryOpNode*                 , T* = nullptr) = 0;
+  virtual R VisitNode(VariableNode*                 , T* = nullptr) = 0;
+  virtual R VisitNode(ConditionNode*                , T* = nullptr) = 0;
+  virtual R VisitNode(BranchNode*                   , T* = nullptr) = 0;
+  virtual R VisitNode(WhileNode*                    , T* = nullptr) = 0;
+  virtual R VisitNode(ConstantNode<unsigned int>*   , T* = nullptr) = 0;
+  virtual R VisitNode(ConstantNode<int>*            , T* = nullptr) = 0;
+  virtual R VisitNode(ConstantNode<float>*          , T* = nullptr) = 0;
+  virtual R VisitNode(ConstantNode<bool>*           , T* = nullptr) = 0;
+  virtual R VisitNode(StringNode*                   , T* = nullptr) = 0;
+  virtual R VisitNode(CallNode*                     , T* = nullptr) = 0;
+  virtual R VisitNode(VariableAssignmentNode*       , T* = nullptr) = 0;
+  virtual R VisitNode(MemberAccessNode*             , T* = nullptr) = 0;
+  virtual R VisitNode(ArrayInitNode*                , T* = nullptr) = 0;
+  virtual R VisitNode(InfiniteLoopNode*             , T* = nullptr) = 0;
 
   virtual void Apply(ParseResult& parse) = 0;
 
@@ -343,6 +340,7 @@ struct ASTPass
     else DISPATCH(VariableAssignmentNode)
     else DISPATCH(MemberAccessNode)
     else DISPATCH(ArrayInitNode)
+    else DISPATCH(InfiniteLoopNode)
     else
     {
       RaiseError(ICE_UNHANDLED_NODE_TYPE, "DispatchNode", typeid(*node).name());

@@ -371,6 +371,22 @@ std::string ArrayInitNode::AsString()
   return itemString;
 }
 
+InfiniteLoopNode::InfiniteLoopNode(ASTNode* loopBody)
+  :ASTNode()
+  ,loopBody(loopBody)
+{
+}
+
+InfiniteLoopNode::~InfiniteLoopNode()
+{
+  delete loopBody;
+}
+
+std::string InfiniteLoopNode::AsString()
+{
+  return FormatString("Loop(%s)", loopBody->AsString().c_str());
+}
+
 void AppendNode(ASTNode* parent, ASTNode* child)
 {
   Assert(parent != child, "Can't append a node to itself");
@@ -404,5 +420,19 @@ void ReplaceNode(ASTNode* oldNode, ASTNode* newNode)
   {
     oldNode->next->prev = newNode;
     newNode->next       = oldNode->next;
+  }
+}
+
+void RemoveNode(ThingOfCode* code, ASTNode* node)
+{
+  if (node->prev)
+  {
+    node->prev->next = node->next;
+    node->next->prev = node->prev;
+  }
+  else
+  {
+    Assert(code->ast == node, "Floating node doesn't have prev pointer");
+    code->ast = node->next;
   }
 }

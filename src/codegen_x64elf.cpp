@@ -579,7 +579,7 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
 struct CodeGenerator : AirPass<void>
 {
   CodeGenerator(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, ThingOfCode* code, ElfThing* rodataThing)
-    :AirPass(true)
+    :AirPass()
     ,target(target)
     ,file(file)
     ,elfThing(elfThing)

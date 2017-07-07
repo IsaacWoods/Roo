@@ -10,7 +10,7 @@
 #define DEF_PASS_IMPL(Name, R, T)\
   struct Name : ASTPass<R,T>\
   {\
-    Name() : ASTPass(true) { }\
+    Name() : ASTPass() { }\
     void Apply(ParseResult& parse);\
     R VisitNode(BreakNode* node                  , T*);\
     R VisitNode(ReturnNode* node                 , T*);\
@@ -29,6 +29,7 @@
     R VisitNode(VariableAssignmentNode* node     , T*);\
     R VisitNode(MemberAccessNode* node           , T*);\
     R VisitNode(ArrayInitNode* node              , T*);\
+    R VisitNode(InfiniteLoopNode* node           , T*);\
   };
 
 struct TypeCheckingContext;
@@ -37,3 +38,4 @@ struct DotState;
 DEF_PASS_IMPL(TypeChecker,            void,     TypeCheckingContext)
 DEF_PASS_IMPL(DotEmitterPass,         char*,    DotState)
 DEF_PASS_IMPL(VariableResolverPass,   void,     ThingOfCode)
+DEF_PASS_IMPL(ConditionFolderPass,    bool,     ThingOfCode)

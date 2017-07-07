@@ -19,6 +19,7 @@ OBJS = \
 	src/passes/dotEmitter.o \
 	src/passes/variableResolver.o \
 	src/passes/typeChecker.o \
+	src/passes/conditionFolder.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

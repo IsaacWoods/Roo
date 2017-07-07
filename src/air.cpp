@@ -640,6 +640,21 @@ Slot* AirGenerator::VisitNode(ArrayInitNode* node, AirState* state)
   return nullptr;
 }
 
+Slot* AirGenerator::VisitNode(InfiniteLoopNode* node, AirState* state)
+{
+  state->breakLabel = new LabelInstruction();
+
+  LabelInstruction* startLabel = new LabelInstruction();
+  PushInstruction(state->code, startLabel);
+  Dispatch(node->loopBody, state);
+  PushInstruction(state->code, new JumpInstruction(JumpInstruction::Condition::UNCONDITIONAL, startLabel));
+  PushInstruction(state->code, state->breakLabel);
+  state->breakLabel = nullptr;
+
+  if (node->next) (void)Dispatch(node->next, state);
+  return nullptr;
+}
+
 static bool DoRangesIntersect(LiveRange& a, LiveRange& b)
 {
   unsigned int definitionA = (a.definition ? a.definition->index : 0u);

@@ -114,6 +114,8 @@ int main()
 
   APPLY_PASS(VariableResolverPass);
   APPLY_PASS(TypeChecker);
+  //APPLY_PASS(ConstantFolderPass);
+  APPLY_PASS(ConditionFolderPass);
 
 #ifdef OUTPUT_DOT
   APPLY_PASS(DotEmitterPass);

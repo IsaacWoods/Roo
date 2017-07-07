@@ -360,7 +360,7 @@ struct AirState
 struct AirGenerator : ASTPass<Slot*, AirState>
 {
   AirGenerator(CodegenTarget& target)
-    :ASTPass(true)
+    :ASTPass()
     ,target(target)
   {
   }
@@ -386,6 +386,7 @@ struct AirGenerator : ASTPass<Slot*, AirState>
   Slot* VisitNode(VariableAssignmentNode* node      , AirState* state);
   Slot* VisitNode(MemberAccessNode* node            , AirState* state);
   Slot* VisitNode(ArrayInitNode* node               , AirState* state);
+  Slot* VisitNode(InfiniteLoopNode* node            , AirState* state);
 };
 
 bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color);
@@ -396,30 +397,16 @@ bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed 
 template<typename T=void>
 struct AirPass
 {
-  bool errorOnNonexistantPass;
+  AirPass() = default;
 
-  AirPass(bool errorOnNonexistantPass)
-    :errorOnNonexistantPass(errorOnNonexistantPass)
-  {
-  }
-
-  #define BASE_CASE(nodeType)\
-  {\
-    if (errorOnNonexistantPass)\
-    {\
-      RaiseError(ICE_NONEXISTANT_AIR_PASSLET, nodeType);\
-    }\
-  }
-
-  virtual void Visit(LabelInstruction*,     T* = nullptr) BASE_CASE("LabelInstruction");
-  virtual void Visit(ReturnInstruction*,    T* = nullptr) BASE_CASE("ReturnInstruction");
-  virtual void Visit(JumpInstruction*,      T* = nullptr) BASE_CASE("JumpInstruction");
-  virtual void Visit(MovInstruction*,       T* = nullptr) BASE_CASE("MovInstruction");
-  virtual void Visit(CmpInstruction*,       T* = nullptr) BASE_CASE("CmpInstruction");
-  virtual void Visit(UnaryOpInstruction*,   T* = nullptr) BASE_CASE("UnaryOpInstruction");
-  virtual void Visit(BinaryOpInstruction*,  T* = nullptr) BASE_CASE("BinaryOpInstruction");
-  virtual void Visit(CallInstruction*,      T* = nullptr) BASE_CASE("CallInstruction");
-  #undef BASE_CASE
+  virtual void Visit(LabelInstruction*,     T* = nullptr) = 0;
+  virtual void Visit(ReturnInstruction*,    T* = nullptr) = 0;
+  virtual void Visit(JumpInstruction*,      T* = nullptr) = 0;
+  virtual void Visit(MovInstruction*,       T* = nullptr) = 0;
+  virtual void Visit(CmpInstruction*,       T* = nullptr) = 0;
+  virtual void Visit(UnaryOpInstruction*,   T* = nullptr) = 0;
+  virtual void Visit(BinaryOpInstruction*,  T* = nullptr) = 0;
+  virtual void Visit(CallInstruction*,      T* = nullptr) = 0;
 
   /*
    * This uses the same bodged dynamic dispatch approach as the AST pass system.

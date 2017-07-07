@@ -6,7 +6,8 @@ import Prelude
 fn Main() -> int
 {
   i : mut uint = 0u
-  while (i < 2000u)
+
+  while (true)
   {
     if (i < 5u)
     {
@@ -18,5 +19,6 @@ fn Main() -> int
       break
     }
   }
+
   return 0
 }

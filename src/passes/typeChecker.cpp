@@ -298,3 +298,9 @@ void TypeChecker::VisitNode(ArrayInitNode* node, TypeCheckingContext* context)
 {
   if (node->next) Dispatch(node->next, context);
 }
+
+void TypeChecker::VisitNode(InfiniteLoopNode* node, TypeCheckingContext* context)
+{
+  Dispatch(node->loopBody, context);
+  if (node->next) Dispatch(node->next, context);
+}

@@ -309,3 +309,12 @@ char* DotEmitterPass::VisitNode(ArrayInitNode* node, DotState* state)
   VISIT_NEXT();
   return nodeName;
 }
+
+char* DotEmitterPass::VisitNode(InfiniteLoopNode* node, DotState* state)
+{
+  char* nodeName = GetNextNode(state);
+  EMIT_WITH_LABEL("Loop");
+  LINK_CHILD(node->loopBody);
+  VISIT_NEXT();
+  return nodeName;
+}
