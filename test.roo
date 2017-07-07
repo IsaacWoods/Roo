@@ -7,17 +7,9 @@ fn Main() -> int
 {
   i : mut uint = 0u
 
-  while (true)
+  if (true)
   {
-    if (i < 5u)
-    {
-      Print("Loop\n")
-      i++
-    }
-    else
-    {
-      break
-    }
+    Print("Hello, World!\n")
   }
 
   return 0

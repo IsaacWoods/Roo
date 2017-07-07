@@ -102,15 +102,15 @@ char* DotEmitterPass::VisitNode(UnaryOpNode* node, DotState* state)
 
   switch (node->op)
   {
-    case UnaryOpNode::Operator::POSITIVE:         EMIT_WITH_LABEL("+");   break;
-    case UnaryOpNode::Operator::NEGATIVE:         EMIT_WITH_LABEL("-");   break;
-    case UnaryOpNode::Operator::NEGATE:           EMIT_WITH_LABEL("~");   break;
-    case UnaryOpNode::Operator::LOGICAL_NOT:      EMIT_WITH_LABEL("!");   break;
-    case UnaryOpNode::Operator::TAKE_REFERENCE:   EMIT_WITH_LABEL("&");   break;
-    case UnaryOpNode::Operator::PRE_INCREMENT:    EMIT_WITH_LABEL("++x"); break;
-    case UnaryOpNode::Operator::POST_INCREMENT:   EMIT_WITH_LABEL("x++"); break;
-    case UnaryOpNode::Operator::PRE_DECREMENT:    EMIT_WITH_LABEL("--x"); break;
-    case UnaryOpNode::Operator::POST_DECREMENT:   EMIT_WITH_LABEL("x--"); break;
+    case UnaryOpNode::Operator::POSITIVE:         EMIT_WITH_LABEL("+");     break;
+    case UnaryOpNode::Operator::NEGATIVE:         EMIT_WITH_LABEL("-");     break;
+    case UnaryOpNode::Operator::NEGATE:           EMIT_WITH_LABEL("~");     break;
+    case UnaryOpNode::Operator::LOGICAL_NOT:      EMIT_WITH_LABEL("!");     break;
+    case UnaryOpNode::Operator::TAKE_REFERENCE:   EMIT_WITH_LABEL("&");     break;
+    case UnaryOpNode::Operator::PRE_INCREMENT:    EMIT_WITH_LABEL("++..."); break;
+    case UnaryOpNode::Operator::POST_INCREMENT:   EMIT_WITH_LABEL("...++"); break;
+    case UnaryOpNode::Operator::PRE_DECREMENT:    EMIT_WITH_LABEL("--..."); break;
+    case UnaryOpNode::Operator::POST_DECREMENT:   EMIT_WITH_LABEL("...--"); break;
   }
 
   LINK_CHILD(node->operand);

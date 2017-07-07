@@ -29,21 +29,34 @@ bool ConditionFolderPass::VisitNode(ConditionNode* node, ThingOfCode* code)
 
 bool ConditionFolderPass::VisitNode(BranchNode* node, ThingOfCode* code)
 {
-  BranchNode* oldNode = node;
+  Dispatch(node->thenCode, code);
+  
+  if (node->elseCode)
+  {
+    Dispatch(node->elseCode, code);
+  }
 
+  ASTNode* newNode = node;
   if(IsNodeOfType<ConstantNode<bool>>(node->condition))
   {
-    // TODO: Replace branch with `then` branch or `else` branch depending on the condition's value
     bool value = dynamic_cast<ConstantNode<bool>*>(node->condition)->value;
 
     if (value)
     {
       // Replace the branch with the `then`
+      ReplaceNode(node, node->thenCode);
+      newNode = node->thenCode;
+      node->thenCode = nullptr;
     }
     else
     {
       // Replace the branch with the `else`
+      ReplaceNode(node, node->elseCode);
+      newNode = node->elseCode;
+      node->elseCode = nullptr;
     }
+
+    delete node;
   }
   else if (IsNodeOfType<ConditionNode>(node->condition))
   {
@@ -54,7 +67,7 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, ThingOfCode* code)
     RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::BranchNode", node->condition->AsString());
   }
 
-  if (oldNode->next) (void)Dispatch(oldNode->next, code);
+  if (newNode->next) (void)Dispatch(newNode->next, code);
   return false;
 }
 

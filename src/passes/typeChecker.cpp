@@ -103,7 +103,11 @@ void TypeChecker::VisitNode(BranchNode* node, TypeCheckingContext* context)
 {
   Dispatch(node->condition, context);
   Dispatch(node->thenCode, context);
-  Dispatch(node->elseCode, context);
+  
+  if (node->elseCode)
+  {
+    Dispatch(node->elseCode, context);
+  }
 
   if (node->next) Dispatch(node->next, context);
 }

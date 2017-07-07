@@ -97,9 +97,13 @@ void VariableResolverPass::VisitNode(BranchNode* node, ThingOfCode* code)
 {
   Dispatch(node->condition, code);
   Dispatch(node->thenCode, code);
-  Dispatch(node->elseCode, code);
 
-   if (node->next) Dispatch(node->next, code);
+  if (node->elseCode)
+  {
+    Dispatch(node->elseCode, code);
+  }
+
+  if (node->next) Dispatch(node->next, code);
 }
 
 void VariableResolverPass::VisitNode(WhileNode* node, ThingOfCode* code)

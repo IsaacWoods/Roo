@@ -421,6 +421,9 @@ void ReplaceNode(ASTNode* oldNode, ASTNode* newNode)
     oldNode->next->prev = newNode;
     newNode->next       = oldNode->next;
   }
+
+  oldNode->prev = nullptr;
+  oldNode->next = nullptr;
 }
 
 void RemoveNode(ThingOfCode* code, ASTNode* node)
@@ -435,4 +438,7 @@ void RemoveNode(ThingOfCode* code, ASTNode* node)
     Assert(code->ast == node, "Floating node doesn't have prev pointer");
     code->ast = node->next;
   }
+
+  node->prev = nullptr;
+  node->next = nullptr;
 }
