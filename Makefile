@@ -5,21 +5,23 @@ CXX ?= g++
 CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc -Wno-unused-result -Wno-trigraphs -Wno-vla
 LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc
 
+BUILD_DIR=./build
+
 OBJS = \
-  src/main.o \
-	src/common.o \
-	src/error.o \
-	src/ast.o \
-	src/ir.o \
-  src/parsing.o \
-	src/module.o \
-	src/air.o \
-	src/codegen_x64elf.o \
-	src/elf.o \
-	src/passes/dotEmitter.o \
-	src/passes/variableResolver.o \
-	src/passes/typeChecker.o \
-	src/passes/conditionFolder.o \
+  $(BUILD_DIR)/main.o \
+	$(BUILD_DIR)/common.o \
+	$(BUILD_DIR)/error.o \
+	$(BUILD_DIR)/ast.o \
+	$(BUILD_DIR)/ir.o \
+  $(BUILD_DIR)/parsing.o \
+	$(BUILD_DIR)/module.o \
+	$(BUILD_DIR)/air.o \
+	$(BUILD_DIR)/codegen_x64elf.o \
+	$(BUILD_DIR)/elf.o \
+	$(BUILD_DIR)/passes/dotEmitter.o \
+	$(BUILD_DIR)/passes/variableResolver.o \
+	$(BUILD_DIR)/passes/typeChecker.o \
+	$(BUILD_DIR)/passes/conditionFolder.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \
@@ -30,14 +32,19 @@ STD_OBJECTS = \
 roo: $(OBJS) $(STD_OBJECTS)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
-%.o: %.cpp
+$(BUILD_DIR):
+	mkdir $(BUILD_DIR)
+	mkdir $(BUILD_DIR)/passes
+
+$(BUILD_DIR)/%.o: src/%.cpp $(BUILD_DIR)
 	$(CXX) -o $@ -c $< $(CFLAGS)
 
 %.o: %.s
 	nasm -felf64 -o $@ $<
 
 clean:
-	find . -name '*.o' -or -name '*.dot' -or -name '*.png' | xargs rm roo
+	rm -rf $(BUILD_DIR)
+	rm -f roo
 	rm -f Prelude Prelude.roomod
 
 install:
