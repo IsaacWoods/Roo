@@ -1,3 +1,7 @@
+language: general
+dist: trusty
+sudo: required
+
 matrix:
   include:
     - os: linux
