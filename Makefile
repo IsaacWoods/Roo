@@ -1,9 +1,10 @@
 # Copyright (C) 2017, Isaac Woods.
 # See LICENCE.md
 
-CXX ?= g++
-CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc -Wno-unused-result -Wno-trigraphs -Wno-vla
-LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++17 -g -Isrc
+CXX ?= clang++
+IGNORED_WARNINGS = -Wno-unused-result -Wno-trigraphs -Wno-vla -Wno-nested-anon-types -Wno-missing-braces -Wno-vla-extension
+CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
+LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc
 
 BUILD_DIR=./build
 
@@ -44,6 +45,7 @@ $(BUILD_DIR)/%.o: src/%.cpp $(BUILD_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf *.dot
 	rm -f roo
 	rm -f Prelude Prelude.roomod
 

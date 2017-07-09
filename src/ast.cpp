@@ -294,11 +294,11 @@ std::string CallNode::AsString()
 
   if (isResolved)
   {
-    return FormatString("Call(R) (%s) {%s}", resolvedFunction->name, paramString);
+    return FormatString("Call(R) (%s) {%s}", resolvedFunction->name, paramString.c_str());
   }
   else
   {
-    return FormatString("Call(UR) (%s) {%s}", name, paramString);
+    return FormatString("Call(UR) (%s) {%s}", name, paramString.c_str());
   }
 }
 

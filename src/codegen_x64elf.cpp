@@ -89,11 +89,10 @@ CodegenTarget::~CodegenTarget()
     delete registerSet[i].pimpl;
   }
 
-  delete registerSet;
-  delete intParamColors;
+  delete[] registerSet;
+  delete[] intParamColors;
 }
 
-// TODO: precolor division instructions (stuff has to be in weird registers on x86)
 void InstructionPrecolorer::Visit(LabelInstruction* /*instruction*/,     void*) { }
 void InstructionPrecolorer::Visit(ReturnInstruction* /*instruction*/,    void*) { }
 void InstructionPrecolorer::Visit(JumpInstruction* /*instruction*/,      void*) { }

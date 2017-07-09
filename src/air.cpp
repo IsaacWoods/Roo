@@ -727,7 +727,8 @@ static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
     }
 
     // Find colors already used by interfering slots
-    bool usedColors[target.numGeneralRegisters] = {};
+    bool usedColors[target.numGeneralRegisters];
+    memset(usedColors, false, sizeof(bool)*target.numGeneralRegisters);
     for (Slot* interferingSlot : slot->interferences)
     {
       if (interferingSlot->color != -1)

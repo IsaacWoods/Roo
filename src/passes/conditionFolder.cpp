@@ -64,7 +64,7 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, ThingOfCode* code)
   }
   else
   {
-    RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::BranchNode", node->condition->AsString());
+    RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::BranchNode", node->condition->AsString().c_str());
   }
 
   if (newNode->next) (void)Dispatch(newNode->next, code);
@@ -101,7 +101,7 @@ bool ConditionFolderPass::VisitNode(WhileNode* node, ThingOfCode* code)
   }
   else
   {
-    RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::WhileNode", node->condition->AsString());
+    RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::WhileNode", node->condition->AsString().c_str());
   }
 
   if (nextNode) (void)Dispatch(nextNode, code);

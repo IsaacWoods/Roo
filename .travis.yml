@@ -1,20 +1,27 @@
-language: generic
-os: osx
 matrix:
   include:
     - os: linux
-      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
       addons:
         apt:
+          sources:
+            - llvm-toolchain-trusty
           packages:
-            - g++-5
-          sources: &sources
-            - llvm-toolchain-precise-3.8
-            - ubuntu-toolchain-r-test
+            - clang-5.0
+      env:
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
     - os: linux
-      env: COMPILER_NAME=clang CXX=clang++-3.8 CC=clang-3.8
       addons:
         apt:
+          sources:
+            - ubuntu-toolchain-r-test
           packages:
-            - clang-3.8
-          sources: *sources
+            - g++-6
+      env:
+        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+
+before_install:
+  - eval "${MATRIX_EVAL}"
+
+script:
+  - make
+  - make prelude

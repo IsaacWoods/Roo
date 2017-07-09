@@ -1479,6 +1479,7 @@ static void InitParseletMaps()
         default:
         {
           RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "PrefixParselet", GetTokenName(PeekToken(parser).type));
+          __builtin_unreachable();
         } break;
       }
 
@@ -1576,6 +1577,7 @@ static void InitParseletMaps()
         default:
         {
           RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "BinaryOpParselet", GetTokenName(PeekToken(parser).type));
+          __builtin_unreachable();
         } break;
       }
 
@@ -1626,6 +1628,7 @@ static void InitParseletMaps()
         default:
         {
           RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "ConditionalParselet", GetTokenName(PeekToken(parser).type));
+          __builtin_unreachable();
         } break;
       }
 

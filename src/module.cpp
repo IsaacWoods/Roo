@@ -102,6 +102,7 @@ ThingOfCode* Read<ThingOfCode*>(FILE* f)
     {
       // TODO: get the module info path from somewhere
       RaiseError(ERROR_MALFORMED_MODULE_INFO, "ModuleFileIdk", "ThingOfCode type encoding should be 0 or 1");
+      return nullptr;
     } break;
   }
 
