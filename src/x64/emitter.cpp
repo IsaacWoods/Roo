@@ -6,6 +6,7 @@
 #include <x64/emitter.hpp>
 #include <cstdint>
 #include <ctgmath>
+#include <cstdarg>
 #include <elf.hpp>
 
 /*
