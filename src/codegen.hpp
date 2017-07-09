@@ -76,5 +76,3 @@ struct CodeGenerator : AirPass<void>
   virtual void Visit(BinaryOpInstruction* instruction,  void*) = 0;
   virtual void Visit(CallInstruction* instruction,      void*) = 0;
 };
-
-void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result);

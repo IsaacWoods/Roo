@@ -23,7 +23,10 @@ OBJS = \
 	$(BUILD_DIR)/passes/variableResolver.o \
 	$(BUILD_DIR)/passes/typeChecker.o \
 	$(BUILD_DIR)/passes/conditionFolder.o \
+	$(BUILD_DIR)/x64/x64.o \
 	$(BUILD_DIR)/x64/precolorer.o \
+	$(BUILD_DIR)/x64/emitter.o \
+	$(BUILD_DIR)/x64/codeGenerator.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \

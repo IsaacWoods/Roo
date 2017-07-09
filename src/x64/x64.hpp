@@ -5,6 +5,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <codegen.hpp>
+
 enum Reg
 {
   RAX,

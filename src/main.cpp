@@ -9,9 +9,10 @@
 #include <ast.hpp>
 #include <air.hpp>
 #include <error.hpp>
-#include <codegen.hpp>
 #include <module.hpp>
 #include <passes/passes.hpp>
+#include <codegen.hpp>
+#include <x64/codeGenerator.hpp>
 
 #if 1
   #define TIME_EXECUTION
