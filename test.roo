@@ -3,6 +3,12 @@
 import Prelude
 
 #[Entry]
+fn OtherMain() -> int
+{
+  return 1
+}
+
+#[Entry]
 fn Main() -> int
 {
   i : mut uint = 0u

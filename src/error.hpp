@@ -40,6 +40,7 @@ enum Error
   ERROR_UNRESOLVED_SYMBOL,        // "Failed to resolve symbol: %s"
   ERROR_NO_PROGRAM_NAME,          // "A program name must be specified using the '#[Name(...)]' attribute"
   ERROR_WEIRD_LINKED_OBJECT,      // "'%s' is not a valid ELF64 relocatable: %s"
+  ERROR_MULTIPLE_ENTRY_POINTS,    // "Found multiple entry points: '%s' and '%s' are two"
   ERROR_NO_ENTRY_FUNCTION,        // "Failed to find function with #[Entry] attribute"
   ERROR_UNIMPLEMENTED_PROTOTYPE,  // "Prototype function has no implementation: %s"
   ERROR_MEMBER_NOT_FOUND,         // "Field of name '%s' is not a member of type '%s'"

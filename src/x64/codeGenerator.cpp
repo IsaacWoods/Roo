@@ -14,6 +14,10 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
   ElfSymbol* entrySymbol = nullptr;
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
 
+  /*
+   * We actually iterate the entire list (even after we're found an entry point) to check that there aren't
+   * multiple.
+   */
   for (ThingOfCode* thing : parse.codeThings)
   {
     if (thing->type != ThingOfCode::Type::FUNCTION)
@@ -23,8 +27,11 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
 
     if (thing->attribs.isEntry)
     {
+      if (entrySymbol)
+      {
+        RaiseError(errorState, ERROR_MULTIPLE_ENTRY_POINTS, entrySymbol->name->str, thing->name);
+      }
       entrySymbol = thing->symbol;
-      break;
     }
   }
 

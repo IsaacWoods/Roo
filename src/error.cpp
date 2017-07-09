@@ -73,6 +73,7 @@ void InitErrorDefs()
   E(ERROR_UNRESOLVED_SYMBOL,        DO_NOTHING,           "Failed to resolve symbol: %s");
   E(ERROR_NO_PROGRAM_NAME,          GIVE_UP,              "A program name must be specified using the '#[Name(...)]' attribute");
   E(ERROR_WEIRD_LINKED_OBJECT,      GIVE_UP,              "Failed to link against object '%s': %s");
+  E(ERROR_MULTIPLE_ENTRY_POINTS,    GIVE_UP,              "Found multiple entry points: '%s' and '%s' are two");
   E(ERROR_NO_ENTRY_FUNCTION,        GIVE_UP,              "Failed to find function with #[Entry] attribute");
   E(ERROR_UNIMPLEMENTED_PROTOTYPE,  DO_NOTHING,           "Prototype function has no implementation: %s");
   E(ERROR_MEMBER_NOT_FOUND,         DO_NOTHING,           "Field of name '%s' is not a member of type '%s'");
