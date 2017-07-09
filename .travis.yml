@@ -1,4 +1,4 @@
-language: cpp
+language: general
 dist: trusty
 sudo: required
 
@@ -29,7 +29,7 @@ matrix:
         - CXX=g++-6
 #        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
 
-before_install:
+#before_install (Add a :)
 #  - eval "${MATRIX_EVAL}"
 
 script:
