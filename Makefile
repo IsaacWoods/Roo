@@ -23,6 +23,7 @@ OBJS = \
 	$(BUILD_DIR)/passes/variableResolver.o \
 	$(BUILD_DIR)/passes/typeChecker.o \
 	$(BUILD_DIR)/passes/conditionFolder.o \
+	$(BUILD_DIR)/x64/precolorer.o \
 
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \
@@ -34,7 +35,7 @@ roo: $(OBJS) $(STD_OBJECTS)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 $(BUILD_DIR)/%.o: src/%.cpp
-	test -d $(BUILD_DIR)/passes || mkdir -p $(BUILD_DIR)/passes
+	test -d $(BUILD_DIR)/passes || (mkdir -p $(BUILD_DIR)/passes && mkdir -p $(BUILD_DIR)/x64)
 	$(CXX) -o $@ -c $< $(CFLAGS)
 
 %.o: %.s

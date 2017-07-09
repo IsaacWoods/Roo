@@ -14,32 +14,7 @@
 #include <ir.hpp>
 #include <elf.hpp>
 #include <error.hpp>
-
-enum Reg
-{
-  RAX,
-  RBX,
-  RCX,
-  RDX,
-  RSP,
-  RBP,
-  RSI,
-  RDI,
-  R8,
-  R9,
-  R10,
-  R11,
-  R12,
-  R13,
-  R14,
-  R15,
-  NUM_REGISTERS
-};
-
-struct RegisterPimpl
-{
-  uint8_t opcodeOffset;
-};
+#include <x64/x64.hpp>
 
 CodegenTarget::CodegenTarget()
   :name("x64_elf")
@@ -91,36 +66,6 @@ CodegenTarget::~CodegenTarget()
 
   delete[] registerSet;
   delete[] intParamColors;
-}
-
-void InstructionPrecolorer::Visit(LabelInstruction* /*instruction*/,     void*) { }
-void InstructionPrecolorer::Visit(ReturnInstruction* /*instruction*/,    void*) { }
-void InstructionPrecolorer::Visit(JumpInstruction* /*instruction*/,      void*) { }
-void InstructionPrecolorer::Visit(MovInstruction* /*instruction*/,       void*) { }
-void InstructionPrecolorer::Visit(UnaryOpInstruction* /*instruction*/,   void*) { }
-void InstructionPrecolorer::Visit(BinaryOpInstruction* /*instruction*/,  void*) { }
-void InstructionPrecolorer::Visit(CallInstruction* /*instruction*/,      void*) { }
-
-void InstructionPrecolorer::Visit(CmpInstruction* instruction, void*)
-{
-  /*
-   * We should be able to assume that not both of the slots are constants, otherwise the comparison should have
-   * been eliminated by the optimizer.
-   */
-  Assert(!(instruction->a->IsConstant() && instruction->b->IsConstant()), "Constant comparison not eliminated");
-
-  /*
-   * x86 only allows us to compare a immediate against RAX, so the slot that isn't the immediate must be colored
-   * as being RAX before register allocation.
-   */
-  if (instruction->a->IsConstant())
-  {
-    instruction->b->color = RAX;
-  }
-  else if (instruction->b->IsConstant())
-  {
-    instruction->a->color = RAX;
-  }
 }
 
 /*

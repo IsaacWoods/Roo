@@ -6,6 +6,7 @@
 #include <air.hpp>
 #include <climits>
 #include <codegen.hpp>
+#include <x64/precolorer.hpp>
 
 static void UseSlot(Slot* slot, AirInstruction* instruction)
 {
@@ -870,7 +871,7 @@ void AirGenerator::Apply(ParseResult& parse)
     Dispatch(code->ast, &state);
 
     // Allow the code generator to precolor the interference graph
-    InstructionPrecolorer precolorer;
+    InstructionPrecolorer_x64 precolorer;
     for (AirInstruction* instruction = code->airHead;
          instruction;
          instruction = instruction->next)

@@ -47,14 +47,14 @@ struct InstructionPrecolorer : AirPass<void>
 {
   InstructionPrecolorer() : AirPass() { }
 
-  void Visit(LabelInstruction* instruction,     void*);
-  void Visit(ReturnInstruction* instruction,    void*);
-  void Visit(JumpInstruction* instruction,      void*);
-  void Visit(MovInstruction* instruction,       void*);
-  void Visit(CmpInstruction* instruction,       void*);
-  void Visit(UnaryOpInstruction* instruction,   void*);
-  void Visit(BinaryOpInstruction* instruction,  void*);
-  void Visit(CallInstruction* instruction,      void*);
+  virtual void Visit(LabelInstruction* instruction,     void*) = 0;
+  virtual void Visit(ReturnInstruction* instruction,    void*) = 0;
+  virtual void Visit(JumpInstruction* instruction,      void*) = 0;
+  virtual void Visit(MovInstruction* instruction,       void*) = 0;
+  virtual void Visit(CmpInstruction* instruction,       void*) = 0;
+  virtual void Visit(UnaryOpInstruction* instruction,   void*) = 0;
+  virtual void Visit(BinaryOpInstruction* instruction,  void*) = 0;
+  virtual void Visit(CallInstruction* instruction,      void*) = 0;
 };
 
 struct CodeGenerator : AirPass<void>
