@@ -17,7 +17,6 @@ OBJS = \
   $(BUILD_DIR)/parsing.o \
 	$(BUILD_DIR)/module.o \
 	$(BUILD_DIR)/air.o \
-	$(BUILD_DIR)/codegen_x64elf.o \
 	$(BUILD_DIR)/elf.o \
 	$(BUILD_DIR)/passes/dotEmitter.o \
 	$(BUILD_DIR)/passes/variableResolver.o \
