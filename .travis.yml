@@ -9,6 +9,7 @@ matrix:
         apt:
           sources:
             - llvm-toolchain-trusty
+            - ubuntu-toolchain-r-test
           packages:
             - clang-5.0
             - g++-6
