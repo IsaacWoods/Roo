@@ -13,17 +13,17 @@
  * NOTE(Isaac): This allows the codegen module to store platform-dependent
  * information about each register.
  */
-struct register_pimpl;
+struct RegisterPimpl;
 
-struct register_def
+struct RegisterDef
 {
-  enum reg_usage
+  enum Usage
   {
     GENERAL,
     SPECIAL
   }               usage;
   const char*     name;
-  register_pimpl* pimpl;
+  RegisterPimpl*  pimpl;
 };
 
 struct CodegenTarget
@@ -33,7 +33,7 @@ struct CodegenTarget
 
   const char*         name;
   const unsigned int  numRegisters;
-  register_def*       registerSet;
+  RegisterDef*        registerSet;
   const unsigned int  numGeneralRegisters;
   const unsigned int  generalRegisterSize;
 
@@ -56,12 +56,9 @@ struct InstructionPrecolorer : AirPass<void>
   void Visit(BinaryOpInstruction* instruction,  void*);
   void Visit(CallInstruction* instruction,      void*);
 };
+/*
+struct CodeGenerator : AirPass<void>
+{
+};*/
 
 void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result);
-
-// XXX TODO: where the fuck are these even implemented or used??
-/*
-void CreateCodeGenerator(code_generator& generator, const char* outputPath);
-void FreeCodeGenerator(code_generator& generator);
-void GenCodeSection(code_generator& generator, ParseResult& parse);
-void GenDataSection(code_generator& generator, ParseResult& parse);*/

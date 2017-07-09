@@ -15,7 +15,7 @@
 #include <elf.hpp>
 #include <error.hpp>
 
-enum reg
+enum Reg
 {
   RAX,
   RBX,
@@ -36,7 +36,7 @@ enum reg
   NUM_REGISTERS
 };
 
-struct register_pimpl
+struct RegisterPimpl
 {
   uint8_t opcodeOffset;
 };
@@ -44,7 +44,7 @@ struct register_pimpl
 CodegenTarget::CodegenTarget()
   :name("x64_elf")
   ,numRegisters(16u)
-  ,registerSet(new register_def[numRegisters])
+  ,registerSet(new RegisterDef[numRegisters])
   ,numGeneralRegisters(14u)
   ,generalRegisterSize(8u)
   ,numIntParamColors(6u)
@@ -59,25 +59,25 @@ CodegenTarget::CodegenTarget()
   intParamColors[5u] = R9;
 
 #define REGISTER(index, name, usage, modRMOffset)\
-    registerSet[index] = register_def{usage, name, static_cast<register_pimpl*>(malloc(sizeof(register_pimpl)))};\
+    registerSet[index] = RegisterDef{usage, name, static_cast<RegisterPimpl*>(malloc(sizeof(RegisterPimpl)))};\
     registerSet[index].pimpl->opcodeOffset = modRMOffset;
 
-  REGISTER(RAX, "RAX", register_def::reg_usage::GENERAL, 0u);
-  REGISTER(RBX, "RBX", register_def::reg_usage::GENERAL, 3u);
-  REGISTER(RCX, "RCX", register_def::reg_usage::GENERAL, 1u);
-  REGISTER(RDX, "RDX", register_def::reg_usage::GENERAL, 2u);
-  REGISTER(RSP, "RSP", register_def::reg_usage::SPECIAL, 4u);
-  REGISTER(RBP, "RBP", register_def::reg_usage::SPECIAL, 5u);
-  REGISTER(RSI, "RSI", register_def::reg_usage::GENERAL, 6u);
-  REGISTER(RDI, "RDI", register_def::reg_usage::GENERAL, 7u);
-  REGISTER(R8 , "R8" , register_def::reg_usage::GENERAL, 8u);
-  REGISTER(R9 , "R9" , register_def::reg_usage::GENERAL, 9u);
-  REGISTER(R10, "R10", register_def::reg_usage::GENERAL, 10u);
-  REGISTER(R11, "R11", register_def::reg_usage::GENERAL, 11u);
-  REGISTER(R12, "R12", register_def::reg_usage::GENERAL, 12u);
-  REGISTER(R13, "R13", register_def::reg_usage::GENERAL, 13u);
-  REGISTER(R14, "R14", register_def::reg_usage::GENERAL, 14u);
-  REGISTER(R15, "R15", register_def::reg_usage::GENERAL, 15u);
+  REGISTER(RAX, "RAX", RegisterDef::Usage::GENERAL, 0u);
+  REGISTER(RBX, "RBX", RegisterDef::Usage::GENERAL, 3u);
+  REGISTER(RCX, "RCX", RegisterDef::Usage::GENERAL, 1u);
+  REGISTER(RDX, "RDX", RegisterDef::Usage::GENERAL, 2u);
+  REGISTER(RSP, "RSP", RegisterDef::Usage::SPECIAL, 4u);
+  REGISTER(RBP, "RBP", RegisterDef::Usage::SPECIAL, 5u);
+  REGISTER(RSI, "RSI", RegisterDef::Usage::GENERAL, 6u);
+  REGISTER(RDI, "RDI", RegisterDef::Usage::GENERAL, 7u);
+  REGISTER(R8 , "R8" , RegisterDef::Usage::GENERAL, 8u);
+  REGISTER(R9 , "R9" , RegisterDef::Usage::GENERAL, 9u);
+  REGISTER(R10, "R10", RegisterDef::Usage::GENERAL, 10u);
+  REGISTER(R11, "R11", RegisterDef::Usage::GENERAL, 11u);
+  REGISTER(R12, "R12", RegisterDef::Usage::GENERAL, 12u);
+  REGISTER(R13, "R13", RegisterDef::Usage::GENERAL, 13u);
+  REGISTER(R14, "R14", RegisterDef::Usage::GENERAL, 14u);
+  REGISTER(R15, "R15", RegisterDef::Usage::GENERAL, 15u);
 }
 
 CodegenTarget::~CodegenTarget()
@@ -204,7 +204,7 @@ enum class i
  * `index`  : the index register to use
  * `base`   : the base register to use
  */
-static void EmitRegisterModRM(ElfThing* thing, CodegenTarget& target, reg a, reg b)
+static void EmitRegisterModRM(ElfThing* thing, CodegenTarget& target, Reg a, Reg b)
 {
   uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
   modRM |= target.registerSet[a].pimpl->opcodeOffset << 3u;
@@ -215,7 +215,8 @@ static void EmitRegisterModRM(ElfThing* thing, CodegenTarget& target, reg a, reg
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(ElfThing* thing, CodegenTarget& target, reg dest, reg base, uint32_t displacement, reg index = NUM_REGISTERS, unsigned int scale = 0u)
+static void EmitIndirectModRM(ElfThing* thing, CodegenTarget& target, Reg dest, Reg base, uint32_t displacement,
+                              Reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
   modRM |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
@@ -268,7 +269,7 @@ static void EmitIndirectModRM(ElfThing* thing, CodegenTarget& target, reg dest, 
   }
 }
 
-static void EmitExtensionModRM(ElfThing* thing, CodegenTarget& target, uint8_t extension, reg r)
+static void EmitExtensionModRM(ElfThing* thing, CodegenTarget& target, uint8_t extension, Reg r)
 {
   uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   modRM |= extension << 3u;
@@ -285,8 +286,8 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
   {
     case i::CMP_REG_REG:
     {
-      reg op1 = static_cast<reg>(va_arg(args, int));
-      reg op2 = static_cast<reg>(va_arg(args, int));
+      Reg op1 = static_cast<Reg>(va_arg(args, int));
+      Reg op2 = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x39);
       EmitRegisterModRM(thing, target, op1, op2);
@@ -302,20 +303,20 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::PUSH_REG:
     {
-      reg r = static_cast<reg>(va_arg(args, int));
+      Reg r = static_cast<Reg>(va_arg(args, int));
       Emit<uint8_t>(thing, 0x50 + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::POP_REG:
     {
-      reg r = static_cast<reg>(va_arg(args, int));
+      Reg r = static_cast<Reg>(va_arg(args, int));
       Emit<uint8_t>(thing, 0x58 + target.registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case i::ADD_REG_REG:
     {
-      reg dest  = static_cast<reg>(va_arg(args, int));
-      reg src   = static_cast<reg>(va_arg(args, int));
+      Reg dest  = static_cast<Reg>(va_arg(args, int));
+      Reg src   = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x01);
@@ -324,8 +325,8 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::SUB_REG_REG:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
-      reg src  = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg src  = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x29);
@@ -334,8 +335,8 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::MUL_REG_REG:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
-      reg src  = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg src  = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x0f);
@@ -351,8 +352,8 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::XOR_REG_REG:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
-      reg src  = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg src  = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x31);
@@ -361,7 +362,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::ADD_REG_IMM32:
     {
-      reg result    = static_cast<reg>(va_arg(args, int));
+      Reg result    = static_cast<Reg>(va_arg(args, int));
       uint32_t imm  = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
@@ -372,7 +373,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::SUB_REG_IMM32:
     {
-      reg result    = static_cast<reg>(va_arg(args, int));
+      Reg result    = static_cast<Reg>(va_arg(args, int));
       uint32_t imm  = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
@@ -383,7 +384,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::MUL_REG_IMM32:
     {
-      reg result    = static_cast<reg>(va_arg(args, int));
+      Reg result    = static_cast<Reg>(va_arg(args, int));
       uint32_t imm  = va_arg(args, uint32_t);
 
       if (imm >= 256u)
@@ -404,8 +405,8 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::MOV_REG_REG:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
-      reg src  = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg src  = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x89);
@@ -414,7 +415,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::MOV_REG_IMM32:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
@@ -423,7 +424,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::MOV_REG_IMM64:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
       uint64_t imm = va_arg(args, uint64_t);
 
       Emit<uint8_t>(thing, 0x48);
@@ -433,8 +434,8 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::MOV_REG_BASE_DISP:
     {
-      reg dest = static_cast<reg>(va_arg(args, int));
-      reg base = static_cast<reg>(va_arg(args, int));
+      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg base = static_cast<Reg>(va_arg(args, int));
       uint32_t displacement = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
@@ -444,7 +445,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::INC_REG:
     {
-      reg r = static_cast<reg>(va_arg(args, int));
+      Reg r = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xFF);
       EmitExtensionModRM(thing, target, 0u, r);
@@ -452,7 +453,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::DEC_REG:
     {
-      reg r = static_cast<reg>(va_arg(args, int));
+      Reg r = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xFF);
       EmitExtensionModRM(thing, target, 1u, r);
@@ -460,7 +461,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::NOT_REG:
     {
-      reg r = static_cast<reg>(va_arg(args, int));
+      Reg r = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xF7);
       EmitExtensionModRM(thing, target, 2u, r);
@@ -468,7 +469,7 @@ static void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target,
 
     case i::NEG_REG:
     {
-      reg r = static_cast<reg>(va_arg(args, int));
+      Reg r = static_cast<Reg>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xF7);
       EmitExtensionModRM(thing, target, 3u, r);

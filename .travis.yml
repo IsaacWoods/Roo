@@ -15,7 +15,6 @@ matrix:
       env:
         - CC=clang-5.0
         - CXX=clang++-5.0
-#        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
     - os: linux
       addons:
         apt:
@@ -27,10 +26,6 @@ matrix:
       env:
         - CC=gcc-6
         - CXX=g++-6
-#        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
-
-#before_install (Add a :)
-#  - eval "${MATRIX_EVAL}"
 
 script:
   - make

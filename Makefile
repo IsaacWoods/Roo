@@ -27,15 +27,15 @@ OBJS = \
 STD_OBJECTS = \
 	Prelude-dir/stuff.o \
 
-.PHONY: clean install lines prelude
+.PHONY: clean install lines prelude $(BUILD_DIR)
 .DEFAULT: roo
 
 roo: $(OBJS) $(STD_OBJECTS)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 $(BUILD_DIR):
-	mkdir $(BUILD_DIR)
-	mkdir $(BUILD_DIR)/passes
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/passes
 
 $(BUILD_DIR)/%.o: src/%.cpp $(BUILD_DIR)
 	$(CXX) -o $@ -c $< $(CFLAGS)
