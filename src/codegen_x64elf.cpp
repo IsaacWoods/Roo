@@ -576,20 +576,18 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
   E(i::INT_IMM8, 0x80);
 }
 
-struct CodeGenerator : AirPass<void>
+struct CodeGenerator_x64 : CodeGenerator
 {
-  CodeGenerator(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, ThingOfCode* code, ElfThing* rodataThing)
-    :AirPass()
-    ,target(target)
+  CodeGenerator_x64(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, ThingOfCode* code, ElfThing* rodataThing)
+    :CodeGenerator(target)
     ,file(file)
     ,elfThing(elfThing)
     ,code(code)
     ,rodataThing(rodataThing)
   {
   }
-  ~CodeGenerator() { }
+  ~CodeGenerator_x64() { }
 
-  CodegenTarget&  target;
   ElfFile&        file;
   ElfThing*       elfThing;
   ThingOfCode*    code;
@@ -609,7 +607,7 @@ struct CodeGenerator : AirPass<void>
 #define E(...) \
   Emit(code->errorState, elfThing, target, __VA_ARGS__);
 
-void CodeGenerator::Visit(LabelInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(LabelInstruction* instruction, void*)
 {
   /*
    * This doesn't correspond to a real instruction, so we don't emit anything.
@@ -620,7 +618,7 @@ void CodeGenerator::Visit(LabelInstruction* instruction, void*)
   instruction->offset = elfThing->length;
 }
 
-void CodeGenerator::Visit(ReturnInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(ReturnInstruction* instruction, void*)
 {
   if (instruction->returnValue)
   {
@@ -675,7 +673,7 @@ void CodeGenerator::Visit(ReturnInstruction* instruction, void*)
   E(i::RET);
 }
 
-void CodeGenerator::Visit(JumpInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(JumpInstruction* instruction, void*)
 {
   switch (instruction->condition)
   {
@@ -701,7 +699,7 @@ void CodeGenerator::Visit(JumpInstruction* instruction, void*)
   new ElfRelocation(file, elfThing, elfThing->length-sizeof(uint32_t), ElfRelocation::Type::R_X86_64_PC32, code->symbol, -0x4, instruction->label);
 }
 
-void CodeGenerator::Visit(MovInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
 {
   switch (instruction->src->GetType())
   {
@@ -744,7 +742,7 @@ void CodeGenerator::Visit(MovInstruction* instruction, void*)
   }
 }
 
-void CodeGenerator::Visit(CmpInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(CmpInstruction* instruction, void*)
 {
   if (instruction->a->IsColored() && instruction->b->IsColored())
   {
@@ -787,13 +785,13 @@ void CodeGenerator::Visit(CmpInstruction* instruction, void*)
 
       default:
       {
-        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::CmpInstruction");
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator_x64::CmpInstruction");
       } break;
     }
   }
 }
 
-void CodeGenerator::Visit(UnaryOpInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(UnaryOpInstruction* instruction, void*)
 {
   Assert(instruction->result->IsColored(), "Result must be in a register");
   if (instruction->operand->IsConstant())
@@ -817,7 +815,7 @@ void CodeGenerator::Visit(UnaryOpInstruction* instruction, void*)
 
       default:
       {
-        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::UnaryOpInstruction");
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator_x64::UnaryOpInstruction");
       }
     }
   }
@@ -835,7 +833,7 @@ void CodeGenerator::Visit(UnaryOpInstruction* instruction, void*)
   }
 }
 
-void CodeGenerator::Visit(BinaryOpInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(BinaryOpInstruction* instruction, void*)
 {
   Assert(instruction->result->IsColored(), "Result must be in a register");
   if (instruction->left->IsConstant())
@@ -859,7 +857,7 @@ void CodeGenerator::Visit(BinaryOpInstruction* instruction, void*)
 
       default:
       {
-        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::BinaryOpInstruction");
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator_x64::BinaryOpInstruction");
       } break;
     }
   }
@@ -913,13 +911,13 @@ void CodeGenerator::Visit(BinaryOpInstruction* instruction, void*)
 
       default:
       {
-        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator::BinaryOp");
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator_x64::BinaryOp");
       } break;
     }
   }
 }
 
-void CodeGenerator::Visit(CallInstruction* instruction, void*)
+void CodeGenerator_x64::Visit(CallInstruction* instruction, void*)
 {
   #define SAVE_REG(reg)\
     if (IsColorInUseAtPoint(code, instruction, reg))\
@@ -980,7 +978,7 @@ static ElfThing* Generate(ElfFile& file, CodegenTarget& target, ThingOfCode* cod
   E(i::MOV_REG_REG, RBP, RSP);
 
   // Emit the instructions for the body of the thing
-  CodeGenerator codeGenerator(target, file, elfThing, code, rodataThing);
+  CodeGenerator_x64 codeGenerator(target, file, elfThing, code, rodataThing);
   
   for (AirInstruction* instruction = code->airHead;
        instruction;

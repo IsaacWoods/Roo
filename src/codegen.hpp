@@ -56,9 +56,25 @@ struct InstructionPrecolorer : AirPass<void>
   void Visit(BinaryOpInstruction* instruction,  void*);
   void Visit(CallInstruction* instruction,      void*);
 };
-/*
+
 struct CodeGenerator : AirPass<void>
 {
-};*/
+  CodeGenerator(CodegenTarget& target)
+    :AirPass()
+    ,target(target)
+  {
+  }
+
+  CodegenTarget& target;
+
+  virtual void Visit(LabelInstruction* instruction,     void*) = 0;
+  virtual void Visit(ReturnInstruction* instruction,    void*) = 0;
+  virtual void Visit(JumpInstruction* instruction,      void*) = 0;
+  virtual void Visit(MovInstruction* instruction,       void*) = 0;
+  virtual void Visit(CmpInstruction* instruction,       void*) = 0;
+  virtual void Visit(UnaryOpInstruction* instruction,   void*) = 0;
+  virtual void Visit(BinaryOpInstruction* instruction,  void*) = 0;
+  virtual void Visit(CallInstruction* instruction,      void*) = 0;
+};
 
 void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result);
