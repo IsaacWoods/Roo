@@ -173,26 +173,37 @@ static Token LexName(Parser& parser)
 static Token LexNumber(Parser& parser)
 {
   const char* startChar = parser.currentChar - 1u;
+  char buffer[1024u] = {};
+  unsigned int i = 0u;
   TokenType type = TOKEN_SIGNED_INT;
+  buffer[i++] = *startChar;
 
-  while (IsDigit(*(parser.currentChar)))
+  while (IsDigit(*(parser.currentChar)) || *(parser.currentChar) == '_')
   {
-    NextChar(parser);
-  }
-
-  // Check for a decimal point
-  if (*(parser.currentChar) == '.' && IsDigit(*(parser.currentChar + 1u)))
-  {
-    NextChar(parser);
-    type = TOKEN_FLOAT;
-
-    while (IsDigit(*(parser.currentChar)))
+    char c = NextChar(parser);
+    if (c != '_')
     {
-      NextChar(parser);
+      buffer[i++] = c;
     }
   }
 
-  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
+  // Check for a decimal point
+  if (*(parser.currentChar) == '.' && (IsDigit(*(parser.currentChar + 1u)) || *(parser.currentChar + 1u) == '_'))
+  {
+    NextChar(parser);
+    buffer[i++] = '.';
+    type = TOKEN_FLOAT;
+
+    while (IsDigit(*(parser.currentChar)) || *(parser.currentChar) == '_')
+    {
+      char c = NextChar(parser);
+      if (c != '_')
+      {
+        buffer[i++] = c;
+      }
+    }
+  }
+
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
 
   if (type == TOKEN_SIGNED_INT && *(parser.currentChar) == 'u')
@@ -201,24 +212,22 @@ static Token LexNumber(Parser& parser)
     type = TOKEN_UNSIGNED_INT;
   }
 
-  Token token = MakeToken(parser, type, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(parser, token);
-
+  Token token = MakeToken(parser, type, tokenOffset, startChar, i);
   switch (type)
   {
     case TOKEN_SIGNED_INT:
     {
-      token.asSignedInt = strtol(text, nullptr, 10);
+      token.asSignedInt = strtol(buffer, nullptr, 10);
     } break;
 
     case TOKEN_UNSIGNED_INT:
     {
-      token.asUnsignedInt = strtol(text, nullptr, 10);
+      token.asUnsignedInt = strtol(buffer, nullptr, 10);
     } break;
 
     case TOKEN_FLOAT:
     {
-      token.asFloat = strtof(text, nullptr);
+      token.asFloat = strtof(buffer, nullptr);
     } break;
 
     default:
@@ -227,7 +236,6 @@ static Token LexNumber(Parser& parser)
     } break;
   }
 
-  free(text);
   return token;
 }
 
@@ -235,20 +243,21 @@ static Token LexHexNumber(Parser& parser)
 {
   NextChar(parser); // NOTE(Isaac): skip over the 'x'
   const char* startChar = parser.currentChar;
+  char buffer[1024u] = {};
+  unsigned int i = 0u;
 
-  while (IsHexDigit(*(parser.currentChar)))
+  while (IsHexDigit(*(parser.currentChar)) || *(parser.currentChar) == '_')
   {
-    NextChar(parser);
+    char c = NextChar(parser);
+    if (c != '_')
+    {
+      buffer[i++] = c;
+    }
   }
 
-  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
-
-  Token token = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(parser, token);
-  token.asUnsignedInt = strtol(text, nullptr, 16);
-  free(text);
-
+  Token token = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, i);
+  token.asUnsignedInt = strtol(buffer, nullptr, 16);
   return token;
 }
 
@@ -256,21 +265,23 @@ static Token LexBinaryNumber(Parser& parser)
 {
   NextChar(parser); // NOTE(Isaac): skip over the 'b'
   const char* startChar = parser.currentChar;
+  char buffer[1024u] = {};
+  unsigned int i = 0u;
 
   while (*(parser.currentChar) == '0' ||
-         *(parser.currentChar) == '1')
+         *(parser.currentChar) == '1' ||
+         *(parser.currentChar) == '_')
   {
-    NextChar(parser);
+    char c = NextChar(parser);
+    if (c != '_')
+    {
+      buffer[i++] = c;
+    }
   }
 
-  ptrdiff_t length = (ptrdiff_t)((uintptr_t)parser.currentChar - (uintptr_t)startChar);
   unsigned int tokenOffset = (unsigned int)((uintptr_t)parser.currentChar - (uintptr_t)parser.source);
-
-  Token token = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, (unsigned int)length);
-  char* text = GetTextFromToken(parser, token);
-  token.asUnsignedInt = strtol(text, nullptr, 2);
-  free(text);
-
+  Token token = MakeToken(parser, TOKEN_UNSIGNED_INT, tokenOffset, startChar, i);
+  token.asUnsignedInt = strtol(buffer, nullptr, 2);
   return token;
 }
 

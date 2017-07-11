@@ -32,7 +32,7 @@ enum Error
   ERROR_UNDEFINED_FUNCTION,       // "Failed to resolve function called '%s'"
   ERROR_UNDEFINED_TYPE,           // "Failed to resolve type with the name '%s'"
   ERROR_MISSING_OPERATOR,         // "Can't find %s operator for operands of type '%s' and '%s'"
-  ERROR_INCOMPATIBLE_ASSIGN,      // "Can't assign a '%s' to a variable of type '%s'
+  ERROR_INCOMPATIBLE_ASSIGN,      // "Can't assign '%s' to a variable of type '%s'
   ERROR_INCOMPATIBLE_TYPE,        // "Expected type of '%s' but got a '%s'"
   ERROR_INVALID_OPERATOR,         // "Can't overload operator with token %s"
   ERROR_NO_START_SYMBOL,          // "Missing _start symbol (is this a freestanding environment??)"

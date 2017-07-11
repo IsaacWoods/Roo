@@ -64,7 +64,7 @@ void InitErrorDefs()
   E(ERROR_UNDEFINED_FUNCTION,       DO_NOTHING,           "Failed to resolve function called '%s'");
   E(ERROR_UNDEFINED_TYPE,           DO_NOTHING,           "Failed to resolve type with the name '%s'");
   E(ERROR_MISSING_OPERATOR,         DO_NOTHING,           "Can't find %s operator for operand types '%s' and '%s'");
-  E(ERROR_INCOMPATIBLE_ASSIGN,      TO_END_OF_STATEMENT,  "Can't assign a '%s' to a variable of type '%s'");
+  E(ERROR_INCOMPATIBLE_ASSIGN,      TO_END_OF_STATEMENT,  "Can't assign '%s' to a variable of type '%s'");
   E(ERROR_INCOMPATIBLE_TYPE,        DO_NOTHING,           "Expected type of '%s' but got a '%s'");
   E(ERROR_INVALID_OPERATOR,         TO_END_OF_BLOCK,      "Can't overload operator with token %s");
   E(ERROR_INVALID_OPERATOR,         TO_END_OF_STATEMENT,  "Can't overload operator with token %s");

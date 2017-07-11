@@ -287,7 +287,7 @@ void TypeChecker::VisitNode(VariableAssignmentNode* node, TypeCheckingContext* c
   
   if (!AreTypeRefsCompatible(node->variable->type, node->newValue->type, false))
   {
-    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_ASSIGN, node->variable->AsString().c_str(), node->newValue->AsString().c_str());
+    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_ASSIGN, node->newValue->AsString().c_str(), node->variable->type->name.c_str());
   }
 
 TypeError:

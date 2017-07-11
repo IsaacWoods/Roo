@@ -3,14 +3,13 @@
 import Prelude
 
 #[Entry]
-fn OtherMain() -> int
-{
-  return 1
-}
-
-#[Entry]
 fn Main() -> int
 {
+  a : uint = 0x1F_32
+  b : int = 91_000_000
+  c : float = 32.45_6
+  d : uint = 0b1000_0101
+
   i : mut uint = 0u
 
   while (true)
