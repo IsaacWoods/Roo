@@ -743,7 +743,10 @@ static void ColorSlots(CodegenTarget& target, CodeThing* code)
          i < target.numGeneralRegisters;
          i++)
     {
-      if (!usedColors[i])
+      /*
+       * Some registers may be reserved for special purposes - we should not use these for general stuff
+       */
+      if (!usedColors[i] && target.registerSet[i].usage == RegisterDef::Usage::GENERAL)
       {
         slot->color = static_cast<signed int>(i);
         break;
