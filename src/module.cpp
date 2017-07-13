@@ -4,6 +4,7 @@
  */
 
 #include <module.hpp>
+#include <string>
 #include <cstring>
 
 #define ROO_MOD_VERSION 0u
@@ -21,19 +22,21 @@ inline T Read(FILE* f)
 }
 
 template<>
-char* Read<char*>(FILE* f)
+std::string Read<std::string>(FILE* f)
 {
   // NOTE(Isaac): The length includes the null-terminator
   uint8_t length = Read<uint8_t>(f);
-  char* str = static_cast<char*>(malloc(sizeof(char) * length));
+  char* strBuffer = new char[length];
 
   for (size_t i = 0u;
        i < length;
        i++)
   {
-    str[i] = fgetc(f);
+    strBuffer[i] = fgetc(f);
   }
 
+  std::string str(strBuffer);
+  delete[] strBuffer;
   return str;
 }
 
@@ -41,8 +44,8 @@ template<>
 VariableDef* Read<VariableDef*>(FILE* f)
 {
   TypeRef type;
-  char* name = Read<char*>(f);
-  type.name = Read<char*>(f);
+  std::string name = Read<std::string>(f);
+  type.name = Read<std::string>(f);
   type.isResolved = false;
   type.isMutable = static_cast<bool>(Read<uint8_t>(f));
   type.isReference = static_cast<bool>(Read<uint8_t>(f));
@@ -73,8 +76,7 @@ std::vector<VariableDef*> Read<std::vector<VariableDef*>>(FILE* f)
 template<>
 TypeDef* Read<TypeDef*>(FILE* f)
 {
-  char* name = Read<char*>(f);
-  TypeDef* type = new TypeDef(name);
+  TypeDef* type = new TypeDef(Read<std::string>(f));
   type->members = Read<std::vector<VariableDef*>>(f);
   type->size = static_cast<unsigned int>(Read<uint32_t>(f));
 
@@ -82,26 +84,26 @@ TypeDef* Read<TypeDef*>(FILE* f)
 }
 
 template<>
-ThingOfCode* Read<ThingOfCode*>(FILE* f)
+CodeThing* Read<CodeThing*>(FILE* f)
 {
-  ThingOfCode* thing;
+  CodeThing* thing;
 
   switch (Read<uint8_t>(f))
   {
     case 0u:
     {
-      thing = new ThingOfCode(ThingOfCode::Type::FUNCTION, Read<char*>(f));
+      thing = new FunctionThing(Read<std::string>(f));
     } break;
 
     case 1u:
     {
-      thing = new ThingOfCode(ThingOfCode::Type::OPERATOR, static_cast<TokenType>(Read<uint32_t>(f)));
+      thing = new OperatorThing(static_cast<TokenType>(Read<uint32_t>(f)));
     } break;
 
     default:
     {
       // TODO: get the module info path from somewhere
-      RaiseError(ERROR_MALFORMED_MODULE_INFO, "ModuleFileIdk", "ThingOfCode type encoding should be 0 or 1");
+      RaiseError(ERROR_MALFORMED_MODULE_INFO, "ModuleFileIdk", "CodeThing type encoding should be 0 or 1");
       return nullptr;
     } break;
   }
@@ -117,21 +119,21 @@ ThingOfCode* Read<ThingOfCode*>(FILE* f)
   return thing;
 }
 
-ErrorState ImportModule(const char* modulePath, ParseResult& parse)
+ErrorState ImportModule(const std::string& modulePath, ParseResult& parse)
 {
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
-  FILE* f = fopen(modulePath, "rb");
+  FILE* f = fopen(modulePath.c_str(), "rb");
 
   if (!f)
   {
-    RaiseError(errorState, ERROR_MALFORMED_MODULE_INFO, modulePath, "Couldn't open file");
+    RaiseError(errorState, ERROR_MALFORMED_MODULE_INFO, modulePath.c_str(), "Couldn't open file");
     return errorState;
   }
 
   #define CONSUME(byte)\
     if (fgetc(f) != byte)\
     {\
-      RaiseError(errorState, ERROR_MALFORMED_MODULE_INFO, modulePath, "Format not followed");\
+      RaiseError(errorState, ERROR_MALFORMED_MODULE_INFO, modulePath.c_str(), "Format not followed");\
       return errorState;\
     }
 
@@ -146,7 +148,7 @@ ErrorState ImportModule(const char* modulePath, ParseResult& parse)
 
   if (version != ROO_MOD_VERSION)
   {
-    RaiseError(errorState, ERROR_MALFORMED_MODULE_INFO, modulePath, "Unsupported version");
+    RaiseError(errorState, ERROR_MALFORMED_MODULE_INFO, modulePath.c_str(), "Unsupported version");
     return errorState;
   }
 
@@ -161,7 +163,7 @@ ErrorState ImportModule(const char* modulePath, ParseResult& parse)
        i < codeThingCount;
        i++)
   {
-    parse.codeThings.push_back(Read<ThingOfCode*>(f));
+    parse.codeThings.push_back(Read<CodeThing*>(f));
   }
 
   fclose(f);
@@ -169,15 +171,15 @@ ErrorState ImportModule(const char* modulePath, ParseResult& parse)
 }
 
 template<typename T>
-void Emit(FILE* f, T value, ErrorState& /*errorState*/)
+void Emit(FILE* f, const T& value, ErrorState& /*errorState*/)
 {
   fwrite(&value, sizeof(T), 1, f);
 }
 
 template<>
-void Emit<const char*>(FILE* f, const char* value, ErrorState& errorState)
+void Emit<std::string>(FILE* f, const std::string& value, ErrorState& errorState)
 {
-  uint8_t length = static_cast<uint8_t>(strlen(value));
+  uint8_t length = value.size();
   Emit<uint8_t>(f, length+1u, errorState);  // We also need to include a null-terminator in the length
 
   for (size_t i = 0u;
@@ -190,11 +192,11 @@ void Emit<const char*>(FILE* f, const char* value, ErrorState& errorState)
 }
 
 template<>
-void Emit<VariableDef*>(FILE* f, VariableDef* value, ErrorState& errorState)
+void Emit<VariableDef*>(FILE* f, VariableDef* const& value, ErrorState& errorState)
 {
   Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a VariableDef");
-  Emit<const char*>(f, value->name, errorState);
-  Emit<const char*>(f, (value->type.isResolved ? value->type.resolvedType->name : value->type.name.c_str()), errorState);
+  Emit<std::string>(f, value->name, errorState);
+  Emit<std::string>(f, (value->type.isResolved ? value->type.resolvedType->name : value->type.name.c_str()), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isMutable), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isReference), errorState);
   Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isReferenceMutable), errorState);
@@ -211,7 +213,7 @@ void Emit<VariableDef*>(FILE* f, VariableDef* value, ErrorState& errorState)
 }
 
 template<>
-void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, ErrorState& errorState)
+void Emit<std::vector<VariableDef*>>(FILE* f, const std::vector<VariableDef*>& value, ErrorState& errorState)
 {
   Emit<uint8_t>(f, value.size(), errorState);
 
@@ -222,42 +224,42 @@ void Emit<std::vector<VariableDef*>>(FILE* f, std::vector<VariableDef*> value, E
 }
 
 template<>
-void Emit<TypeDef*>(FILE* f, TypeDef* value, ErrorState& errorState)
+void Emit<TypeDef*>(FILE* f, TypeDef* const& value, ErrorState& errorState)
 {
-  Emit<const char*>(f, value->name, errorState);
+  Emit<std::string>(f, value->name, errorState);
   Emit<std::vector<VariableDef*>>(f, value->members, errorState);
   Emit<uint32_t>(f, static_cast<uint32_t>(value->size), errorState);
 }
 
 template<>
-void Emit<ThingOfCode*>(FILE* f, ThingOfCode* thing, ErrorState& errorState)
+void Emit<CodeThing*>(FILE* f, CodeThing* const& thing, ErrorState& errorState)
 {
   switch (thing->type)
   {
-    case ThingOfCode::Type::FUNCTION:
+    case CodeThing::Type::FUNCTION:
     {
       Emit<uint8_t>(f, 0u, errorState);
-      Emit<const char*>(f, thing->name, errorState);
+      Emit<std::string>(f, dynamic_cast<const FunctionThing*>(thing)->name, errorState);
       Emit<std::vector<VariableDef*>>(f, thing->params, errorState);
     } break;
 
-    case ThingOfCode::Type::OPERATOR:
+    case CodeThing::Type::OPERATOR:
     {
       Emit<uint8_t>(f, 1u, errorState);
-      Emit<uint32_t>(f, static_cast<uint32_t>(thing->op), errorState);
+      Emit<uint32_t>(f, static_cast<uint32_t>(dynamic_cast<const OperatorThing*>(thing)->token), errorState);
       Emit<std::vector<VariableDef*>>(f, thing->params, errorState);
     } break;
   }
 }
 
-ErrorState ExportModule(const char* outputPath, ParseResult& parse)
+ErrorState ExportModule(const std::string& outputPath, ParseResult& parse)
 {
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
-  FILE* f = fopen(outputPath, "wb");
+  FILE* f = fopen(outputPath.c_str(), "wb");
 
   if (!f)
   {
-    RaiseError(errorState, ERROR_FAILED_TO_EXPORT_MODULE, outputPath, "Couldn't open file");
+    RaiseError(errorState, ERROR_FAILED_TO_EXPORT_MODULE, outputPath.c_str(), "Couldn't open file");
   }
 
   #define EMIT(byte) fputc(byte, f);
@@ -279,9 +281,9 @@ ErrorState ExportModule(const char* outputPath, ParseResult& parse)
     Emit<TypeDef*>(f, type, errorState);
   }
 
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
-    Emit<ThingOfCode*>(f, code, errorState);
+    Emit<CodeThing*>(f, code, errorState);
   }
 
   fclose(f);

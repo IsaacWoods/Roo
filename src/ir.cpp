@@ -14,8 +14,8 @@
 
 ParseResult::ParseResult()
   :isModule(false)
-  ,name(nullptr)
-  ,targetArch(nullptr)
+  ,name()
+  ,targetArch()
   ,dependencies()
   ,codeThings()
   ,types()
@@ -24,25 +24,14 @@ ParseResult::ParseResult()
 {
 }
 
-ParseResult::~ParseResult()
-{
-  delete name;
-  delete targetArch;
-}
-
-DependencyDef::DependencyDef(DependencyDef::Type type, char* path)
+DependencyDef::DependencyDef(DependencyDef::Type type, const std::string& path)
   :type(type)
   ,path(path)
 {
 }
 
-DependencyDef::~DependencyDef()
-{
-  delete path;
-}
-
-StringConstant::StringConstant(ParseResult& parse, char* string)
-  :string(string)
+StringConstant::StringConstant(ParseResult& parse, const std::string& str)
+  :str(str)
   ,offset(0u)
 {
   if (parse.strings.size() > 0u)
@@ -57,12 +46,7 @@ StringConstant::StringConstant(ParseResult& parse, char* string)
   parse.strings.push_back(this);
 }
 
-StringConstant::~StringConstant()
-{
-  delete string;
-}
-
-TypeDef::TypeDef(char* name)
+TypeDef::TypeDef(const std::string& name)
   :name(name)
   ,members()
   ,errorState(ErrorState::Type::TYPE_FILLING_IN, this)
@@ -72,7 +56,10 @@ TypeDef::TypeDef(char* name)
 
 TypeDef::~TypeDef()
 {
-  delete name;
+  for (VariableDef* member : members)
+  {
+    delete member;
+  }
 }
 
 TypeRef::TypeRef()
@@ -156,7 +143,7 @@ unsigned int TypeRef::GetSize()
   return size;
 }
 
-VariableDef::VariableDef(char* name, const TypeRef& type, ASTNode* initialValue)
+VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* initialValue)
   :name(name)
   ,type(type)
   ,initialValue(initialValue)
@@ -167,7 +154,6 @@ VariableDef::VariableDef(char* name, const TypeRef& type, ASTNode* initialValue)
 
 VariableDef::~VariableDef()
 {
-  delete name;
   delete initialValue;
 }
 
@@ -179,9 +165,9 @@ AttribSet::AttribSet()
 {
 }
 
-ThingOfCode::ThingOfCode(ThingOfCode::Type type, ...)
+CodeThing::CodeThing(CodeThing::Type type)
   :type(type)
-  ,mangledName(nullptr)
+  ,mangledName()
   ,shouldAutoReturn(false)
   ,attribs()
   ,returnType(nullptr)
@@ -194,52 +180,40 @@ ThingOfCode::ThingOfCode(ThingOfCode::Type type, ...)
   ,numReturnResults(0u)
   ,symbol(nullptr)
 {
-  va_list args;
-  va_start(args, type);
-
-  switch (type)
-  {
-    case ThingOfCode::Type::FUNCTION:
-    {
-      name = va_arg(args, char*);
-    } break;
-
-    case ThingOfCode::Type::OPERATOR:
-    {
-      op = static_cast<TokenType>(va_arg(args, int));
-    } break;
-  }
-
-  va_end(args);
 }
 
-ThingOfCode::~ThingOfCode()
+CodeThing::~CodeThing()
 {
-  switch (type)
-  {
-    case ThingOfCode::Type::FUNCTION:
-    {
-      delete name;
-    } break;
-
-    case ThingOfCode::Type::OPERATOR:
-    {
-    } break;
-  }
-
-  delete mangledName;
   delete returnType;
   delete ast;
+  
+  for (Slot* slot : slots)
+  {
+    delete slot;
+  }
+
   delete airHead;
   delete airTail;
   delete symbol;
 }
 
-TypeDef* GetTypeByName(ParseResult& parse, const char* typeName)
+FunctionThing::FunctionThing(const std::string& name)
+  :CodeThing(CodeThing::Type::FUNCTION)
+  ,name(name)
+{
+}
+
+OperatorThing::OperatorThing(TokenType token)
+  :CodeThing(CodeThing::Type::OPERATOR)
+  ,token(token)
+{
+}
+
+TypeDef* GetTypeByName(ParseResult& parse, const std::string& name)
 {
   for (TypeDef* type : parse.types)
   {
-    if (strcmp(type->name, typeName) == 0)
+    if (type->name == name)
     {
       return type;
     }
@@ -331,63 +305,44 @@ static unsigned int CalculateSizeOfType(TypeDef* type, bool overwrite = false)
   return type->size;
 }
 
-static char* MangleName(ThingOfCode* thing)
+static std::string MangleName(CodeThing* thing)
 {
   switch (thing->type)
   {
-    case ThingOfCode::Type::FUNCTION:
+    case CodeThing::Type::FUNCTION:
     {
-      static const char* base = "_R_";
-    
-      // NOTE(Isaac): add one to leave space for an added null-terminator
-      char* mangled = static_cast<char*>(malloc(sizeof(char) * (strlen(base) + strlen(thing->name) + 1u)));
-      strcpy(mangled, base);
-      strcat(mangled, thing->name);
-    
-      return mangled;
+      static const std::string BASE = "_R_";
+      return BASE + dynamic_cast<FunctionThing*>(thing)->name;
     } break;
 
-    case ThingOfCode::Type::OPERATOR:
+    case CodeThing::Type::OPERATOR:
     {
-      static const char* base = "_RO_";
-    
-      const char* opName = nullptr;
-      switch (thing->op)
+      static const std::string BASE = "_RO_";
+      OperatorThing* opThing = dynamic_cast<OperatorThing*>(thing);
+      
+      std::string mangling = BASE;
+      switch (opThing->token)
       {
-        case TOKEN_PLUS:          opName = "plus";      break;
-        case TOKEN_MINUS:         opName = "minus";     break;
-        case TOKEN_ASTERIX:       opName = "multiply";  break;
-        case TOKEN_SLASH:         opName = "divide";    break;
-        case TOKEN_DOUBLE_PLUS:   opName = "increment"; break;
-        case TOKEN_DOUBLE_MINUS:  opName = "decrement"; break;
-        case TOKEN_LEFT_BLOCK:    opName = "index";     break;
+        case TOKEN_PLUS:          mangling += "plus";      break;
+        case TOKEN_MINUS:         mangling += "minus";     break;
+        case TOKEN_ASTERIX:       mangling += "multiply";  break;
+        case TOKEN_SLASH:         mangling += "divide";    break;
+        case TOKEN_DOUBLE_PLUS:   mangling += "increment"; break;
+        case TOKEN_DOUBLE_MINUS:  mangling += "decrement"; break;
+        case TOKEN_LEFT_BLOCK:    mangling += "index";     break;
     
         default:
         {
-          RaiseError(thing->errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(thing->op), "MangleName");
+          RaiseError(thing->errorState, ICE_UNHANDLED_OPERATOR, GetTokenName(opThing->token), "MangleName::OPERATOR");
         } break;
       }
     
-      size_t length = strlen(base) + strlen(opName);
       for (VariableDef* param : thing->params)
       {
-        Assert(!(param->type.isResolved), "Tried to mangle an operator that isn't fully resolved");
-        //length += strlen(param->type.name) + 1u;   // NOTE(Isaac): add one for the underscore
-        length += param->type.name.length() + 1u;   // NOTE(Isaac): add one for the underscore
+        mangling += std::string("_") + param->type.name;
       }
     
-      char* mangled = static_cast<char*>(malloc(sizeof(char) * (length + 1u)));
-      strcpy(mangled, base);
-      strcat(mangled, opName);
-    
-      for (VariableDef* param : thing->params)
-      {
-        strcat(mangled, "_");
-        //strcat(mangled, param->type.name);
-        strcat(mangled, param->type.name.c_str());
-      }
-    
-      return mangled;
+      return mangling;
     } break;
   }
 
@@ -421,7 +376,7 @@ static void CompleteVariable(VariableDef* var, ErrorState& errorState)
 
 void CompleteIR(ParseResult& parse)
 {
-  for (ThingOfCode* thing : parse.codeThings)
+  for (CodeThing* thing : parse.codeThings)
   {
     // Mangle the thing's name
     thing->mangledName = MangleName(thing);
@@ -465,7 +420,7 @@ void CompleteIR(ParseResult& parse)
   }
 
   // If there were any errors completing the IR, don't bother continuing
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
     if (code->errorState.hasErrored)
     {

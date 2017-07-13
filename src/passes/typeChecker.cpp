@@ -7,19 +7,19 @@
 
 struct TypeCheckingContext
 {
-  TypeCheckingContext(ParseResult& parse, ThingOfCode* code)
+  TypeCheckingContext(ParseResult& parse, CodeThing* code)
     :parse(parse)
     ,code(code)
   { }
   ~TypeCheckingContext() { }
 
   ParseResult& parse;
-  ThingOfCode* code;
+  CodeThing* code;
 };
 
 void TypeChecker::Apply(ParseResult& parse)
 {
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
     if (code->attribs.isPrototype)
     {
@@ -211,14 +211,14 @@ void TypeChecker::VisitNode(CallNode* node, TypeCheckingContext* context)
    * This isn't really typechecking, but between typing the parameters and inferring the return type, we need to
    * work out what function / operator we're actually calling.
    */
-  for (ThingOfCode* thing : context->parse.codeThings)
+  for (CodeThing* thing : context->parse.codeThings)
   {
-    if (thing->type != ThingOfCode::Type::FUNCTION)
+    if (thing->type != CodeThing::Type::FUNCTION)
     {
       continue;
     }
 
-    if (strcmp(node->name, thing->name) != 0)
+    if (node->name != dynamic_cast<FunctionThing*>(thing)->name)
     {
       continue;
     }

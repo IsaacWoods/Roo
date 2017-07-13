@@ -35,16 +35,16 @@ File::File(const std::string& name, const std::string& extension)
 {
 }
 
-Directory::Directory(const char* path)
-  :path(strdup(path))
+Directory::Directory(const std::string& path)
+  :path(path)
   ,files()
 {
   DIR* d;
   struct dirent* dirent;
 
-  if (!(d = opendir(path)))
+  if (!(d = opendir(path.c_str())))
   {
-    fprintf(stderr, "FATAL: failed to open directory: '%s'\n", path);
+    fprintf(stderr, "FATAL: failed to open directory: '%s'\n", path.c_str());
     Crash();
   }
 
@@ -61,11 +61,6 @@ Directory::Directory(const char* path)
   }
 
   closedir(d);
-}
-
-Directory::~Directory()
-{
-  delete path;
 }
 
 char* itoa(int num, char* str, int base)

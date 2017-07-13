@@ -29,10 +29,9 @@ struct File
 
 struct Directory
 {
-  Directory(const char* path);
-  ~Directory();
+  Directory(const std::string& path);
 
-  char*             path;
+  std::string       path;
   std::vector<File> files;
 };
 

@@ -4,13 +4,14 @@
  */
 
 #include <passes/passes.hpp>
+#include <string>
 
 struct DotState
 {
-  DotState(const char* fileName)
+  DotState(const std::string& fileName)
     :nodeCounter(0u)
     ,errorState(ErrorState::Type::GENERAL_STUFF)
-    ,f(fopen(fileName, "w"))
+    ,f(fopen(fileName.c_str(), "w"))
   {
   }
 
@@ -26,18 +27,14 @@ struct DotState
 
 void DotEmitterPass::Apply(ParseResult& parse)
 {
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
     if (code->attribs.isPrototype)
     {
       continue;
     }
 
-    char fileName[128u] = {};
-    strcpy(fileName, code->mangledName);
-    strcat(fileName, ".dot");
-
-    DotState state(fileName);
+    DotState state(code->mangledName + ".dot");
     fprintf(state.f, "digraph G\n{\n");
     free(Dispatch(code->ast, &state));
     fprintf(state.f, "}\n");
@@ -145,11 +142,10 @@ char* DotEmitterPass::VisitNode(VariableNode* node, DotState* state)
 
   if (node->isResolved)
   {
-    fprintf(state->f, "\t%s[label=\"`%s`\n(%s)\"];\n", nodeName, node->var->name, node->var->type.name.c_str());
+    fprintf(state->f, "\t%s[label=\"`%s`\n(%s)\"];\n", nodeName, node->var->name.c_str(), node->var->type.name.c_str());
   }
   else
   {
-
     fprintf(state->f, "\t%s[label=\"`%s`\n(??)\"];\n", nodeName, node->name);
   }
 
@@ -242,7 +238,7 @@ char* DotEmitterPass::VisitNode(ConstantNode<bool>* node, DotState* state)
 char* DotEmitterPass::VisitNode(StringNode* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);
-  fprintf(state->f, "\t%s[label=\"\\\"%s\\\"\"];\n", nodeName, node->string->string);
+  fprintf(state->f, "\t%s[label=\"\\\"%s\\\"\"];\n", nodeName, node->string->str.c_str());
   VISIT_NEXT();
   return nodeName;
 }
@@ -251,8 +247,15 @@ char* DotEmitterPass::VisitNode(CallNode* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);
 
-  fprintf(state->f, "\t%s[label=\"Call(%s)\"];\n", nodeName, (node->isResolved ? node->resolvedFunction->name :
-                                                                                 node->name));
+  if (node->isResolved)
+  {
+    Assert(node->resolvedFunction->type == CodeThing::Type::FUNCTION, "Can only call functions from CallNode");
+    fprintf(state->f, "\t%s[label=\"Call(%s)\"];\n", nodeName, dynamic_cast<FunctionThing*>(node->resolvedFunction)->name.c_str());
+  }
+  else
+  {
+    fprintf(state->f, "\t%s[label=\"Call(%s)\"];\n", nodeName, node->name);
+  }
 
   for (ASTNode* param : node->params)
   {
@@ -283,7 +286,7 @@ char* DotEmitterPass::VisitNode(MemberAccessNode* node, DotState* state)
 
   if (node->isResolved)
   {
-    fprintf(state->f, "\t%s[label=\"%s.\"];\n", nodeName, node->member->name);
+    fprintf(state->f, "\t%s[label=\"%s.\"];\n", nodeName, node->member->name.c_str());
   }
   else
   {

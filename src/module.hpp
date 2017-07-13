@@ -5,8 +5,9 @@
 
 #pragma once
 
+#include <string>
 #include <error.hpp>
 #include <ir.hpp>
 
-ErrorState ImportModule(const char* modulePath, ParseResult& parse);
-ErrorState ExportModule(const char* outputPath, ParseResult& parse);
+ErrorState ImportModule(const std::string& modulePath, ParseResult& parse);
+ErrorState ExportModule(const std::string& outputPath, ParseResult& parse);

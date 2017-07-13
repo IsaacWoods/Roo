@@ -7,7 +7,7 @@
 
 void VariableResolverPass::Apply(ParseResult& parse)
 {
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
     if (!(code->attribs.isPrototype) && code->ast)
     {
@@ -16,7 +16,7 @@ void VariableResolverPass::Apply(ParseResult& parse)
   }
 }
 
-void VariableResolverPass::VisitNode(VariableNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(VariableNode* node, CodeThing* code)
 {
   if (node->isResolved)
   {
@@ -25,7 +25,7 @@ void VariableResolverPass::VisitNode(VariableNode* node, ThingOfCode* code)
 
   for (VariableDef* local : code->locals)
   {
-    if (strcmp(local->name, node->name) == 0)
+    if (local->name == node->name)
     {
       delete node->name;
       node->var = local;
@@ -36,7 +36,7 @@ void VariableResolverPass::VisitNode(VariableNode* node, ThingOfCode* code)
 
   for (VariableDef* param : code->params)
   {
-    if (strcmp(param->name, node->name) == 0)
+    if (param->name == node->name)
     {
       delete node->name;
       node->var = param;
@@ -48,19 +48,19 @@ void VariableResolverPass::VisitNode(VariableNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(MemberAccessNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(MemberAccessNode* node, CodeThing* code)
 {
   // TODO
 
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(BreakNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(BreakNode* node, CodeThing* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ReturnNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ReturnNode* node, CodeThing* code)
 {
   if (node->returnValue)
   {
@@ -70,14 +70,14 @@ void VariableResolverPass::VisitNode(ReturnNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(UnaryOpNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(UnaryOpNode* node, CodeThing* code)
 {
   Dispatch(node->operand, code);
 
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(BinaryOpNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(BinaryOpNode* node, CodeThing* code)
 {
   Dispatch(node->left, code);
   Dispatch(node->right, code);
@@ -85,7 +85,7 @@ void VariableResolverPass::VisitNode(BinaryOpNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ConditionNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConditionNode* node, CodeThing* code)
 {
   Dispatch(node->left, code);
   Dispatch(node->right, code);
@@ -93,7 +93,7 @@ void VariableResolverPass::VisitNode(ConditionNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(BranchNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(BranchNode* node, CodeThing* code)
 {
   Dispatch(node->condition, code);
   Dispatch(node->thenCode, code);
@@ -106,7 +106,7 @@ void VariableResolverPass::VisitNode(BranchNode* node, ThingOfCode* code)
   if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(WhileNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(WhileNode* node, CodeThing* code)
 {
   Dispatch(node->condition, code);
   Dispatch(node->loopBody, code);
@@ -114,32 +114,32 @@ void VariableResolverPass::VisitNode(WhileNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ConstantNode<unsigned int>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<unsigned int>* node, CodeThing* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ConstantNode<int>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<int>* node, CodeThing* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ConstantNode<float>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<float>* node, CodeThing* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ConstantNode<bool>* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ConstantNode<bool>* node, CodeThing* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(StringNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(StringNode* node, CodeThing* code)
 {
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(CallNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(CallNode* node, CodeThing* code)
 {
   for (ASTNode* paramNode : node->params)
   {
@@ -149,7 +149,7 @@ void VariableResolverPass::VisitNode(CallNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(VariableAssignmentNode* node, CodeThing* code)
 {
   Dispatch(node->variable, code);
   Dispatch(node->newValue, code);
@@ -157,7 +157,7 @@ void VariableResolverPass::VisitNode(VariableAssignmentNode* node, ThingOfCode* 
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(ArrayInitNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(ArrayInitNode* node, CodeThing* code)
 {
   for (ASTNode* itemNode : node->items)
   {
@@ -167,7 +167,7 @@ void VariableResolverPass::VisitNode(ArrayInitNode* node, ThingOfCode* code)
    if (node->next) Dispatch(node->next, code);
 }
 
-void VariableResolverPass::VisitNode(InfiniteLoopNode* node, ThingOfCode* code)
+void VariableResolverPass::VisitNode(InfiniteLoopNode* node, CodeThing* code)
 {
   Dispatch(node->loopBody, code);
   if (node->next) Dispatch(node->next, code);

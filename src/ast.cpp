@@ -143,7 +143,7 @@ std::string VariableNode::AsString()
 {
   if (isResolved)
   {
-    return FormatString("Var(R): %s", var->name);
+    return FormatString("Var(R): %s", var->name.c_str());
   }
   else
   {
@@ -261,7 +261,7 @@ StringNode::~StringNode()
 
 std::string StringNode::AsString()
 {
-  return FormatString("\"%s\"", string->string);
+  return FormatString("\"%s\"", string->str.c_str());
 }
 
 CallNode::CallNode(char* name, const std::vector<ASTNode*>& params)
@@ -294,7 +294,14 @@ std::string CallNode::AsString()
 
   if (isResolved)
   {
-    return FormatString("Call(R) (%s) {%s}", resolvedFunction->name, paramString.c_str());
+    if (resolvedFunction->type == CodeThing::Type::FUNCTION)
+    {
+      return FormatString("Call(R) (%s) {%s}", dynamic_cast<FunctionThing*>(resolvedFunction)->name.c_str(), paramString.c_str());
+    }
+    else
+    {
+      return FormatString("Call(R) (%s) {%s}", GetTokenName(dynamic_cast<OperatorThing*>(resolvedFunction)->token), paramString.c_str());
+    }
   }
   else
   {
@@ -343,7 +350,7 @@ std::string MemberAccessNode::AsString()
 {
   if (isResolved)
   {
-    return FormatString("(%s).(%s)(R)", parent->AsString().c_str(), member->name);
+    return FormatString("(%s).(%s)(R)", parent->AsString().c_str(), member->name.c_str());
   }
   else
   {
@@ -426,7 +433,7 @@ void ReplaceNode(ASTNode* oldNode, ASTNode* newNode)
   oldNode->next = nullptr;
 }
 
-void RemoveNode(ThingOfCode* code, ASTNode* node)
+void RemoveNode(CodeThing* code, ASTNode* node)
 {
   if (node->prev)
   {

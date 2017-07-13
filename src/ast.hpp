@@ -41,7 +41,7 @@ struct ASTNode
 void AppendNode(ASTNode* parent, ASTNode* child);
 void AppendNodeOntoTail(ASTNode* parent, ASTNode* child);
 void ReplaceNode(ASTNode* oldNode, ASTNode* newNode);
-void RemoveNode(ThingOfCode* code, ASTNode* node);
+void RemoveNode(CodeThing* code, ASTNode* node);
 
 struct BreakNode : ASTNode
 {
@@ -83,7 +83,7 @@ struct UnaryOpNode : ASTNode
 
   Operator      op;
   ASTNode*      operand;
-  ThingOfCode*  resolvedOperator;
+  CodeThing*  resolvedOperator;
 };
 
 struct BinaryOpNode : ASTNode
@@ -105,7 +105,7 @@ struct BinaryOpNode : ASTNode
   Operator      op;
   ASTNode*      left;
   ASTNode*      right;
-  ThingOfCode*  resolvedOperator;
+  CodeThing*  resolvedOperator;
 };
 
 struct VariableNode : ASTNode
@@ -214,7 +214,7 @@ struct CallNode : ASTNode
   union
   {
     char*               name;
-    ThingOfCode*        resolvedFunction;
+    CodeThing*          resolvedFunction;
   };
   bool                  isResolved;
   std::vector<ASTNode*> params;

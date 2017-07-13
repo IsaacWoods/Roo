@@ -52,7 +52,7 @@ LiveRange::LiveRange(AirInstruction* definition, AirInstruction* lastUse)
 {
 }
 
-Slot::Slot(ThingOfCode* code)
+Slot::Slot(CodeThing* code)
   :storage(Slot::Storage::REGISTER)
   ,color(-1)
   ,interferences()
@@ -64,7 +64,7 @@ Slot::Slot(ThingOfCode* code)
   code->slots.push_back(this);
 }
 
-VariableSlot::VariableSlot(ThingOfCode* code, VariableDef* variable)
+VariableSlot::VariableSlot(CodeThing* code, VariableDef* variable)
   :Slot(code)
   ,variable(variable)
 {
@@ -72,10 +72,10 @@ VariableSlot::VariableSlot(ThingOfCode* code, VariableDef* variable)
 
 std::string VariableSlot::AsString()
 {
-  return FormatString("%s(V)-%c", variable->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(V)-%c", variable->name.c_str(), (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
-ParameterSlot::ParameterSlot(ThingOfCode* code, VariableDef* parameter)
+ParameterSlot::ParameterSlot(CodeThing* code, VariableDef* parameter)
   :Slot(code)
   ,parameter(parameter)
 {
@@ -83,10 +83,10 @@ ParameterSlot::ParameterSlot(ThingOfCode* code, VariableDef* parameter)
 
 std::string ParameterSlot::AsString()
 {
-  return FormatString("%s(P)-%c", parameter->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(P)-%c", parameter->name.c_str(), (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
-MemberSlot::MemberSlot(ThingOfCode* code, Slot* parent, VariableDef* member)
+MemberSlot::MemberSlot(CodeThing* code, Slot* parent, VariableDef* member)
   :Slot(code)
   ,parent(parent)
   ,member(member)
@@ -95,10 +95,10 @@ MemberSlot::MemberSlot(ThingOfCode* code, Slot* parent, VariableDef* member)
 
 std::string MemberSlot::AsString()
 {
-  return FormatString("%s(M)-%c", member->name, (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(M)-%c", member->name.c_str(), (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
 }
 
-TemporarySlot::TemporarySlot(ThingOfCode* code)
+TemporarySlot::TemporarySlot(CodeThing* code)
   :Slot(code)
   ,tag(code->numTemporaries++)
 {
@@ -109,7 +109,7 @@ std::string TemporarySlot::AsString()
   return FormatString("t%u", tag);
 }
 
-ReturnResultSlot::ReturnResultSlot(ThingOfCode* code)
+ReturnResultSlot::ReturnResultSlot(CodeThing* code)
   :Slot(code)
   ,tag(code->numReturnResults++)
 {
@@ -147,7 +147,7 @@ std::string ConstantSlot<bool>::AsString()
 template<>
 std::string ConstantSlot<StringConstant*>::AsString()
 {
-  return FormatString("\"%s\"", value->string);
+  return FormatString("\"%s\"", value->str.c_str());
 }
 
 AirInstruction::AirInstruction()
@@ -280,7 +280,7 @@ std::string BinaryOpInstruction::AsString()
   __builtin_unreachable();
 }
 
-CallInstruction::CallInstruction(ThingOfCode* thing)
+CallInstruction::CallInstruction(CodeThing* thing)
   :AirInstruction()
   ,thing(thing)
 {
@@ -288,7 +288,7 @@ CallInstruction::CallInstruction(ThingOfCode* thing)
 
 std::string CallInstruction::AsString()
 {
-  return FormatString("%u: CALL %s", index, thing->mangledName);
+  return FormatString("%u: CALL %s", index, thing->mangledName.c_str());
 }
 
 // AirGenerator
@@ -307,7 +307,7 @@ static JumpInstruction::Condition MapReverseCondition(ConditionNode::Condition c
   __builtin_unreachable();
 }
 
-static void PushInstruction(ThingOfCode* code, AirInstruction* instruction)
+static void PushInstruction(CodeThing* code, AirInstruction* instruction)
 {
   Assert(instruction->index == -1, "Instruction has already been pushed");
 
@@ -669,7 +669,7 @@ static bool DoRangesIntersect(LiveRange& a, LiveRange& b)
   return ((definitionA <= useB) && (definitionB <= useA));
 }
 
-static void GenerateInterferenceGraph(ThingOfCode* code)
+static void GenerateInterferenceGraph(CodeThing* code)
 {
   /*
    * We have to use iterators here, because we need to only visit each *pair* of slots once.
@@ -717,7 +717,7 @@ FoundInterference:
  * XXX: Atm, this is very naive and could do with a lot more improvement to achieve a more efficient k-coloring,
  * especially concerning the register pressure (or lack of it).
  */
-static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
+static void ColorSlots(CodegenTarget& target, CodeThing* code)
 {
   for (Slot* slot : code->slots)
   {
@@ -760,7 +760,7 @@ static void ColorSlots(CodegenTarget& target, ThingOfCode* code)
 }
 
 #ifdef OUTPUT_DOT
-static void EmitInterferenceGraphDOT(ThingOfCode* code)
+static void EmitInterferenceGraphDOT(CodeThing* code)
 {
   if (!(code->airHead))
   {
@@ -780,7 +780,7 @@ static void EmitInterferenceGraphDOT(ThingOfCode* code)
 
   const char* snazzyColors[] =
   {
-    "cyan2",      "deeppink",   "darkgoldenrod2",     "mediumpurple2",  "slategray",    "goldenrod",
+    "cyan2",      "deeppink",   "darkgoldenrod2",     "mediumpurple2",  "slategray",    "chartreuse3",
     "green3",     "lightblue2", "mediumspringgreeen", "orange1",        "mistyrose3",   "maroon2",
     "steelblue2", "blue",       "lightseagreen",      "plum",           "dodgerblue4",  "darkorchid1",
   };
@@ -827,14 +827,14 @@ static void EmitInterferenceGraphDOT(ThingOfCode* code)
 
 void AirGenerator::Apply(ParseResult& parse)
 {
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
     if (code->attribs.isPrototype)
     {
       continue;
     }
 
-    Assert(!(code->airHead), "Tried to generate AIR for ThingOfCode already with generated code");
+    Assert(!(code->airHead), "Tried to generate AIR for CodeThing already with generated code");
     unsigned int numParams = 0u;
 
     // Generate slots for the parameters
@@ -885,7 +885,7 @@ void AirGenerator::Apply(ParseResult& parse)
 
     // Print an AIR instruction listing and a slot listing
 #if 1
-    printf("\nInstruction listing for %s:\n", code->mangledName);
+    printf("\nInstruction listing for %s:\n", code->mangledName.c_str());
     for (AirInstruction* instruction = code->airHead;
          instruction;
          instruction = instruction->next)
@@ -893,7 +893,7 @@ void AirGenerator::Apply(ParseResult& parse)
       printf("%s\n", instruction->AsString().c_str());
     }
 
-    printf("\nSlots for %s:\n", code->mangledName);
+    printf("\nSlots for %s:\n", code->mangledName.c_str());
     for (Slot* slot : code->slots)
     {
       printf("%s\n", slot->AsString().c_str());
@@ -906,7 +906,7 @@ void AirGenerator::Apply(ParseResult& parse)
   }
 }
 
-bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color)
+bool IsColorInUseAtPoint(CodeThing* code, AirInstruction* instruction, signed int color)
 {
   for (Slot* slot : code->slots)
   {

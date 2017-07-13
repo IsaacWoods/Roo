@@ -72,24 +72,18 @@ int main()
       case DependencyDef::Type::LOCAL:
       {
         // Check the relocatable exists and say to link against it
-        if (!DoesFileExist(dependency->path))
+        if (!DoesFileExist(dependency->path.c_str()))
         {
-          RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
+          RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path.c_str());
         }
 
         result.filesToLink.push_back(dependency->path);
 
         // Import the module info file
-        char* modInfoPath = static_cast<char*>(malloc(sizeof(char)*(strlen(dependency->path)+strlen(ROO_MODULE_EXT)+1u)));
-        strcpy(modInfoPath, dependency->path);
-        strcat(modInfoPath, ROO_MODULE_EXT);
-
-        if (ImportModule(modInfoPath, result).hasErrored)
+        if (ImportModule(dependency->path + ROO_MODULE_EXT, result).hasErrored)
         {
-          RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path);
+          RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path.c_str());
         }
-
-        free(modInfoPath);
       } break;
 
       case DependencyDef::Type::REMOTE:
@@ -122,7 +116,7 @@ int main()
   APPLY_PASS(DotEmitterPass);
 #endif
 
-  for (ThingOfCode* thing : result.codeThings)
+  for (CodeThing* thing : result.codeThings)
   {
     if (thing->attribs.isPrototype)
     {
@@ -137,18 +131,14 @@ int main()
 
   if (result.isModule)
   {
-    char* modulePath = static_cast<char*>(malloc(sizeof(char)*(strlen(result.name)+strlen(ROO_MODULE_EXT))));
-    strcpy(modulePath, result.name);
-    strcat(modulePath, ROO_MODULE_EXT);
-    ExportModule(modulePath, result);
-    free(modulePath);
+    ExportModule(result.name + ROO_MODULE_EXT, result);
   }
 
   // --- Generate AIR for each code thing ---
   AirGenerator airGenerator(target);
   airGenerator.Apply(result);
 
-  if (!(result.name))
+  if (result.name == "")  // TODO: Better way to detect no program name given
   {
     RaiseError(errorState, ERROR_NO_PROGRAM_NAME);
   }

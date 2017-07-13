@@ -5,13 +5,14 @@
 
 #pragma once
 
+#include <string>
 #include <ir.hpp>
 #include <codegen.hpp>
 #include <elf.hpp>
 
 struct CodeGenerator_x64 : CodeGenerator
 {
-  CodeGenerator_x64(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, ThingOfCode* code, ElfThing* rodataThing)
+  CodeGenerator_x64(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, CodeThing* code, ElfThing* rodataThing)
     :CodeGenerator(target)
     ,file(file)
     ,elfThing(elfThing)
@@ -23,7 +24,7 @@ struct CodeGenerator_x64 : CodeGenerator
 
   ElfFile&        file;
   ElfThing*       elfThing;
-  ThingOfCode*    code;
+  CodeThing*      code;
   ElfThing*       rodataThing;
 
   void Visit(LabelInstruction* instruction,     void*);
@@ -36,4 +37,4 @@ struct CodeGenerator_x64 : CodeGenerator
   void Visit(CallInstruction* instruction,      void*);
 };
 
-void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result);
+void Generate(const std::string& outputPath, CodegenTarget& target, ParseResult& result);

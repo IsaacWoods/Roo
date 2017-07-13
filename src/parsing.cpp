@@ -905,8 +905,8 @@ static VariableDef* ParseVariableDef(Parser& parser)
   return variable;
 }
 
-static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope);
-static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope)
+static ASTNode* ParseStatement(Parser& parser, CodeThing* scope);
+static ASTNode* ParseBlock(Parser& parser, CodeThing* scope)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
@@ -931,7 +931,7 @@ static ASTNode* ParseBlock(Parser& parser, ThingOfCode* scope)
   return code;
 }
 
-static ASTNode* ParseIf(Parser& parser, ThingOfCode* scope)
+static ASTNode* ParseIf(Parser& parser, CodeThing* scope)
 {
   Log(parser, "--> If\n");
 
@@ -953,7 +953,7 @@ static ASTNode* ParseIf(Parser& parser, ThingOfCode* scope)
   return new BranchNode(condition, thenCode, elseCode);
 }
 
-static ASTNode* ParseWhile(Parser& parser, ThingOfCode* scope)
+static ASTNode* ParseWhile(Parser& parser, CodeThing* scope)
 {
   Log(parser, "--> While\n");
   parser.isInLoop = true;
@@ -969,7 +969,7 @@ static ASTNode* ParseWhile(Parser& parser, ThingOfCode* scope)
   return new WhileNode(condition, code);
 }
 
-static ASTNode* ParseStatement(Parser& parser, ThingOfCode* scope)
+static ASTNode* ParseStatement(Parser& parser, CodeThing* scope)
 {
   Log(parser, "--> Statement(%s)", (parser.isInLoop ? "IN LOOP" : "NOT IN LOOP"));
   ASTNode* result = nullptr;
@@ -1104,7 +1104,7 @@ static void ParseFunction(Parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Function(");
 
-  ThingOfCode* function = new ThingOfCode(ThingOfCode::Type::FUNCTION, GetTextFromToken(parser, NextToken(parser)));
+  FunctionThing* function = new FunctionThing(GetTextFromToken(parser, NextToken(parser)));
   function->attribs = attribs;
   Log(parser, "%s)\n", function->name);
   parser.result.codeThings.push_back(function);
@@ -1140,12 +1140,12 @@ static void ParseOperator(Parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Operator(");
 
-  ThingOfCode* operatorDef = new ThingOfCode(ThingOfCode::Type::OPERATOR, NextToken(parser).type);
+  OperatorThing* operatorDef = new OperatorThing(NextToken(parser).type);
   operatorDef->attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
   parser.result.codeThings.push_back(operatorDef);
 
-  switch (operatorDef->op)
+  switch (operatorDef->token)
   {
     case TOKEN_PLUS:
     case TOKEN_MINUS:
@@ -1164,7 +1164,7 @@ static void ParseOperator(Parser& parser, AttribSet& attribs)
 
     default:
     {
-      RaiseError(parser.errorState, ERROR_INVALID_OPERATOR, GetTokenName(operatorDef->op));
+      RaiseError(parser.errorState, ERROR_INVALID_OPERATOR, GetTokenName(operatorDef->token));
     } break;
   }
 

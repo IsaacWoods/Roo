@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <common.hpp>
 #include <parsing.hpp>
@@ -15,7 +16,7 @@ struct Slot;
 struct AirInstruction;
 
 struct DependencyDef;
-struct ThingOfCode;
+struct CodeThing;
 struct VariableDef;
 struct TypeDef;
 struct StringConstant;
@@ -24,16 +25,15 @@ struct ElfSymbol;
 struct ParseResult
 {
   ParseResult();
-  ~ParseResult();
 
   bool                          isModule;
-  char*                         name;
-  char*                         targetArch;     // `nullptr` leaves the compiler to assume the correct target arch
+  std::string                   name;
+  std::string                   targetArch;     // `nullptr` leaves the compiler to assume the correct target arch
   std::vector<DependencyDef*>   dependencies;
-  std::vector<ThingOfCode*>     codeThings;
+  std::vector<CodeThing*>       codeThings;
   std::vector<TypeDef*>         types;
   std::vector<StringConstant*>  strings;
-  std::vector<char*>            filesToLink;
+  std::vector<std::string>      filesToLink;
 };
 
 struct DependencyDef
@@ -44,24 +44,22 @@ struct DependencyDef
     REMOTE
   };
 
-  DependencyDef(Type type, char* path);
-  ~DependencyDef();
+  DependencyDef(Type type, const std::string& path);
 
   Type type;
   /*
    * LOCAL:   the name of a local package
    * REMOTE:  a URL to a Git repository containing a Roo project
    */
-  char* path;
+  std::string path;
 };
 
 struct StringConstant
 {
-  StringConstant(ParseResult& parse, char* string);
-  ~StringConstant();
+  StringConstant(ParseResult& parse, const std::string& str);
 
   unsigned int      handle;
-  char*             string;
+  std::string       str;
 
   /*
    * NOTE(Isaac): this is set by the code generator when it's emitted into the executable. `UINT_MAX` beforehand.
@@ -75,10 +73,10 @@ struct StringConstant
  */
 struct TypeDef
 {
-  TypeDef(char* name);
+  TypeDef(const std::string& name);
   ~TypeDef();
 
-  char*                       name;
+  std::string                 name;
   std::vector<VariableDef*>   members;
   ErrorState                  errorState;
 
@@ -104,9 +102,9 @@ struct TypeRef
   std::string name;
   TypeDef*    resolvedType;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
   bool        isResolved;
-  bool        isMutable;           // NOTE(Isaac): for references, this describes the mutability of the reference
+  bool        isMutable;           // For references, this describes the mutability of the reference
   bool        isReference;
-  bool        isReferenceMutable;  // NOTE(Isaac): describes the mutability of the reference's contents
+  bool        isReferenceMutable;  // Describes the mutability of the reference's contents
 
   bool        isArray;
   bool        isArraySizeResolved;
@@ -123,13 +121,13 @@ struct TypeRef
  */
 struct VariableDef
 {
-  VariableDef(char* name, const TypeRef& typeRef, ASTNode* initialValue);
+  VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initialValue);
   ~VariableDef();
 
-  char*     name;
-  TypeRef   type;
-  ASTNode*  initialValue;
-  Slot*     slot;
+  std::string name;
+  TypeRef     type;
+  ASTNode*    initialValue;
+  Slot*       slot;
 
   /*
    * NOTE(Isaac): this can be used to represent multiple things:
@@ -158,7 +156,7 @@ struct AttribSet
  * Functions supply a name in the `name` field, whereas operators supply the type of the token used to denote the
  * operation (addition uses TOKEN_PLUS, multiplication TOKEN_ASTERIX etc.) in the `op` field.
  */
-struct ThingOfCode
+struct CodeThing
 {
   enum Type
   {
@@ -166,25 +164,19 @@ struct ThingOfCode
     OPERATOR
   };
 
-  ThingOfCode(Type type, ...);
-  ~ThingOfCode();
+  CodeThing(Type type);
+  virtual ~CodeThing();
 
   Type                      type;
-  union
-  {
-    char*                   name;
-    TokenType               op;
-  };
-
-  char*                     mangledName;
+  std::string               mangledName;
   std::vector<VariableDef*> params;
   std::vector<VariableDef*> locals;
   bool                      shouldAutoReturn;
   AttribSet                 attribs;
-  TypeRef*                  returnType;       // NOTE(Isaac): `nullptr` if it doesn't return anything
+  TypeRef*                  returnType;       // `nullptr` if it doesn't return anything
 
   ErrorState                errorState;
-  std::vector<ThingOfCode*> calledThings;
+  std::vector<CodeThing*>   calledThings;
 
   // AST representation
   ASTNode*                  ast;
@@ -199,6 +191,20 @@ struct ThingOfCode
   ElfSymbol*                symbol;
 };
 
-TypeDef* GetTypeByName(ParseResult& parse, const char* typeName);
+struct FunctionThing : CodeThing
+{
+  FunctionThing(const std::string& name);
+
+  std::string name;
+};
+
+struct OperatorThing : CodeThing
+{
+  OperatorThing(TokenType token);
+
+  TokenType token;
+};
+
+TypeDef* GetTypeByName(ParseResult& parse, const std::string& name);
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
 void CompleteIR(ParseResult& parse);

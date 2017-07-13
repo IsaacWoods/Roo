@@ -130,14 +130,14 @@ ErrorState::ErrorState(ErrorState::Type stateType, ...)
 
     case ErrorState::Type::TRAVERSING_AST:
     {
-      astSection.code = va_arg(args, ThingOfCode*);
+      astSection.code = va_arg(args, CodeThing*);
       astSection.node = va_arg(args, ASTNode*);
     } break;
 
     case ErrorState::Type::CODE_GENERATION:
     case ErrorState::Type::FUNCTION_FILLING_IN:
     {
-      code = va_arg(args, ThingOfCode*);
+      code = va_arg(args, CodeThing*);
     } break;
 
     case ErrorState::Type::TYPE_FILLING_IN:

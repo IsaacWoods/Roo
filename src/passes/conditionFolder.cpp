@@ -7,7 +7,7 @@
 
 void ConditionFolderPass::Apply(ParseResult& parse)
 {
-  for (ThingOfCode* code : parse.codeThings)
+  for (CodeThing* code : parse.codeThings)
   {
    if (!(code->attribs.isPrototype) && code->ast)
    {
@@ -20,14 +20,14 @@ void ConditionFolderPass::Apply(ParseResult& parse)
  * This returns the result of evaluating the condition, if it can be.
  * This should only be passed ones that we know we can evaluate at compile-time.
  */
-bool ConditionFolderPass::VisitNode(ConditionNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ConditionNode* node, CodeThing* code)
 {
   // TODO
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(BranchNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(BranchNode* node, CodeThing* code)
 {
   Dispatch(node->thenCode, code);
   
@@ -71,7 +71,7 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, ThingOfCode* code)
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(WhileNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(WhileNode* node, CodeThing* code)
 {
   ASTNode* nextNode = node->next;
   if (IsNodeOfType<ConstantNode<bool>>(node->condition))
@@ -108,91 +108,91 @@ bool ConditionFolderPass::VisitNode(WhileNode* node, ThingOfCode* code)
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(BreakNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(BreakNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(ReturnNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ReturnNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(UnaryOpNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(UnaryOpNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(BinaryOpNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(BinaryOpNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(VariableNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(VariableNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(ConstantNode<unsigned int>* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ConstantNode<unsigned int>* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(ConstantNode<int>* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ConstantNode<int>* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(ConstantNode<float>* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ConstantNode<float>* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(ConstantNode<bool>* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ConstantNode<bool>* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(StringNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(StringNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(CallNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(CallNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(VariableAssignmentNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(VariableAssignmentNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(MemberAccessNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(MemberAccessNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(ArrayInitNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(ArrayInitNode* node, CodeThing* code)
 {
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
 
-bool ConditionFolderPass::VisitNode(InfiniteLoopNode* node, ThingOfCode* code)
+bool ConditionFolderPass::VisitNode(InfiniteLoopNode* node, CodeThing* code)
 {
   (void)Dispatch(node->loopBody, code);
   if (node->next) (void)Dispatch(node->next, code);

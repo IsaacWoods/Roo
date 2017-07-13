@@ -51,7 +51,7 @@ struct Slot
     STACK
   };
 
-  Slot(ThingOfCode* code);
+  Slot(CodeThing* code);
   virtual ~Slot() = default;
 
   Storage                 storage;
@@ -77,7 +77,7 @@ struct Slot
 
 struct VariableSlot : Slot
 {
-  VariableSlot(ThingOfCode* code, VariableDef* variable);
+  VariableSlot(CodeThing* code, VariableDef* variable);
   ~VariableSlot() { }
 
   VariableDef* variable;
@@ -92,7 +92,7 @@ struct VariableSlot : Slot
 
 struct ParameterSlot : Slot
 {
-  ParameterSlot(ThingOfCode* code, VariableDef* parameter);
+  ParameterSlot(CodeThing* code, VariableDef* parameter);
   ~ParameterSlot() { }
 
   VariableDef* parameter;
@@ -107,7 +107,7 @@ struct ParameterSlot : Slot
 
 struct MemberSlot : Slot
 {
-  MemberSlot(ThingOfCode* code, Slot* parent, VariableDef* member);
+  MemberSlot(CodeThing* code, Slot* parent, VariableDef* member);
   ~MemberSlot() { }
 
   Slot*         parent;
@@ -123,7 +123,7 @@ struct MemberSlot : Slot
 
 struct TemporarySlot : Slot
 {
-  TemporarySlot(ThingOfCode* code);
+  TemporarySlot(CodeThing* code);
 
   unsigned int tag;
 
@@ -137,7 +137,7 @@ struct TemporarySlot : Slot
 
 struct ReturnResultSlot : Slot
 {
-  ReturnResultSlot(ThingOfCode* code);
+  ReturnResultSlot(CodeThing* code);
 
   unsigned int tag;
 
@@ -152,7 +152,7 @@ struct ReturnResultSlot : Slot
 template<typename T>
 struct ConstantSlot : Slot
 {
-  ConstantSlot(ThingOfCode* code, T value)
+  ConstantSlot(CodeThing* code, T value)
     :Slot(code)
     ,value(value)
   {
@@ -327,12 +327,12 @@ struct BinaryOpInstruction : AirInstruction
 
 struct CallInstruction : AirInstruction
 {
-  CallInstruction(ThingOfCode* thing);
+  CallInstruction(CodeThing* thing);
   ~CallInstruction() { }
 
   std::string AsString();
 
-  ThingOfCode* thing;
+  CodeThing* thing;
 };
 
 /*
@@ -342,14 +342,14 @@ struct CallInstruction : AirInstruction
  */
 struct AirState
 {
-  AirState(ThingOfCode* code)
+  AirState(CodeThing* code)
     :code(code)
     ,breakLabel(nullptr)
   {
   }
   ~AirState() { }
 
-  ThingOfCode* code;
+  CodeThing* code;
 
   /*
    * If we're inside a loop, we set this to the label that should be jumped to upon a `break`
@@ -389,7 +389,7 @@ struct AirGenerator : ASTPass<Slot*, AirState>
   Slot* VisitNode(InfiniteLoopNode* node            , AirState* state);
 };
 
-bool IsColorInUseAtPoint(ThingOfCode* code, AirInstruction* instruction, signed int color);
+bool IsColorInUseAtPoint(CodeThing* code, AirInstruction* instruction, signed int color);
 
 /*
  * This allows dynamic dispatch based upon the type of an AIR instruction.

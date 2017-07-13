@@ -18,9 +18,9 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
    * We actually iterate the entire list (even after we're found an entry point) to check that there aren't
    * multiple.
    */
-  for (ThingOfCode* thing : parse.codeThings)
+  for (CodeThing* thing : parse.codeThings)
   {
-    if (thing->type != ThingOfCode::Type::FUNCTION)
+    if (thing->type != CodeThing::Type::FUNCTION)
     {
       continue;
     }
@@ -29,7 +29,7 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
     {
       if (entrySymbol)
       {
-        RaiseError(errorState, ERROR_MULTIPLE_ENTRY_POINTS, entrySymbol->name->str, thing->name);
+        RaiseError(errorState, ERROR_MULTIPLE_ENTRY_POINTS, entrySymbol->name->str, thing->mangledName.c_str());
       }
       entrySymbol = thing->symbol;
     }
@@ -58,7 +58,7 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
 #define E(...) \
   Emit(code->errorState, elfThing, target, __VA_ARGS__);
 
-static ElfThing* Generate(ElfFile& file, CodegenTarget& target, ThingOfCode* code, ElfThing* rodataThing)
+static ElfThing* Generate(ElfFile& file, CodegenTarget& target, CodeThing* code, ElfThing* rodataThing)
 {
   // Don't generate empty functions
   if (!(code->airHead))
@@ -95,7 +95,7 @@ static ElfThing* Generate(ElfFile& file, CodegenTarget& target, ThingOfCode* cod
   return elfThing;
 }
 
-void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result)
+void Generate(const std::string& outputPath, CodegenTarget& target, ParseResult& result)
 {
   /*
    * If we're compiling a module, we need to produce a relocatable.
@@ -134,9 +134,10 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
   }
 
   // Link with any files we've been told to
-  for (char* file : result.filesToLink)
+  for (const std::string& file : result.filesToLink)
   {
-    LinkObject(elf, file);
+    // TODO: eww use std::string throughout
+    LinkObject(elf, file.c_str());
   }
 
   // Emit string constants into the .rodata thing
@@ -145,7 +146,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
   {
     constant->offset = tail;
 
-    for (char* c = constant->string;
+    for (const char* c = constant->str.c_str();
          *c;
          c++)
     {
@@ -159,7 +160,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
   }
 
   // --- Generate error states and symbols for things of code ---
-  for (ThingOfCode* thing : result.codeThings)
+  for (CodeThing* thing : result.codeThings)
   {
     thing->errorState = ErrorState(ErrorState::Type::CODE_GENERATION, thing);
 
@@ -170,7 +171,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
     {
       for (ElfThing* elfThing : textSection->things)
       {
-        if (strcmp(thing->mangledName, elfThing->symbol->name->str) == 0)
+        if (thing->mangledName == elfThing->symbol->name->str)
         {
           thing->symbol = elfThing->symbol;
         }
@@ -178,12 +179,12 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
 
       if (!(thing->symbol))
       {
-        RaiseError(thing->errorState, ERROR_UNIMPLEMENTED_PROTOTYPE, thing->mangledName);
+        RaiseError(thing->errorState, ERROR_UNIMPLEMENTED_PROTOTYPE, thing->mangledName.c_str());
       }
     }
     else
     {
-      thing->symbol = new ElfSymbol(elf, thing->mangledName, ElfSymbol::Binding::SYM_BIND_GLOBAL, ElfSymbol::Type::SYM_TYPE_FUNCTION, textSection->index, 0x00);
+      thing->symbol = new ElfSymbol(elf, thing->mangledName.c_str(), ElfSymbol::Binding::SYM_BIND_GLOBAL, ElfSymbol::Type::SYM_TYPE_FUNCTION, textSection->index, 0x00);
     }
   }
 
@@ -196,7 +197,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
   }
 
   // --- Generate `ElfThing`s for each thing of code ---
-  for (ThingOfCode* thing : result.codeThings)
+  for (CodeThing* thing : result.codeThings)
   {
     if (thing->attribs.isPrototype)
     {
@@ -206,7 +207,7 @@ void Generate(const char* outputPath, CodegenTarget& target, ParseResult& result
     Generate(elf, target, thing, rodataThing);
   }
 
-  WriteElf(elf, outputPath);
+  WriteElf(elf, outputPath.c_str());
 }
 
 void CodeGenerator_x64::Visit(LabelInstruction* instruction, void*)

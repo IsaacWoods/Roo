@@ -74,7 +74,7 @@ enum Error
 };
 
 struct Parser;
-struct ThingOfCode;
+struct CodeThing;
 struct TypeDef;
 struct ASTNode;
 struct AirInstruction;
@@ -102,11 +102,11 @@ struct ErrorState
   {
     struct
     {
-      ThingOfCode*      code;
-      ASTNode*          node;
+      CodeThing* code;
+      ASTNode*   node;
     }               astSection;
     Parser*         parser;
-    ThingOfCode*    code;
+    CodeThing*      code;
     TypeDef*        type;
     AirInstruction* instruction;
   };
