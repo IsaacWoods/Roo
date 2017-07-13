@@ -660,11 +660,12 @@ static bool DoRangesIntersect(LiveRange& a, LiveRange& b)
 {
   unsigned int definitionA = (a.definition ? a.definition->index : 0u);
   unsigned int definitionB = (b.definition ? b.definition->index : 0u);
-  // TODO: should this default to their definitions instead of UINT_MAX??
-  // (Because we don't care what happens to unused slots?)
-  // Maybe remove unused slots before creating the interference graph?
-  unsigned int useA = (a.lastUse ? a.lastUse->index : UINT_MAX);
-  unsigned int useB = (b.lastUse ? b.lastUse->index : UINT_MAX);
+
+  /*
+   * If we don't use the variable, it doesn't interfere with anything, so we set it's last use to it's definition
+   */
+  unsigned int useA = (a.lastUse ? a.lastUse->index : a.definition->index);
+  unsigned int useB = (b.lastUse ? b.lastUse->index : b.definition->index);
 
   return ((definitionA <= useB) && (definitionB <= useA));
 }
