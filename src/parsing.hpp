@@ -5,9 +5,12 @@
 
 #pragma once
 
+#include <stack>
 #include <error.hpp>
 
 struct ParseResult;
+struct ScopeDef;
+struct CodeThing;
 
 enum TokenType
 {
@@ -100,18 +103,20 @@ struct Parser
   Parser(ParseResult& result, const char* sourcePath);
   ~Parser();
 
-  const char*     path;               // NOTE(Isaac): the path of the thing we are compiling
-  char*           source;
-  const char*     currentChar;        // NOTE(Isaac): this points into `source`
-  unsigned int    currentLine;
-  unsigned int    currentLineOffset;
-  bool            isInLoop;           // NOTE(Isaac): This dictates whether we can use the `break` command
+  const char*           path;               // the path of the thing we are compiling
+  char*                 source;
+  const char*           currentChar;        // this points into `source`
+  unsigned int          currentLine;
+  unsigned int          currentLineOffset;
+  bool                  isInLoop;           // This dictates whether we can use the `break` command
 
-  Token           currentToken;
-  Token           nextToken;
+  Token                 currentToken;
+  Token                 nextToken;
+  std::stack<ScopeDef*> scopeStack;
+  CodeThing*            currentThing;       // This is the CodeThing that is currently being parsed
 
-  ParseResult&    result;
-  ErrorState      errorState;
+  ParseResult&          result;
+  ErrorState            errorState;
 };
 
 Token PeekToken(Parser& parser, bool ignoreLines = true);

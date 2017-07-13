@@ -905,16 +905,22 @@ static VariableDef* ParseVariableDef(Parser& parser)
   return variable;
 }
 
-static ASTNode* ParseStatement(Parser& parser, CodeThing* scope);
-static ASTNode* ParseBlock(Parser& parser, CodeThing* scope)
+static ASTNode* ParseStatement(Parser& parser);
+static ASTNode* ParseBlock(Parser& parser)
 {
   Log(parser, "--> Block\n");
   Consume(parser, TOKEN_LEFT_BRACE);
   ASTNode* code = nullptr;
 
+  // Each block should introduce a new scope
+  ScopeDef* scope = new ScopeDef(parser.currentThing, (parser.scopeStack.size() > 0u ? parser.scopeStack.top()
+                                                                                     : nullptr));
+  parser.scopeStack.push(scope);
+
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
-    ASTNode* statement = ParseStatement(parser, scope);
+    ASTNode* statement = ParseStatement(parser);
+    statement->containingScope = scope;
 
     if (code)
     {
@@ -927,11 +933,12 @@ static ASTNode* ParseBlock(Parser& parser, CodeThing* scope)
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);
+  parser.scopeStack.pop();  // Remove the block's scope from the stack
   Log(parser, "<-- Block\n");
   return code;
 }
 
-static ASTNode* ParseIf(Parser& parser, CodeThing* scope)
+static ASTNode* ParseIf(Parser& parser)
 {
   Log(parser, "--> If\n");
 
@@ -940,20 +947,20 @@ static ASTNode* ParseIf(Parser& parser, CodeThing* scope)
   ASTNode* condition = ParseExpression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
 
-  ASTNode* thenCode = ParseBlock(parser, scope);
+  ASTNode* thenCode = ParseBlock(parser);
   ASTNode* elseCode = nullptr;
 
   if (Match(parser, TOKEN_ELSE))
   {
     NextToken(parser);
-    elseCode = ParseBlock(parser, scope);
+    elseCode = ParseBlock(parser);
   }
 
   Log(parser, "<-- If\n");
   return new BranchNode(condition, thenCode, elseCode);
 }
 
-static ASTNode* ParseWhile(Parser& parser, CodeThing* scope)
+static ASTNode* ParseWhile(Parser& parser)
 {
   Log(parser, "--> While\n");
   parser.isInLoop = true;
@@ -962,14 +969,14 @@ static ASTNode* ParseWhile(Parser& parser, CodeThing* scope)
   Consume(parser, TOKEN_LEFT_PAREN);
   ASTNode* condition = ParseExpression(parser);
   Consume(parser, TOKEN_RIGHT_PAREN);
-  ASTNode* code = ParseBlock(parser, scope);
+  ASTNode* code = ParseBlock(parser);
 
   parser.isInLoop = false;
   Log(parser, "<-- While\n");
   return new WhileNode(condition, code);
 }
 
-static ASTNode* ParseStatement(Parser& parser, CodeThing* scope)
+static ASTNode* ParseStatement(Parser& parser)
 {
   Log(parser, "--> Statement(%s)", (parser.isInLoop ? "IN LOOP" : "NOT IN LOOP"));
   ASTNode* result = nullptr;
@@ -992,7 +999,7 @@ static ASTNode* ParseStatement(Parser& parser, CodeThing* scope)
     case TOKEN_RETURN:
     {
       Log(parser, "(RETURN)\n");
-      scope->shouldAutoReturn = false;
+      parser.currentThing->shouldAutoReturn = false;
       NextToken(parser, false);
 
       if (Match(parser, TOKEN_LINE, false))
@@ -1008,13 +1015,13 @@ static ASTNode* ParseStatement(Parser& parser, CodeThing* scope)
     case TOKEN_IF:
     {
       Log(parser, "(IF)\n");
-      result = ParseIf(parser, scope);
+      result = ParseIf(parser);
     } break;
 
     case TOKEN_WHILE:
     {
       Log(parser, "(WHILE)\n");
-      result = ParseWhile(parser, scope);
+      result = ParseWhile(parser);
     } break;
 
     case TOKEN_IDENTIFIER:
@@ -1032,7 +1039,11 @@ static ASTNode* ParseStatement(Parser& parser, CodeThing* scope)
           result = new VariableAssignmentNode((ASTNode*)variableNode, variable->initialValue, true);
         }
 
-        scope->locals.push_back(variable);
+        /*
+         * Put the variable into the inner-most scope.
+         */
+        Assert(parser.scopeStack.size() >= 1u, "Parsed statement without surrounding scope");
+        parser.scopeStack.top()->locals.push_back(variable);
         break;
       }
     } // NOTE(Isaac): no break
@@ -1103,11 +1114,13 @@ static void ParseImport(Parser& parser)
 static void ParseFunction(Parser& parser, AttribSet& attribs)
 {
   Log(parser, "--> Function(");
+  Assert(parser.scopeStack.size() == 0, "Scope stack is not empty at function entry");
 
   FunctionThing* function = new FunctionThing(GetTextFromToken(parser, NextToken(parser)));
   function->attribs = attribs;
   Log(parser, "%s)\n", function->name);
   parser.result.codeThings.push_back(function);
+  parser.currentThing = function;
 
   NextToken(parser);
   ParseParameterList(parser, function->params);
@@ -1130,7 +1143,7 @@ static void ParseFunction(Parser& parser, AttribSet& attribs)
   }
   else
   {
-    function->ast = ParseBlock(parser, function);
+    function->ast = ParseBlock(parser);
   }
 
   Log(parser, "<-- Function\n");
@@ -1144,6 +1157,7 @@ static void ParseOperator(Parser& parser, AttribSet& attribs)
   operatorDef->attribs = attribs;
   Log(parser, "%s)\n", GetTokenName(operatorDef->op));
   parser.result.codeThings.push_back(operatorDef);
+  parser.currentThing = operatorDef;
 
   switch (operatorDef->token)
   {
@@ -1181,7 +1195,7 @@ static void ParseOperator(Parser& parser, AttribSet& attribs)
   }
   else
   {
-    operatorDef->ast = ParseBlock(parser, operatorDef);
+    operatorDef->ast = ParseBlock(parser);
     Assert(!(operatorDef->shouldAutoReturn), "Parsed an operator that should apparently auto-return");
   }
 
@@ -1306,6 +1320,7 @@ Parser::Parser(ParseResult& result, const char* sourcePath)
   ,isInLoop(false)
   ,currentToken(LexNext(*this))
   ,nextToken(LexNext(*this))
+  ,scopeStack()
   ,result(result)
   ,errorState(ErrorState::Type::PARSING_UNIT, this)
 {
@@ -1708,7 +1723,6 @@ static void InitParseletMaps()
       }
 
       ConditionNode* condition = reinterpret_cast<ConditionNode*>(left);
-      //condition->reverseOnJump = true;
 
       NextToken(parser);
       ASTNode* thenBody = ParseExpression(parser, P_TERNARY-1u);

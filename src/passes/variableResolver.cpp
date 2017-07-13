@@ -23,7 +23,8 @@ void VariableResolverPass::VisitNode(VariableNode* node, CodeThing* code)
     return;
   }
 
-  for (VariableDef* local : code->locals)
+  Assert(node->containingScope, "Must resolve scopes before trying to resolve variables");
+  for (VariableDef* local : node->containingScope->GetReachableVariables())
   {
     if (local->name == node->name)
     {

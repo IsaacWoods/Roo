@@ -151,6 +151,27 @@ struct AttribSet
 };
 
 /*
+ * This describes a scope inside a code block. A scope contains local variables that can only be accessed from
+ * within it, and can be inside another scope (it's 'parent'). Code inside a scope can also access variables within
+ * its scope's parent.
+ */
+struct CodeThing;
+struct ScopeDef
+{
+  ScopeDef(CodeThing* thing, ScopeDef* parent);
+  ~ScopeDef() { }
+ 
+  /*
+   * This gets a list of all variables reachable from this scope.
+   * (Basically variables in this scope and its parent's scopes (recursively))
+   */
+  std::vector<VariableDef*> GetReachableVariables();
+
+  ScopeDef*                 parent;
+  std::vector<VariableDef*> locals;
+};
+
+/*
  * This describes a function (either parsed as an actual function or as an operator) that takes inputs (parameters)
  * does stuff to them (described by the AST and then the AIR code), and produces an output (the return value).
  * Functions supply a name in the `name` field, whereas operators supply the type of the token used to denote the
@@ -170,7 +191,7 @@ struct CodeThing
   Type                      type;
   std::string               mangledName;
   std::vector<VariableDef*> params;
-  std::vector<VariableDef*> locals;
+  std::vector<ScopeDef*>    scopes;
   bool                      shouldAutoReturn;
   AttribSet                 attribs;
   TypeRef*                  returnType;       // `nullptr` if it doesn't return anything

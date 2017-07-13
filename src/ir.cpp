@@ -165,9 +165,34 @@ AttribSet::AttribSet()
 {
 }
 
+ScopeDef::ScopeDef(CodeThing* thing, ScopeDef* parent)
+  :parent(parent)
+  ,locals()
+{
+  Assert(thing, "Tried to create scope in nullptr CodeThing");
+  thing->scopes.push_back(this);
+}
+
+std::vector<VariableDef*> ScopeDef::GetReachableVariables()
+{
+  std::vector<VariableDef*> reachable;
+  reachable.insert(reachable.end(), locals.begin(), locals.end());
+
+  ScopeDef* parentScope = parent;
+  while (parentScope)
+  {
+    reachable.insert(reachable.end(), parentScope->locals.begin(), parentScope->locals.end());
+    parentScope = parentScope->parent;
+  }
+
+  return reachable;
+}
+
 CodeThing::CodeThing(CodeThing::Type type)
   :type(type)
   ,mangledName()
+  ,params()
+  ,scopes()
   ,shouldAutoReturn(false)
   ,attribs()
   ,returnType(nullptr)
@@ -394,10 +419,13 @@ void CompleteIR(ParseResult& parse)
       CompleteVariable(param, thing->errorState);
     }
   
-    for (VariableDef* local : thing->locals)
+    for (ScopeDef* scope : thing->scopes)
     {
-      ResolveTypeRef(local->type, parse, thing->errorState);
-      CompleteVariable(local, thing->errorState);
+      for (VariableDef* local : scope->locals)
+      {
+        ResolveTypeRef(local->type, parse, thing->errorState);
+        CompleteVariable(local, thing->errorState);
+      }
     }
   }
 

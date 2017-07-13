@@ -35,7 +35,7 @@
 struct TypeCheckingContext;
 struct DotState;
 
-DEF_PASS_IMPL(TypeChecker,            void,     TypeCheckingContext)
-DEF_PASS_IMPL(DotEmitterPass,         char*,    DotState)
-DEF_PASS_IMPL(VariableResolverPass,   void,     CodeThing)
-DEF_PASS_IMPL(ConditionFolderPass,    bool,     CodeThing)
+DEF_PASS_IMPL(TypeChecker,              void,     TypeCheckingContext)
+DEF_PASS_IMPL(DotEmitterPass,           char*,    DotState)
+DEF_PASS_IMPL(VariableResolverPass,     void,     CodeThing)
+DEF_PASS_IMPL(ConditionFolderPass,      bool,     CodeThing)

@@ -10,6 +10,7 @@ ASTNode::ASTNode()
   ,prev(nullptr)
   ,type(nullptr)
   ,shouldFreeTypeRef(false)
+  ,containingScope(nullptr)
 {
 }
 

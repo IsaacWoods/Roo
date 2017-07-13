@@ -854,14 +854,17 @@ void AirGenerator::Apply(ParseResult& parse)
     }
 
     // Generate slots for the locals
-    for (VariableDef* local : code->locals)
+    for (ScopeDef* scope : code->scopes)
     {
-      local->slot = new VariableSlot(code, local);
-      Assert(local->type.isResolved, "Tried to generate AIR without type information");
-
-      for (VariableDef* member : local->type.resolvedType->members)
+      for (VariableDef* local : scope->locals)
       {
-        member->slot = new MemberSlot(code, local->slot, member);
+        local->slot = new VariableSlot(code, local);
+        Assert(local->type.isResolved, "Tried to generate AIR without type information");
+
+        for (VariableDef* member : local->type.resolvedType->members)
+        {
+          member->slot = new MemberSlot(code, local->slot, member);
+        }
       }
     }
 

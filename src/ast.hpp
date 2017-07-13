@@ -27,11 +27,17 @@ struct ASTNode
    * XXX: These should not be set manually, as it is very easy to end up with a malformed AST.
    * Instead, use functions like `AppendNode` or `ReplaceNode`
    */
-  ASTNode* next;
-  ASTNode* prev;
+  ASTNode*  next;
+  ASTNode*  prev;
 
-  TypeRef* type;
-  bool     shouldFreeTypeRef;    // TODO: eww
+  TypeRef*  type;
+  bool      shouldFreeTypeRef;    // TODO: eww
+
+  /*
+   * This is the scope this node operates in. The node can only access variables within this scope and its parent
+   * scopes.
+   */
+  ScopeDef* containingScope;
 };
 
 /*
