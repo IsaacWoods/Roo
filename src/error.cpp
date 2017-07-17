@@ -13,6 +13,11 @@
 #include <ast.hpp>
 #include <air.hpp>
 
+/*
+ * If this option is set, we will print backtraces
+ */
+#define PRINT_CALLSTACK
+
 enum ErrorLevel
 {
   NOTE,
@@ -113,8 +118,12 @@ ErrorState::ErrorState(ErrorState::Type stateType, ...)
   :stateType(stateType)
   ,hasErrored(false)
 {
+  /*
+   * We cast the enum to a unsigned int to avoid default argument promotion, which can result in UB
+   * when passed to va_start
+   */
   va_list args;
-  va_start(args, stateType);
+  va_start(args, (unsigned int)stateType);
 
   switch (stateType)
   {
@@ -169,7 +178,7 @@ static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",    
 void RaiseError(ErrorState& state, Error e, ...)
 {
   va_list args;
-  va_start(args, e);
+  va_start(args, (unsigned int)e);
   const ErrorDef& def = errors[e];
 
   // Mark to the error state that an error has occured in its domain
@@ -305,7 +314,7 @@ void RaiseError(ErrorState& state, Error e, ...)
 void RaiseError(Error e, ...)
 {
   va_list args;
-  va_start(args, e);
+  va_start(args, (unsigned int)e);
   const ErrorDef& def = errors[e];
 
   char message[1024u];
