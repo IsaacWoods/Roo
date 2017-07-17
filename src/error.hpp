@@ -20,7 +20,7 @@ enum Error
 {
   NOTE_IGNORED_ELF_SECTION,       // "Ignoring section in ELF relocatable: %s"
 
-  WARNING_FOUND_TAB,              // "Found a tab; their use is discouraged in Roo"
+  WARNING_FOUND_TAB,              // "Found a hard tab; their use is discouraged in Roo"
 
   ERROR_COMPILE_ERRORS,           // "There were compile errors. Stopping."
   ERROR_EXPECTED,                 // "Expected %s"
@@ -28,7 +28,7 @@ enum Error
   ERROR_UNEXPECTED,               // "Unexpected token in %s position: %s"
   ERROR_UNEXPECTED_EXPRESSION,    // "Unexpected expression type in %s position: %s"
   ERROR_ILLEGAL_ATTRIBUTE,        // "Unrecognised attribute '%s'"
-  ERROR_UNDEFINED_VARIABLE,       // "Failed to resolve variable called '%s'"
+  ERROR_VARIABLE_NOT_IN_SCOPE,    // "No such binding in current scope: '%s'"
   ERROR_UNDEFINED_FUNCTION,       // "Failed to resolve function called '%s'"
   ERROR_UNDEFINED_TYPE,           // "Failed to resolve type with the name '%s'"
   ERROR_MISSING_OPERATOR,         // "Can't find %s operator for operands of type '%s' and '%s'"

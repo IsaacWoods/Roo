@@ -14,9 +14,15 @@
 #include <air.hpp>
 
 /*
- * If this option is set, we will print backtraces
+ * If this option is set, we will print backtraces when an Assert fails
  */
-#define PRINT_CALLSTACK
+//#define PRINT_STACK_TRACE
+
+#ifdef PRINT_STACK_TRACE
+  #ifdef __linux__
+    #include <execinfo.h>
+  #endif
+#endif
 
 enum ErrorLevel
 {
@@ -57,7 +63,7 @@ void InitErrorDefs()
 
   N(NOTE_IGNORED_ELF_SECTION,                             "Ignored section in ELF relocatable: %s");
 
-  W(WARNING_FOUND_TAB,                                    "Found a tab; their use is discouraged in Roo");
+  W(WARNING_FOUND_TAB,                                    "Found a hard tab; their use is discouraged in Roo");
 
   E(ERROR_COMPILE_ERRORS,           GIVE_UP,              "There were compile errors. Stopping.");
   E(ERROR_EXPECTED,                 TO_END_OF_STATEMENT,  "Expected %s");
@@ -65,7 +71,7 @@ void InitErrorDefs()
   E(ERROR_UNEXPECTED,               SKIP_TOKEN,           "Unexpected token in %s position: %s. Skipping.");
   E(ERROR_UNEXPECTED_EXPRESSION,    TO_END_OF_STATEMENT,  "Unexpected expression type in %s position: %s");
   E(ERROR_ILLEGAL_ATTRIBUTE,        TO_END_OF_ATTRIBUTE,  "Unrecognised attribute '%s'");
-  E(ERROR_UNDEFINED_VARIABLE,       DO_NOTHING,           "Failed to resolve variable called '%s'");
+  E(ERROR_VARIABLE_NOT_IN_SCOPE,    DO_NOTHING,           "No such binding in current scope: '%s'");
   E(ERROR_UNDEFINED_FUNCTION,       DO_NOTHING,           "Failed to resolve function called '%s'");
   E(ERROR_UNDEFINED_TYPE,           DO_NOTHING,           "Failed to resolve type with the name '%s'");
   E(ERROR_MISSING_OPERATOR,         DO_NOTHING,           "Can't find %s operator for operand types '%s' and '%s'");
@@ -161,10 +167,6 @@ ErrorState::ErrorState(ErrorState::Type stateType, ...)
   }
 }
 
-//                                   White          Light Purple    Orange          Cyan
-static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};
-static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "ICE"};
-
 /*
  * XXX: `Assert` must not be used in the following methods, because it executes `RaiseError` to report errors.
  * Instead, use this method to crash with a relatively helpful message.
@@ -174,6 +176,41 @@ static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",    
   fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);\
   Crash();\
   }
+
+static void PrintStackTrace()
+{
+#ifdef PRINT_STACK_TRACE
+  #ifdef __linux__
+    static const unsigned int BUFFER_SIZE = 100u;
+
+    void* buffer[BUFFER_SIZE];
+    int entryCount = backtrace(buffer, BUFFER_SIZE);
+    char** strings = backtrace_symbols(buffer, entryCount);
+
+    if (!strings)
+    {
+      perror("backtrace_symbols");
+      REPORT_ERROR_IN_ERROR_REPORTER();
+    }
+
+    for (unsigned int i = 0u;
+         i < (unsigned int)entryCount;
+         i++)
+    {
+      fprintf(stderr, "%s\n", strings[i]);
+    }
+
+    free(strings);
+  #else
+    fprintf(stderr, "Printing stacktraces is not supported on your platform, please turn it off before compiling\n");
+    REPORT_ERROR_IN_ERROR_REPORTER();
+  #endif
+#endif
+}
+
+//                                   White          Light Purple    Orange          Cyan
+static const char* levelColors[]  = {"\x1B[1;37m",  "\x1B[1;35m",   "\x1B[1;31m",   "\x1B[1;36m"};
+static const char* levelStrings[] = {"NOTE",        "WARNING",      "ERROR",        "ICE"};
 
 void RaiseError(ErrorState& state, Error e, ...)
 {
@@ -237,6 +274,11 @@ void RaiseError(ErrorState& state, Error e, ...)
     } break;
   }
   va_end(args);
+
+  if (e == ICE_FAILED_ASSERTION)
+  {
+    PrintStackTrace();
+  }
 
   // --- Follow the poisoning strategy ---
   switch (def.poisonStrategy)
@@ -322,6 +364,11 @@ void RaiseError(Error e, ...)
 
   fprintf(stderr, "%s%s: \x1B[0m%s\n", levelColors[def.level], levelStrings[def.level], message);
   va_end(args);
+
+  if (e == ICE_FAILED_ASSERTION)
+  {
+    PrintStackTrace();
+  }
 
   // --- Make sure it doesn't expect us to poison anything - we can't without an ErrorState ---
   if (def.poisonStrategy == GIVE_UP)

@@ -36,9 +36,9 @@ void ScopeResolverPass::VisitNode(ReturnNode* node, CodeThing* code)
   if (!(node->returnValue->containingScope))
   {
     node->returnValue->containingScope = node->containingScope;
-    Dispatch(node->returnValue, code);
   }
 
+  Dispatch(node->returnValue, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -52,9 +52,9 @@ void ScopeResolverPass::VisitNode(UnaryOpNode* node, CodeThing* code)
   if (!(node->operand->containingScope))
   {
     node->operand->containingScope = node->containingScope;
-    Dispatch(node->operand, code);
   }
 
+  Dispatch(node->operand, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -68,15 +68,15 @@ void ScopeResolverPass::VisitNode(BinaryOpNode* node, CodeThing* code)
   if (!(node->left->containingScope))
   {
     node->left->containingScope = node->containingScope;
-    Dispatch(node->left, code);
   }
 
   if (!(node->right->containingScope))
   {
     node->right->containingScope = node->containingScope;
-    Dispatch(node->right, code);
   }
 
+  Dispatch(node->left, code);
+  Dispatch(node->right, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -100,15 +100,15 @@ void ScopeResolverPass::VisitNode(ConditionNode* node, CodeThing* code)
   if (!(node->left->containingScope))
   {
     node->left->containingScope = node->containingScope;
-    Dispatch(node->left, code);
   }
 
   if (!(node->right->containingScope))
   {
     node->right->containingScope = node->containingScope;
-    Dispatch(node->right, code);
   }
 
+  Dispatch(node->left, code);
+  Dispatch(node->right, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -122,22 +122,22 @@ void ScopeResolverPass::VisitNode(BranchNode* node, CodeThing* code)
   if (!(node->condition->containingScope))
   {
     node->condition->containingScope = node->containingScope;
-    Dispatch(node->condition, code);
   }
 
   if (!(node->thenCode->containingScope))
   {
     node->thenCode->containingScope = node->containingScope;
-    Dispatch(node->thenCode, code);
   }
 
   if (node->elseCode && !(node->elseCode->containingScope))
   {
     node->elseCode->containingScope = node->containingScope;
-    Dispatch(node->elseCode, code);
   }
 
-  if (node->next) Dispatch(node->next, code);
+  Dispatch(node->condition, code);
+  Dispatch(node->thenCode, code);
+  if (node->elseCode) Dispatch(node->elseCode, code);
+  if (node->next)     Dispatch(node->next, code);
 }
 
 void ScopeResolverPass::VisitNode(WhileNode* node, CodeThing* code)
@@ -150,15 +150,15 @@ void ScopeResolverPass::VisitNode(WhileNode* node, CodeThing* code)
   if (!(node->condition->containingScope))
   {
     node->condition->containingScope = node->containingScope;
-    Dispatch(node->condition, code);
   }
 
   if (!(node->loopBody->containingScope))
   {
     node->loopBody->containingScope = node->containingScope;
-    Dispatch(node->loopBody, code);
   }
 
+  Dispatch(node->condition, code);
+  Dispatch(node->loopBody, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -240,15 +240,15 @@ void ScopeResolverPass::VisitNode(VariableAssignmentNode* node, CodeThing* code)
   if (!(node->variable->containingScope))
   {
     node->variable->containingScope = node->containingScope;
-    Dispatch(node->variable, code);
   }
 
   if (!(node->newValue->containingScope))
   {
     node->newValue->containingScope = node->containingScope;
-    Dispatch(node->newValue, code);
   }
 
+  Dispatch(node->variable, code);
+  Dispatch(node->newValue, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -262,7 +262,6 @@ void ScopeResolverPass::VisitNode(MemberAccessNode* node, CodeThing* code)
   if (!(node->parent->containingScope))
   {
     node->parent->containingScope = node->containingScope;
-    Dispatch(node->parent, code);
   }
 
   if (!(node->isResolved))
@@ -270,10 +269,12 @@ void ScopeResolverPass::VisitNode(MemberAccessNode* node, CodeThing* code)
     if (!(node->child->containingScope))
     {
       node->child->containingScope = node->containingScope;
-      Dispatch(node->child, code);
     }
+
+    Dispatch(node->child, code);
   }
 
+  Dispatch(node->parent, code);
   if (node->next) Dispatch(node->next, code);
 }
 
@@ -289,8 +290,9 @@ void ScopeResolverPass::VisitNode(ArrayInitNode* node, CodeThing* code)
     if (!(item->containingScope))
     {
       item->containingScope = node->containingScope;
-      Dispatch(item, code);
     }
+
+    Dispatch(item, code);
   }
 
   if (node->next) Dispatch(node->next, code);
@@ -306,8 +308,8 @@ void ScopeResolverPass::VisitNode(InfiniteLoopNode* node, CodeThing* code)
   if (!(node->loopBody->containingScope))
   {
     node->loopBody->containingScope = node->containingScope;
-    Dispatch(node->loopBody, code);
   }
 
+  Dispatch(node->loopBody, code);
   if (node->next) Dispatch(node->next, code);
 }

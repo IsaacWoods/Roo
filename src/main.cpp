@@ -107,6 +107,10 @@ int main()
     pass.Apply(result);\
   }
 
+#ifdef OUTPUT_DOT
+  APPLY_PASS(DotEmitterPass);
+#endif
+
   APPLY_PASS(ScopeResolverPass);
   APPLY_PASS(VariableResolverPass);
   APPLY_PASS(TypeChecker);

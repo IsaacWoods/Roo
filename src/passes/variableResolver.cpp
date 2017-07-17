@@ -20,7 +20,7 @@ void VariableResolverPass::VisitNode(VariableNode* node, CodeThing* code)
 {
   if (node->isResolved)
   {
-    return;
+    goto Done;
   }
 
   Assert(node->containingScope, "Must resolve scopes before trying to resolve variables");
@@ -31,7 +31,7 @@ void VariableResolverPass::VisitNode(VariableNode* node, CodeThing* code)
       delete node->name;
       node->var = local;
       node->isResolved = true;
-      return;
+      goto Done;
     }
   }
 
@@ -42,10 +42,13 @@ void VariableResolverPass::VisitNode(VariableNode* node, CodeThing* code)
       delete node->name;
       node->var = param;
       node->isResolved = true;
-      return;
+      goto Done;
     }
   }
 
+  RaiseError(code->errorState, ERROR_VARIABLE_NOT_IN_SCOPE, node->name);
+
+Done:
    if (node->next) Dispatch(node->next, code);
 }
 

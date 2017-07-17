@@ -4,7 +4,7 @@
 CXX ?= clang++
 IGNORED_WARNINGS = -Wno-unused-result -Wno-trigraphs -Wno-vla -Wno-nested-anon-types -Wno-missing-braces -Wno-vla-extension
 CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
-LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc
+LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc -rdynamic
 
 BUILD_DIR=./build
 

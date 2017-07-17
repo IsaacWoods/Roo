@@ -76,6 +76,8 @@ void TypeChecker::VisitNode(UnaryOpNode* node, TypeCheckingContext* context)
 
 void TypeChecker::VisitNode(BinaryOpNode* node, TypeCheckingContext* context)
 {
+  Dispatch(node->left, context);
+  Dispatch(node->right, context);
   if (node->next) Dispatch(node->next, context);
 }
 
