@@ -20,7 +20,7 @@ else ifeq ($(TIER), "PROD")
 	CFLAGS += -O3
 	LFLAGS += -O3
 else
-	$(error Tier must be set to DEV, CI or PROD)
+#	$(error Tier must be set to DEV, CI or PROD)
 endif
 
 BUILD_DIR=./build
