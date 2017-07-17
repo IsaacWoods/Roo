@@ -30,5 +30,5 @@ matrix:
         - CXX=g++-6
 
 script:
-  - make
+  - make TIER="CI"
   - make prelude

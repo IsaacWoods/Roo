@@ -5,15 +5,9 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  a : int = 7
-  if (a < 3)
+  if (true)
   {
-    i : uint = 2u
-  }
-
-  if (i == 2u)
-  {
-    Print("i is 2")
+    Print("Hello, World!\n")
   }
 
   return 0

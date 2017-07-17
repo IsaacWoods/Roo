@@ -1,10 +1,27 @@
 # Copyright (C) 2017, Isaac Woods.
 # See LICENCE.md
 
+# The Tier is where we are at in development. Developers should leave this at "DEV", CI will set it at "CI" and
+# final releases are built as "PROD"
+TIER ?= "DEV"
+
 CXX ?= clang++
 IGNORED_WARNINGS = -Wno-unused-result -Wno-trigraphs -Wno-vla -Wno-nested-anon-types -Wno-missing-braces -Wno-vla-extension
-CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
-LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc -rdynamic
+CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
+LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc
+
+ifeq ($(TIER), "DEV")
+	CFLAGS += -Werror -O0
+	LFLAGS += -Werror -O0 -rdynamic
+else ifeq ($(TIER), "CI")
+	CFLAGS += -Werror -O0
+	LFLAGS += -Werror -O0 -rdynamic
+else ifeq ($(TIER), "PROD")
+	CFLAGS += -O3
+	LFLAGS += -O3
+else
+	$(error Tier must be set to DEV, CI or PROD)
+endif
 
 BUILD_DIR=./build
 
