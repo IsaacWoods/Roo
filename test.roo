@@ -32,6 +32,7 @@ fn Main() -> int
   {
     a : int = 3
   }
+
   if (a == 2)
   {
     Print("a is 2\n")

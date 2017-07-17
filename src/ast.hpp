@@ -87,8 +87,8 @@ struct UnaryOpNode : ASTNode
 
   std::string AsString();
 
-  Operator      op;
-  ASTNode*      operand;
+  Operator    op;
+  ASTNode*    operand;
   CodeThing*  resolvedOperator;
 };
 
@@ -108,9 +108,9 @@ struct BinaryOpNode : ASTNode
 
   std::string AsString();
 
-  Operator      op;
-  ASTNode*      left;
-  ASTNode*      right;
+  Operator    op;
+  ASTNode*    left;
+  ASTNode*    right;
   CodeThing*  resolvedOperator;
 };
 

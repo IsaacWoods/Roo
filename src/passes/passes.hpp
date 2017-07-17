@@ -7,11 +7,13 @@
 
 #include <ast.hpp>
 
-#define DEF_PASS_IMPL(Name, R, T)\
+#define DEF_PASS(Name, R, T)\
   struct Name : ASTPass<R,T>\
   {\
     Name() : ASTPass() { }\
+    \
     void Apply(ParseResult& parse);\
+    \
     R VisitNode(BreakNode* node                  , T*);\
     R VisitNode(ReturnNode* node                 , T*);\
     R VisitNode(UnaryOpNode* node                , T*);\
@@ -35,7 +37,8 @@
 struct TypeCheckingContext;
 struct DotState;
 
-DEF_PASS_IMPL(TypeChecker,              void,     TypeCheckingContext)
-DEF_PASS_IMPL(DotEmitterPass,           char*,    DotState)
-DEF_PASS_IMPL(VariableResolverPass,     void,     CodeThing)
-DEF_PASS_IMPL(ConditionFolderPass,      bool,     CodeThing)
+DEF_PASS(ScopeResolverPass,        void,     CodeThing)
+DEF_PASS(VariableResolverPass,     void,     CodeThing)
+DEF_PASS(TypeChecker,              void,     TypeCheckingContext)
+DEF_PASS(ConditionFolderPass,      bool,     CodeThing)
+DEF_PASS(DotEmitterPass,           char*,    DotState)

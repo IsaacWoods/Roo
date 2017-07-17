@@ -3,8 +3,8 @@
 
 CXX ?= clang++
 IGNORED_WARNINGS = -Wno-unused-result -Wno-trigraphs -Wno-vla -Wno-nested-anon-types -Wno-missing-braces -Wno-vla-extension
-CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
-LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc
+CFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
+LFLAGS = -Wall -Wextra -Werror -pedantic -O0 -std=c++1z -g -Isrc
 
 BUILD_DIR=./build
 
@@ -22,6 +22,7 @@ OBJS = \
 	$(BUILD_DIR)/passes/variableResolver.o \
 	$(BUILD_DIR)/passes/typeChecker.o \
 	$(BUILD_DIR)/passes/conditionFolder.o \
+	$(BUILD_DIR)/passes/scopeResolver.o \
 	$(BUILD_DIR)/x64/x64.o \
 	$(BUILD_DIR)/x64/precolorer.o \
 	$(BUILD_DIR)/x64/emitter.o \
@@ -37,7 +38,7 @@ roo: $(OBJS) $(STD_OBJECTS)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 $(BUILD_DIR)/%.o: src/%.cpp
-	test -d $(BUILD_DIR)/passes || (mkdir -p $(BUILD_DIR)/passes && mkdir -p $(BUILD_DIR)/x64)
+	test -d $(BUILD_DIR) || (mkdir -p $(BUILD_DIR)/passes && mkdir -p $(BUILD_DIR)/x64)
 	$(CXX) -o $@ -c $< $(CFLAGS)
 
 %.o: %.s

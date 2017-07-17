@@ -107,6 +107,7 @@ int main()
     pass.Apply(result);\
   }
 
+  APPLY_PASS(ScopeResolverPass);
   APPLY_PASS(VariableResolverPass);
   APPLY_PASS(TypeChecker);
   //APPLY_PASS(ConstantFolderPass);
