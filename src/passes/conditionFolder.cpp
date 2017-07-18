@@ -44,14 +44,14 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, CodeThing* code)
     if (value)
     {
       // Replace the branch with the `then`
-      ReplaceNode(node, node->thenCode);
+      ReplaceNode(code, node, node->thenCode);
       newNode = node->thenCode;
       node->thenCode = nullptr;
     }
     else
     {
       // Replace the branch with the `else`
-      ReplaceNode(node, node->elseCode);
+      ReplaceNode(code, node, node->elseCode);
       newNode = node->elseCode;
       node->elseCode = nullptr;
     }
@@ -83,7 +83,7 @@ bool ConditionFolderPass::VisitNode(WhileNode* node, CodeThing* code)
       // Turn the WhileNode into an InfiniteLoopNode
       (void)Dispatch(node->loopBody, code);
       nextNode = node->next;
-      ReplaceNode(node, new InfiniteLoopNode(node->loopBody));
+      ReplaceNode(code, node, new InfiniteLoopNode(node->loopBody));
       node->loopBody = nullptr;
     }
     else

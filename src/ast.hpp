@@ -46,7 +46,7 @@ struct ASTNode
  */
 void AppendNode(ASTNode* parent, ASTNode* child);
 void AppendNodeOntoTail(ASTNode* parent, ASTNode* child);
-void ReplaceNode(ASTNode* oldNode, ASTNode* newNode);
+void ReplaceNode(CodeThing* code, ASTNode* oldNode, ASTNode* newNode);
 void RemoveNode(CodeThing* code, ASTNode* node);
 
 struct BreakNode : ASTNode

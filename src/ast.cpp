@@ -416,13 +416,21 @@ void AppendNodeOntoTail(ASTNode* parent, ASTNode* child)
   AppendNode(tail, child);
 }
 
-void ReplaceNode(ASTNode* oldNode, ASTNode* newNode)
+void ReplaceNode(CodeThing* code, ASTNode* oldNode, ASTNode* newNode)
 {
   Assert(oldNode != newNode, "Can't replace old node with new node");
-  Assert(oldNode->prev, "Old node has nullptr prev pointer");
 
-  oldNode->prev->next = newNode;
-  newNode->prev       = oldNode->prev;
+  if (oldNode->prev)
+  {
+    oldNode->prev->next = newNode;
+    newNode->prev       = oldNode->prev;
+  }
+  else
+  {
+    Assert(code->ast == oldNode, "Floating node doesn't have prev pointer");
+    code->ast     = newNode;
+    newNode->prev = nullptr;
+  }
 
   if (oldNode->next)
   {

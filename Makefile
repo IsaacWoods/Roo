@@ -2,7 +2,8 @@
 # See LICENCE.md
 
 # The Tier is where we are at in development. Developers should leave this at "DEV", CI will set it at "CI" and
-# final releases are built as "PROD"
+# final releases are built as "PROD". Make doesn't make this easy to enforce, but anything else won't set the
+# correct flags!
 TIER ?= "DEV"
 
 CXX ?= clang++
@@ -19,8 +20,6 @@ else ifeq ($(TIER), "CI")
 else ifeq ($(TIER), "PROD")
 	CFLAGS += -O3
 	LFLAGS += -O3
-else
-#	$(error Tier must be set to DEV, CI or PROD)
 endif
 
 BUILD_DIR=./build
