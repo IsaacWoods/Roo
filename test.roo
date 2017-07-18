@@ -5,7 +5,7 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  if (true)
+  if (false)
   {
     Print("Hello, World!\n")
   }

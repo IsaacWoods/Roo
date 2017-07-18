@@ -50,8 +50,18 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, CodeThing* code)
     }
     else
     {
-      // Replace the branch with the `else`
-      ReplaceNode(code, node, node->elseCode);
+      // Replace the branch with the `else` (or remove all of it if there isn't an `else` branch)
+      if (node->elseCode)
+      {
+        ReplaceNode(code, node, node->elseCode);
+      }
+      else
+      {
+        RemoveNode(code, node);
+        delete node;
+        return false;
+      }
+
       newNode = node->elseCode;
       node->elseCode = nullptr;
     }
