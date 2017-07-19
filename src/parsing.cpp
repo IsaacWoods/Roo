@@ -20,7 +20,7 @@
  * When this flag is set, the parser emits detailed logging throughout the parse.
  * It should probably be left off, unless debugging the lexer or parser.
  */
-#if 1
+#if 0
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(Parser& /*parser*/, const char* fmt, ...)
@@ -695,7 +695,8 @@ static Token PeekNextToken(Parser& parser, bool ignoreLines = true)
   return next;
 }
 
-#if 0
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void PeekNPrint(Parser& parser, bool ignoreLines = true)
 {
   if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
@@ -731,7 +732,7 @@ static void PeekNPrintNext(Parser& parser, bool ignoreLines = true)
     printf("PEEK_NEXT: %s\n", GetTokenName(PeekNextToken(parser, ignoreLines).type));
   }
 }
-#endif
+#pragma GCC diagnostic pop
 
 static inline void Consume(Parser& parser, TokenType expectedType, bool ignoreLines = true)
 {
@@ -982,6 +983,7 @@ static ASTNode* ParseStatement(Parser& parser)
 {
   Log(parser, "--> Statement(%s)", (parser.isInLoop ? "IN LOOP" : "NOT IN LOOP"));
   ASTNode* result = nullptr;
+  bool needTerminatingLine = true;
 
   switch (PeekToken(parser).type)
   {
@@ -1018,12 +1020,14 @@ static ASTNode* ParseStatement(Parser& parser)
     {
       Log(parser, "(IF)\n");
       result = ParseIf(parser);
+      needTerminatingLine = false;
     } break;
 
     case TOKEN_WHILE:
     {
       Log(parser, "(WHILE)\n");
       result = ParseWhile(parser);
+      needTerminatingLine = false;
     } break;
 
     case TOKEN_IDENTIFIER:
@@ -1055,6 +1059,11 @@ static ASTNode* ParseStatement(Parser& parser)
       Log(parser, "(EXPRESSION STATEMENT)\n");
       result = ParseExpression(parser);
     }
+  }
+
+  if (needTerminatingLine)
+  {
+    Consume(parser, TOKEN_LINE, false);
   }
 
   Log(parser, "<-- Statement\n");
@@ -1687,7 +1696,12 @@ static void InitParseletMaps()
       {
         params.push_back(ParseExpression(parser));
       }
-      Consume(parser, TOKEN_RIGHT_PAREN);
+
+      /*
+       * XXX: We can't ignore new-lines here, but I think we should be able to? Maybe this is showing a bug
+       * in the lexer where it doesn't roll back to TOKEN_LINEs correctly when we ask it to?
+       */
+      Consume(parser, TOKEN_RIGHT_PAREN, false);
 
       Log(parser, "<-- [PARSELET] Function call\n");
       return new CallNode(functionName, params);

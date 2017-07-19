@@ -12,8 +12,6 @@ type Color
 #[Entry]
 fn Main() -> int
 {
-  color : Color(255, 0, 255)
-
   i : int = 5
   if (i > 3)
   {
