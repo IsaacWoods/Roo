@@ -20,7 +20,7 @@
  * When this flag is set, the parser emits detailed logging throughout the parse.
  * It should probably be left off, unless debugging the lexer or parser.
  */
-#if 0
+#if 1
   // NOTE(Isaac): format must be specified as the first vararg
   #define Log(parser, ...) Log_(parser, __VA_ARGS__);
   static void Log_(Parser& /*parser*/, const char* fmt, ...)
@@ -864,7 +864,7 @@ static void ParseParameterList(Parser& parser, std::vector<VariableDef*>& params
     TypeRef typeRef = ParseTypeRef(parser);
     VariableDef* param = new VariableDef(varName, typeRef, nullptr);
 
-    Log(parser, "Param: %s of type %s\n", param->name, param->type.name);
+    Log(parser, "Param: %s of type %s\n", param->name.c_str(), param->type.name.c_str());
     params.push_back(param);
 
     if (Match(parser, TOKEN_COMMA))
@@ -896,7 +896,7 @@ static VariableDef* ParseVariableDef(Parser& parser)
   VariableDef* variable = new VariableDef(name, typeRef, initValue);
 
   Log(parser, "Defined variable: '%s' which is %s%s'%s', which is %s\n",
-              variable->name,
+              variable->name.c_str(),
               (variable->type.isArray ? "an array of " : "a "),
               (variable->type.isReference ? (variable->type.isReferenceMutable ? "mutable reference to a " : "reference to a ") : ""),
               variable->type.name.c_str(),
@@ -920,6 +920,8 @@ static ASTNode* ParseBlock(Parser& parser)
   while (!Match(parser, TOKEN_RIGHT_BRACE))
   {
     ASTNode* statement = ParseStatement(parser);
+
+    Assert(statement, "Failed to parse statement");
     statement->containingScope = scope;
 
     if (code)
@@ -1064,7 +1066,7 @@ static void ParseTypeDef(Parser& parser)
   Log(parser, "--> TypeDef(");
   Consume(parser, TOKEN_TYPE);
   TypeDef* type = new TypeDef(GetTextFromToken(parser, PeekToken(parser)));
-  Log(parser, "%s)\n", type->name);
+  Log(parser, "%s)\n", type->name.c_str());
   
   ConsumeNext(parser, TOKEN_LEFT_BRACE);
 
@@ -1118,7 +1120,7 @@ static void ParseFunction(Parser& parser, AttribSet& attribs)
 
   FunctionThing* function = new FunctionThing(GetTextFromToken(parser, NextToken(parser)));
   function->attribs = attribs;
-  Log(parser, "%s)\n", function->name);
+  Log(parser, "%s)\n", function->name.c_str());
   parser.result.codeThings.push_back(function);
   parser.currentThing = function;
 
@@ -1155,7 +1157,7 @@ static void ParseOperator(Parser& parser, AttribSet& attribs)
 
   OperatorThing* operatorDef = new OperatorThing(NextToken(parser).type);
   operatorDef->attribs = attribs;
-  Log(parser, "%s)\n", GetTokenName(operatorDef->op));
+  Log(parser, "%s)\n", GetTokenName(operatorDef->token));
   parser.result.codeThings.push_back(operatorDef);
   parser.currentThing = operatorDef;
 
@@ -1187,7 +1189,7 @@ static void ParseOperator(Parser& parser, AttribSet& attribs)
   Consume(parser, TOKEN_YIELDS);
   operatorDef->returnType = new TypeRef();
   *(operatorDef->returnType) = ParseTypeRef(parser);
-  Log(parser, "Return type: %s\n", operatorDef->returnType->name);
+  Log(parser, "Return type: %s\n", operatorDef->returnType->name.c_str());
 
   if (operatorDef->attribs.isPrototype)
   {

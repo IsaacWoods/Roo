@@ -2,9 +2,18 @@
 
 import Prelude
 
+type Color
+{
+  r : uint
+  g : uint
+  b : uint
+}
+
 #[Entry]
 fn Main() -> int
 {
+  color : Color(255, 0, 255)
+
   i : int = 5
   if (i > 3)
   {
