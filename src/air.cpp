@@ -476,12 +476,19 @@ Slot* AirGenerator::VisitNode(BranchNode* node, AirState* state)
   JumpInstruction::Condition condition = MapReverseCondition(dynamic_cast<ConditionNode*>(node->condition)->condition);
   PushInstruction(state->code, new JumpInstruction(condition, (elseLabel ? elseLabel : endLabel)));
   Dispatch(node->thenCode, state);
-  PushInstruction(state->code, new JumpInstruction(JumpInstruction::Condition::UNCONDITIONAL, endLabel));
+
   if (elseLabel)
   {
+    /*
+     * We only need to jump to endLabel after the then-branch if there is an else branch, otherwise we're already
+     * there.
+     */
+    PushInstruction(state->code, new JumpInstruction(JumpInstruction::Condition::UNCONDITIONAL, endLabel));
+
     PushInstruction(state->code, elseLabel);
     Dispatch(node->elseCode, state);
   }
+
   PushInstruction(state->code, endLabel);
 
   if (node->next) (void)Dispatch(node->next, state);

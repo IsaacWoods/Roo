@@ -5,7 +5,8 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  if (false)
+  i : int = 5
+  if (i > 3)
   {
     Print("Hello, World!\n")
   }
