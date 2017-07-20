@@ -4,9 +4,9 @@ import Prelude
 
 type Color
 {
-  r : uint
-  g : uint
-  b : uint
+  r : int
+  g : int
+  b : int
 }
 
 #[Entry]

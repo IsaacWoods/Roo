@@ -286,8 +286,6 @@ struct ConstructNode : ASTNode
   std::string AsString();
 
   std::string           typeName;
-  TypeDef*              type;
-  bool                  isTypeResolved;
   std::vector<ASTNode*> items;
 };
 

@@ -895,7 +895,7 @@ static VariableDef* ParseVariableDef(Parser& parser)
   }
   else if (Match(parser, TOKEN_LEFT_PAREN))
   {
-    // It's a type construction of the form `x : X(a, b, c)`
+    // Parse a type construction of the form `x : X(a, b, c)`
     Log(parser, "--> Type construction\n");
     Consume(parser, TOKEN_LEFT_PAREN);
     std::vector<ASTNode*> items;

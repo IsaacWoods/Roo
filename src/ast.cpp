@@ -421,7 +421,7 @@ ConstructNode::~ConstructNode()
 std::string ConstructNode::AsString()
 {
   std::string str;
-  str += FormatString("Construct(%s)(", (isTypeResolved ? type->name.c_str() : typeName.c_str()));
+  str += FormatString("Construct(%s)(", typeName.c_str());
 
   for (auto it = items.begin();
        it < std::prev(items.end());

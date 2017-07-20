@@ -325,7 +325,7 @@ char* DotEmitterPass::VisitNode(InfiniteLoopNode* node, DotState* state)
 char* DotEmitterPass::VisitNode(ConstructNode* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);
-  fprintf(state->f, "\t%s[label=\"%s\"];\n", nodeName, FormatString("Construct(%s)", (node->isTypeResolved ? node->type->name.c_str() : node->typeName.c_str())).c_str());
+  fprintf(state->f, "\t%s[label=\"%s\"];\n", nodeName, FormatString("Construct(%s)", node->typeName.c_str()).c_str());
 
   for (ASTNode* item : node->items)
   {

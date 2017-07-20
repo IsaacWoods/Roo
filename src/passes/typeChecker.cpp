@@ -324,8 +324,43 @@ void TypeChecker::VisitNode(ConstructNode* node, TypeCheckingContext* context)
     Dispatch(item, context);
   }
 
-  // TODO: resolve the type of the constructor called - mark the type of this node as the type of the value it creates
-  // TODO: check each item's type against the type in the TypeDef
+  // Create the type for the ConstructNode
+  node->type = new TypeRef();
+  node->type->isResolved           = true;
+  node->type->resolvedType         = GetTypeByName(context->parse, node->typeName);
+  node->type->isMutable            = false;
+  node->type->isReference          = false;
+  node->type->isReferenceMutable   = false;
+  node->type->isArray              = false;
+  node->type->isArraySizeResolved  = true;
+  node->type->arraySize            = 0u;
+  node->shouldFreeTypeRef          = true;
+
+  // Check that we're supplying the correct number of items
+  if (node->items.size() != node->type->resolvedType->members.size())
+  {
+    RaiseError(context->code->errorState, ERROR_TYPE_CONSTRUCT_NOT_ENOUGH_EXPRESSIONS, node->typeName.c_str());
+    return;
+  }
+  else
+  {
+    // We only do this check if the lists have the same length, or we could overrun one of the iterators
+    auto itemIt = node->items.begin();
+    auto memberIt = node->type->resolvedType->members.begin();
+    for (;
+         itemIt < node->items.end() && memberIt != node->type->resolvedType->members.end();
+         itemIt++, memberIt++)
+    {
+      ASTNode* item = *itemIt;
+      VariableDef* member = *memberIt;
+
+      if (!AreTypeRefsCompatible(item->type, &(member->type)))
+      {
+        RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_TYPE, member->type.AsString().c_str(),
+                                                                       item->type->AsString().c_str());
+      }
+    }
+  }
 
   if (node->next) Dispatch(node->next, context);
 }
