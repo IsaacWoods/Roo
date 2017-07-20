@@ -893,6 +893,38 @@ static VariableDef* ParseVariableDef(Parser& parser)
     Consume(parser, TOKEN_EQUALS);
     initValue = ParseExpression(parser);
   }
+  else if (Match(parser, TOKEN_LEFT_PAREN))
+  {
+    // It's a type construction of the form `x : X(a, b, c)`
+    Log(parser, "--> Type construction\n");
+    Consume(parser, TOKEN_LEFT_PAREN);
+    std::vector<ASTNode*> items;
+
+    if (Match(parser, TOKEN_RIGHT_PAREN))
+    {
+      Consume(parser, TOKEN_RIGHT_PAREN, false);
+    }
+    else
+    {
+      while (true)
+      {
+        items.push_back(ParseExpression(parser));
+
+        if (Match(parser, TOKEN_COMMA))
+        {
+          Consume(parser, TOKEN_COMMA);
+        }
+        else
+        {
+          Consume(parser, TOKEN_RIGHT_PAREN, false);
+          break;
+        }
+      }
+    }
+
+    initValue = new ConstructNode(typeRef.name, items);
+    Log(parser, "<-- Type construction\n");
+  }
 
   VariableDef* variable = new VariableDef(name, typeRef, initValue);
 
