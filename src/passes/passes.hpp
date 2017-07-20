@@ -32,6 +32,7 @@
     R VisitNode(MemberAccessNode* node           , T*);\
     R VisitNode(ArrayInitNode* node              , T*);\
     R VisitNode(InfiniteLoopNode* node           , T*);\
+    R VisitNode(ConstructNode* node              , T*);\
   };
 
 struct TypeCheckingContext;

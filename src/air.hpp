@@ -387,6 +387,7 @@ struct AirGenerator : ASTPass<Slot*, AirState>
   Slot* VisitNode(MemberAccessNode* node            , AirState* state);
   Slot* VisitNode(ArrayInitNode* node               , AirState* state);
   Slot* VisitNode(InfiniteLoopNode* node            , AirState* state);
+  Slot* VisitNode(ConstructNode* node               , AirState* state);
 };
 
 bool IsColorInUseAtPoint(CodeThing* code, AirInstruction* instruction, signed int color);

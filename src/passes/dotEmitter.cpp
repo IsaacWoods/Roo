@@ -321,3 +321,17 @@ char* DotEmitterPass::VisitNode(InfiniteLoopNode* node, DotState* state)
   VISIT_NEXT();
   return nodeName;
 }
+
+char* DotEmitterPass::VisitNode(ConstructNode* node, DotState* state)
+{
+  char* nodeName = GetNextNode(state);
+  fprintf(state->f, "\t%s[label=\"%s\"];\n", nodeName, FormatString("Construct(%s)", (node->isTypeResolved ? node->type->name.c_str() : node->typeName.c_str())).c_str());
+
+  for (ASTNode* item : node->items)
+  {
+    LINK_CHILD(item);
+  }
+
+  VISIT_NEXT();
+  return nodeName;
+}

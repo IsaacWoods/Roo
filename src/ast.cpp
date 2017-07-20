@@ -365,6 +365,14 @@ ArrayInitNode::ArrayInitNode(const std::vector<ASTNode*>& items)
 {
 }
 
+ArrayInitNode::~ArrayInitNode()
+{
+  for (auto* item : items)
+  {
+    delete item;
+  }
+}
+
 std::string ArrayInitNode::AsString()
 {
   std::string itemString;
@@ -393,6 +401,37 @@ InfiniteLoopNode::~InfiniteLoopNode()
 std::string InfiniteLoopNode::AsString()
 {
   return FormatString("Loop(%s)", loopBody->AsString().c_str());
+}
+
+ConstructNode::ConstructNode(const std::string& typeName, const std::vector<ASTNode*>& items)
+  :ASTNode()
+  ,typeName(typeName)
+  ,items(items)
+{
+}
+
+ConstructNode::~ConstructNode()
+{
+  for (auto* item : items)
+  {
+    delete item;
+  }
+}
+
+std::string ConstructNode::AsString()
+{
+  std::string str;
+  str += FormatString("Construct(%s)(", (isTypeResolved ? type->name.c_str() : typeName.c_str()));
+
+  for (auto it = items.begin();
+       it < std::prev(items.end());
+       it++)
+  {
+    ASTNode* item = *it;
+    str += FormatString("(%s), ", item->AsString().c_str());
+  }
+  str += FormatString("(%s))", items.back()->AsString().c_str());
+  return str;
 }
 
 void AppendNode(ASTNode* parent, ASTNode* child)

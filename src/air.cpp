@@ -663,6 +663,13 @@ Slot* AirGenerator::VisitNode(InfiniteLoopNode* node, AirState* state)
   return nullptr;
 }
 
+Slot* AirGenerator::VisitNode(ConstructNode* node, AirState* state)
+{
+  // TODO
+  if (node->next) (void)Dispatch(node->next, state);
+  return nullptr;
+}
+
 static bool DoRangesIntersect(LiveRange& a, LiveRange& b)
 {
   unsigned int definitionA = (a.definition ? a.definition->index : 0u);

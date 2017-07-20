@@ -12,8 +12,9 @@ type Color
 #[Entry]
 fn Main() -> int
 {
-  i : int = 5
-  if (i > 3)
+  color : Color(255, 0, 255)
+
+  if (color.r > 3)
   {
     Print("Hello, World!\n")
   }

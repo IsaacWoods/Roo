@@ -303,11 +303,29 @@ void TypeChecker::VisitNode(MemberAccessNode* node, TypeCheckingContext* context
 
 void TypeChecker::VisitNode(ArrayInitNode* node, TypeCheckingContext* context)
 {
+  for (ASTNode* item : node->items)
+  {
+    Dispatch(item, context);
+  }
+
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(InfiniteLoopNode* node, TypeCheckingContext* context)
 {
   Dispatch(node->loopBody, context);
+  if (node->next) Dispatch(node->next, context);
+}
+
+void TypeChecker::VisitNode(ConstructNode* node, TypeCheckingContext* context)
+{
+  for (ASTNode* item : node->items)
+  {
+    Dispatch(item, context);
+  }
+
+  // TODO: resolve the type of the constructor called - mark the type of this node as the type of the value it creates
+  // TODO: check each item's type against the type in the TypeDef
+
   if (node->next) Dispatch(node->next, context);
 }

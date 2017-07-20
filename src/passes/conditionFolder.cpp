@@ -198,6 +198,11 @@ bool ConditionFolderPass::VisitNode(MemberAccessNode* node, CodeThing* code)
 
 bool ConditionFolderPass::VisitNode(ArrayInitNode* node, CodeThing* code)
 {
+  for (ASTNode* item : node->items)
+  {
+    (void)Dispatch(item, code);
+  }
+
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }
@@ -205,6 +210,17 @@ bool ConditionFolderPass::VisitNode(ArrayInitNode* node, CodeThing* code)
 bool ConditionFolderPass::VisitNode(InfiniteLoopNode* node, CodeThing* code)
 {
   (void)Dispatch(node->loopBody, code);
+  if (node->next) (void)Dispatch(node->next, code);
+  return false;
+}
+
+bool ConditionFolderPass::VisitNode(ConstructNode* node, CodeThing* code)
+{
+  for (ASTNode* item : node->items)
+  {
+    (void)Dispatch(item, code);
+  }
+
   if (node->next) (void)Dispatch(node->next, code);
   return false;
 }

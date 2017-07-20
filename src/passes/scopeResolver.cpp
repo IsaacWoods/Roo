@@ -313,3 +313,23 @@ void ScopeResolverPass::VisitNode(InfiniteLoopNode* node, CodeThing* code)
   Dispatch(node->loopBody, code);
   if (node->next) Dispatch(node->next, code);
 }
+
+void ScopeResolverPass::VisitNode(ConstructNode* node, CodeThing* code)
+{
+  if (!(node->containingScope))
+  {
+    node->containingScope = node->prev->containingScope;
+  }
+
+  for (auto* item : node->items)
+  {
+    if (!(item->containingScope))
+    {
+      item->containingScope = node->containingScope;
+    }
+
+    Dispatch(item, code);
+  }
+
+  if (node->next) Dispatch(node->next, code);
+}

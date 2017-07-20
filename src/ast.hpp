@@ -257,6 +257,7 @@ struct MemberAccessNode : ASTNode
 struct ArrayInitNode : ASTNode
 {
   ArrayInitNode(const std::vector<ASTNode*>& items);
+  ~ArrayInitNode();
 
   std::string AsString();
 
@@ -271,6 +272,23 @@ struct InfiniteLoopNode : ASTNode
   std::string AsString();
 
   ASTNode* loopBody;
+};
+
+/*
+ * A ConstructNode describes the construction of a value of a user-defined type, such as in:
+ * `color : Color(255, 0, 255)`
+ */
+struct ConstructNode : ASTNode
+{
+  ConstructNode(const std::string& typeName, const std::vector<ASTNode*>& items);
+  ~ConstructNode();
+
+  std::string AsString();
+
+  std::string           typeName;
+  TypeDef*              type;
+  bool                  isTypeResolved;
+  std::vector<ASTNode*> items;
 };
 
 template<typename T>
@@ -305,6 +323,7 @@ struct ASTPass
   virtual R VisitNode(MemberAccessNode*             , T* = nullptr) = 0;
   virtual R VisitNode(ArrayInitNode*                , T* = nullptr) = 0;
   virtual R VisitNode(InfiniteLoopNode*             , T* = nullptr) = 0;
+  virtual R VisitNode(ConstructNode*                , T* = nullptr) = 0;
 
   virtual void Apply(ParseResult& parse) = 0;
 
@@ -347,6 +366,7 @@ struct ASTPass
     else DISPATCH(MemberAccessNode)
     else DISPATCH(ArrayInitNode)
     else DISPATCH(InfiniteLoopNode)
+    else DISPATCH(ConstructNode)
     else
     {
       RaiseError(ICE_UNHANDLED_NODE_TYPE, "DispatchNode", typeid(*node).name());
