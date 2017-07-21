@@ -203,6 +203,7 @@ CodeThing::CodeThing(CodeThing::Type type)
   ,airTail(nullptr)
   ,numTemporaries(0u)
   ,numReturnResults(0u)
+  ,neededStackSpace(0u)
   ,symbol(nullptr)
 {
 }
@@ -445,6 +446,31 @@ void CompleteIR(ParseResult& parse)
   for (TypeDef* type : parse.types)
   {
     CalculateSizeOfType(type);
+  }
+
+  for (CodeThing* thing : parse.codeThings)
+  {
+    // Calculate the total size of the stack frame
+    for (ScopeDef* scope : thing->scopes)
+    {
+      for (VariableDef* local : scope->locals)
+      {
+        Assert(local->type.isResolved, "Tried to allocate stack frame before types have been resolved");
+        thing->neededStackSpace += local->type.resolvedType->size;
+      }
+    }
+
+    // Calculate the offset from the base pointer of each local on the stack
+    unsigned int runningOffset = 0u;
+    for (ScopeDef* scope : thing->scopes)
+    {
+      for (VariableDef* local : scope->locals)
+      {
+        local->offset = runningOffset;
+        runningOffset += local->type.resolvedType->size;
+      }
+    }
+    Assert(runningOffset == thing->neededStackSpace, "We didn't use the entire stack-frame; why?!");
   }
 
   // If there were any errors completing the IR, don't bother continuing

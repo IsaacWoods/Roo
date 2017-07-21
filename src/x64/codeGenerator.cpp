@@ -72,6 +72,12 @@ static ElfThing* Generate(ElfFile& file, CodegenTarget& target, CodeThing* code,
   E(I::PUSH_REG, RBP);
   E(I::MOV_REG_REG, RBP, RSP);
 
+  // Allocate requested space for local variables
+  if (code->neededStackSpace > 0u)
+  {
+    E(I::SUB_REG_IMM32, RSP, code->neededStackSpace);
+  }
+
   // Emit the instructions for the body of the thing
   CodeGenerator_x64 codeGenerator(target, file, elfThing, code, rodataThing);
   
@@ -88,6 +94,12 @@ static ElfThing* Generate(ElfFile& file, CodegenTarget& target, CodeThing* code,
    */
   if (code->shouldAutoReturn)
   {
+    // Clean up local variables
+    if (code->neededStackSpace > 0u)
+    {
+      E(I::ADD_REG_IMM32, RSP, code->neededStackSpace);
+    }
+
     E(I::LEAVE);
     E(I::RET);
   }
@@ -270,6 +282,12 @@ void CodeGenerator_x64::Visit(ReturnInstruction* instruction, void*)
         E(I::MOV_REG_BASE_DISP, RAX, returnValue->parent->color, returnValue->member->offset);
       } break;
     }
+  }
+
+  // Clean up local variables
+  if (code->neededStackSpace > 0u)
+  {
+    E(I::ADD_REG_IMM32, RSP, code->neededStackSpace);
   }
 
   E(I::LEAVE);

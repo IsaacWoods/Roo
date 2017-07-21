@@ -131,7 +131,9 @@ struct VariableDef
 
   /*
    * NOTE(Isaac): this can be used to represent multiple things:
-   *    * Offset inside a parent structure
+   *    * Offset from the base-pointer into the stack frame (for variables on the stack).
+   *      On x64, this offset should be *taken* away from the base-pointer (because the stack grows downwards.
+   *    * Offset inside a parent structure (for members of structures)
    */
   unsigned int offset;
 };
@@ -209,6 +211,9 @@ struct CodeThing
   AirInstruction*           airTail;
   unsigned int              numTemporaries;
   unsigned int              numReturnResults;
+  unsigned int              neededStackSpace;   // This is the size (in bytes) that we need to grow the stack frame by to fit local variables etc.
+
+  // Final executable stuff
   ElfSymbol*                symbol;
 };
 
