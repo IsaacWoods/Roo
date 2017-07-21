@@ -327,6 +327,8 @@ char* DotEmitterPass::VisitNode(ConstructNode* node, DotState* state)
   char* nodeName = GetNextNode(state);
   fprintf(state->f, "\t%s[label=\"%s\"];\n", nodeName, FormatString("Construct(%s)", node->typeName.c_str()).c_str());
 
+  LINK_CHILD(node->variable);
+
   for (ASTNode* item : node->items)
   {
     LINK_CHILD(item);

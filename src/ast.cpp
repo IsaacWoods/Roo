@@ -403,8 +403,9 @@ std::string InfiniteLoopNode::AsString()
   return FormatString("Loop(%s)", loopBody->AsString().c_str());
 }
 
-ConstructNode::ConstructNode(const std::string& typeName, const std::vector<ASTNode*>& items)
+ConstructNode::ConstructNode(ASTNode* variable, const std::string& typeName, const std::vector<ASTNode*>& items)
   :ASTNode()
+  ,variable(variable)
   ,typeName(typeName)
   ,items(items)
 {
@@ -412,6 +413,8 @@ ConstructNode::ConstructNode(const std::string& typeName, const std::vector<ASTN
 
 ConstructNode::~ConstructNode()
 {
+  delete variable;
+
   for (auto* item : items)
   {
     delete item;

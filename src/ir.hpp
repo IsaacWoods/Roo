@@ -121,12 +121,12 @@ struct TypeRef
  */
 struct VariableDef
 {
-  VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initialValue);
+  VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initExpression);
   ~VariableDef();
 
   std::string name;
   TypeRef     type;
-  ASTNode*    initialValue;
+  ASTNode*    initExpression;
   Slot*       slot;
 
   /*

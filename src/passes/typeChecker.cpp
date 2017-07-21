@@ -319,6 +319,7 @@ void TypeChecker::VisitNode(InfiniteLoopNode* node, TypeCheckingContext* context
 
 void TypeChecker::VisitNode(ConstructNode* node, TypeCheckingContext* context)
 {
+  Dispatch(node->variable, context);
   for (ASTNode* item : node->items)
   {
     Dispatch(item, context);
@@ -335,6 +336,13 @@ void TypeChecker::VisitNode(ConstructNode* node, TypeCheckingContext* context)
   node->type->isArraySizeResolved  = true;
   node->type->arraySize            = 0u;
   node->shouldFreeTypeRef          = true;
+
+  // Check that we're constructing the correct type for the variable
+  if (!AreTypeRefsCompatible(node->type, node->variable->type))
+  {
+    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_TYPE, node->variable->type->AsString().c_str(),
+                                                                   node->type->AsString().c_str());
+  }
 
   // Check that we're supplying the correct number of items
   if (node->items.size() != node->type->resolvedType->members.size())

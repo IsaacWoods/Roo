@@ -886,12 +886,19 @@ static VariableDef* ParseVariableDef(Parser& parser)
   ConsumeNext(parser, TOKEN_COLON);
 
   TypeRef typeRef = ParseTypeRef(parser);
-  ASTNode* initValue = nullptr;
+  VariableDef* variable = new VariableDef(name, typeRef, nullptr);
+
+  Log(parser, "Defined variable: '%s' which is %s%s'%s', which is %s\n",
+              variable->name.c_str(),
+              (variable->type.isArray ? "an array of " : "a "),
+              (variable->type.isReference ? (variable->type.isReferenceMutable ? "mutable reference to a " : "reference to a ") : ""),
+              variable->type.name.c_str(),
+              (variable->type.isMutable ? "mutable" : "immutable"));
 
   if (Match(parser, TOKEN_EQUALS))
   {
     Consume(parser, TOKEN_EQUALS);
-    initValue = ParseExpression(parser);
+    variable->initExpression = new VariableAssignmentNode(new VariableNode(variable), ParseExpression(parser), true);
   }
   else if (Match(parser, TOKEN_LEFT_PAREN))
   {
@@ -922,18 +929,9 @@ static VariableDef* ParseVariableDef(Parser& parser)
       }
     }
 
-    initValue = new ConstructNode(typeRef.name, items);
+    variable->initExpression = new ConstructNode(new VariableNode(variable), typeRef.name, items);
     Log(parser, "<-- Type construction\n");
   }
-
-  VariableDef* variable = new VariableDef(name, typeRef, initValue);
-
-  Log(parser, "Defined variable: '%s' which is %s%s'%s', which is %s\n",
-              variable->name.c_str(),
-              (variable->type.isArray ? "an array of " : "a "),
-              (variable->type.isReference ? (variable->type.isReferenceMutable ? "mutable reference to a " : "reference to a ") : ""),
-              variable->type.name.c_str(),
-              (variable->type.isMutable ? "mutable" : "immutable"));
 
   return variable;
 }
@@ -1069,13 +1067,7 @@ static ASTNode* ParseStatement(Parser& parser)
       {
         Log(parser, "(VARIABLE DEFINITION)\n");
         VariableDef* variable = ParseVariableDef(parser);
-
-        // Assign the initial value to the variable
-        if (variable->initialValue)
-        {
-          VariableNode* variableNode = new VariableNode(variable);
-          result = new VariableAssignmentNode((ASTNode*)variableNode, variable->initialValue, true);
-        }
+        result = variable->initExpression;
 
         /*
          * Put the variable into the inner-most scope.

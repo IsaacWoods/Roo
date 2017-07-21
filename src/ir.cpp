@@ -143,10 +143,10 @@ unsigned int TypeRef::GetSize()
   return size;
 }
 
-VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* initialValue)
+VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* initExpression)
   :name(name)
   ,type(type)
-  ,initialValue(initialValue)
+  ,initExpression(initExpression)
   ,slot(nullptr)
   ,offset(0u)
 {
@@ -154,7 +154,7 @@ VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* 
 
 VariableDef::~VariableDef()
 {
-  delete initialValue;
+  delete initExpression;
 }
 
 AttribSet::AttribSet()

@@ -280,11 +280,12 @@ struct InfiniteLoopNode : ASTNode
  */
 struct ConstructNode : ASTNode
 {
-  ConstructNode(const std::string& typeName, const std::vector<ASTNode*>& items);
+  ConstructNode(ASTNode* variable, const std::string& typeName, const std::vector<ASTNode*>& items);
   ~ConstructNode();
 
   std::string AsString();
 
+  ASTNode*              variable;   // Should either be a VariableNode or a MemberAccessNode
   std::string           typeName;
   std::vector<ASTNode*> items;
 };

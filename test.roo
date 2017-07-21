@@ -13,11 +13,11 @@ type Color
 fn Main() -> int
 {
   color : Color(255, 0, 255)
-
+/*
   if (color.r > 3)
   {
     Print("Hello, World!\n")
-  }
+  }*/
 
   return 0
 }
