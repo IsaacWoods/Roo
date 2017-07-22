@@ -22,6 +22,8 @@ struct TypeDef;
 struct StringConstant;
 struct ElfSymbol;
 
+struct CodegenTarget;
+
 struct ParseResult
 {
   ParseResult();
@@ -135,6 +137,12 @@ struct VariableDef
   VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initExpression);
   ~VariableDef();
 
+  /*
+   * This returns a character representing the storage of this variable. This is used to pretty-print slots etc.
+   * in other parts of the compiler.
+   */
+  char GetStorageChar();
+
   std::string name;
   TypeRef     type;
   ASTNode*    initExpression;
@@ -245,4 +253,4 @@ struct OperatorThing : CodeThing
 
 TypeDef* GetTypeByName(ParseResult& parse, const std::string& name);
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
-void CompleteIR(ParseResult& parse);
+void CompleteIR(ParseResult& parse, CodegenTarget& target);

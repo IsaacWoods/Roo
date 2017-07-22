@@ -300,7 +300,7 @@ void CodeGenerator_x64::Visit(JumpInstruction* instruction, void*)
   {
     /*
      * TODO: The instructions we actually need to emit here depend on whether the operands of the comparison
-     * were unsigned or signed. We should take this into accound
+     * were unsigned or signed. We should take this into account
      */
     case JumpInstruction::Condition::UNCONDITIONAL:       E(I::JMP, 0x00);  break;
     case JumpInstruction::Condition::IF_EQUAL:            E(I::JE,  0x00);  break;
@@ -322,6 +322,7 @@ void CodeGenerator_x64::Visit(JumpInstruction* instruction, void*)
 
 void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
 {
+  // TODO: handle moving into memory addresses (e.g. member node of stack-allocated binding)
   switch (instruction->src->GetType())
   {
     case SlotType::INT_CONSTANT:

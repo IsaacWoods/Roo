@@ -11,6 +11,7 @@
 #include <ast.hpp>
 #include <air.hpp>
 #include <elf.hpp>
+#include <codegen.hpp>
 
 ParseResult::ParseResult()
   :isModule(false)
@@ -156,6 +157,18 @@ VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* 
 VariableDef::~VariableDef()
 {
   delete initExpression;
+}
+
+char VariableDef::GetStorageChar()
+{
+  switch (storage)
+  {
+    case VariableDef::Storage::UNDECIDED:   return '?';
+    case VariableDef::Storage::REGISTER:    return 'R';
+    case VariableDef::Storage::STACK:       return 'S';
+  }
+
+  __builtin_unreachable();
 }
 
 AttribSet::AttribSet()
@@ -401,7 +414,7 @@ static void CompleteVariable(VariableDef* var, ErrorState& errorState)
   }
 }
 
-void CompleteIR(ParseResult& parse)
+void CompleteIR(ParseResult& parse, CodegenTarget& target)
 {
   for (CodeThing* thing : parse.codeThings)
   {
@@ -451,12 +464,23 @@ void CompleteIR(ParseResult& parse)
 
   for (CodeThing* thing : parse.codeThings)
   {
-    // Calculate the total size of the stack frame
     for (ScopeDef* scope : thing->scopes)
     {
       for (VariableDef* local : scope->locals)
       {
         Assert(local->type.isResolved, "Tried to allocate stack frame before types have been resolved");
+
+        // Work out where to store this local
+        if (local->type.resolvedType->size > target.generalRegisterSize)
+        {
+          local->storage = VariableDef::Storage::STACK;
+        }
+        else
+        {
+          local->storage = VariableDef::Storage::REGISTER;
+        }
+
+        // Calculate the total size of the stack frame
         thing->neededStackSpace += local->type.resolvedType->size;
       }
     }

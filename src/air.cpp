@@ -71,7 +71,7 @@ VariableSlot::VariableSlot(CodeThing* code, VariableDef* variable)
 
 std::string VariableSlot::AsString()
 {
-  return FormatString("%s(V)-%c", variable->name.c_str(), (variable->storage == VariableDef::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(V)-%c", variable->name.c_str(), variable->GetStorageChar());
 }
 
 ParameterSlot::ParameterSlot(CodeThing* code, VariableDef* parameter)
@@ -82,7 +82,7 @@ ParameterSlot::ParameterSlot(CodeThing* code, VariableDef* parameter)
 
 std::string ParameterSlot::AsString()
 {
-  return FormatString("%s(P)-%c", parameter->name.c_str(), (parameter->storage == VariableDef::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(P)-%c", parameter->name.c_str(), parameter->GetStorageChar());
 }
 
 MemberSlot::MemberSlot(CodeThing* code, Slot* parent, VariableDef* member)
@@ -94,7 +94,7 @@ MemberSlot::MemberSlot(CodeThing* code, Slot* parent, VariableDef* member)
 
 std::string MemberSlot::AsString()
 {
-  return FormatString("%s(M)-%c", member->name.c_str(), (member->storage == VariableDef::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(M)-%c", member->name.c_str(), member->GetStorageChar());
 }
 
 TemporarySlot::TemporarySlot(CodeThing* code)
@@ -664,7 +664,19 @@ Slot* AirGenerator::VisitNode(InfiniteLoopNode* node, AirState* state)
 
 Slot* AirGenerator::VisitNode(ConstructNode* node, AirState* state)
 {
-  // TODO
+  auto memberIt = node->variable->type->resolvedType->members.begin();
+  auto itemIt = node->items.begin();
+
+  for (;
+       memberIt != node->variable->type->resolvedType->members.end() && itemIt != node->items.end();
+       memberIt++, itemIt++)
+  {
+    VariableDef* member = *memberIt;
+    Slot* itemSlot = Dispatch(*itemIt, state);
+
+    PushInstruction(state->code, new MovInstruction(itemSlot, member->slot));
+  }
+
   if (node->next) (void)Dispatch(node->next, state);
   return nullptr;
 }

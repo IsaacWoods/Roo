@@ -99,7 +99,7 @@ int main()
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
-  CompleteIR(result);
+  CompleteIR(result, target);
 
   #define APPLY_PASS(PassType)\
   {\
