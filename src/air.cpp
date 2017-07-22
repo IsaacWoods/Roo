@@ -743,7 +743,7 @@ FoundInterference:
  * XXX: Atm, this is very naive and could do with a lot more improvement to achieve a more efficient k-coloring,
  * especially concerning the register pressure (or lack of it).
  */
-static void ColorSlots(CodegenTarget& target, CodeThing* code)
+static void ColorSlots(TargetMachine& target, CodeThing* code)
 {
   for (Slot* slot : code->slots)
   {

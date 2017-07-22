@@ -26,10 +26,14 @@ struct RegisterDef
   RegisterPimpl*  pimpl;
 };
 
-struct CodegenTarget
+/*
+ * A TargetMachine describes an architecture that we can generate code for. It describes the physical details of
+ * the machine, as well as models for precoloring the interference graph etc.
+ */
+struct TargetMachine
 {
-  CodegenTarget();
-  ~CodegenTarget();
+  TargetMachine();
+  ~TargetMachine();
 
   const char*         name;
   const unsigned int  numRegisters;
@@ -59,13 +63,13 @@ struct InstructionPrecolorer : AirPass<void>
 
 struct CodeGenerator : AirPass<void>
 {
-  CodeGenerator(CodegenTarget& target)
+  CodeGenerator(TargetMachine& target)
     :AirPass()
     ,target(target)
   {
   }
 
-  CodegenTarget& target;
+  TargetMachine& target;
 
   virtual void Visit(LabelInstruction* instruction,     void*) = 0;
   virtual void Visit(ReturnInstruction* instruction,    void*) = 0;

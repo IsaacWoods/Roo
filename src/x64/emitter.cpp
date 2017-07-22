@@ -43,7 +43,7 @@
  * `index`  : the index register to use
  * `base`   : the base register to use
  */
-static void EmitRegisterModRM(ElfThing* thing, CodegenTarget& target, Reg a, Reg b)
+static void EmitRegisterModRM(ElfThing* thing, TargetMachine& target, Reg a, Reg b)
 {
   uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
   modRM |= target.registerSet[a].pimpl->opcodeOffset << 3u;
@@ -54,7 +54,7 @@ static void EmitRegisterModRM(ElfThing* thing, CodegenTarget& target, Reg a, Reg
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(ElfThing* thing, CodegenTarget& target, Reg dest, Reg base, uint32_t displacement,
+static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg dest, Reg base, uint32_t displacement,
                               Reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
@@ -108,7 +108,7 @@ static void EmitIndirectModRM(ElfThing* thing, CodegenTarget& target, Reg dest, 
   }
 }
 
-static void EmitExtensionModRM(ElfThing* thing, CodegenTarget& target, uint8_t extension, Reg r)
+static void EmitExtensionModRM(ElfThing* thing, TargetMachine& target, uint8_t extension, Reg r)
 {
   uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   modRM |= extension << 3u;
@@ -116,7 +116,7 @@ static void EmitExtensionModRM(ElfThing* thing, CodegenTarget& target, uint8_t e
   Emit<uint8_t>(thing, modRM);
 }
 
-void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target, I instruction, ...)
+void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I instruction, ...)
 {
   va_list args;
   va_start(args, instruction);

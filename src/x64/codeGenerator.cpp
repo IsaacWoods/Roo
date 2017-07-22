@@ -9,7 +9,7 @@
 #define E(...) \
   Emit(errorState, thing, target, __VA_ARGS__);
 
-static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thing, ParseResult& parse)
+static void GenerateBootstrap(ElfFile& elf, TargetMachine& target, ElfThing* thing, ParseResult& parse)
 {
   ElfSymbol* entrySymbol = nullptr;
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
@@ -58,7 +58,7 @@ static void GenerateBootstrap(ElfFile& elf, CodegenTarget& target, ElfThing* thi
 #define E(...) \
   Emit(code->errorState, elfThing, target, __VA_ARGS__);
 
-static ElfThing* Generate(ElfFile& file, CodegenTarget& target, CodeThing* code, ElfThing* rodataThing)
+static ElfThing* Generate(ElfFile& file, TargetMachine& target, CodeThing* code, ElfThing* rodataThing)
 {
   // Don't generate empty functions
   if (!(code->airHead))
@@ -107,7 +107,7 @@ static ElfThing* Generate(ElfFile& file, CodegenTarget& target, CodeThing* code,
   return elfThing;
 }
 
-void Generate(const std::string& outputPath, CodegenTarget& target, ParseResult& result)
+void Generate(const std::string& outputPath, TargetMachine& target, ParseResult& result)
 {
   /*
    * If we're compiling a module, we need to produce a relocatable.

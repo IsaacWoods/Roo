@@ -51,7 +51,7 @@ int main()
 
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
   ParseResult result;
-  CodegenTarget target;
+  TargetMachine target;
 
   // Compile the current directory
   if (!Compile(result, "."))

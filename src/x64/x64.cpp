@@ -5,7 +5,7 @@
 
 #include <x64/x64.hpp>
 
-CodegenTarget::CodegenTarget()
+TargetMachine::TargetMachine()
   :name("x64_elf")
   ,numRegisters(16u)
   ,registerSet(new RegisterDef[numRegisters])
@@ -44,7 +44,7 @@ CodegenTarget::CodegenTarget()
   REGISTER(R15, "R15", RegisterDef::Usage::GENERAL, 15u);
 }
 
-CodegenTarget::~CodegenTarget()
+TargetMachine::~TargetMachine()
 {
   for (unsigned int i = 0u;
        i < numRegisters;

@@ -12,7 +12,7 @@
 
 struct CodeGenerator_x64 : CodeGenerator
 {
-  CodeGenerator_x64(CodegenTarget& target, ElfFile& file, ElfThing* elfThing, CodeThing* code, ElfThing* rodataThing)
+  CodeGenerator_x64(TargetMachine& target, ElfFile& file, ElfThing* elfThing, CodeThing* code, ElfThing* rodataThing)
     :CodeGenerator(target)
     ,file(file)
     ,elfThing(elfThing)
@@ -37,4 +37,4 @@ struct CodeGenerator_x64 : CodeGenerator
   void Visit(CallInstruction* instruction,      void*);
 };
 
-void Generate(const std::string& outputPath, CodegenTarget& target, ParseResult& result);
+void Generate(const std::string& outputPath, TargetMachine& target, ParseResult& result);

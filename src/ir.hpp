@@ -22,7 +22,7 @@ struct TypeDef;
 struct StringConstant;
 struct ElfSymbol;
 
-struct CodegenTarget;
+struct TargetMachine;
 
 struct ParseResult
 {
@@ -253,4 +253,4 @@ struct OperatorThing : CodeThing
 
 TypeDef* GetTypeByName(ParseResult& parse, const std::string& name);
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
-void CompleteIR(ParseResult& parse, CodegenTarget& target);
+void CompleteIR(ParseResult& parse, TargetMachine& target);

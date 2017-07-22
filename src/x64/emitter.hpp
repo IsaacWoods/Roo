@@ -58,4 +58,4 @@ enum class I
   JPO,                  // (4-byte offset to RIP)
 };
 
-void Emit(ErrorState& errorState, ElfThing* thing, CodegenTarget& target, I instruction, ...);
+void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I instruction, ...);

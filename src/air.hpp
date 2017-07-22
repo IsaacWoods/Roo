@@ -11,7 +11,7 @@
 #include <ir.hpp>
 
 struct AirInstruction;
-struct CodegenTarget;
+struct TargetMachine;
 
 struct LiveRange
 {
@@ -352,13 +352,13 @@ struct AirState
 
 struct AirGenerator : ASTPass<Slot*, AirState>
 {
-  AirGenerator(CodegenTarget& target)
+  AirGenerator(TargetMachine& target)
     :ASTPass()
     ,target(target)
   {
   }
 
-  CodegenTarget& target;
+  TargetMachine& target;
 
   void Apply(ParseResult& parse);
 

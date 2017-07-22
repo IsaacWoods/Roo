@@ -267,11 +267,11 @@ void Emit(ElfThing* thing, T t)
 
 struct ElfFile
 {
-  ElfFile(CodegenTarget& target, bool isRelocatable);
+  ElfFile(TargetMachine& target, bool isRelocatable);
   ~ElfFile() { }
 
   bool                        isRelocatable;
-  CodegenTarget*              target;
+  TargetMachine*              target;
 
   ElfHeader                   header;
   std::vector<ElfSegment*>    segments;

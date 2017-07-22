@@ -414,7 +414,7 @@ static void CompleteVariable(VariableDef* var, ErrorState& errorState)
   }
 }
 
-void CompleteIR(ParseResult& parse, CodegenTarget& target)
+void CompleteIR(ParseResult& parse, TargetMachine& target)
 {
   for (CodeThing* thing : parse.codeThings)
   {
