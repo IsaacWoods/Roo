@@ -53,8 +53,7 @@ LiveRange::LiveRange(AirInstruction* definition, AirInstruction* lastUse)
 }
 
 Slot::Slot(CodeThing* code)
-  :storage(Slot::Storage::REGISTER)
-  ,color(-1)
+  :color(-1)
   ,interferences()
   ,liveRanges()
 #ifdef OUTPUT_DOT
@@ -72,7 +71,7 @@ VariableSlot::VariableSlot(CodeThing* code, VariableDef* variable)
 
 std::string VariableSlot::AsString()
 {
-  return FormatString("%s(V)-%c", variable->name.c_str(), (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(V)-%c", variable->name.c_str(), (variable->storage == VariableDef::Storage::REGISTER ? 'R' : 'S'));
 }
 
 ParameterSlot::ParameterSlot(CodeThing* code, VariableDef* parameter)
@@ -83,7 +82,7 @@ ParameterSlot::ParameterSlot(CodeThing* code, VariableDef* parameter)
 
 std::string ParameterSlot::AsString()
 {
-  return FormatString("%s(P)-%c", parameter->name.c_str(), (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(P)-%c", parameter->name.c_str(), (parameter->storage == VariableDef::Storage::REGISTER ? 'R' : 'S'));
 }
 
 MemberSlot::MemberSlot(CodeThing* code, Slot* parent, VariableDef* member)
@@ -95,7 +94,7 @@ MemberSlot::MemberSlot(CodeThing* code, Slot* parent, VariableDef* member)
 
 std::string MemberSlot::AsString()
 {
-  return FormatString("%s(M)-%c", member->name.c_str(), (storage == Slot::Storage::REGISTER ? 'R' : 'S'));
+  return FormatString("%s(M)-%c", member->name.c_str(), (member->storage == VariableDef::Storage::REGISTER ? 'R' : 'S'));
 }
 
 TemporarySlot::TemporarySlot(CodeThing* code)

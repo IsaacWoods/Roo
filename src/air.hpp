@@ -45,16 +45,9 @@ enum class SlotType
 
 struct Slot
 {
-  enum Storage
-  {
-    REGISTER,
-    STACK
-  };
-
   Slot(CodeThing* code);
   virtual ~Slot() = default;
 
-  Storage                 storage;
   signed int              color;          // -1 means it hasn't been colored
   std::vector<Slot*>      interferences;
   std::vector<LiveRange>  liveRanges;

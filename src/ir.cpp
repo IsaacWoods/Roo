@@ -147,6 +147,7 @@ VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* 
   :name(name)
   ,type(type)
   ,initExpression(initExpression)
+  ,storage(VariableDef::Storage::UNDECIDED)
   ,slot(nullptr)
   ,offset(0u)
 {

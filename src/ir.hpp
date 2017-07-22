@@ -121,12 +121,24 @@ struct TypeRef
  */
 struct VariableDef
 {
+  /*
+   * This describes where the variable should be located. Usually, it will be in a register unless it is larger
+   * than a general register on the target machine.
+   */
+  enum Storage
+  {
+    UNDECIDED,    // NOTE(Isaac): This should only be used as a placeholder in the incomplete IR!
+    REGISTER,
+    STACK
+  };
+
   VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initExpression);
   ~VariableDef();
 
   std::string name;
   TypeRef     type;
   ASTNode*    initExpression;
+  Storage     storage;
   Slot*       slot;
 
   /*
