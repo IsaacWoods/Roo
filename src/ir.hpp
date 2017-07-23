@@ -155,7 +155,7 @@ struct VariableDef
    *      On x64, this offset should be *taken* away from the base-pointer (because the stack grows downwards.
    *    * Offset inside a parent structure (for members of structures)
    */
-  unsigned int offset;
+  int offset;
 };
 
 /*

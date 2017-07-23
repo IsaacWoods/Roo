@@ -106,6 +106,8 @@ struct MemberSlot : Slot
   Slot*         parent;
   VariableDef*  member;
 
+  int GetBasePointerOffset();
+
   SlotType GetType()  { return SlotType::MEMBER;  }
   bool IsConstant()   { return false;             }
   bool ShouldColor()  { return false;             }

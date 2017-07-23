@@ -371,28 +371,24 @@ void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
 
         case SlotType::MEMBER:
         {
-          printf("Also shit the bed here\n");
+          // TODO
         } break;
       }
     } break;
 
     case SlotType::MEMBER:
     {
-      /*
-       * This is the final displacement of the member from RBP
-       */
-      unsigned int memberDisp = 0u; // TODO
-
+      MemberSlot* memberSlot = dynamic_cast<MemberSlot*>(instruction->dest);
       switch (instruction->src->GetType())
       {
         case SlotType::INT_CONSTANT:
         {
-          E(I::MOV_BASE_DISP_IMM32, RBP, memberDisp, dynamic_cast<ConstantSlot<int>*>(instruction->src)->value);
+          E(I::MOV_BASE_DISP_IMM32, RBP, memberSlot->GetBasePointerOffset(), dynamic_cast<ConstantSlot<int>*>(instruction->src)->value);
         } break;
 
         case SlotType::UNSIGNED_INT_CONSTANT:
         {
-          E(I::MOV_BASE_DISP_IMM32, RBP, memberDisp, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->src)->value);
+          E(I::MOV_BASE_DISP_IMM32, RBP, memberSlot->GetBasePointerOffset(), dynamic_cast<ConstantSlot<unsigned int>*>(instruction->src)->value);
         } break;
 
         case SlotType::FLOAT_CONSTANT:
@@ -402,12 +398,12 @@ void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
 
         case SlotType::BOOL_CONSTANT:
         {
-          E(I::MOV_BASE_DISP_IMM32, RBP, memberDisp, dynamic_cast<ConstantSlot<bool>*>(instruction->src)->value ? 1u : 0u);
+          E(I::MOV_BASE_DISP_IMM32, RBP, memberSlot->GetBasePointerOffset(), dynamic_cast<ConstantSlot<bool>*>(instruction->src)->value ? 1u : 0u);
         } break;
 
         case SlotType::STRING_CONSTANT:
         {
-          E(I::MOV_BASE_DISP_IMM64, RBP, memberDisp, 0x00);
+          E(I::MOV_BASE_DISP_IMM64, RBP, memberSlot->GetBasePointerOffset(), 0x00);
           new ElfRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), ElfRelocation::Type::R_X86_64_64,
                             rodataThing->symbol, dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
         } break;
@@ -418,13 +414,13 @@ void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
         case SlotType::RETURN_RESULT:
         {
           Assert(instruction->src->IsColored(), "Source slot must be colored if it should be in a register");
-          E(I::MOV_BASE_DISP_REG, RBP, memberDisp, instruction->src->color);
+          E(I::MOV_BASE_DISP_REG, RBP, memberSlot->GetBasePointerOffset(), instruction->src->color);
         } break;
 
         case SlotType::MEMBER:
         {
           // TODO: I don't think we can do this on x64!?!?!?
-          // Rewrite this in the precolorer??
+          // This should be a TargetConstraint
         } break;
       }
     } break;

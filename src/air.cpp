@@ -97,6 +97,46 @@ std::string MemberSlot::AsString()
   return FormatString("%s(M)-%c", member->name.c_str(), member->GetStorageChar());
 }
 
+int MemberSlot::GetBasePointerOffset()
+{
+  int parentOffset;
+  switch (parent->GetType())
+  {
+    case SlotType::VARIABLE:
+    {
+      parentOffset = dynamic_cast<VariableSlot*>(parent)->variable->offset;
+    } break;
+
+    case SlotType::PARAMETER:
+    {
+      parentOffset = dynamic_cast<ParameterSlot*>(parent)->parameter->offset;
+    } break;
+
+    case SlotType::MEMBER:
+    {
+      parentOffset = dynamic_cast<MemberSlot*>(parent)->GetBasePointerOffset();
+    } break;
+
+    default:
+    {
+      RaiseError(ICE_UNHANDLED_SLOT_TYPE, parent->AsString().c_str(), "MemberSlot::GetBasePointerOffset");
+      __builtin_unreachable();
+    } break;
+  }
+
+  /*
+   * Some things store positive offsets from stuff, but the stack grows upwards so we want it to be negative
+   * regardless.
+   */
+  parentOffset = -abs(parentOffset);
+  printf("Parent offset: %d\n", parentOffset);
+
+  /*
+   * We then *add* the offset into the structure.
+   */
+  return parentOffset + member->offset;
+}
+
 TemporarySlot::TemporarySlot(CodeThing* code)
   :Slot(code)
   ,tag(code->numTemporaries++)

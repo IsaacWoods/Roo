@@ -150,7 +150,7 @@ VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* 
   ,initExpression(initExpression)
   ,storage(VariableDef::Storage::UNDECIDED)
   ,slot(nullptr)
-  ,offset(0u)
+  ,offset(0)
 {
 }
 
@@ -486,7 +486,7 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
     }
 
     // Calculate the offset from the base pointer of each local on the stack
-    unsigned int runningOffset = 0u;
+    int runningOffset = -(thing->neededStackSpace);
     for (ScopeDef* scope : thing->scopes)
     {
       for (VariableDef* local : scope->locals)
@@ -495,7 +495,7 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
         runningOffset += local->type.resolvedType->size;
       }
     }
-    Assert(runningOffset == thing->neededStackSpace, "We didn't use the entire stack-frame; why?!");
+    Assert(runningOffset == 0, "We didn't use the entire stack-frame; why?!");
   }
 
   // If there were any errors completing the IR, don't bother continuing
