@@ -474,14 +474,12 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
         if (local->type.resolvedType->size > target.generalRegisterSize)
         {
           local->storage = VariableDef::Storage::STACK;
+          thing->neededStackSpace += local->type.resolvedType->size;
         }
         else
         {
           local->storage = VariableDef::Storage::REGISTER;
         }
-
-        // Calculate the total size of the stack frame
-        thing->neededStackSpace += local->type.resolvedType->size;
       }
     }
 
@@ -491,6 +489,11 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
     {
       for (VariableDef* local : scope->locals)
       {
+        if (local->storage != VariableDef::Storage::STACK)
+        {
+          continue;
+        }
+
         local->offset = runningOffset;
         runningOffset += local->type.resolvedType->size;
       }

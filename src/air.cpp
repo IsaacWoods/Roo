@@ -125,11 +125,10 @@ int MemberSlot::GetBasePointerOffset()
   }
 
   /*
-   * Some things store positive offsets from stuff, but the stack grows upwards so we want it to be negative
+   * Some things store positive offsets from stuff, but the stack grows downwards so we want it to be negative
    * regardless.
    */
   parentOffset = -abs(parentOffset);
-  printf("Parent offset: %d\n", parentOffset);
 
   /*
    * We then *add* the offset into the structure.
@@ -675,9 +674,24 @@ Slot* AirGenerator::VisitNode(VariableAssignmentNode* node, AirState* state)
 
 Slot* AirGenerator::VisitNode(MemberAccessNode* node, AirState* state)
 {
-  // TODO
+  /*
+   * We always generate a temporary that should be registerized, because we can probably eliminate unnecessary
+   * register transfers, but we can't be sure that the target architecture supports an indirect memory address
+   * wherever this slot is going to be used.
+   */
+  Assert(node->isResolved, "Tried to generate AIR for unresolved member access");
+  Slot* parentSlot = Dispatch(node->parent, state);
+  Slot* memberSlot = new MemberSlot(state->code, parentSlot, node->member);
+  Slot* tempSlot = new TemporarySlot(state->code);
+
+  AirInstruction* mov = new MovInstruction(memberSlot, tempSlot);
+  PushInstruction(state->code, mov);
+
+  memberSlot->Use(mov);
+  tempSlot->ChangeValue(mov);
+
   if (node->next) (void)Dispatch(node->next, state);
-  return nullptr;
+  return tempSlot;
 }
 
 Slot* AirGenerator::VisitNode(ArrayInitNode* node, AirState* state)
