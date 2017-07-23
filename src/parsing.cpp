@@ -1617,7 +1617,7 @@ static void InitParseletMaps()
       if (operation == TOKEN_DOUBLE_PLUS ||
           operation == TOKEN_DOUBLE_MINUS)
       {
-        NextToken(parser);
+        NextToken(parser, false);
         Log(parser, "<-- [PARSELET] Binary operator\n");
         return new UnaryOpNode((operation == TOKEN_DOUBLE_PLUS ? UnaryOpNode::Operator::POST_INCREMENT :
                                                                  UnaryOpNode::Operator::POST_DECREMENT),
@@ -1642,7 +1642,7 @@ static void InitParseletMaps()
         } break;
       }
 
-      NextToken(parser);
+      NextToken(parser, false);
       ASTNode* right = ParseExpression(parser, g_precedenceTable[operation]);
       Log(parser, "<-- [PARSELET] Binary operator\n");
       return new BinaryOpNode(binaryOp, left, right);
@@ -1853,5 +1853,5 @@ const char* GetTokenName(TokenType type)
     case NUM_TOKENS:                  return "NUM_TOKENS";
   }
 
-  return nullptr;
+  __builtin_unreachable();
 }

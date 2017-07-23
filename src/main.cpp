@@ -107,6 +107,10 @@ int main()
     pass.Apply(result);\
   }
 
+  /*
+   * We emit the DOT of the AST both before and after the passes run, so if one fails, we still have an
+   * AST to look at.
+   */
 #ifdef OUTPUT_DOT
   APPLY_PASS(DotEmitterPass);
 #endif

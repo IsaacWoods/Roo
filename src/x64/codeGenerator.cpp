@@ -322,44 +322,116 @@ void CodeGenerator_x64::Visit(JumpInstruction* instruction, void*)
 
 void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
 {
-  // TODO: handle moving into memory addresses (e.g. member node of stack-allocated binding)
-  switch (instruction->src->GetType())
+  switch (instruction->dest->GetType())
   {
-    case SlotType::INT_CONSTANT:
-    {
-      E(I::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<int>*>(instruction->src)->value);
-    } break;
-
-    case SlotType::UNSIGNED_INT_CONSTANT:
-    {
-      E(I::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->src)->value);
-    } break;
-
-    case SlotType::FLOAT_CONSTANT:
-    {
-      // TODO
-    } break;
-
-    case SlotType::BOOL_CONSTANT:
-    {
-      E(I::MOV_REG_IMM32, instruction->dest->color, (dynamic_cast<ConstantSlot<bool>*>(instruction->src) ? 1u : 0u));
-    } break;
-
-    case SlotType::STRING_CONSTANT:
-    {
-      E(I::MOV_REG_IMM64, instruction->dest->color, 0x00);
-      new ElfRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), ElfRelocation::Type::R_X86_64_64,
-                        rodataThing->symbol, dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
-    } break;
-
     case SlotType::VARIABLE:
     case SlotType::PARAMETER:
-    case SlotType::MEMBER:
     case SlotType::TEMPORARY:
     case SlotType::RETURN_RESULT:
     {
-      Assert(instruction->src->IsColored(), "Should be in a register");
-      E(I::MOV_REG_REG, instruction->dest->color, instruction->src->color);
+      Assert(instruction->dest->IsColored(), "Destination slot must be colored if it should be in a register");
+
+      switch (instruction->src->GetType())
+      {
+        case SlotType::INT_CONSTANT:
+        {
+          E(I::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<int>*>(instruction->src)->value);
+        } break;
+
+        case SlotType::UNSIGNED_INT_CONSTANT:
+        {
+          E(I::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->src)->value);
+        } break;
+
+        case SlotType::FLOAT_CONSTANT:
+        {
+          // TODO
+        } break;
+
+        case SlotType::BOOL_CONSTANT:
+        {
+          E(I::MOV_REG_IMM32, instruction->dest->color, dynamic_cast<ConstantSlot<bool>*>(instruction->src)->value ? 1u : 0u);
+        } break;
+        
+        case SlotType::STRING_CONSTANT:
+        {
+          E(I::MOV_REG_IMM64, instruction->dest->color, 0x00);
+          new ElfRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), ElfRelocation::Type::R_X86_64_64,
+                            rodataThing->symbol, dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
+        } break;
+
+        case SlotType::VARIABLE:
+        case SlotType::PARAMETER:
+        case SlotType::TEMPORARY:
+        case SlotType::RETURN_RESULT:
+        {
+          Assert(instruction->src->IsColored(), "Source slot must be colored as it should also be in a register");
+          E(I::MOV_REG_REG, instruction->dest->color, instruction->src->color);
+        } break;
+
+        case SlotType::MEMBER:
+        {
+          printf("Also shit the bed here\n");
+        } break;
+      }
+    } break;
+
+    case SlotType::MEMBER:
+    {
+      /*
+       * This is the final displacement of the member from RBP
+       */
+      unsigned int memberDisp = 0u; // TODO
+
+      switch (instruction->src->GetType())
+      {
+        case SlotType::INT_CONSTANT:
+        {
+          E(I::MOV_BASE_DISP_IMM32, RBP, memberDisp, dynamic_cast<ConstantSlot<int>*>(instruction->src)->value);
+        } break;
+
+        case SlotType::UNSIGNED_INT_CONSTANT:
+        {
+          E(I::MOV_BASE_DISP_IMM32, RBP, memberDisp, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->src)->value);
+        } break;
+
+        case SlotType::FLOAT_CONSTANT:
+        {
+          // TODO
+        } break;
+
+        case SlotType::BOOL_CONSTANT:
+        {
+          E(I::MOV_BASE_DISP_IMM32, RBP, memberDisp, dynamic_cast<ConstantSlot<bool>*>(instruction->src)->value ? 1u : 0u);
+        } break;
+
+        case SlotType::STRING_CONSTANT:
+        {
+          E(I::MOV_BASE_DISP_IMM64, RBP, memberDisp, 0x00);
+          new ElfRelocation(file, elfThing, elfThing->length - sizeof(uint64_t), ElfRelocation::Type::R_X86_64_64,
+                            rodataThing->symbol, dynamic_cast<ConstantSlot<StringConstant*>*>(instruction->src)->value->offset);
+        } break;
+
+        case SlotType::VARIABLE:
+        case SlotType::PARAMETER:
+        case SlotType::TEMPORARY:
+        case SlotType::RETURN_RESULT:
+        {
+          Assert(instruction->src->IsColored(), "Source slot must be colored if it should be in a register");
+          E(I::MOV_BASE_DISP_REG, RBP, memberDisp, instruction->src->color);
+        } break;
+
+        case SlotType::MEMBER:
+        {
+          // TODO: I don't think we can do this on x64!?!?!?
+          // Rewrite this in the precolorer??
+        } break;
+      }
+    } break;
+    
+    default:
+    {
+      RaiseError(ICE_GENERIC, "Can't move into slot that isn't a VARIABLE, MEMBER, PARAMETER, TEMPORARY or RETURN_RESULT!");
     } break;
   }
 }

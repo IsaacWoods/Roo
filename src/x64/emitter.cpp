@@ -28,7 +28,7 @@
  * `r/m` : opcode offset of the other register
  *
  * --- SIB bytes ---
- * An SIB (Scaled Index Byte) byte is used to specify a register of the form `[rax+rbx*4+7]
+ * An SIB (Scaled Index Byte) byte is used to specify an address of the form `[rax+rbx*4+7]
  *
  * 7       5           2           0
  * +---+---+---+---+---+---+---+---+
@@ -54,11 +54,12 @@ static void EmitRegisterModRM(ElfThing* thing, TargetMachine& target, Reg a, Reg
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg dest, Reg base, uint32_t displacement,
+// XXX: Previously, we were omitting the displacement if it was 0 and starting the ModRM with 0b00. I don't think that's right, but we may have fucked something else up changing it?? Are there 2 standards on x64??
+static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg reg, Reg base, uint32_t displacement,
                               Reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
-  modRM |= target.registerSet[dest].pimpl->opcodeOffset << 3u;
+  modRM |= target.registerSet[reg].pimpl->opcodeOffset << 3u;
 
   if (scale == 0u)
   {
@@ -69,11 +70,7 @@ static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg dest, 
     modRM |= 0b100;
   }
 
-  if (displacement == 0u)
-  {
-    modRM |= 0b00000000;  // NOTE(Isaac): we don't need a displacement
-  }
-  else if (displacement >= ((2u<<7u)-1u))
+  if (displacement >= ((2u<<7u)-1u))
   {
     modRM |= 0b10000000;  // NOTE(Isaac): we need four bytes for the displacement
   }
@@ -95,16 +92,13 @@ static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg dest, 
     Emit<uint8_t>(thing, sib);
   }
 
-  if (displacement > 0u)
+  if (displacement >= ((2u<<7u)-1u))
   {
-    if (displacement >= ((2u<<7u)-1u))
-    {
-      Emit<uint32_t>(thing, displacement);
-    }
-    else
-    {
-      Emit<uint8_t>(thing, static_cast<uint8_t>(displacement));
-    }
+    Emit<uint32_t>(thing, displacement);
+  }
+  else
+  {
+    Emit<uint8_t>(thing, static_cast<uint8_t>(displacement));
   }
 }
 
@@ -280,6 +274,40 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I inst
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x8B);
       EmitIndirectModRM(thing, target, dest, base, displacement);
+    } break;
+
+    case I::MOV_BASE_DISP_IMM32:
+    {
+      Reg base = static_cast<Reg>(va_arg(args, int));
+      uint32_t displacement = va_arg(args, uint32_t);
+      uint32_t imm = va_arg(args, uint32_t);
+
+      Emit<uint8_t>(thing, 0xC7);
+      EmitIndirectModRM(thing, target, (Reg)0u, base, displacement);
+      Emit<uint32_t>(thing, imm);
+    } break;
+
+    case I::MOV_BASE_DISP_IMM64:
+    {
+      Reg base = static_cast<Reg>(va_arg(args, int));
+      uint32_t displacement = va_arg(args, uint32_t);
+      uint64_t imm = va_arg(args, uint64_t);
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0xC7);
+      EmitIndirectModRM(thing, target, (Reg)0u, base, displacement);
+      Emit<uint64_t>(thing, imm);
+    } break;
+
+    case I::MOV_BASE_DISP_REG:
+    {
+      Reg base = static_cast<Reg>(va_arg(args, int));
+      uint32_t displacement = va_arg(args, uint32_t);
+      Reg src = static_cast<Reg>(va_arg(args, int));
+
+      Emit<uint8_t>(thing, 0x48);
+      Emit<uint8_t>(thing, 0x89);
+      EmitIndirectModRM(thing, target, src, base, displacement);
     } break;
 
     case I::INC_REG:
