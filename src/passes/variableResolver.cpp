@@ -54,7 +54,46 @@ Done:
 
 void VariableResolverPass::VisitNode(MemberAccessNode* node, CodeThing* code)
 {
-  // TODO
+  VariableDef* parent;
+  Dispatch(node->parent, code);
+
+  // TODO: Get the type of nodes properly with an enum or something
+  if (IsNodeOfType<VariableNode>(node->parent))
+  {
+    parent = dynamic_cast<VariableNode*>(node->parent)->var;
+  }
+  else if (IsNodeOfType<MemberAccessNode>(node->parent))
+  {
+    MemberAccessNode* parentMemberAccess = dynamic_cast<MemberAccessNode*>(node->parent);
+    Assert(parentMemberAccess->isResolved, "Parent member access has not been resolved");
+    parent = parentMemberAccess->member;
+  }
+  else
+  {
+    Crash();
+  }
+
+  if (!IsNodeOfType<VariableNode>(node->child))
+  {
+    RaiseError(ICE_GENERIC, "MemberAccessNode's children must be VariableNodes");
+  }
+
+  VariableNode* child = dynamic_cast<VariableNode*>(node->child);
+
+  for (VariableDef* member : parent->members)
+  {
+    if (child->name == member->name)
+    {
+      node->isResolved = true;
+      node->member = member;
+      break;
+    }
+  }
+
+  if (!(node->isResolved))
+  {
+    RaiseError(code->errorState, ERROR_MEMBER_NOT_FOUND, child->name, parent->type.name.c_str());
+  }
 
   if (node->next) Dispatch(node->next, code);
 }

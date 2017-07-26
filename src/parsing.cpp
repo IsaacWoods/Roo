@@ -1106,7 +1106,9 @@ static void ParseTypeDef(Parser& parser)
   while (PeekToken(parser).type != TOKEN_RIGHT_BRACE)
   {
     VariableDef* member = ParseVariableDef(parser);
-    type->members.push_back(member);
+    // TODO: clone the initExpression
+    type->members.push_back(new MemberDef(member->name, member->type, /*member->initExpression->Clone()*/nullptr, member->offset));
+    free(member);
   }
 
   Consume(parser, TOKEN_RIGHT_BRACE);

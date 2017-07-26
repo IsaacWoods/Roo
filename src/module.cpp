@@ -74,10 +74,43 @@ std::vector<VariableDef*> Read<std::vector<VariableDef*>>(FILE* f)
 }
 
 template<>
+MemberDef* Read<MemberDef*>(FILE* f)
+{
+  TypeRef type;
+  std::string name = Read<std::string>(f);
+  type.name = Read<std::string>(f);
+  type.isResolved = false;
+  type.isMutable = static_cast<bool>(Read<uint8_t>(f));
+  type.isReference = static_cast<bool>(Read<uint8_t>(f));
+  type.isReferenceMutable = static_cast<bool>(Read<uint8_t>(f));
+  type.arraySize = Read<uint32_t>(f);
+  type.isArray = (type.arraySize > 0u);
+  type.isArraySizeResolved = true;
+
+  return new MemberDef(name, type, nullptr);
+}
+
+template<>
+std::vector<MemberDef*> Read<std::vector<MemberDef*>>(FILE* f)
+{
+  std::vector<MemberDef*> vec;
+  uint8_t numElements = Read<uint8_t>(f);
+
+  for (size_t i = 0u;
+       i < numElements;
+       i++)
+  {
+    vec.push_back(Read<MemberDef*>(f));
+  }
+
+  return vec;
+}
+
+template<>
 TypeDef* Read<TypeDef*>(FILE* f)
 {
   TypeDef* type = new TypeDef(Read<std::string>(f));
-  type->members = Read<std::vector<VariableDef*>>(f);
+  type->members = Read<std::vector<MemberDef*>>(f);
   type->size = static_cast<unsigned int>(Read<uint32_t>(f));
 
   return type;
@@ -224,10 +257,42 @@ void Emit<std::vector<VariableDef*>>(FILE* f, const std::vector<VariableDef*>& v
 }
 
 template<>
+void Emit<MemberDef*>(FILE* f, MemberDef* const& value, ErrorState& errorState)
+{
+  Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a MemberDef");
+  Emit<std::string>(f, value->name, errorState);
+  Emit<std::string>(f, (value->type.isResolved ? value->type.resolvedType->name : value->type.name.c_str()), errorState);
+  Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isMutable), errorState);
+  Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isReference), errorState);
+  Emit<uint8_t>(f, static_cast<uint8_t>(value->type.isReferenceMutable), errorState);
+
+  if (value->type.isArray)
+  {
+    Assert(value->type.isArraySizeResolved, "Tried to emit module info for unresolved array size");
+    Emit<uint32_t>(f, static_cast<uint32_t>(value->type.arraySize), errorState);
+  }
+  else
+  {
+    Emit<uint32_t>(f, 0u, errorState);
+  }
+}
+
+template<>
+void Emit<std::vector<MemberDef*>>(FILE* f, const std::vector<MemberDef*>& value, ErrorState& errorState)
+{
+  Emit<uint8_t>(f, value.size(), errorState);
+
+  for (MemberDef* variable : value)
+  {
+    Emit<MemberDef*>(f, variable, errorState);
+  }
+}
+
+template<>
 void Emit<TypeDef*>(FILE* f, TypeDef* const& value, ErrorState& errorState)
 {
   Emit<std::string>(f, value->name, errorState);
-  Emit<std::vector<VariableDef*>>(f, value->members, errorState);
+  Emit<std::vector<MemberDef*>>(f, value->members, errorState);
   Emit<uint32_t>(f, static_cast<uint32_t>(value->size), errorState);
 }
 

@@ -63,6 +63,7 @@ void TypeChecker::VisitNode(ReturnNode* node, TypeCheckingContext* context)
     RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_TYPE, context->code->returnType->AsString().c_str(),
                                                                    node->returnValue->type->AsString().c_str());
   }
+
 Errored:
   if (node->next) Dispatch(node->next, context);
 }
@@ -360,7 +361,7 @@ void TypeChecker::VisitNode(ConstructNode* node, TypeCheckingContext* context)
          itemIt++, memberIt++)
     {
       ASTNode* item = *itemIt;
-      VariableDef* member = *memberIt;
+      MemberDef* member = *memberIt;
 
       if (!AreTypeRefsCompatible(item->type, &(member->type)))
       {

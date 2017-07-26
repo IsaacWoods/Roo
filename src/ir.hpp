@@ -17,6 +17,7 @@ struct AirInstruction;
 
 struct DependencyDef;
 struct CodeThing;
+struct MemberDef;
 struct VariableDef;
 struct TypeDef;
 struct StringConstant;
@@ -78,15 +79,15 @@ struct TypeDef
   TypeDef(const std::string& name);
   ~TypeDef();
 
-  std::string                 name;
-  std::vector<VariableDef*>   members;
-  ErrorState                  errorState;
+  std::string             name;
+  std::vector<MemberDef*> members;
+  ErrorState              errorState;
 
   /*
    * Size of this structure in bytes.
    * NOTE(Isaac): provided for inbuilt types, calculated for composite types by `CalculateTypeSizes`.
    */
-  unsigned int                size;
+  unsigned int            size;
 };
 
 /*
@@ -118,6 +119,29 @@ struct TypeRef
 };
 
 /*
+ * This defines a member of a type. It does not represent a variable of that type's member, just the type's
+ * definition of the idea of the member. It is in part a separate type to stop errors occuring when the member
+ * definition is accidently referenced.
+ */
+struct MemberDef
+{
+  MemberDef(const std::string& name, const TypeRef& type, ASTNode* initExpression, int offset = 0);
+  ~MemberDef();
+
+  std::string name;
+  TypeRef     type;
+  ASTNode*    initExpression;
+
+  /*
+   * NOTE(Isaac): this can be used to represent multiple things:
+   *    * Offset from the base-pointer into the stack frame (for variables on the stack).
+   *      On x64, this offset should be *taken* away from the base-pointer (because the stack grows downwards.
+   *    * Offset inside a parent structure (for members of structures)
+   */
+  int offset;
+};
+
+/*
  * This describes the definition of a variable, and can also be used to refer to variables that have already
  * been defined. Its initial value should be assigned to its allocated register/memory when it enters scope.
  */
@@ -134,7 +158,7 @@ struct VariableDef
     STACK
   };
 
-  VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initExpression);
+  VariableDef(const std::string& name, const TypeRef& typeRef, ASTNode* initExpression, int offset = 0);
   ~VariableDef();
 
   /*
@@ -143,11 +167,17 @@ struct VariableDef
    */
   char GetStorageChar();
 
-  std::string name;
-  TypeRef     type;
-  ASTNode*    initExpression;
-  Storage     storage;
-  Slot*       slot;
+  std::string               name;
+  TypeRef                   type;
+  ASTNode*                  initExpression;
+  Storage                   storage;
+  Slot*                     slot;
+
+  /*
+   * If this variable's type has accessible members, we need to manage them separately.
+   * They should be in the same order as the member definitions in the type.
+   */
+  std::vector<VariableDef*> members;
 
   /*
    * NOTE(Isaac): this can be used to represent multiple things:
@@ -155,7 +185,7 @@ struct VariableDef
    *      On x64, this offset should be *taken* away from the base-pointer (because the stack grows downwards.
    *    * Offset inside a parent structure (for members of structures)
    */
-  int offset;
+  int                       offset;
 };
 
 /*

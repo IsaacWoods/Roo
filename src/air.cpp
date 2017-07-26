@@ -680,8 +680,8 @@ Slot* AirGenerator::VisitNode(MemberAccessNode* node, AirState* state)
    * wherever this slot is going to be used.
    */
   Assert(node->isResolved, "Tried to generate AIR for unresolved member access");
-  Slot* parentSlot = Dispatch(node->parent, state);
-  Slot* memberSlot = new MemberSlot(state->code, parentSlot, node->member);
+  /*Slot* parentSlot = Dispatch(node->parent, state);
+  Slot* memberSlot = ...; // TODO: how to get the correct member slot?????
   Slot* tempSlot = new TemporarySlot(state->code);
 
   AirInstruction* mov = new MovInstruction(memberSlot, tempSlot);
@@ -689,9 +689,10 @@ Slot* AirGenerator::VisitNode(MemberAccessNode* node, AirState* state)
 
   memberSlot->Use(mov);
   tempSlot->ChangeValue(mov);
-
+*/
   if (node->next) (void)Dispatch(node->next, state);
-  return tempSlot;
+ // return tempSlot;
+  return nullptr;
 }
 
 Slot* AirGenerator::VisitNode(ArrayInitNode* node, AirState* state)
@@ -718,17 +719,37 @@ Slot* AirGenerator::VisitNode(InfiniteLoopNode* node, AirState* state)
 
 Slot* AirGenerator::VisitNode(ConstructNode* node, AirState* state)
 {
-  auto memberIt = node->variable->type->resolvedType->members.begin();
   auto itemIt = node->items.begin();
+  std::vector<VariableDef*>* members = nullptr;
 
-  for (;
-       memberIt != node->variable->type->resolvedType->members.end() && itemIt != node->items.end();
-       memberIt++, itemIt++)
+  // TODO: use enum system when done
+  if (IsNodeOfType<VariableNode>(node->variable))
   {
-    VariableDef* member = *memberIt;
-    Slot* itemSlot = Dispatch(*itemIt, state);
+    members= &(dynamic_cast<VariableNode*>(node->variable)->var->members);
+  }
+  else if (IsNodeOfType<MemberAccessNode>(node->variable))
+  {
+    MemberAccessNode* memberAccess = dynamic_cast<MemberAccessNode*>(node->variable);
+    Assert(memberAccess->isResolved, "Tried to generate AIR from unresolved member access");
+    members = &(memberAccess->member->members);
+  }
+  else
+  {
+    Crash();
+    __builtin_unreachable();
+  }
 
-    PushInstruction(state->code, new MovInstruction(itemSlot, member->slot));
+  for (auto memberIt = members->begin();
+       itemIt != node->items.end() && memberIt != members->end();
+       itemIt++, memberIt++)
+  {
+    Slot* itemSlot = Dispatch(*itemIt, state);
+    Slot* memberSlot = (*memberIt)->slot;
+
+    AirInstruction* mov = new MovInstruction(itemSlot, memberSlot);
+    PushInstruction(state->code, mov);
+    memberSlot->ChangeValue(mov);
+    itemSlot->Use(mov);
   }
 
   if (node->next) (void)Dispatch(node->next, state);
@@ -926,7 +947,7 @@ void AirGenerator::Apply(ParseResult& parse)
       param->slot = new ParameterSlot(code, param);
       param->slot->color = target.intParamColors[numParams++];
 
-      for (VariableDef* member : param->type.resolvedType->members)
+      for (VariableDef* member : param->members)
       {
         member->slot = new MemberSlot(code, param->slot, member);
       }
@@ -940,7 +961,7 @@ void AirGenerator::Apply(ParseResult& parse)
         local->slot = new VariableSlot(code, local);
         Assert(local->type.isResolved, "Tried to generate AIR without type information");
 
-        for (VariableDef* member : local->type.resolvedType->members)
+        for (VariableDef* member : local->members)
         {
           member->slot = new MemberSlot(code, local->slot, member);
         }

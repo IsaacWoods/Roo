@@ -286,7 +286,7 @@ char* DotEmitterPass::VisitNode(MemberAccessNode* node, DotState* state)
 
   if (node->isResolved)
   {
-    fprintf(state->f, "\t%s[label=\"%s.\"];\n", nodeName, node->member->name.c_str());
+    fprintf(state->f, "\t%s[label=\".%s\"];\n", nodeName, node->member->name.c_str());
   }
   else
   {

@@ -57,7 +57,7 @@ TypeDef::TypeDef(const std::string& name)
 
 TypeDef::~TypeDef()
 {
-  for (VariableDef* member : members)
+  for (MemberDef* member : members)
   {
     delete member;
   }
@@ -144,13 +144,27 @@ unsigned int TypeRef::GetSize()
   return size;
 }
 
-VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* initExpression)
+MemberDef::MemberDef(const std::string& name, const TypeRef& type, ASTNode* initExpression, int offset)
+  :name(name)
+  ,type(type)
+  ,initExpression(initExpression)
+  ,offset(offset)
+{
+}
+
+MemberDef::~MemberDef()
+{
+  delete initExpression;
+}
+
+VariableDef::VariableDef(const std::string& name, const TypeRef& type, ASTNode* initExpression, int offset)
   :name(name)
   ,type(type)
   ,initExpression(initExpression)
   ,storage(VariableDef::Storage::UNDECIDED)
   ,slot(nullptr)
-  ,offset(0)
+  ,members()
+  ,offset(offset)
 {
 }
 
@@ -303,24 +317,6 @@ bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability)
   return true;
 }
 
-static void ResolveTypeRef(TypeRef& ref, ParseResult& parse, ErrorState& errorState)
-{
-  Assert(!(ref.isResolved), "Tried to resolve type reference that is already resolved");
-
-  for (TypeDef* type : parse.types)
-  {
-    if (ref.name == type->name)
-    {
-      // XXX(Isaac): this would be a good place to increment a usage counter on the type, if we ever needed one
-      ref.isResolved = true;
-      ref.resolvedType = type;
-      return;
-    }
-  }
-
-  RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name.c_str());
-}
-
 /*
  * This calculates the size of a type, and stores it within the `TypeDef`.
  * NOTE(Isaac): Should not be called on inbuilt types with `overwrite = true`.
@@ -335,7 +331,7 @@ static unsigned int CalculateSizeOfType(TypeDef* type, bool overwrite = false)
 
   type->size = 0u;
 
-  for (VariableDef* member : type->members)
+  for (MemberDef* member : type->members)
   {
     Assert(member->type.isResolved, "Tried to calculate size of type that has unresolved members");
     member->offset = type->size;
@@ -389,28 +385,57 @@ static std::string MangleName(CodeThing* thing)
   return nullptr;
 }
 
-static void CompleteVariable(VariableDef* var, ErrorState& errorState)
+static void CompleteTypeRef(TypeRef& ref, ParseResult& parse, ErrorState& errorState)
 {
-  // If it's an array, resolve the size
-  if (var->type.isArray)
+  Assert(!(ref.isResolved), "Tried to resolve TypeRef that is already resolved");
+
+  for (TypeDef* type : parse.types)
   {
-    Assert(!(var->type.isArraySizeResolved), "Tried to resolve array size expression that already has a size");
+    if (ref.name == type->name)
+    {
+      // XXX(Isaac): this would be a good place to increment a usage counter on the type, if we ever needed one
+      ref.isResolved = true;
+      ref.resolvedType = type;
+      break;
+    }
+  }
+
+  if (!(ref.isResolved))
+  {
+    RaiseError(errorState, ERROR_UNDEFINED_TYPE, ref.name.c_str());
+  }
+
+  // If it's an array, resolve the size
+  if (ref.isArray)
+  {
+    Assert(!(ref.isArraySizeResolved), "Tried to resolve array size expression that already has a size");
     
-    if (!IsNodeOfType<ConstantNode<unsigned int>>(var->type.arraySizeExpression))
+    if (!IsNodeOfType<ConstantNode<unsigned int>>(ref.arraySizeExpression))
     {
       RaiseError(errorState, ERROR_INVALID_ARRAY_SIZE);
       return;
     }
 
-    auto* sizeExpression = reinterpret_cast<ConstantNode<unsigned int>*>(var->type.arraySizeExpression);
-    var->type.isArraySizeResolved = true;
-    var->type.arraySize = sizeExpression->value;
+    auto* sizeExpression = reinterpret_cast<ConstantNode<unsigned int>*>(ref.arraySizeExpression);
+    ref.isArraySizeResolved = true;
+    ref.arraySize = sizeExpression->value;
 
     /*
      * NOTE(Isaac): as the `arraySizeExpression` field of the union has now been replaced and the tag changed,
      * we must free it here to avoid leaking the old expression.
      */
     delete sizeExpression;
+  }
+}
+
+static void CompleteMembers(VariableDef* variable)
+{
+  Assert(variable->type.isResolved, "Tried to complete members of uncompleted type");
+
+  for (MemberDef* member : variable->type.resolvedType->members)
+  {
+    // TODO: clone the init expression and pass it here
+    variable->members.push_back(new VariableDef(member->name, member->type, /*member->initExpression->Clone()*/nullptr, member->offset));
   }
 }
 
@@ -424,32 +449,47 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
     // Resolve its return type and the types of its parameters and locals
     if (thing->returnType)
     {
-      ResolveTypeRef(*(thing->returnType), parse, thing->errorState);
+      CompleteTypeRef(*(thing->returnType), parse, thing->errorState);
     }
   
     for (VariableDef* param : thing->params)
     {
-      Assert(param, "Tried to resolve nullptr parameter");
-      ResolveTypeRef(param->type, parse, thing->errorState);
-      CompleteVariable(param, thing->errorState);
+      CompleteTypeRef(param->type, parse, thing->errorState);
     }
   
     for (ScopeDef* scope : thing->scopes)
     {
       for (VariableDef* local : scope->locals)
       {
-        ResolveTypeRef(local->type, parse, thing->errorState);
-        CompleteVariable(local, thing->errorState);
+        CompleteTypeRef(local->type, parse, thing->errorState);
       }
     }
   }
 
   for (TypeDef* type : parse.types)
   {
-    for (VariableDef* member : type->members)
+    for (MemberDef* member : type->members)
     {
-      ResolveTypeRef(member->type, parse, type->errorState);
-      CompleteVariable(member, type->errorState);
+      CompleteTypeRef(member->type, parse, type->errorState);
+    }
+  }
+
+  /*
+   * Now we know types, we can create each variable's members correctly.
+   */
+  for (CodeThing* thing : parse.codeThings)
+  {
+    for (VariableDef* param : thing->params)
+    {
+      CompleteMembers(param);
+    }
+
+    for (ScopeDef* scope : thing->scopes)
+    {
+      for (VariableDef* local : scope->locals)
+      {
+        CompleteMembers(local);
+      }
     }
   }
 
