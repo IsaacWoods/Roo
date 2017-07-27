@@ -371,7 +371,7 @@ void CodeGenerator_x64::Visit(MovInstruction* instruction, void*)
 
         case SlotType::MEMBER:
         {
-          // TODO
+          E(I::MOV_REG_BASE_DISP, instruction->dest->color, RBP, dynamic_cast<MemberSlot*>(instruction->src)->GetBasePointerOffset());
         } break;
       }
     } break;

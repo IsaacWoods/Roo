@@ -25,10 +25,6 @@ struct LiveRange
   AirInstruction* lastUse;
 };
 
-/*
- * XXX: This feels a bit messy, but we need a way to tell what type of slot we're dealing with and dynamically
- * dispatching all the time is a bit of a pain in the ass.
- */
 enum class SlotType
 {
   VARIABLE,

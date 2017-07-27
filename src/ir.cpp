@@ -475,6 +475,15 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
   }
 
   /*
+   * Calculate the sizes of all the types.
+   * This must be done after *every* type and its members has been resolved.
+   */
+  for (TypeDef* type : parse.types)
+  {
+    CalculateSizeOfType(type);
+  }
+
+  /*
    * Now we know types, we can create each variable's members correctly.
    */
   for (CodeThing* thing : parse.codeThings)
@@ -491,15 +500,6 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
         CompleteMembers(local);
       }
     }
-  }
-
-  /*
-   * Calculate the sizes of all the types.
-   * This must be done after *every* type and its members has been resolved.
-   */
-  for (TypeDef* type : parse.types)
-  {
-    CalculateSizeOfType(type);
   }
 
   for (CodeThing* thing : parse.codeThings)

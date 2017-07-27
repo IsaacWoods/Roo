@@ -94,7 +94,7 @@ MemberSlot::MemberSlot(CodeThing* code, Slot* parent, VariableDef* member)
 
 std::string MemberSlot::AsString()
 {
-  return FormatString("%s(M)-%c", member->name.c_str(), member->GetStorageChar());
+  return FormatString("%s(M)(%d)-%c", member->name.c_str(), member->offset, member->GetStorageChar());
 }
 
 int MemberSlot::GetBasePointerOffset()
@@ -677,22 +677,20 @@ Slot* AirGenerator::VisitNode(MemberAccessNode* node, AirState* state)
   /*
    * We always generate a temporary that should be registerized, because we can probably eliminate unnecessary
    * register transfers, but we can't be sure that the target architecture supports an indirect memory address
-   * wherever this slot is going to be used.
+   * wherever this slot is going to be used (e.g. as the destination of a MOV it's fine, but in a comparison
+   * instruction it may not be).
    */
   Assert(node->isResolved, "Tried to generate AIR for unresolved member access");
-  /*Slot* parentSlot = Dispatch(node->parent, state);
-  Slot* memberSlot = ...; // TODO: how to get the correct member slot?????
   Slot* tempSlot = new TemporarySlot(state->code);
 
-  AirInstruction* mov = new MovInstruction(memberSlot, tempSlot);
+  AirInstruction* mov = new MovInstruction(node->member->slot, tempSlot);
   PushInstruction(state->code, mov);
 
-  memberSlot->Use(mov);
+  node->member->slot->Use(mov);
   tempSlot->ChangeValue(mov);
-*/
+
   if (node->next) (void)Dispatch(node->next, state);
- // return tempSlot;
-  return nullptr;
+  return tempSlot;
 }
 
 Slot* AirGenerator::VisitNode(ArrayInitNode* node, AirState* state)
