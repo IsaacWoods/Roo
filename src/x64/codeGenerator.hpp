@@ -8,20 +8,24 @@
 #include <string>
 #include <ir.hpp>
 #include <codegen.hpp>
-#include <elf.hpp>
+#include <elf/elf.hpp>
 
 struct CodeGenerator_x64 : CodeGenerator
 {
-  CodeGenerator_x64(TargetMachine& target, ElfFile& file, ElfThing* elfThing, CodeThing* code, ElfThing* rodataThing)
+  CodeGenerator_x64(TargetMachine& target, ElfFile& file)
     :CodeGenerator(target)
     ,file(file)
-    ,elfThing(elfThing)
-    ,code(code)
-    ,rodataThing(rodataThing)
   {
   }
   ~CodeGenerator_x64() { }
 
+  ElfThing* Generate(CodeThing* code, ElfThing* rodataThing);
+  ElfThing* GenerateBootstrap(ElfThing* thing, ParseResult& parse);
+
+  /*
+   * These are for the CodeThing currently being generated
+   * TODO: Ideally they should be stored in a state rather than here.
+   */
   ElfFile&        file;
   ElfThing*       elfThing;
   CodeThing*      code;
@@ -36,5 +40,3 @@ struct CodeGenerator_x64 : CodeGenerator
   void Visit(BinaryOpInstruction* instruction,  void*);
   void Visit(CallInstruction* instruction,      void*);
 };
-
-void Generate(const std::string& outputPath, TargetMachine& target, ParseResult& result);

@@ -7,12 +7,12 @@
 #include <cstdint>
 #include <ctgmath>
 #include <cstdarg>
-#include <elf.hpp>
+#include <elf/elf.hpp>
 
 /*
  * --- Mod/RM bytes ---
  * A ModR/M byte is used to encode how an opcode's instructions are laid out. It is optionally accompanied
- * by an SIB byte, a one-byte or four-byte displacement and/or a four-byte immediate value.
+ * by an SIB, a one-byte or four-byte displacement and/or a four-byte immediate value.
  *
  * 7       5           2           0
  * +---+---+---+---+---+---+---+---+
@@ -27,8 +27,8 @@
  * `reg` : opcode offset of the destination or source register (depending on instruction's direction flag)
  * `r/m` : opcode offset of the other register
  *
- * --- SIB bytes ---
- * An SIB (Scaled Index Byte) byte is used to specify an address of the form `[rax+rbx*4+7]
+ * --- SIBs ---
+ * An SIB (Scaled Index Byte) is used to specify an address of the form `[rax+rbx*4+7]
  *
  * 7       5           2           0
  * +---+---+---+---+---+---+---+---+
@@ -54,7 +54,6 @@ static void EmitRegisterModRM(ElfThing* thing, TargetMachine& target, Reg a, Reg
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-// XXX: Previously, we were omitting the displacement if it was 0 and starting the ModRM with 0b00. I don't think that's right, but we may have fucked something else up changing it?? Are there 2 standards on x64??
 static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg reg, Reg base, uint32_t displacement,
                               Reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {

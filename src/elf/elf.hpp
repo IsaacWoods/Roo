@@ -3,6 +3,8 @@
  * See LICENCE.md
  */
 
+#pragma once
+
 /*
  * XXX: This is far more coupled to the rest of the compiler than I'd like (given that all we're doing here is
  * encoding and decoding ELF files, but this isn't a priority

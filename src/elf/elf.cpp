@@ -3,7 +3,7 @@
  * See LICENCE.md
  */
 
-#include <elf.hpp>
+#include <elf/elf.hpp>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>

@@ -14,7 +14,7 @@ fn Main() -> int
 {
   color : Color(255, 0, 255)
 
-  if (color.g > 3)
+  if (color.r > 3)
   {
     Print("Hello, World!\n")
   }

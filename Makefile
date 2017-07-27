@@ -33,7 +33,8 @@ OBJS = \
   $(BUILD_DIR)/parsing.o \
 	$(BUILD_DIR)/module.o \
 	$(BUILD_DIR)/air.o \
-	$(BUILD_DIR)/elf.o \
+	$(BUILD_DIR)/codegen.o \
+	$(BUILD_DIR)/elf/elf.o \
 	$(BUILD_DIR)/passes/dotEmitter.o \
 	$(BUILD_DIR)/passes/variableResolver.o \
 	$(BUILD_DIR)/passes/typeChecker.o \
@@ -54,7 +55,7 @@ roo: $(OBJS) $(STD_OBJECTS)
 	$(CXX) -o $@ $(OBJS) $(LFLAGS)
 
 $(BUILD_DIR)/%.o: src/%.cpp
-	test -d $(BUILD_DIR) || (mkdir -p $(BUILD_DIR)/passes && mkdir -p $(BUILD_DIR)/x64)
+	test -d $(BUILD_DIR) || (mkdir -p $(BUILD_DIR)/passes && mkdir -p $(BUILD_DIR)/x64 && mkdir -p $(BUILD_DIR)/elf)
 	$(CXX) -o $@ -c $< $(CFLAGS)
 
 %.o: %.s

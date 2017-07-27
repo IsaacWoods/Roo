@@ -899,7 +899,7 @@ static void EmitInterferenceGraphDOT(CodeThing* code)
 
     if (slot->color < 0)
     {
-      fprintf(stderr, "WARNING: Found uncolored slot! Presenting as red on interference graph!\n");
+      fprintf(stderr, "WARNING: Found uncolored slot (%s): Presenting as red on interference graph\n", slot->AsString().c_str());
       color = "red";
     }
     else

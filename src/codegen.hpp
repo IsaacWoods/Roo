@@ -61,6 +61,7 @@ struct InstructionPrecolorer : AirPass<void>
   virtual void Visit(CallInstruction* instruction,      void*) = 0;
 };
 
+struct ElfThing;
 struct CodeGenerator : AirPass<void>
 {
   CodeGenerator(TargetMachine& target)
@@ -68,8 +69,12 @@ struct CodeGenerator : AirPass<void>
     ,target(target)
   {
   }
+  virtual ~CodeGenerator() { }
 
   TargetMachine& target;
+
+  virtual ElfThing* Generate(CodeThing* code, ElfThing* rodataThing) = 0;
+  virtual ElfThing* GenerateBootstrap(ElfThing* thing, ParseResult& parse) = 0;
 
   virtual void Visit(LabelInstruction* instruction,     void*) = 0;
   virtual void Visit(ReturnInstruction* instruction,    void*) = 0;
@@ -80,3 +85,5 @@ struct CodeGenerator : AirPass<void>
   virtual void Visit(BinaryOpInstruction* instruction,  void*) = 0;
   virtual void Visit(CallInstruction* instruction,      void*) = 0;
 };
+
+void Generate(const std::string& outputPath, TargetMachine& target, ParseResult& result);

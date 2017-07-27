@@ -10,7 +10,7 @@
 #include <common.hpp>
 #include <ast.hpp>
 #include <air.hpp>
-#include <elf.hpp>
+#include <elf/elf.hpp>
 #include <codegen.hpp>
 
 ParseResult::ParseResult()
