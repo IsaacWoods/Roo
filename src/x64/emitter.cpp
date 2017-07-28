@@ -43,26 +43,26 @@
  * `index`  : the index register to use
  * `base`   : the base register to use
  */
-static void EmitRegisterModRM(ElfThing* thing, TargetMachine& target, Reg a, Reg b)
+static void EmitRegisterModRM(ElfThing* thing, TargetMachine* target, Reg a, Reg b)
 {
   uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-  modRM |= target.registerSet[a].pimpl->opcodeOffset << 3u;
-  modRM |= target.registerSet[b].pimpl->opcodeOffset;
+  modRM |= target->registerSet[a].pimpl->opcodeOffset << 3u;
+  modRM |= target->registerSet[b].pimpl->opcodeOffset;
   Emit<uint8_t>(thing, modRM);
 }
 
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg reg, Reg base, uint32_t displacement,
+static void EmitIndirectModRM(ElfThing* thing, TargetMachine* target, Reg reg, Reg base, uint32_t displacement,
                               Reg index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
-  modRM |= target.registerSet[reg].pimpl->opcodeOffset << 3u;
+  modRM |= target->registerSet[reg].pimpl->opcodeOffset << 3u;
 
   if (scale == 0u)
   {
-    modRM |= target.registerSet[base].pimpl->opcodeOffset;
+    modRM |= target->registerSet[base].pimpl->opcodeOffset;
   }
   else
   {
@@ -86,8 +86,8 @@ static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg reg, R
 
     // NOTE(Isaac): taking the base-2 log of the scale gives the correct bit sequence... because magic
     sib |= static_cast<uint8_t>(log2(scale)) << 6u;
-    sib |= target.registerSet[index].pimpl->opcodeOffset << 3u;
-    sib |= target.registerSet[base].pimpl->opcodeOffset;
+    sib |= target->registerSet[index].pimpl->opcodeOffset << 3u;
+    sib |= target->registerSet[base].pimpl->opcodeOffset;
     Emit<uint8_t>(thing, sib);
   }
 
@@ -101,15 +101,15 @@ static void EmitIndirectModRM(ElfThing* thing, TargetMachine& target, Reg reg, R
   }
 }
 
-static void EmitExtensionModRM(ElfThing* thing, TargetMachine& target, uint8_t extension, Reg r)
+static void EmitExtensionModRM(ElfThing* thing, TargetMachine* target, uint8_t extension, Reg r)
 {
   uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   modRM |= extension << 3u;
-  modRM |= target.registerSet[r].pimpl->opcodeOffset;
+  modRM |= target->registerSet[r].pimpl->opcodeOffset;
   Emit<uint8_t>(thing, modRM);
 }
 
-void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I instruction, ...)
+void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I instruction, ...)
 {
   va_list args;
   va_start(args, instruction);
@@ -136,13 +136,13 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I inst
     case I::PUSH_REG:
     {
       Reg r = static_cast<Reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, 0x50 + target.registerSet[r].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0x50 + target->registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case I::POP_REG:
     {
       Reg r = static_cast<Reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, 0x58 + target.registerSet[r].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0x58 + target->registerSet[r].pimpl->opcodeOffset);
     } break;
 
     case I::ADD_REG_REG:
@@ -250,7 +250,7 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I inst
       Reg dest = static_cast<Reg>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-      Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0xB8 + target->registerSet[dest].pimpl->opcodeOffset);
       Emit<uint32_t>(thing, imm);
     } break;
 
@@ -260,7 +260,7 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine& target, I inst
       uint64_t imm = va_arg(args, uint64_t);
 
       Emit<uint8_t>(thing, 0x48);
-      Emit<uint8_t>(thing, 0xB8 + target.registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0xB8 + target->registerSet[dest].pimpl->opcodeOffset);
       Emit<uint64_t>(thing, imm);
     } break;
 

@@ -350,13 +350,13 @@ struct AirState
 
 struct AirGenerator : ASTPass<Slot*, AirState>
 {
-  AirGenerator(TargetMachine& target)
+  AirGenerator(TargetMachine* target)
     :ASTPass()
     ,target(target)
   {
   }
 
-  TargetMachine& target;
+  TargetMachine* target;
 
   void Apply(ParseResult& parse);
 

@@ -283,4 +283,4 @@ struct OperatorThing : CodeThing
 
 TypeDef* GetTypeByName(ParseResult& parse, const std::string& name);
 bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability = true);
-void CompleteIR(ParseResult& parse, TargetMachine& target);
+void CompleteIR(ParseResult& parse, TargetMachine* target);

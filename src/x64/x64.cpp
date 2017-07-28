@@ -5,15 +5,12 @@
 
 #include <x64/x64.hpp>
 
-TargetMachine::TargetMachine()
-  :name("x64_elf")
-  ,numRegisters(16u)
-  ,registerSet(new RegisterDef[numRegisters])
-  ,numGeneralRegisters(14u)
-  ,generalRegisterSize(8u)
-  ,numIntParamColors(6u)
-  ,intParamColors(new unsigned int[numIntParamColors])
-  ,functionReturnColor(RAX)
+TargetMachine_x64::TargetMachine_x64()
+  :TargetMachine("x64_elf", 16u /* numRegisters        */,
+                            14u /* numGeneralRegisters */,
+                            8u  /* generalRegisterSize */,
+                            6u  /* numIntParamColors   */,
+                            RAX /* functionReturnColor */)
 {
   intParamColors[0u] = RDI;
   intParamColors[1u] = RSI;
@@ -44,15 +41,12 @@ TargetMachine::TargetMachine()
   REGISTER(R15, "R15", RegisterDef::Usage::GENERAL, 15u);
 }
 
-TargetMachine::~TargetMachine()
+InstructionPrecolorer* TargetMachine_x64::CreateInstructionPrecolorer()
 {
-  for (unsigned int i = 0u;
-       i < numRegisters;
-       i++)
-  {
-    delete registerSet[i].pimpl;
-  }
+  return new InstructionPrecolorer_x64();
+}
 
-  delete[] registerSet;
-  delete[] intParamColors;
+CodeGenerator* TargetMachine_x64::CreateCodeGenerator(ElfFile& file)
+{
+  return new CodeGenerator_x64(this, file);
 }

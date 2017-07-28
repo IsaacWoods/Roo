@@ -7,6 +7,8 @@
 
 #include <cstdint>
 #include <codegen.hpp>
+#include <x64/precolorer.hpp>
+#include <x64/codeGenerator.hpp>
 
 enum Reg
 {
@@ -32,4 +34,12 @@ enum Reg
 struct RegisterPimpl
 {
   uint8_t opcodeOffset;
+};
+
+struct TargetMachine_x64 : TargetMachine
+{
+  TargetMachine_x64();
+
+  InstructionPrecolorer* CreateInstructionPrecolorer();
+  CodeGenerator* CreateCodeGenerator(ElfFile& file);
 };

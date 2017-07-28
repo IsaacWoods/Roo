@@ -269,7 +269,7 @@ void Emit(ElfThing* thing, T t)
 
 struct ElfFile
 {
-  ElfFile(TargetMachine& target, bool isRelocatable);
+  ElfFile(TargetMachine* target, bool isRelocatable);
   ~ElfFile() { }
 
   bool                        isRelocatable;

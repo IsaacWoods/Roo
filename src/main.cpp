@@ -12,6 +12,7 @@
 #include <module.hpp>
 #include <passes/passes.hpp>
 #include <codegen.hpp>
+#include <x64/x64.hpp>
 #include <x64/codeGenerator.hpp>
 
 #if 1
@@ -51,7 +52,7 @@ int main()
 
   ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
   ParseResult result;
-  TargetMachine target;
+  TargetMachine* target = new TargetMachine_x64();
 
   // Compile the current directory
   if (!Compile(result, "."))

@@ -854,9 +854,9 @@ static void MapSectionsToSegments(ElfFile& elf)
   }
 }
 
-ElfFile::ElfFile(TargetMachine& target, bool isRelocatable)
+ElfFile::ElfFile(TargetMachine* target, bool isRelocatable)
   :isRelocatable(isRelocatable)
-  ,target(&target)
+  ,target(target)
   ,header()
   ,segments()
   ,symbols()

@@ -603,7 +603,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
 
   for (ASTNode* paramNode : node->params)
   {
-    Assert(numGeneralParams < target.numGeneralRegisters, "Filled up general registers");
+    Assert(numGeneralParams < target->numGeneralRegisters, "Filled up general registers");
     Slot* slot = Dispatch(paramNode, state);
 
     switch (slot->GetType())
@@ -613,7 +613,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
       case SlotType::MEMBER:
       case SlotType::TEMPORARY:
       {
-        slot->color = target.intParamColors[numGeneralParams++];
+        slot->color = target->intParamColors[numGeneralParams++];
         paramSlots.push_back(slot);
       } break;
 
@@ -625,7 +625,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
       case SlotType::STRING_CONSTANT:
       {
         TemporarySlot* tempSlot = new TemporarySlot(state->code);
-        tempSlot->color = target.intParamColors[numGeneralParams++];
+        tempSlot->color = target->intParamColors[numGeneralParams++];
         AirInstruction* mov = new MovInstruction(slot, tempSlot);
         PushInstruction(state->code, mov);
         paramSlots.push_back(tempSlot);
@@ -650,7 +650,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
   {
     returnSlot = new ReturnResultSlot(state->code);
     returnSlot->ChangeValue(call);
-    returnSlot->color = target.functionReturnColor;
+    returnSlot->color = target->functionReturnColor;
   }
 
   if (node->next) (void)Dispatch(node->next, state);
@@ -816,7 +816,7 @@ FoundInterference:
  * XXX: Atm, this is very naive and could do with a lot more improvement to achieve a more efficient k-coloring,
  * especially concerning the register pressure (or lack of it).
  */
-static void ColorSlots(TargetMachine& target, CodeThing* code)
+static void ColorSlots(TargetMachine* target, CodeThing* code)
 {
   for (Slot* slot : code->slots)
   {
@@ -827,8 +827,8 @@ static void ColorSlots(TargetMachine& target, CodeThing* code)
     }
 
     // Find colors already used by interfering slots
-    bool usedColors[target.numGeneralRegisters];
-    memset(usedColors, false, sizeof(bool)*target.numGeneralRegisters);
+    bool usedColors[target->numGeneralRegisters];
+    memset(usedColors, false, sizeof(bool)*target->numGeneralRegisters);
     for (Slot* interferingSlot : slot->interferences)
     {
       if (interferingSlot->color != -1)
@@ -839,13 +839,13 @@ static void ColorSlots(TargetMachine& target, CodeThing* code)
 
     // Choose a free color
     for (unsigned int i = 0u;
-         i < target.numGeneralRegisters;
+         i < target->numGeneralRegisters;
          i++)
     {
       /*
        * Some registers may be reserved for special purposes - we should not use these for general stuff
        */
-      if (!usedColors[i] && target.registerSet[i].usage == RegisterDef::Usage::GENERAL)
+      if (!usedColors[i] && target->registerSet[i].usage == RegisterDef::Usage::GENERAL)
       {
         slot->color = static_cast<signed int>(i);
         break;
@@ -943,7 +943,7 @@ void AirGenerator::Apply(ParseResult& parse)
     for (VariableDef* param : code->params)
     {
       param->slot = new ParameterSlot(code, param);
-      param->slot->color = target.intParamColors[numParams++];
+      param->slot->color = target->intParamColors[numParams++];
 
       for (VariableDef* member : param->members)
       {
@@ -975,14 +975,15 @@ void AirGenerator::Apply(ParseResult& parse)
     AirState state(code);
     Dispatch(code->ast, &state);
 
-    // Allow the code generator to precolor the interference graph
-    InstructionPrecolorer_x64 precolorer;
+    // Precolor the interference graph
+    InstructionPrecolorer* precolorer = target->CreateInstructionPrecolorer();
     for (AirInstruction* instruction = code->airHead;
          instruction;
          instruction = instruction->next)
     {
-      precolorer.Dispatch(instruction);
+      precolorer->Dispatch(instruction);
     }
+    delete precolorer;
     
     // Color the interference graph
     GenerateInterferenceGraph(code);

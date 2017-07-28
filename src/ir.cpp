@@ -439,7 +439,7 @@ static void CompleteMembers(VariableDef* variable)
   }
 }
 
-void CompleteIR(ParseResult& parse, TargetMachine& target)
+void CompleteIR(ParseResult& parse, TargetMachine* target)
 {
   for (CodeThing* thing : parse.codeThings)
   {
@@ -511,7 +511,7 @@ void CompleteIR(ParseResult& parse, TargetMachine& target)
         Assert(local->type.isResolved, "Tried to allocate stack frame before types have been resolved");
 
         // Work out where to store this local
-        if (local->type.resolvedType->size > target.generalRegisterSize)
+        if (local->type.resolvedType->size > target->generalRegisterSize)
         {
           local->storage = VariableDef::Storage::STACK;
           thing->neededStackSpace += local->type.resolvedType->size;

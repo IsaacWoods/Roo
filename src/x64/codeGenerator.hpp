@@ -12,7 +12,7 @@
 
 struct CodeGenerator_x64 : CodeGenerator
 {
-  CodeGenerator_x64(TargetMachine& target, ElfFile& file)
+  CodeGenerator_x64(TargetMachine* target, ElfFile& file)
     :CodeGenerator(target)
     ,file(file)
   {
