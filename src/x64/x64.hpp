@@ -5,12 +5,13 @@
 
 #pragma once
 
+#include <string>
 #include <cstdint>
 #include <codegen.hpp>
 #include <x64/precolorer.hpp>
 #include <x64/codeGenerator.hpp>
 
-enum Reg
+enum Reg_x64
 {
   RAX,
   RBX,
@@ -31,8 +32,10 @@ enum Reg
   NUM_REGISTERS
 };
 
-struct RegisterPimpl
+struct RegisterDef_x64 : BaseRegisterDef
 {
+  RegisterDef_x64(BaseRegisterDef::Usage usage, const std::string& name, uint8_t opcodeOffset);
+
   uint8_t opcodeOffset;
 };
 

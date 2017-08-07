@@ -43,33 +43,33 @@
  * `index`  : the index register to use
  * `base`   : the base register to use
  */
-static void EmitRegisterModRM(ElfThing* thing, TargetMachine* target, Reg a, Reg b)
+static void EmitRegisterModRM(ElfThing* thing, TargetMachine* target, Reg_x64 a, Reg_x64 b)
 {
   uint8_t modRM = 0b11000000; // NOTE(Isaac): use the register-direct addressing mode
-  modRM |= target->registerSet[a].pimpl->opcodeOffset << 3u;
-  modRM |= target->registerSet[b].pimpl->opcodeOffset;
+  modRM |= static_cast<RegisterDef_x64*>(target->registerSet[a])->opcodeOffset << 3u;
+  modRM |= static_cast<RegisterDef_x64*>(target->registerSet[b])->opcodeOffset;
   Emit<uint8_t>(thing, modRM);
 }
 
 /*
  * NOTE(Isaac): `scale` may be 1, 2, 4 or 8. If left out, no SIB is created.
  */
-static void EmitIndirectModRM(ElfThing* thing, TargetMachine* target, Reg reg, Reg base, uint32_t displacement,
-                              Reg index = NUM_REGISTERS, unsigned int scale = 0u)
+static void EmitIndirectModRM(ElfThing* thing, TargetMachine* target, Reg_x64 reg, Reg_x64 base, uint32_t disp,
+                              Reg_x64 index = NUM_REGISTERS, unsigned int scale = 0u)
 {
   uint8_t modRM = 0u;
-  modRM |= target->registerSet[reg].pimpl->opcodeOffset << 3u;
+  modRM |= static_cast<RegisterDef_x64*>(target->registerSet[reg])->opcodeOffset << 3u;
 
   if (scale == 0u)
   {
-    modRM |= target->registerSet[base].pimpl->opcodeOffset;
+    modRM |= static_cast<RegisterDef_x64*>(target->registerSet[base])->opcodeOffset;
   }
   else
   {
     modRM |= 0b100;
   }
 
-  if (displacement >= ((2u<<7u)-1u))
+  if (disp>= ((2u<<7u)-1u))
   {
     modRM |= 0b10000000;  // NOTE(Isaac): we need four bytes for the displacement
   }
@@ -86,26 +86,26 @@ static void EmitIndirectModRM(ElfThing* thing, TargetMachine* target, Reg reg, R
 
     // NOTE(Isaac): taking the base-2 log of the scale gives the correct bit sequence... because magic
     sib |= static_cast<uint8_t>(log2(scale)) << 6u;
-    sib |= target->registerSet[index].pimpl->opcodeOffset << 3u;
-    sib |= target->registerSet[base].pimpl->opcodeOffset;
+    sib |= static_cast<RegisterDef_x64*>(target->registerSet[index])->opcodeOffset << 3u;
+    sib |= static_cast<RegisterDef_x64*>(target->registerSet[base])->opcodeOffset;
     Emit<uint8_t>(thing, sib);
   }
 
-  if (displacement >= ((2u<<7u)-1u))
+  if (disp >= ((2u<<7u)-1u))
   {
-    Emit<uint32_t>(thing, displacement);
+    Emit<uint32_t>(thing, disp);
   }
   else
   {
-    Emit<uint8_t>(thing, static_cast<uint8_t>(displacement));
+    Emit<uint8_t>(thing, static_cast<uint8_t>(disp));
   }
 }
 
-static void EmitExtensionModRM(ElfThing* thing, TargetMachine* target, uint8_t extension, Reg r)
+static void EmitExtensionModRM(ElfThing* thing, TargetMachine* target, uint8_t extension, Reg_x64 r)
 {
   uint8_t modRM = 0b11000000;  // NOTE(Isaac): register-direct addressing mode
   modRM |= extension << 3u;
-  modRM |= target->registerSet[r].pimpl->opcodeOffset;
+  modRM |= static_cast<RegisterDef_x64*>(target->registerSet[r])->opcodeOffset;
   Emit<uint8_t>(thing, modRM);
 }
 
@@ -118,8 +118,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
   {
     case I::CMP_REG_REG:
     {
-      Reg op1 = static_cast<Reg>(va_arg(args, int));
-      Reg op2 = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 op1 = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 op2 = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x39);
       EmitRegisterModRM(thing, target, op1, op2);
@@ -135,20 +135,20 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::PUSH_REG:
     {
-      Reg r = static_cast<Reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, 0x50 + target->registerSet[r].pimpl->opcodeOffset);
+      Reg_x64 r = static_cast<Reg_x64>(va_arg(args, int));
+      Emit<uint8_t>(thing, 0x50 + static_cast<RegisterDef_x64*>(target->registerSet[r])->opcodeOffset);
     } break;
 
     case I::POP_REG:
     {
-      Reg r = static_cast<Reg>(va_arg(args, int));
-      Emit<uint8_t>(thing, 0x58 + target->registerSet[r].pimpl->opcodeOffset);
+      Reg_x64 r = static_cast<Reg_x64>(va_arg(args, int));
+      Emit<uint8_t>(thing, 0x58 + static_cast<RegisterDef_x64*>(target->registerSet[r])->opcodeOffset);
     } break;
 
     case I::ADD_REG_REG:
     {
-      Reg dest  = static_cast<Reg>(va_arg(args, int));
-      Reg src   = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest  = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 src   = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x01);
@@ -157,8 +157,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::SUB_REG_REG:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
-      Reg src  = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 src  = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x29);
@@ -167,8 +167,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::MUL_REG_REG:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
-      Reg src  = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 src  = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x0f);
@@ -184,8 +184,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::XOR_REG_REG:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
-      Reg src  = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 src  = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x31);
@@ -194,8 +194,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::ADD_REG_IMM32:
     {
-      Reg result    = static_cast<Reg>(va_arg(args, int));
-      uint32_t imm  = va_arg(args, uint32_t);
+      Reg_x64 result = static_cast<Reg_x64>(va_arg(args, int));
+      uint32_t imm = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x81);
@@ -205,8 +205,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::SUB_REG_IMM32:
     {
-      Reg result    = static_cast<Reg>(va_arg(args, int));
-      uint32_t imm  = va_arg(args, uint32_t);
+      Reg_x64 result = static_cast<Reg_x64>(va_arg(args, int));
+      uint32_t imm = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x81);
@@ -216,8 +216,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::MUL_REG_IMM32:
     {
-      Reg result    = static_cast<Reg>(va_arg(args, int));
-      uint32_t imm  = va_arg(args, uint32_t);
+      Reg_x64 result = static_cast<Reg_x64>(va_arg(args, int));
+      uint32_t imm = va_arg(args, uint32_t);
 
       if (imm >= 256u)
       {
@@ -237,8 +237,8 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::MOV_REG_REG:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
-      Reg src  = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 src  = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x89);
@@ -247,27 +247,27 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::MOV_REG_IMM32:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
       uint32_t imm = va_arg(args, uint32_t);
 
-      Emit<uint8_t>(thing, 0xB8 + target->registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0xB8 + static_cast<RegisterDef_x64*>(target->registerSet[dest])->opcodeOffset);
       Emit<uint32_t>(thing, imm);
     } break;
 
     case I::MOV_REG_IMM64:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
       uint64_t imm = va_arg(args, uint64_t);
 
       Emit<uint8_t>(thing, 0x48);
-      Emit<uint8_t>(thing, 0xB8 + target->registerSet[dest].pimpl->opcodeOffset);
+      Emit<uint8_t>(thing, 0xB8 + static_cast<RegisterDef_x64*>(target->registerSet[dest])->opcodeOffset);
       Emit<uint64_t>(thing, imm);
     } break;
 
     case I::MOV_REG_BASE_DISP:
     {
-      Reg dest = static_cast<Reg>(va_arg(args, int));
-      Reg base = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 dest = static_cast<Reg_x64>(va_arg(args, int));
+      Reg_x64 base = static_cast<Reg_x64>(va_arg(args, int));
       uint32_t displacement = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0x48);
@@ -277,32 +277,32 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::MOV_BASE_DISP_IMM32:
     {
-      Reg base = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 base = static_cast<Reg_x64>(va_arg(args, int));
       uint32_t displacement = va_arg(args, uint32_t);
       uint32_t imm = va_arg(args, uint32_t);
 
       Emit<uint8_t>(thing, 0xC7);
-      EmitIndirectModRM(thing, target, (Reg)0u, base, displacement);
+      EmitIndirectModRM(thing, target, (Reg_x64)0u, base, displacement);
       Emit<uint32_t>(thing, imm);
     } break;
 
     case I::MOV_BASE_DISP_IMM64:
     {
-      Reg base = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 base = static_cast<Reg_x64>(va_arg(args, int));
       uint32_t displacement = va_arg(args, uint32_t);
       uint64_t imm = va_arg(args, uint64_t);
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0xC7);
-      EmitIndirectModRM(thing, target, (Reg)0u, base, displacement);
+      EmitIndirectModRM(thing, target, (Reg_x64)0u, base, displacement);
       Emit<uint64_t>(thing, imm);
     } break;
 
     case I::MOV_BASE_DISP_REG:
     {
-      Reg base = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 base = static_cast<Reg_x64>(va_arg(args, int));
       uint32_t displacement = va_arg(args, uint32_t);
-      Reg src = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 src = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0x48);
       Emit<uint8_t>(thing, 0x89);
@@ -311,7 +311,7 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::INC_REG:
     {
-      Reg r = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 r = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xFF);
       EmitExtensionModRM(thing, target, 0u, r);
@@ -319,7 +319,7 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::DEC_REG:
     {
-      Reg r = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 r = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xFF);
       EmitExtensionModRM(thing, target, 1u, r);
@@ -327,7 +327,7 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::NOT_REG:
     {
-      Reg r = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 r = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xF7);
       EmitExtensionModRM(thing, target, 2u, r);
@@ -335,7 +335,7 @@ void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I inst
 
     case I::NEG_REG:
     {
-      Reg r = static_cast<Reg>(va_arg(args, int));
+      Reg_x64 r = static_cast<Reg_x64>(va_arg(args, int));
 
       Emit<uint8_t>(thing, 0xF7);
       EmitExtensionModRM(thing, target, 3u, r);

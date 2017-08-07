@@ -5,7 +5,12 @@
 
 #include <codegen.hpp>
 #include <elf/elf.hpp>
-#include <x64/codeGenerator.hpp>
+
+BaseRegisterDef::BaseRegisterDef(Usage usage, const std::string& name)
+  :usage(usage)
+  ,name(name)
+{
+}
 
 TargetMachine::TargetMachine(const std::string& name, unsigned int numRegisters,
                                                       unsigned int numGeneralRegisters,
@@ -14,7 +19,7 @@ TargetMachine::TargetMachine(const std::string& name, unsigned int numRegisters,
                                                       unsigned int functionReturnColor)
   :name(name)
   ,numRegisters(numRegisters)
-  ,registerSet(new RegisterDef[numRegisters])
+  ,registerSet(new BaseRegisterDef*[numRegisters])
   ,numGeneralRegisters(numGeneralRegisters)
   ,generalRegisterSize(generalRegisterSize)
   ,numIntParamColors(numIntParamColors)
@@ -25,12 +30,12 @@ TargetMachine::TargetMachine(const std::string& name, unsigned int numRegisters,
 
 TargetMachine::~TargetMachine()
 {
-/*  for (unsigned int i = 0u;
+  for (unsigned int i = 0u;
        i < numRegisters;
        i++)
   {
-    delete registerSet[i].pimpl;
-  }*/
+    delete registerSet[i];
+  }
 
   delete[] registerSet;
   delete[] intParamColors;

@@ -11,20 +11,22 @@
 #include <air.hpp>
 
 /*
- * NOTE(Isaac): This allows the codegen module to store platform-dependent
- * information about each register.
+ * This is the base register definition. Each target architecture should extend it to contain information specific
+ * to that architecture's registers.
  */
-struct RegisterPimpl;
-
-struct RegisterDef
+struct BaseRegisterDef
 {
   enum Usage
   {
     GENERAL,
     SPECIAL
-  }               usage;
-  const char*     name;
-  RegisterPimpl*  pimpl;
+  };
+  
+  BaseRegisterDef(Usage usage, const std::string& name);
+  virtual ~BaseRegisterDef() { }
+
+  Usage       usage;
+  std::string name;
 };
 
 /*
@@ -46,18 +48,23 @@ struct TargetMachine
   virtual InstructionPrecolorer* CreateInstructionPrecolorer() = 0;
   virtual CodeGenerator* CreateCodeGenerator(ElfFile& file) = 0;
 
-  std::string   name;
-  unsigned int  numRegisters;
-  RegisterDef*  registerSet;
-  unsigned int  numGeneralRegisters;
-  unsigned int  generalRegisterSize;
+  std::string       name;
+  unsigned int      numRegisters;
+  BaseRegisterDef** registerSet;
+  unsigned int      numGeneralRegisters;
+  unsigned int      generalRegisterSize;
 
-  unsigned int  numIntParamColors;
-  unsigned int* intParamColors;
+  unsigned int      numIntParamColors;
+  unsigned int*     intParamColors;
 
-  unsigned int  functionReturnColor;
+  unsigned int      functionReturnColor;
 };
 
+/*
+ * Instruction precoloring allows us to enforce platform-specific restrictions on register allocation. For example,
+ * division instructions on x86 and x64 require the operands and results to be in specific registers, which is
+ * enforced by the precolorer, before the interference graph is then colored normally.
+ */
 struct InstructionPrecolorer : AirPass<void>
 {
   InstructionPrecolorer() : AirPass() { }

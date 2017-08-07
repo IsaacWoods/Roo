@@ -2,21 +2,15 @@
 
 import Prelude
 
-type Color
-{
-  r : int
-  g : int
-  b : int
-}
-
 #[Entry]
 fn Main() -> int
 {
-  color : Color(255, 0, 255)
+  i : uint = 0u
 
-  if (color.r > 3)
+  while (i < 5u)
   {
-    Print("Hello, World!\n")
+    Print("Loop\n")
+    i++
   }
 
   return 0

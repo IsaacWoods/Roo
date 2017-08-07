@@ -845,7 +845,7 @@ static void ColorSlots(TargetMachine* target, CodeThing* code)
       /*
        * Some registers may be reserved for special purposes - we should not use these for general stuff
        */
-      if (!usedColors[i] && target->registerSet[i].usage == RegisterDef::Usage::GENERAL)
+      if (!usedColors[i] && target->registerSet[i]->usage == BaseRegisterDef::Usage::GENERAL)
       {
         slot->color = static_cast<signed int>(i);
         break;

@@ -79,6 +79,7 @@ void TypeChecker::VisitNode(BinaryOpNode* node, TypeCheckingContext* context)
 {
   Dispatch(node->left, context);
   Dispatch(node->right, context);
+
   if (node->next) Dispatch(node->next, context);
 }
 
@@ -242,7 +243,7 @@ void TypeChecker::VisitNode(CallNode* node, TypeCheckingContext* context)
     }
 
     // This is the correct thing!
-    free(node->name);
+    delete node->name;
     node->resolvedFunction = thing;
     node->isResolved = true;
     context->code->calledThings.push_back(thing);
