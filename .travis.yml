@@ -8,7 +8,7 @@ matrix:
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty
+            - llvm-toolchain-xenial
             - ubuntu-toolchain-r-test
           packages:
             - clang-5.0
