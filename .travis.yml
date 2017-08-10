@@ -11,12 +11,12 @@ matrix:
             - llvm-toolchain-trusty-5.0
             - ubuntu-toolchain-r-test
           packages:
-            - clang-5.0
+            - clang
             - g++-6
             - nasm
       env:
-        - CC=clang-5.0
-        - CXX=clang++-5.0
+        - CC=clang
+        - CXX=clang++
     - os: linux
       addons:
         apt:
