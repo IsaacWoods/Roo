@@ -7,118 +7,51 @@
 
 #include <stack>
 #include <error.hpp>
+#include <parser.hpp>
+#include <ir.hpp>
 
 struct ParseResult;
 struct ScopeDef;
 struct CodeThing;
 
-enum TokenType
+enum RooKeyword
 {
-  // Keywords
-  TOKEN_TYPE,
-  TOKEN_FN,
-  TOKEN_TRUE,
-  TOKEN_FALSE,
-  TOKEN_IMPORT,
-  TOKEN_BREAK,
-  TOKEN_RETURN,
-  TOKEN_IF,
-  TOKEN_ELSE,
-  TOKEN_WHILE,
-  TOKEN_MUT,
-  TOKEN_OPERATOR,
-
-  // Punctuation
-  TOKEN_DOT,
-  TOKEN_COMMA,
-  TOKEN_COLON,
-  TOKEN_LEFT_PAREN,
-  TOKEN_RIGHT_PAREN,
-  TOKEN_LEFT_BRACE,             // {
-  TOKEN_RIGHT_BRACE,            // }
-  TOKEN_LEFT_BLOCK,             // [
-  TOKEN_RIGHT_BLOCK,            // ]
-  TOKEN_ASTERIX,
-  TOKEN_PLUS,
-  TOKEN_MINUS,
-  TOKEN_SLASH,
-  TOKEN_EQUALS,
-  TOKEN_BANG,                   // !
-  TOKEN_TILDE,                  // ~
-  TOKEN_PERCENT,
-  TOKEN_QUESTION_MARK,
-  TOKEN_POUND,                  // #
-
-  TOKEN_YIELDS,                 // ->
-  TOKEN_START_ATTRIBUTE,        // #[
-  TOKEN_EQUALS_EQUALS,
-  TOKEN_BANG_EQUALS,
-  TOKEN_GREATER_THAN,
-  TOKEN_GREATER_THAN_EQUAL_TO,
-  TOKEN_LESS_THAN,
-  TOKEN_LESS_THAN_EQUAL_TO,
-  TOKEN_DOUBLE_PLUS,
-  TOKEN_DOUBLE_MINUS,
-  TOKEN_LEFT_SHIFT,
-  TOKEN_RIGHT_SHIFT,
-  TOKEN_AND,
-  TOKEN_OR,
-  TOKEN_XOR,
-  TOKEN_DOUBLE_AND,
-  TOKEN_DOUBLE_OR,
-
-  // Other stuff
-  TOKEN_IDENTIFIER,
-  TOKEN_STRING,
-  TOKEN_SIGNED_INT,
-  TOKEN_UNSIGNED_INT,
-  TOKEN_FLOAT,
-  TOKEN_CHAR_CONSTANT,
-  TOKEN_LINE,
-  TOKEN_INVALID,
-
-  NUM_TOKENS
+  KEYWORD_TYPE,
+  KEYWORD_FN,
+  KEYWORD_TRUE,
+  KEYWORD_FALSE,
+  KEYWORD_IMPORT,
+  KEYWORD_BREAK,
+  KEYWORD_RETURN,
+  KEYWORD_IF,
+  KEYWORD_ELSE,
+  KEYWORD_WHILE,
+  KEYWORD_MUT,
+  KEYWORD_OPERATOR,
 };
 
-struct Token
+struct RooParser : Parser<RooKeyword>
 {
-  TokenType    type;
-  unsigned int offset;
-  unsigned int line;
-  unsigned int lineOffset;
+  RooParser(ParseResult& result, const std::string& path);
+  ~RooParser() { }
 
-  const char*  textStart;   // NOTE(Isaac): this points into the parser's source. It is not null-terminated!
-  unsigned int textLength;
-
-  union
-  {
-    int           asSignedInt;    // Valid if token type is TOKEN_SIGNED_INT
-    unsigned int  asUnsignedInt;  // Valid if token type is TOKEN_UNSIGNED_INT
-    float         asFloat;        // Valid if token type is TOKEN_FLOAT
-  };
-};
-
-struct Parser
-{
-  Parser(ParseResult& result, const char* sourcePath);
-  ~Parser();
-
-  const char*           path;               // the path of the thing we are compiling
-  char*                 source;
-  const char*           currentChar;        // this points into `source`
-  unsigned int          currentLine;
-  unsigned int          currentLineOffset;
-  bool                  isInLoop;           // This dictates whether we can use the `break` command
-
-  Token                 currentToken;
-  Token                 nextToken;
-  std::stack<ScopeDef*> scopeStack;
-  CodeThing*            currentThing;       // This is the CodeThing that is currently being parsed
+  ASTNode* ParseExpression(unsigned int precedence = 0u);
+  TypeRef ParseTypeRef();
+  void ParseParameterList(std::vector<VariableDef*>& params);
+  VariableDef* ParseVariableDef();
+  ASTNode* ParseStatement();
+  ASTNode* ParseBlock();
+  ASTNode* ParseIf();
+  ASTNode* ParseWhile();
+  void ParseTypeDef();
+  void ParseImport();
+  void ParseFunction(AttribSet& attribs);
+  void ParseOperator(AttribSet& attribs);
+  void ParseAttribute(AttribSet& attribs);
 
   ParseResult&          result;
-  ErrorState            errorState;
-};
 
-Token PeekToken(Parser& parser, bool ignoreLines = true);
-Token NextToken(Parser& parser, bool ignoreLines = true);
-const char* GetTokenName(TokenType type);
+  bool                  isInLoop;
+  std::stack<ScopeDef*> scopeStack;
+  CodeThing*            currentThing;
+};

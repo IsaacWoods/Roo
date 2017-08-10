@@ -10,18 +10,19 @@ struct DotState
 {
   DotState(const std::string& fileName)
     :nodeCounter(0u)
-    ,errorState(ErrorState::Type::GENERAL_STUFF)
+    ,errorState(new ErrorState())
     ,f(fopen(fileName.c_str(), "w"))
   {
   }
 
   ~DotState()
   {
+    delete errorState;
     fclose(f);
   }
 
   unsigned int  nodeCounter;
-  ErrorState    errorState;
+  ErrorState*   errorState;
   FILE*         f;
 };
 

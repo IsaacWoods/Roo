@@ -349,7 +349,7 @@ void TypeChecker::VisitNode(ConstructNode* node, TypeCheckingContext* context)
   // Check that we're supplying the correct number of items
   if (node->items.size() != node->type->resolvedType->members.size())
   {
-    RaiseError(context->code->errorState, ERROR_TYPE_CONSTRUCT_NOT_ENOUGH_EXPRESSIONS, node->typeName.c_str());
+    RaiseError(context->code->errorState, ERROR_TYPE_CONSTRUCT_TOO_FEW_EXPRESSIONS, node->typeName.c_str());
     return;
   }
   else

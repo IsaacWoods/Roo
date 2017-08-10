@@ -37,8 +37,8 @@ struct Directory
 
 // --- Common functions ---
 char* itoa(int num, char* str, int base);
-char* ReadFile(const char* path);
-bool DoesFileExist(const char* path);
+char* ReadFile(const std::string& path);
+bool DoesFileExist(const std::string& path);
 
 template<typename... Args>
 std::string FormatString(const std::string& format, Args... args)

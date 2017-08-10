@@ -12,7 +12,7 @@
 ElfThing* CodeGenerator_x64::GenerateBootstrap(ElfThing* thing, ParseResult& parse)
 {
   ElfSymbol* entrySymbol = nullptr;
-  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
+  ErrorState* errorState = new ErrorState();
 
   /*
    * We actually iterate the entire list (even after we're found an entry point) to check that there aren't
@@ -53,6 +53,7 @@ ElfThing* CodeGenerator_x64::GenerateBootstrap(ElfThing* thing, ParseResult& par
   E(I::MOV_REG_IMM32, RAX, 1u);
   E(I::INT_IMM8, 0x80);
 
+  delete errorState;
   return thing;
 }
 

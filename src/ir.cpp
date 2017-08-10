@@ -50,13 +50,15 @@ StringConstant::StringConstant(ParseResult& parse, const std::string& str)
 TypeDef::TypeDef(const std::string& name)
   :name(name)
   ,members()
-  ,errorState(ErrorState::Type::TYPE_FILLING_IN, this)
+  ,errorState(new ErrorState())
   ,size(UINT_MAX)
 {
 }
 
 TypeDef::~TypeDef()
 {
+  delete errorState;
+
   for (MemberDef* member : members)
   {
     delete member;
@@ -224,7 +226,7 @@ CodeThing::CodeThing(CodeThing::Type type)
   ,shouldAutoReturn(false)
   ,attribs()
   ,returnType(nullptr)
-  ,errorState(ErrorState::Type::FUNCTION_FILLING_IN, this)
+  ,errorState(new CodeThingErrorState(this))
   ,ast(nullptr)
   ,stackFrameSize(0u)
   ,airHead(nullptr)
@@ -238,6 +240,8 @@ CodeThing::CodeThing(CodeThing::Type type)
 
 CodeThing::~CodeThing()
 {
+  delete errorState;
+
   delete returnType;
   delete ast;
   
@@ -385,7 +389,7 @@ static std::string MangleName(CodeThing* thing)
   return nullptr;
 }
 
-static void CompleteTypeRef(TypeRef& ref, ParseResult& parse, ErrorState& errorState)
+static void CompleteTypeRef(TypeRef& ref, ParseResult& parse, ErrorState* errorState)
 {
   Assert(!(ref.isResolved), "Tried to resolve TypeRef that is already resolved");
 
@@ -544,7 +548,7 @@ void CompleteIR(ParseResult& parse, TargetMachine* target)
   // If there were any errors completing the IR, don't bother continuing
   for (CodeThing* code : parse.codeThings)
   {
-    if (code->errorState.hasErrored)
+    if (code->errorState->hasErrored)
     {
       RaiseError(ERROR_COMPILE_ERRORS);
     }
@@ -552,7 +556,7 @@ void CompleteIR(ParseResult& parse, TargetMachine* target)
 
   for (TypeDef* type : parse.types)
   {
-    if (type->errorState.hasErrored)
+    if (type->errorState->hasErrored)
     {
       RaiseError(ERROR_COMPILE_ERRORS);
     }

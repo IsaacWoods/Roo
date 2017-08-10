@@ -258,11 +258,11 @@ static void ParseSectionHeader(ElfFile& elf, ElfObject& object)
   }
 }
 
-static void ParseSymbolTable(ErrorState& errorState, ElfFile& elf, ElfObject& object, ElfSection* table)
+static void ParseSymbolTable(ElfFile& elf, ElfObject& object, ElfSection* table)
 {
   if (table->entrySize != SYMBOL_TABLE_ENTRY_SIZE)
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, object.path, "Object has weirdly sized symbols");
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, object.path, "Object has weirdly sized symbols");
   }
   
   unsigned int numSymbols = table->size / SYMBOL_TABLE_ENTRY_SIZE;
@@ -309,13 +309,13 @@ static void ParseSymbolTable(ErrorState& errorState, ElfFile& elf, ElfObject& ob
   }
 }
 
-static void ParseRelocationSection(ErrorState& errorState, ElfFile& elf, ElfObject& object, ElfSection* section)
+static void ParseRelocationSection(ElfFile& elf, ElfObject& object, ElfSection* section)
 {
   const unsigned int RELOCATION_ENTRY_SIZE = 0x18;
 
   if (section->entrySize != RELOCATION_ENTRY_SIZE)
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, object.path, "Relocation section has weirdly sized entries");
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, object.path, "Relocation section has weirdly sized entries");
   }
 
   unsigned int numRelocations = section->size / section->entrySize;
@@ -339,7 +339,7 @@ static void ParseRelocationSection(ErrorState& errorState, ElfFile& elf, ElfObje
 
     if (!(relocation->symbol))
     {
-      RaiseError(errorState, ERROR_UNRESOLVED_SYMBOL, "unknown (from external relocation section)");
+      RaiseError(ERROR_UNRESOLVED_SYMBOL, "unknown (from external relocation section)");
     }
 
     elf.relocations.push_back(relocation);
@@ -349,21 +349,19 @@ static void ParseRelocationSection(ErrorState& errorState, ElfFile& elf, ElfObje
 
 void LinkObject(ElfFile& elf, const char* objectPath)
 {
-  ErrorState errorState(ErrorState::Type::LINKING);
-
   ElfObject object;
   object.path = objectPath;
   object.f = fopen(objectPath, "rb");
 
   if (!(object.f))
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "Couldn't open file");
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath, "Couldn't open file");
   }
 
   #define CONSUME(byte) \
     if (fgetc(object.f) != byte) \
     { \
-      RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "Does not follow format"); \
+      RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath, "Does not follow format"); \
     }
 
   // Check the magic
@@ -379,7 +377,7 @@ void LinkObject(ElfFile& elf, const char* objectPath)
 
   if (fileType != ET_REL)
   {
-    RaiseError(errorState, ERROR_WEIRD_LINKED_OBJECT, objectPath, "File type is not a relocatable");
+    RaiseError(ERROR_WEIRD_LINKED_OBJECT, objectPath, "File type is not a relocatable");
   }
 
   // Parse the section header
@@ -390,22 +388,22 @@ void LinkObject(ElfFile& elf, const char* objectPath)
     {
       case ElfSection::Type::SHT_SYMTAB:
       {
-        ParseSymbolTable(errorState, elf, object, section);
+        ParseSymbolTable(elf, object, section);
       } break;
 
       case ElfSection::Type::SHT_REL:
       {
-        RaiseError(errorState, ICE_GENERIC, "SHT_REL sections are not supported, use SHT_RELA sections instead");
+        RaiseError(ICE_GENERIC, "SHT_REL sections are not supported, use SHT_RELA sections instead");
       } break;
 
       case ElfSection::Type::SHT_RELA:
       {
-        ParseRelocationSection(errorState, elf, object, section);
+        ParseRelocationSection(elf, object, section);
       } break;
 
       default:
       {
-//        RaiseError(errorState, NOTE_IGNORED_ELF_SECTION, GetSectionTypeName(section->type));
+//        RaiseError(NOTE_IGNORED_ELF_SECTION, GetSectionTypeName(section->type));
       } break;
     }
   }
@@ -715,7 +713,7 @@ static void EmitThing(FILE* f, ElfThing* thing, ElfSection* section)
  * This resolves the symbols in the symbol table that are actually referencing symbols
  * that haven't been linked yet.
  */
-static void ResolveUndefinedSymbols(ErrorState& errorState, ElfFile& elf)
+static void ResolveUndefinedSymbols(ErrorState* errorState, ElfFile& elf)
 {
   /*
    * NOTE(Isaac): We can't start the second loop from the next symbol (to make it O(n log n)) because we can
@@ -780,7 +778,7 @@ const char* GetRelocationTypeName(ElfRelocation::Type type)
   __builtin_unreachable();
 }
 
-static void CompleteRelocations(ErrorState& errorState, FILE* f, ElfFile& elf)
+static void CompleteRelocations(ErrorState* errorState, FILE* f, ElfFile& elf)
 {
   long int currentPosition = ftell(f);
 
@@ -878,7 +876,7 @@ ElfFile::ElfFile(TargetMachine* target, bool isRelocatable)
 void WriteElf(ElfFile& elf, const char* path)
 {
   FILE* f = fopen(path, "wb");
-  ErrorState errorState(ErrorState::Type::LINKING);
+  ErrorState* errorState = new ErrorState();
 
   if (!f)
   {
@@ -980,5 +978,6 @@ void WriteElf(ElfFile& elf, const char* path)
   fseek(f, 0x0, SEEK_SET);
   EmitHeader(f, elf.header);
 
+  delete errorState;
   fclose(f);
 }

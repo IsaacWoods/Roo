@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <common.hpp>
 #include <ir.hpp>
+#include <parsing.hpp>
 #include <ast.hpp>
 #include <air.hpp>
 #include <error.hpp>
@@ -34,8 +35,8 @@ static bool Compile(ParseResult& parse, const char* directoryPath)
     if (f.extension == "roo")
     {
       printf("Compiling file \x1B[1;37m%s\x1B[0m\n", f.name.c_str());
-      Parser parser(parse, f.name.c_str());
-      failed |= parser.errorState.hasErrored;
+      RooParser parser(parse, f.name);
+      failed |= parser.errorState->hasErrored;
     }
   }
 
@@ -50,7 +51,7 @@ int main()
   auto begin = std::chrono::high_resolution_clock::now();
 #endif
 
-  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
+  ErrorState* errorState = new ErrorState();
   ParseResult result;
   TargetMachine* target = new TargetMachine_x64();
 
@@ -81,10 +82,12 @@ int main()
         result.filesToLink.push_back(dependency->path);
 
         // Import the module info file
-        if (ImportModule(dependency->path + ROO_MODULE_EXT, result).hasErrored)
+        ErrorState* moduleState = ImportModule(dependency->path + ROO_MODULE_EXT, result);
+        if (moduleState->hasErrored)
         {
           RaiseError(errorState, ERROR_MISSING_MODULE, dependency->path.c_str());
         }
+        delete moduleState;
       } break;
 
       case DependencyDef::Type::REMOTE:
@@ -95,7 +98,7 @@ int main()
   }
 
   // If we've already encoutered (and hopefully correctly reported) error(s), there's no point carrying on
-  if (errorState.hasErrored)
+  if (errorState->hasErrored)
   {
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
@@ -133,7 +136,7 @@ int main()
       continue;
     }
 
-    if (thing->errorState.hasErrored)
+    if (thing->errorState->hasErrored)
     {
       RaiseError(errorState, ERROR_COMPILE_ERRORS);
     }
@@ -141,7 +144,12 @@ int main()
 
   if (result.isModule)
   {
-    ExportModule(result.name + ROO_MODULE_EXT, result);
+    ErrorState* moduleState = ExportModule(result.name + ROO_MODULE_EXT, result);
+    if (moduleState->hasErrored)
+    {
+      RaiseError(errorState, ERROR_FAILED_TO_EXPORT_MODULE, (result.name + ROO_MODULE_EXT).c_str(), "Export failed");
+    }
+    delete moduleState;
   }
 
   // --- Generate AIR for each code thing ---

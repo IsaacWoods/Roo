@@ -5,6 +5,10 @@
 
 #pragma once
 
+#include <cstdio>
+#include <common.hpp>
+#include <token.hpp>
+
 /*
  * XXX: You should use this instead of `assert` from <cassert>
  *
@@ -57,7 +61,7 @@ enum Error
   ERROR_MUST_RETURN_SOMETHING,                  // "Expected to return something of type: %s"
   ERROR_RETURN_VALUE_NOT_EXPECTED,              // "Shouldn't return anything, trying to return a: %s"
   ERROR_MISSING_TYPE_INFORMATION,               // "Missing type information: %s"
-  ERROR_TYPE_CONSTRUCT_NOT_ENOUGH_EXPRESSIONS,  // "Insufficient expressions to construct all members of type: %s"
+  ERROR_TYPE_CONSTRUCT_TOO_FEW_EXPRESSIONS,     // "Insufficient expressions to construct all members of type: %s"
 
   ICE_GENERIC,                                  // "%s"
   ICE_UNHANDLED_TOKEN_TYPE,                     // "Unhandled token type in %s: %s"
@@ -74,44 +78,135 @@ enum Error
   NUM_ERRORS
 };
 
-struct Parser;
+template<typename T> struct Parser;
 struct CodeThing;
 struct TypeDef;
 struct ASTNode;
 struct AirInstruction;
 
-struct ErrorState
+enum ErrorLevel
 {
-  enum Type
-  {
-    GENERAL_STUFF,
-    PARSING_UNIT,         // `parser`     field is valid
-    TRAVERSING_AST,       // `astSection` field is valid
-    FUNCTION_FILLING_IN,  // `code`       field is valid
-    TYPE_FILLING_IN,      // `type`       field is valid
-    GENERATING_AIR,       // `instuction` field is valid
-    CODE_GENERATION,      // `code`       field is valid
-    LINKING
-  };
-
-  ErrorState(Type type, ...);
-
-  Type stateType;
-  bool hasErrored;
-
-  union
-  {
-    struct
-    {
-      CodeThing* code;
-      ASTNode*   node;
-    }               astSection;
-    Parser*         parser;
-    CodeThing*      code;
-    TypeDef*        type;
-    AirInstruction* instruction;
-  };
+  NOTE,
+  WARNING,
+  ERROR,
+  ICE,
 };
 
-void RaiseError(ErrorState& state, Error e, ...);
+enum PoisonStrategy
+{
+  DO_NOTHING,
+  SKIP_TOKEN,
+  SKIP_CHARACTER,
+  TO_END_OF_STATEMENT,
+  TO_END_OF_ATTRIBUTE,
+  TO_END_OF_BLOCK,
+  TO_END_OF_STRING,
+  GIVE_UP
+};
+
+struct ErrorDef
+{
+  ErrorLevel      level;
+  PoisonStrategy  poisonStrategy;
+  const char*     messageFmt;
+};
+
+extern const char* g_levelColors[];
+extern const char* g_levelStrings[];
+
+struct ErrorState
+{
+  ErrorState();
+  virtual ~ErrorState() { }
+
+  bool hasErrored;
+
+  virtual void Poison(PoisonStrategy strategy);
+  virtual void PrintError(const char* message, const ErrorDef& error);
+};
+
+template<typename T>
+struct ParsingErrorState : ErrorState
+{
+  ParsingErrorState(Parser<T>& parser)
+    :parser(parser)
+  { }
+
+  Parser<T>& parser;
+
+  void Poison(PoisonStrategy strategy) override
+  {
+    switch (strategy)
+    {
+      case DO_NOTHING:
+      {
+      } break;
+
+      case SKIP_TOKEN:
+      {
+        parser.NextToken(false);
+      } break;
+
+      case SKIP_CHARACTER:
+      {
+        // TODO: apprently we don't need to do anything here?
+        // Shouldn't we do parser.NextChar() (and make ParsingErrorState a friend class)
+      } break;
+
+      case TO_END_OF_STATEMENT:
+      {
+        while (parser.PeekToken(false).type != TOKEN_LINE)
+        {
+          parser.NextToken(false);
+        }
+        parser.NextToken(false);
+      } break;
+
+      case TO_END_OF_ATTRIBUTE:
+      {
+        while (parser.PeekToken().type != TOKEN_RIGHT_BLOCK)
+        {
+          parser.NextToken();
+        }
+        parser.NextToken();
+      } break;
+
+      case TO_END_OF_STRING:
+      {
+        // TODO: lexing or parsing level?? When is this even used?
+      } break;
+
+      case TO_END_OF_BLOCK:
+      {
+        while (parser.PeekToken().type != TOKEN_RIGHT_BRACE)
+        {
+          parser.NextToken();
+        }
+        parser.NextToken();
+      } break;
+
+      case GIVE_UP:
+      {
+        Crash();
+      } break;
+    }
+  }
+
+  void PrintError(const char* message, const ErrorDef& error) override
+  {
+    fprintf(stderr, "\x1B[1;37m%s(%u:%u):\x1B[0m %s%s: \x1B[0m%s\n", parser.path.c_str(),
+            parser.currentLine, parser.currentLineOffset, g_levelColors[error.level],
+            g_levelStrings[error.level], message);
+  }
+};
+
+struct CodeThingErrorState : ErrorState
+{
+  CodeThingErrorState(CodeThing* thing);
+  ~CodeThingErrorState() { }
+
+  CodeThing* thing;
+};
+
+void RaiseError(ErrorState* state, Error e, ...);
 void RaiseError(Error e, ...);

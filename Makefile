@@ -30,6 +30,7 @@ OBJS = \
 	$(BUILD_DIR)/error.o \
 	$(BUILD_DIR)/ast.o \
 	$(BUILD_DIR)/ir.o \
+	$(BUILD_DIR)/token.o \
   $(BUILD_DIR)/parsing.o \
 	$(BUILD_DIR)/module.o \
 	$(BUILD_DIR)/air.o \

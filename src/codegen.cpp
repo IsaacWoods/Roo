@@ -108,8 +108,6 @@ void Generate(const std::string& outputPath, TargetMachine* target, ParseResult&
   // --- Generate error states and symbols for things of code ---
   for (CodeThing* thing : result.codeThings)
   {
-    thing->errorState = ErrorState(ErrorState::Type::CODE_GENERATION, thing);
-
     /*
      * If it's a prototype, we want to reference the symbol of an already loaded (hopefully) function.
      */

@@ -112,13 +112,13 @@ char* itoa(int num, char* str, int base)
   return str;
 }
 
-char* ReadFile(const char* path)
+char* ReadFile(const std::string& path)
 {
-  FILE* file = fopen(path, "rb");
+  FILE* file = fopen(path.c_str(), "rb");
 
   if (!file)
   {
-    fprintf(stderr, "Failed to read source file: %s\n", path);
+    fprintf(stderr, "Failed to read source file: %s\n", path.c_str());
     Crash();
   }
 
@@ -135,7 +135,7 @@ char* ReadFile(const char* path)
 
   if (fread(contents, 1, length, file) != length)
   {
-    fprintf(stderr, "Failed to read source file: %s\n", path);
+    fprintf(stderr, "Failed to read source file: %s\n", path.c_str());
     Crash();
   }
 
@@ -145,8 +145,8 @@ char* ReadFile(const char* path)
   return contents;
 }
 
-bool DoesFileExist(const char* path)
+bool DoesFileExist(const std::string& path)
 {
   struct stat buffer;
-  return (stat(path, &buffer) == 0);
+  return (stat(path.c_str(), &buffer) == 0);
 }

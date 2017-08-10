@@ -109,7 +109,7 @@ static void EmitExtensionModRM(ElfThing* thing, TargetMachine* target, uint8_t e
   Emit<uint8_t>(thing, modRM);
 }
 
-void Emit(ErrorState& errorState, ElfThing* thing, TargetMachine* target, I instruction, ...)
+void Emit(ErrorState* errorState, ElfThing* thing, TargetMachine* target, I instruction, ...)
 {
   va_list args;
   va_start(args, instruction);

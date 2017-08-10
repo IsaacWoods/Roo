@@ -152,9 +152,9 @@ CodeThing* Read<CodeThing*>(FILE* f)
   return thing;
 }
 
-ErrorState ImportModule(const std::string& modulePath, ParseResult& parse)
+ErrorState* ImportModule(const std::string& modulePath, ParseResult& parse)
 {
-  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
+  ErrorState* errorState = new ErrorState();
   FILE* f = fopen(modulePath.c_str(), "rb");
 
   if (!f)
@@ -204,13 +204,13 @@ ErrorState ImportModule(const std::string& modulePath, ParseResult& parse)
 }
 
 template<typename T>
-void Emit(FILE* f, const T& value, ErrorState& /*errorState*/)
+void Emit(FILE* f, const T& value, ErrorState* /*errorState*/)
 {
   fwrite(&value, sizeof(T), 1, f);
 }
 
 template<>
-void Emit<std::string>(FILE* f, const std::string& value, ErrorState& errorState)
+void Emit<std::string>(FILE* f, const std::string& value, ErrorState* errorState)
 {
   uint8_t length = value.size();
   Emit<uint8_t>(f, length+1u, errorState);  // We also need to include a null-terminator in the length
@@ -225,7 +225,7 @@ void Emit<std::string>(FILE* f, const std::string& value, ErrorState& errorState
 }
 
 template<>
-void Emit<VariableDef*>(FILE* f, VariableDef* const& value, ErrorState& errorState)
+void Emit<VariableDef*>(FILE* f, VariableDef* const& value, ErrorState* errorState)
 {
   Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a VariableDef");
   Emit<std::string>(f, value->name, errorState);
@@ -246,7 +246,7 @@ void Emit<VariableDef*>(FILE* f, VariableDef* const& value, ErrorState& errorSta
 }
 
 template<>
-void Emit<std::vector<VariableDef*>>(FILE* f, const std::vector<VariableDef*>& value, ErrorState& errorState)
+void Emit<std::vector<VariableDef*>>(FILE* f, const std::vector<VariableDef*>& value, ErrorState* errorState)
 {
   Emit<uint8_t>(f, value.size(), errorState);
 
@@ -257,7 +257,7 @@ void Emit<std::vector<VariableDef*>>(FILE* f, const std::vector<VariableDef*>& v
 }
 
 template<>
-void Emit<MemberDef*>(FILE* f, MemberDef* const& value, ErrorState& errorState)
+void Emit<MemberDef*>(FILE* f, MemberDef* const& value, ErrorState* errorState)
 {
   Assert(value->type.isResolved, "Tried to emit module info for unresolved type of a MemberDef");
   Emit<std::string>(f, value->name, errorState);
@@ -278,7 +278,7 @@ void Emit<MemberDef*>(FILE* f, MemberDef* const& value, ErrorState& errorState)
 }
 
 template<>
-void Emit<std::vector<MemberDef*>>(FILE* f, const std::vector<MemberDef*>& value, ErrorState& errorState)
+void Emit<std::vector<MemberDef*>>(FILE* f, const std::vector<MemberDef*>& value, ErrorState* errorState)
 {
   Emit<uint8_t>(f, value.size(), errorState);
 
@@ -289,7 +289,7 @@ void Emit<std::vector<MemberDef*>>(FILE* f, const std::vector<MemberDef*>& value
 }
 
 template<>
-void Emit<TypeDef*>(FILE* f, TypeDef* const& value, ErrorState& errorState)
+void Emit<TypeDef*>(FILE* f, TypeDef* const& value, ErrorState* errorState)
 {
   Emit<std::string>(f, value->name, errorState);
   Emit<std::vector<MemberDef*>>(f, value->members, errorState);
@@ -297,7 +297,7 @@ void Emit<TypeDef*>(FILE* f, TypeDef* const& value, ErrorState& errorState)
 }
 
 template<>
-void Emit<CodeThing*>(FILE* f, CodeThing* const& thing, ErrorState& errorState)
+void Emit<CodeThing*>(FILE* f, CodeThing* const& thing, ErrorState* errorState)
 {
   switch (thing->type)
   {
@@ -317,9 +317,9 @@ void Emit<CodeThing*>(FILE* f, CodeThing* const& thing, ErrorState& errorState)
   }
 }
 
-ErrorState ExportModule(const std::string& outputPath, ParseResult& parse)
+ErrorState* ExportModule(const std::string& outputPath, ParseResult& parse)
 {
-  ErrorState errorState(ErrorState::Type::GENERAL_STUFF);
+  ErrorState* errorState = new ErrorState();
   FILE* f = fopen(outputPath.c_str(), "wb");
 
   if (!f)

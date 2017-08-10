@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <common.hpp>
-#include <parsing.hpp>
+#include <parser.hpp>
 #include <error.hpp>
 
 struct Slot;
@@ -81,7 +81,7 @@ struct TypeDef
 
   std::string             name;
   std::vector<MemberDef*> members;
-  ErrorState              errorState;
+  ErrorState*             errorState;
 
   /*
    * Size of this structure in bytes.
@@ -207,7 +207,6 @@ struct AttribSet
  * within it, and can be inside another scope (it's 'parent'). Code inside a scope can also access variables within
  * its scope's parent.
  */
-struct CodeThing;
 struct ScopeDef
 {
   ScopeDef(CodeThing* thing, ScopeDef* parent);
@@ -248,7 +247,7 @@ struct CodeThing
   AttribSet                 attribs;
   TypeRef*                  returnType;       // `nullptr` if it doesn't return anything
 
-  ErrorState                errorState;
+  ErrorState*               errorState;
   std::vector<CodeThing*>   calledThings;
 
   // AST representation

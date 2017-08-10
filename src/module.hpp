@@ -9,5 +9,5 @@
 #include <error.hpp>
 #include <ir.hpp>
 
-ErrorState ImportModule(const std::string& modulePath, ParseResult& parse);
-ErrorState ExportModule(const std::string& outputPath, ParseResult& parse);
+ErrorState* ImportModule(const std::string& modulePath, ParseResult& parse);
+ErrorState* ExportModule(const std::string& outputPath, ParseResult& parse);
