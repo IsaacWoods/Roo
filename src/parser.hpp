@@ -486,64 +486,28 @@ private:
        * Calling `NextChar()` will actually get the char after the char after `c`.
        */
       char c = NextChar();
-  
+
+      #define LEX_CHAR_TOKEN(character, token)\
+        case character:\
+          type = token;\
+          goto EmitSimpleToken;
+
       switch (c)
       {
-        case '.':
-          type = TOKEN_DOT;
-          goto EmitSimpleToken;
-    
-        case ',':
-          type = TOKEN_COMMA;
-          goto EmitSimpleToken;
-   
-        case ':':
-          type = TOKEN_COLON;
-          goto EmitSimpleToken;
-   
-        case '(':
-          type = TOKEN_LEFT_PAREN;
-          goto EmitSimpleToken;
-    
-        case ')':
-          type = TOKEN_RIGHT_PAREN;
-          goto EmitSimpleToken;
-    
-        case '{':
-          type = TOKEN_LEFT_BRACE;
-          goto EmitSimpleToken;
-    
-        case '}':
-          type = TOKEN_RIGHT_BRACE;
-          goto EmitSimpleToken;
-    
-        case '[':
-          type = TOKEN_LEFT_BLOCK;
-          goto EmitSimpleToken;
-    
-        case ']':
-          type = TOKEN_RIGHT_BLOCK;
-          goto EmitSimpleToken;
-    
-        case '*':
-          type = TOKEN_ASTERIX;
-          goto EmitSimpleToken;
-    
-        case '~':
-          type = TOKEN_TILDE;
-          goto EmitSimpleToken;
-  
-        case '%':
-          type = TOKEN_PERCENT;
-          goto EmitSimpleToken;
-  
-        case '?':
-          type = TOKEN_QUESTION_MARK;
-          goto EmitSimpleToken;
-  
-        case '^':
-          type = TOKEN_XOR;
-          goto EmitSimpleToken;
+        LEX_CHAR_TOKEN('.', TOKEN_DOT);
+        LEX_CHAR_TOKEN(',', TOKEN_COMMA);
+        LEX_CHAR_TOKEN(':', TOKEN_COLON);
+        LEX_CHAR_TOKEN('(', TOKEN_LEFT_PAREN);
+        LEX_CHAR_TOKEN(')', TOKEN_RIGHT_PAREN);
+        LEX_CHAR_TOKEN('{', TOKEN_LEFT_BRACE);
+        LEX_CHAR_TOKEN('}', TOKEN_RIGHT_BRACE);
+        LEX_CHAR_TOKEN('[', TOKEN_LEFT_BLOCK);
+        LEX_CHAR_TOKEN(']', TOKEN_RIGHT_BLOCK);
+        LEX_CHAR_TOKEN('*', TOKEN_ASTERIX);
+        LEX_CHAR_TOKEN('~', TOKEN_TILDE);
+        LEX_CHAR_TOKEN('%', TOKEN_PERCENT);
+        LEX_CHAR_TOKEN('?', TOKEN_QUESTION_MARK);
+        LEX_CHAR_TOKEN('^', TOKEN_XOR);
   
         case '+':
         {
@@ -793,6 +757,7 @@ private:
           RaiseError(errorState, ERROR_UNLEXABLE_CHARACTER, c);
         } break;
       }
+      #undef LEX_CHAR_TOKEN
     }
   
   EmitSimpleToken:
