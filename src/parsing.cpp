@@ -16,6 +16,25 @@
 #include <ast.hpp>
 #include <error.hpp>
 
+/*
+ * When this flag is set, the parser emits detailed logging throughout the parse.
+ * It should probably be left off, unless debugging the lexer or parser.
+ */
+#if 0
+  // NOTE(Isaac): format must be specified as the first vararg
+  #define Log(parser, ...) Log_(parser, __VA_ARGS__);
+//  #define Log(...) Log_(__VA_ARGS__); TODO
+  static void Log_(RooParser& /*parser*/, const char* fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+  }
+#else
+  #define Log(parser, ...)
+#endif
+
 template<>
 const char* GetKeywordName(RooKeyword keyword)
 {
@@ -39,25 +58,6 @@ const char* GetKeywordName(RooKeyword keyword)
 
   #undef KEYWORD
 }
-
-/*
- * When this flag is set, the parser emits detailed logging throughout the parse.
- * It should probably be left off, unless debugging the lexer or parser.
- */
-#if 1
-  // NOTE(Isaac): format must be specified as the first vararg
-  #define Log(parser, ...) Log_(parser, __VA_ARGS__);
-//  #define Log(...) Log_(__VA_ARGS__); TODO
-  static void Log_(RooParser& /*parser*/, const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-  }
-#else
-  #define Log(parser, ...)
-#endif
 
 void RooParser::PeekNPrint(bool ignoreLines)
 {
@@ -112,7 +112,7 @@ ASTNode* RooParser::ParseExpression(unsigned int precedence)
 
   if (!prefixParselet)
   {
-    RaiseError(errorState, ERROR_UNEXPECTED, "prefix-expression", GetTokenName(PeekToken().type));
+    RaiseError(errorState, ERROR_UNEXPECTED, "prefix-expression", PeekToken().AsString().c_str());
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
@@ -340,50 +340,67 @@ ASTNode* RooParser::ParseStatement()
   ASTNode* result = nullptr;
   bool needTerminatingLine = true;
 
+  /*
+   * XXX: This used to be a normal switch and it looks like it can be one, ***but it can't*** because C++ has 
+   * a crappy type system and doesn't detect that the two enums (TokenType and RooKeyword) are actually different
+   * and so are both just silently tested against the token's type. MAKE SURE TO PUT NEW CASES IN THE CORRECT
+   * PLACE.
+   */
   switch (PeekToken().type)
   {
-    case KEYWORD_BREAK:
+    case TOKEN_KEYWORD:
     {
-      if (!isInLoop)
+      switch (PeekToken().asKeyword)
       {
-        RaiseError(errorState, ERROR_UNEXPECTED, "not-in-a-loop", GetKeywordName(KEYWORD_BREAK));
-        return nullptr;
+        case KEYWORD_BREAK:
+        {
+          if (!isInLoop)
+          {
+            RaiseError(errorState, ERROR_UNEXPECTED, "not-in-a-loop", GetKeywordName(KEYWORD_BREAK));
+            return nullptr;
+          }
+
+          result = new BreakNode();
+          Log(*this, "(BREAK)\n");
+          NextToken();
+        } break;
+
+        case KEYWORD_RETURN:
+        {
+          Log(*this, "(RETURN)\n");
+          currentThing->shouldAutoReturn = false;
+          NextToken(false);
+
+          if (Match(TOKEN_LINE, false))
+          {
+            result = new ReturnNode(nullptr);
+          }
+          else
+          {
+            result = new ReturnNode(ParseExpression());
+          }
+        } break;
+
+        case KEYWORD_IF:
+        {
+          Log(*this, "(IF)\n");
+          result = ParseIf();
+          needTerminatingLine = false;
+        } break;
+
+        case KEYWORD_WHILE:
+        {
+          Log(*this, "(WHILE)\n");
+          result = ParseWhile();
+          needTerminatingLine = false;
+        } break;
+
+        default:
+        {
+          RaiseError(errorState, ERROR_UNEXPECTED, "statement", PeekToken().AsString().c_str());
+        } break;
       }
-
-      result = new BreakNode();
-      Log(*this, "(BREAK)\n");
-      NextToken();
-    } break;
-
-    case KEYWORD_RETURN:
-    {
-      Log(*this, "(RETURN)\n");
-      currentThing->shouldAutoReturn = false;
-      NextToken(false);
-
-      if (Match(TOKEN_LINE, false))
-      {
-        result = new ReturnNode(nullptr);
-      }
-      else
-      {
-        result = new ReturnNode(ParseExpression());
-      }
-    } break;
-
-    case KEYWORD_IF:
-    {
-      Log(*this, "(IF)\n");
-      result = ParseIf();
-      needTerminatingLine = false;
-    } break;
-
-    case KEYWORD_WHILE:
-    {
-      Log(*this, "(WHILE)\n");
-      result = ParseWhile();
-      needTerminatingLine = false;
-    } break;
+    } break;  // end TOKEN_KEYWORD
 
     case TOKEN_IDENTIFIER:
     {
@@ -1056,7 +1073,7 @@ static void InitParseletMaps()
       VariableNode* leftAsVariable = reinterpret_cast<VariableNode*>(left);
       char* functionName = new char[strlen(leftAsVariable->name) + 1u];
       strcpy(functionName, leftAsVariable->name);
-      delete[] left;
+      delete left;
 
       std::vector<ASTNode*> params;
       parser.Consume(TOKEN_LEFT_PAREN);
