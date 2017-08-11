@@ -54,4 +54,7 @@ struct RooParser : Parser<RooKeyword>
   bool                  isInLoop;
   std::stack<ScopeDef*> scopeStack;
   CodeThing*            currentThing;
+private:
+  void PeekNPrint(bool ignoreLines = true);
+  void PeekNPrintNext(bool ignoreLines = true);
 };

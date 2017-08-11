@@ -31,6 +31,18 @@ struct Token
   {
   }
 
+  std::string AsString()
+  {
+    if (type == TOKEN_KEYWORD)
+    {
+      return GetKeywordName<T>(asKeyword);
+    }
+    else
+    {
+      return GetTokenName(type);
+    }
+  }
+
   std::string GetText()
   {
     /*

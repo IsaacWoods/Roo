@@ -59,48 +59,42 @@ const char* GetKeywordName(RooKeyword keyword)
   #define Log(parser, ...)
 #endif
 
-/*
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-static void PeekNPrint(RooParser& parser, bool ignoreLines = true)
+void RooParser::PeekNPrint(bool ignoreLines)
 {
-  if (PeekToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
+  if (PeekToken(ignoreLines).type == TOKEN_IDENTIFIER)
   {
-    printf("PEEK: (%s)\n", GetTextFromToken(parser, PeekToken(parser, ignoreLines)));
+    printf("PEEK: (%s)\n", PeekToken(ignoreLines).GetText().c_str());
   }
-  else if ( (PeekToken(parser, ignoreLines).type == TOKEN_SIGNED_INT)   ||
-            (PeekToken(parser, ignoreLines).type == TOKEN_UNSIGNED_INT) ||
-            (PeekToken(parser, ignoreLines).type == TOKEN_FLOAT))
+  else if ((PeekToken(ignoreLines).type == TOKEN_SIGNED_INT)   ||
+           (PeekToken(ignoreLines).type == TOKEN_UNSIGNED_INT) ||
+           (PeekToken(ignoreLines).type == TOKEN_FLOAT))
   {
-    printf("PEEK: [%s]\n", GetTextFromToken(parser, PeekToken(parser, ignoreLines)));
+    printf("PEEK: [%s]\n", PeekToken(ignoreLines).GetText().c_str());
   }
   else
   {
-    printf("PEEK: %s\n", GetTokenName(PeekToken(parser, ignoreLines).type));
+    printf("PEEK: %s\n", PeekToken(ignoreLines).AsString().c_str());
   }
 }
 
-static void PeekNPrintNext(RooParser& parser, bool ignoreLines = true)
+void RooParser::PeekNPrintNext(bool ignoreLines)
 {
-  if (PeekNextToken(parser, ignoreLines).type == TOKEN_IDENTIFIER)
+  if (PeekNextToken(ignoreLines).type == TOKEN_IDENTIFIER)
   {
-    printf("PEEK_NEXT: (%s)\n", GetTextFromToken(parser, PeekNextToken(parser, ignoreLines)));
+    printf("PEEK_NEXT: (%s)\n", PeekNextToken(ignoreLines).GetText().c_str());
   }
-  else if ( (PeekToken(parser, ignoreLines).type == TOKEN_SIGNED_INT)   ||
-            (PeekToken(parser, ignoreLines).type == TOKEN_UNSIGNED_INT) ||
-            (PeekToken(parser, ignoreLines).type == TOKEN_FLOAT))
+  else if ((PeekToken(ignoreLines).type == TOKEN_SIGNED_INT)   ||
+           (PeekToken(ignoreLines).type == TOKEN_UNSIGNED_INT) ||
+           (PeekToken(ignoreLines).type == TOKEN_FLOAT))
   {
-    printf("PEEK_NEXT: [%s]\n", GetTextFromToken(parser, PeekNextToken(parser, ignoreLines)));
+    printf("PEEK_NEXT: [%s]\n", PeekNextToken(ignoreLines).GetText().c_str());
   }
   else
   {
-    printf("PEEK_NEXT: %s\n", GetTokenName(PeekNextToken(parser, ignoreLines).type));
+    printf("PEEK_NEXT: %s\n", PeekNextToken(ignoreLines).AsString().c_str());
   }
 }
-#pragma GCC diagnostic pop
-*/
 
-// --- Parsing ---
 typedef ASTNode* (*PrefixParselet)(RooParser&);
 typedef ASTNode* (*InfixParselet)(RooParser&, ASTNode*);
 
@@ -573,6 +567,7 @@ void RooParser::ParseOperator(AttribSet& attribs)
 void RooParser::ParseAttribute(AttribSet& attribs)
 {
   std::string attribName = NextToken().GetText();
+  Log(*this, "--> Attribute(%s)\n", attribName.c_str());
 
   if (attribName == "Entry")
   {
@@ -589,7 +584,8 @@ void RooParser::ParseAttribute(AttribSet& attribs)
       return;
     }
 
-    result.name = NextToken().GetText();
+    result.name = PeekToken().GetText();
+    Log(*this, "Setting program name: %s\n", result.name.c_str());
     ConsumeNext(TOKEN_RIGHT_PAREN);
   }
   else if (attribName == "TargetArch")
@@ -676,6 +672,7 @@ void RooParser::ParseAttribute(AttribSet& attribs)
   }
 
   Consume(TOKEN_RIGHT_BLOCK);
+  Log(*this, "<-- Attribute\n");
 }
 
 RooParser::RooParser(ParseResult& result, const std::string& path)
