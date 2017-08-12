@@ -9,10 +9,10 @@ void ConditionFolderPass::Apply(ParseResult& parse)
 {
   for (CodeThing* code : parse.codeThings)
   {
-   if (!(code->attribs.isPrototype) && code->ast)
-   {
-    (void)Dispatch(code->ast, code);
-   }
+    if (!(code->attribs.isPrototype) && code->ast)
+    {
+      (void)Dispatch(code->ast, code);
+    }
   }
 }
 

@@ -30,7 +30,7 @@ void DotEmitterPass::Apply(ParseResult& parse)
 {
   for (CodeThing* code : parse.codeThings)
   {
-    if (code->attribs.isPrototype)
+    if (code->attribs.isPrototype || !(code->ast))
     {
       continue;
     }

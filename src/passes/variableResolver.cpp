@@ -9,7 +9,7 @@ void VariableResolverPass::Apply(ParseResult& parse)
 {
   for (CodeThing* code : parse.codeThings)
   {
-   if (!(code->attribs.isPrototype) && code->ast)
+    if (!(code->attribs.isPrototype) && code->ast)
     {
       Dispatch(code->ast, code);
     }

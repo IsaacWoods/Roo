@@ -2,6 +2,11 @@
 
 import Prelude
 
+operator +(a : uint, b : uint) -> uint
+{
+  // TODO
+}
+
 #[Entry]
 fn Main() -> int
 {
