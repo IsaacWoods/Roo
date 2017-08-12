@@ -102,7 +102,14 @@ ErrorState::ErrorState()
   :hasErrored(false)
 { }
 
-void ErrorState::Poison(PoisonStrategy /*strategy*/) { }
+void ErrorState::Poison(PoisonStrategy strategy)
+{
+  if (strategy == GIVE_UP)
+  {
+    Crash();
+  }
+}
+
 void ErrorState::PrintError(const char* message, const ErrorDef& error)
 {
   fprintf(stderr, "%s%s: \x1B[0m%s\n", g_levelColors[error.level], g_levelStrings[error.level], message);

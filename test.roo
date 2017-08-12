@@ -5,7 +5,7 @@ import Prelude
 #[Entry]
 fn Main() -> int
 {
-  i : uint = 0u
+  i : uint = 4u + 5u
 
   while (i < 5u)
   {
