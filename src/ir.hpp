@@ -25,6 +25,19 @@ struct ElfSymbol;
 
 struct TargetMachine;
 
+/*
+ * This records the type of intrinsic operations, which are handled directly by the compiler, instead of being done
+ * as function calls.
+ */
+enum class IntrinsicOpType
+{
+  UNKNOWN,
+
+  UNSIGNED_INT,
+  SIGNED_INT,
+  FLOAT,
+};
+
 struct ParseResult
 {
   ParseResult();

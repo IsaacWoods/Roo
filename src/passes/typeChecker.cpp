@@ -80,6 +80,47 @@ void TypeChecker::VisitNode(BinaryOpNode* node, TypeCheckingContext* context)
   Dispatch(node->left, context);
   Dispatch(node->right, context);
 
+  // XXX: This is some random code stolen from a WIP bit of the AIR generator. It is the base logic for deciding on
+  // which intrinsic operation type to use if this isn't an overloaded operation.
+    /*
+     * We can assume that everything has been correctly type checked, and so both sides of the intrinsic operation
+     * should be of the same type.
+     */
+/*    if (left->IsConstant())
+    {
+      switch (left->GetType())
+      {
+        case UNSIGNED_INT_CONSTANT: type = BinaryOpInstruction::OperationType::UNSIGNED_INT;  break;
+        case SIGNED_INT_CONSTANT:   type = BinaryOpInstruction::OperationType::SIGNED_INT;    break;
+        case FLOAT_CONSTANT:        type = BinaryOpInstruction::OperationType::FLOAT;         break;
+        default:
+        {
+          RaiseError(ICE_GENERIC_UNHANDLED_SLOT_TYPE, left->AsString(), "BinaryOp::LeftIsConstant");
+        } break;
+      }
+    }
+    else if (right->IsConstant())
+    {
+      switch (right->GetType())
+      {
+        case UNSIGNED_INT_CONSTANT: type = BinaryOpInstruction::OperationType::UNSIGNED_INT;  break;
+        case SIGNED_INT_CONSTANT:   type = BinaryOpInstruction::OperationType::SIGNED_INT;    break;
+        case FLOAT_CONSTANT:        type = BinaryOpInstruction::OperationType::FLOAT;         break;
+        default:
+        {
+          RaiseError(ICE_GENERIC_UNHANDLED_SLOT_TYPE, right->AsString(), "BinaryOp::RightIsConstant");
+        } break;
+      }
+    }
+    else
+    {*/
+      /*
+       * Neither slot is constant, so we need to derive the operation's type from somewhere else.
+       */
+//      Assert(false, "Derive type of intrinsic without constant value\n");
+      // TODO
+//    }
+
   if (node->next) Dispatch(node->next, context);
 }
 

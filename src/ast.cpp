@@ -56,8 +56,9 @@ std::string ReturnNode::AsString()
 UnaryOpNode::UnaryOpNode(Operator op, ASTNode* operand)
   :ASTNode()
   ,op(op)
+  ,intrinsicType(IntrinsicOpType::UNKNOWN)
   ,operand(operand)
-  ,resolvedOperator(nullptr)
+  ,overloadedOperator(nullptr)
 {
 }
 
@@ -87,9 +88,10 @@ std::string UnaryOpNode::AsString()
 BinaryOpNode::BinaryOpNode(Operator op, ASTNode* left, ASTNode* right)
   :ASTNode()
   ,op(op)
+  ,intrinsicType(IntrinsicOpType::UNKNOWN)
   ,left(left)
   ,right(right)
-  ,resolvedOperator(nullptr)
+  ,overloadedOperator(nullptr)
 {
 }
 

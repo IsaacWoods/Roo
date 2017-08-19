@@ -285,16 +285,20 @@ struct UnaryOpInstruction : AirInstruction
     LOGICAL_NOT,
   };
 
-  UnaryOpInstruction(Operation op, Slot* result, Slot* operand);
+  UnaryOpInstruction(Operation op, IntrinsicOpType type, Slot* result, Slot* operand);
   ~UnaryOpInstruction() { }
 
   std::string AsString();
 
-  Operation op;
-  Slot*     result;
-  Slot*     operand;
+  Operation       op;
+  IntrinsicOpType type;
+  Slot*           result;
+  Slot*           operand;
 };
 
+/*
+ * These represent intrinsic binary operations. Not all `BinaryOpNode`s yield one of these (nor should they)!
+ */
 struct BinaryOpInstruction : AirInstruction
 {
   enum Operation
@@ -302,18 +306,19 @@ struct BinaryOpInstruction : AirInstruction
     ADD,
     SUBTRACT,
     MULTIPLY,
-    DIVIDE
+    DIVIDE,
   };
 
-  BinaryOpInstruction(Operation op, Slot* result, Slot* left, Slot* right);
+  BinaryOpInstruction(Operation op, IntrinsicOpType type, Slot* result, Slot* left, Slot* right);
   ~BinaryOpInstruction() { }
 
   std::string AsString();
 
-  Operation op;
-  Slot*     result;
-  Slot*     left;
-  Slot*     right;
+  Operation       op;
+  IntrinsicOpType type;
+  Slot*           result;
+  Slot*           left;
+  Slot*           right;
 };
 
 struct CallInstruction : AirInstruction

@@ -87,9 +87,11 @@ struct UnaryOpNode : ASTNode
 
   std::string AsString();
 
-  Operator    op;
-  ASTNode*    operand;
-  CodeThing*  resolvedOperator;
+  Operator        op;
+  IntrinsicOpType intrinsicType;
+  ASTNode*        operand;
+
+  CodeThing*      overloadedOperator;
 };
 
 struct BinaryOpNode : ASTNode
@@ -108,10 +110,17 @@ struct BinaryOpNode : ASTNode
 
   std::string AsString();
 
-  Operator    op;
-  ASTNode*    left;
-  ASTNode*    right;
-  CodeThing*  resolvedOperator;
+  Operator        op;
+  IntrinsicOpType intrinsicType;
+  ASTNode*        left;
+  ASTNode*        right;
+
+  /*
+   * If an overloaded operator is provided in Roo, instead of an intrinsic
+   * being used, this will point to the operator to be used. If intrinsic, 
+   * this should be nullptr.
+   */
+  CodeThing*  overloadedOperator;
 };
 
 struct VariableNode : ASTNode

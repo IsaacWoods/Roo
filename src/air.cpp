@@ -275,9 +275,10 @@ std::string CmpInstruction::AsString()
   return FormatString("%u: CMP %s, %s", index, a->AsString().c_str(), b->AsString().c_str());
 }
 
-UnaryOpInstruction::UnaryOpInstruction(UnaryOpInstruction::Operation op, Slot* result, Slot* operand)
+UnaryOpInstruction::UnaryOpInstruction(UnaryOpInstruction::Operation op, IntrinsicOpType type, Slot* result, Slot* operand)
   :AirInstruction()
   ,op(op)
+  ,type(type)
   ,result(result)
   ,operand(operand)
 {
@@ -296,9 +297,10 @@ std::string UnaryOpInstruction::AsString()
   __builtin_unreachable();
 }
 
-BinaryOpInstruction::BinaryOpInstruction(BinaryOpInstruction::Operation op, Slot* result, Slot* left, Slot* right)
+BinaryOpInstruction::BinaryOpInstruction(BinaryOpInstruction::Operation op, IntrinsicOpType type, Slot* result, Slot* left, Slot* right)
   :AirInstruction()
   ,op(op)
+  ,type(type)
   ,result(result)
   ,left(left)
   ,right(right)
@@ -401,7 +403,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
 
     case UnaryOpNode::Operator::NEGATE:
     {
-      AirInstruction* neg = new UnaryOpInstruction(UnaryOpInstruction::Operation::NEGATE, result, operand);
+      AirInstruction* neg = new UnaryOpInstruction(UnaryOpInstruction::Operation::NEGATE, node->intrinsicType, result, operand);
       PushInstruction(state->code, neg);
       operand->Use(neg);
       result->ChangeValue(neg);
@@ -409,7 +411,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
 
     case UnaryOpNode::Operator::LOGICAL_NOT:
     {
-      AirInstruction* notI = new UnaryOpInstruction(UnaryOpInstruction::Operation::LOGICAL_NOT, result, operand);
+      AirInstruction* notI = new UnaryOpInstruction(UnaryOpInstruction::Operation::LOGICAL_NOT, node->intrinsicType, result, operand);
       PushInstruction(state->code, notI);
       operand->Use(notI);
       result->ChangeValue(notI);
@@ -422,7 +424,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
 
     case UnaryOpNode::Operator::PRE_INCREMENT:
     {
-      AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, result, operand);
+      AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, node->intrinsicType, result, operand);
       PushInstruction(state->code, inc);
       operand->Use(inc);
       result->ChangeValue(inc);
@@ -431,7 +433,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
     case UnaryOpNode::Operator::POST_INCREMENT:
     {
       AirInstruction* mov = new MovInstruction(operand, result);
-      AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, operand, operand);
+      AirInstruction* inc = new UnaryOpInstruction(UnaryOpInstruction::Operation::INCREMENT, node->intrinsicType, operand, operand);
 
       PushInstruction(state->code, mov);
       PushInstruction(state->code, inc);
@@ -444,7 +446,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
 
     case UnaryOpNode::Operator::PRE_DECREMENT:
     {
-      AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, result, operand);
+      AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, node->intrinsicType, result, operand);
       PushInstruction(state->code, dec);
       operand->Use(dec);
       result->ChangeValue(dec);
@@ -453,7 +455,7 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
     case UnaryOpNode::Operator::POST_DECREMENT:
     {
       AirInstruction* mov = new MovInstruction(operand, result);
-      AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, operand, operand);
+      AirInstruction* dec = new UnaryOpInstruction(UnaryOpInstruction::Operation::DECREMENT, node->intrinsicType, operand, operand);
 
       PushInstruction(state->code, mov);
       PushInstruction(state->code, dec);
@@ -469,11 +471,49 @@ Slot* AirGenerator::VisitNode(UnaryOpNode* node, AirState* state)
   return result;
 }
 
+/*
+ * This handles both intrinsic and overloaded binary operations. `BinaryOpInstruction`s are emitted for intrinsic
+ * operations, but overloaded operations should be emitted as `CallInstruction`s.
+ */
 Slot* AirGenerator::VisitNode(BinaryOpNode* node, AirState* state)
 {
-  // TODO
+  Slot* left = Dispatch(node->left, state);
+  Slot* right = Dispatch(node->right, state);
+  Slot* result = new TemporarySlot(state->code);
+
+  if (node->overloadedOperator)
+  {
+    // TODO: emit a CallInstruction to the overloaded operator
+  }
+  else
+  {
+    BinaryOpInstruction::Operation operation;
+
+    switch (node->op)
+    {
+      case BinaryOpNode::Operator::ADD:       operation = BinaryOpInstruction::Operation::ADD;       break;
+      case BinaryOpNode::Operator::SUBTRACT:  operation = BinaryOpInstruction::Operation::SUBTRACT;  break;
+      case BinaryOpNode::Operator::MULTIPLY:  operation = BinaryOpInstruction::Operation::MULTIPLY;  break;
+      case BinaryOpNode::Operator::DIVIDE:    operation = BinaryOpInstruction::Operation::DIVIDE;    break;
+
+      case BinaryOpNode::Operator::INDEX_ARRAY:
+      {
+        // TODO: actually do stuff here (an LEA and then an ADD to calculate the correct offset??)
+        Assert(false, "");
+        __builtin_unreachable();
+      } break;
+    }
+
+    Assert(node->intrinsicType != IntrinsicOpType::UNKNOWN, "Intrinsic operations must have a predecided type");
+    BinaryOpInstruction* op = new BinaryOpInstruction(operation, node->intrinsicType, result, left, right);
+    PushInstruction(state->code, op);
+    left->Use(op);
+    right->Use(op);
+    result->ChangeValue(op);
+  }
+
   if (node->next) (void)Dispatch(node->next, state);
-  return nullptr;
+  return result;
 }
 
 Slot* AirGenerator::VisitNode(VariableNode* node, AirState* state)
