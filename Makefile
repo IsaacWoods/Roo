@@ -1,7 +1,7 @@
 # Copyright (C) 2017, Isaac Woods.
 # See LICENCE.md
 
-# The Tier is where we are at in development. Developers should leave this at "DEV", CI will set it at "CI" and
+# The Tier is where we are at in development. Developers should leave this at "DEV", CI will set it to "CI" and
 # final releases are built as "PROD". Make doesn't make this easy to enforce, but anything else won't set the
 # correct flags!
 TIER ?= "DEV"
@@ -34,6 +34,7 @@ OBJS = \
   $(BUILD_DIR)/parsing.o \
 	$(BUILD_DIR)/module.o \
 	$(BUILD_DIR)/air.o \
+	$(BUILD_DIR)/target.o \
 	$(BUILD_DIR)/codegen.o \
 	$(BUILD_DIR)/elf/elf.o \
 	$(BUILD_DIR)/passes/dotEmitter.o \
