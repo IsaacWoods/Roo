@@ -504,7 +504,7 @@ Slot* AirGenerator::VisitNode(BinaryOpNode* node, AirState* state)
       } break;
     }
 
-    Assert(node->intrinsicType != IntrinsicOpType::UNKNOWN, "Intrinsic operations must have a predecided type");
+    Assert(node->intrinsicType != NUM_INTRINSIC_OP_TYPES, "Intrinsic operations must have a predecided type");
     BinaryOpInstruction* op = new BinaryOpInstruction(operation, node->intrinsicType, result, left, right);
     PushInstruction(state->code, op);
     left->Use(op);
@@ -643,7 +643,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
 
   for (ASTNode* paramNode : node->params)
   {
-    Assert(numGeneralParams < target->numGeneralRegisters, "Filled up general registers");
+    Assert(numGeneralParams < state->target->numGeneralRegisters, "Filled up general registers");
     Slot* slot = Dispatch(paramNode, state);
 
     switch (slot->GetType())
@@ -653,7 +653,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
       case SlotType::MEMBER:
       case SlotType::TEMPORARY:
       {
-        slot->color = target->intParamColors[numGeneralParams++];
+        slot->color = state->target->intParamColors[numGeneralParams++];
         paramSlots.push_back(slot);
       } break;
 
@@ -665,7 +665,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
       case SlotType::STRING_CONSTANT:
       {
         TemporarySlot* tempSlot = new TemporarySlot(state->code);
-        tempSlot->color = target->intParamColors[numGeneralParams++];
+        tempSlot->color = state->target->intParamColors[numGeneralParams++];
         AirInstruction* mov = new MovInstruction(slot, tempSlot);
         PushInstruction(state->code, mov);
         paramSlots.push_back(tempSlot);
@@ -690,7 +690,7 @@ Slot* AirGenerator::VisitNode(CallNode* node, AirState* state)
   {
     returnSlot = new ReturnResultSlot(state->code);
     returnSlot->ChangeValue(call);
-    returnSlot->color = target->functionReturnColor;
+    returnSlot->color = state->target->functionReturnColor;
   }
 
   if (node->next) (void)Dispatch(node->next, state);
@@ -967,7 +967,7 @@ static void EmitInterferenceGraphDOT(CodeThing* code)
 }
 #endif
 
-void AirGenerator::Apply(ParseResult& parse)
+void AirGenerator::Apply(ParseResult& parse, TargetMachine* target)
 {
   for (CodeThing* code : parse.codeThings)
   {
@@ -1012,7 +1012,7 @@ void AirGenerator::Apply(ParseResult& parse)
     }
 
     // Generate AIR from the AST
-    AirState state(code);
+    AirState state(target, code);
     Dispatch(code->ast, &state);
 
     // Precolor the interference graph

@@ -4,8 +4,9 @@
  */
 
 #include <passes/passes.hpp>
+#include <target.hpp>
 
-void ConditionFolderPass::Apply(ParseResult& parse)
+void ConditionFolderPass::Apply(ParseResult& parse, TargetMachine* /*target*/)
 {
   for (CodeThing* code : parse.codeThings)
   {

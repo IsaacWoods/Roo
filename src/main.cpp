@@ -53,7 +53,6 @@ int main()
 
   ErrorState* errorState = new ErrorState();
   ParseResult result;
-  TargetMachine* target = new TargetMachine_x64();
 
   // Compile the current directory
   if (!Compile(result, "."))
@@ -103,12 +102,13 @@ int main()
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
+  TargetMachine* target = new TargetMachine_x64(result);
   CompleteIR(result, target);
 
   #define APPLY_PASS(PassType)\
   {\
     PassType pass;\
-    pass.Apply(result);\
+    pass.Apply(result, target);\
   }
 
   /*
@@ -153,8 +153,8 @@ int main()
   }
 
   // --- Generate AIR for each code thing ---
-  AirGenerator airGenerator(target);
-  airGenerator.Apply(result);
+  AirGenerator airGenerator;
+  airGenerator.Apply(result, target);
 
   if (result.name == "")  // TODO: Better way to detect no program name given
   {

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <cstdint>
+#include <ir.hpp>
 #include <codegen.hpp>
 #include <x64/precolorer.hpp>
 #include <x64/codeGenerator.hpp>
@@ -41,7 +42,7 @@ struct RegisterDef_x64 : BaseRegisterDef
 
 struct TargetMachine_x64 : TargetMachine
 {
-  TargetMachine_x64();
+  TargetMachine_x64(ParseResult& parse);
 
   InstructionPrecolorer* CreateInstructionPrecolorer();
   CodeGenerator* CreateCodeGenerator(ElfFile& file);

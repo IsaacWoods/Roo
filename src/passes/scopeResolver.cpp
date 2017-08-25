@@ -4,8 +4,9 @@
  */
 
 #include <passes/passes.hpp>
+#include <target.hpp>
 
-void ScopeResolverPass::Apply(ParseResult& parse)
+void ScopeResolverPass::Apply(ParseResult& parse, TargetMachine* /*target*/)
 {
   for (CodeThing* code : parse.codeThings)
   {

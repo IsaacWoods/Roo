@@ -338,13 +338,15 @@ struct CallInstruction : AirInstruction
  */
 struct AirState
 {
-  AirState(CodeThing* code)
-    :code(code)
+  AirState(TargetMachine* target, CodeThing* code)
+    :target(target)
+    ,code(code)
     ,breakLabel(nullptr)
   {
   }
   ~AirState() { }
 
+  TargetMachine* target;
   CodeThing* code;
 
   /*
@@ -355,15 +357,11 @@ struct AirState
 
 struct AirGenerator : ASTPass<Slot*, AirState>
 {
-  AirGenerator(TargetMachine* target)
+  AirGenerator()
     :ASTPass()
-    ,target(target)
-  {
-  }
+  { }
 
-  TargetMachine* target;
-
-  void Apply(ParseResult& parse);
+  void Apply(ParseResult& parse, TargetMachine* target);
 
   Slot* VisitNode(BreakNode* node                   , AirState* state);
   Slot* VisitNode(ReturnNode* node                  , AirState* state);

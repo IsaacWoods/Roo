@@ -11,8 +11,9 @@ RegisterDef_x64::RegisterDef_x64(BaseRegisterDef::Usage usage, const std::string
 {
 }
 
-TargetMachine_x64::TargetMachine_x64()
-  :TargetMachine("x64_elf", 16u /* numRegisters        */,
+TargetMachine_x64::TargetMachine_x64(ParseResult& parse)
+  :TargetMachine("x64_elf", parse,
+                            16u /* numRegisters        */,
                             14u /* numGeneralRegisters */,
                             8u  /* generalRegisterSize */,
                             6u  /* numIntParamColors   */,

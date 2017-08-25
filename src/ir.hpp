@@ -29,13 +29,15 @@ struct TargetMachine;
  * This records the type of intrinsic operations, which are handled directly by the compiler, instead of being done
  * as function calls.
  */
-enum class IntrinsicOpType
+enum IntrinsicOpType
 {
-  UNKNOWN,
+  UNSIGNED_INT_INTRINSIC,
+  SIGNED_INT_INTRINSIC,
+  FLOAT_INTRINSIC,
+  BOOL_INTRINSIC,
+  STRING_INTRINSIC,
 
-  UNSIGNED_INT,
-  SIGNED_INT,
-  FLOAT,
+  NUM_INTRINSIC_OP_TYPES,
 };
 
 struct ParseResult
@@ -110,20 +112,22 @@ struct TypeDef
 struct TypeRef
 {
   TypeRef();
+  TypeRef(TypeDef* resolvedType, bool isMutable = false, bool isReference = false, bool isReferenceMutable = false,
+          bool isArray = false, unsigned int arraySize = 0u);
   ~TypeRef();
 
   std::string AsString();
   unsigned int GetSize();
 
-  std::string name;
-  TypeDef*    resolvedType;        // NOTE(Isaac): for empty array `initialiser-list`s, this may be nullptr
-  bool        isResolved;
-  bool        isMutable;           // For references, this describes the mutability of the reference
-  bool        isReference;
-  bool        isReferenceMutable;  // Describes the mutability of the reference's contents
+  std::string     name;
+  TypeDef*        resolvedType;        // Nullptr for empty array `initialiser-list`s
+  bool            isResolved;
+  bool            isMutable;           // For references, this describes the mutability of the reference
+  bool            isReference;
+  bool            isReferenceMutable;  // Describes the mutability of the reference's contents
 
-  bool        isArray;
-  bool        isArraySizeResolved;
+  bool            isArray;
+  bool            isArraySizeResolved;
   union
   {
     ASTNode*      arraySizeExpression;

@@ -4,20 +4,23 @@
  */
 
 #include <passes/passes.hpp>
+#include <target.hpp>
 
 struct TypeCheckingContext
 {
-  TypeCheckingContext(ParseResult& parse, CodeThing* code)
+  TypeCheckingContext(ParseResult& parse, TargetMachine* target, CodeThing* code)
     :parse(parse)
+    ,target(target)
     ,code(code)
   { }
   ~TypeCheckingContext() { }
 
-  ParseResult& parse;
-  CodeThing* code;
+  ParseResult&    parse;
+  TargetMachine*  target;
+  CodeThing*      code;
 };
 
-void TypeChecker::Apply(ParseResult& parse)
+void TypeChecker::Apply(ParseResult& parse, TargetMachine* target)
 {
   for (CodeThing* code : parse.codeThings)
   {
@@ -26,7 +29,7 @@ void TypeChecker::Apply(ParseResult& parse)
       continue;
     }
 
-    TypeCheckingContext context(parse, code);
+    TypeCheckingContext context(parse, target, code);
     Dispatch(code->ast, &context);
   }
 }
@@ -167,7 +170,9 @@ void TypeChecker::VisitNode(WhileNode* node, TypeCheckingContext* context)
 
 void TypeChecker::VisitNode(ConstantNode<unsigned int>* node, TypeCheckingContext* context)
 {
-  node->type = new TypeRef();
+  node->type = context->target->intrinsicTypes[UNSIGNED_INT_INTRINSIC];
+  node->shouldFreeTypeRef = false;
+/*  node->type = new TypeRef();
   node->type->isResolved           = true;
   node->type->resolvedType         = GetTypeByName(context->parse, "uint");
   node->type->isMutable            = false;
@@ -176,14 +181,16 @@ void TypeChecker::VisitNode(ConstantNode<unsigned int>* node, TypeCheckingContex
   node->type->isArray              = false;
   node->type->isArraySizeResolved  = true;
   node->type->arraySize            = 0u;
-  node->shouldFreeTypeRef          = true;
+  node->shouldFreeTypeRef          = true;*/
 
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(ConstantNode<int>* node, TypeCheckingContext* context)
 {
-  node->type = new TypeRef();
+  node->type = context->target->intrinsicTypes[SIGNED_INT_INTRINSIC];
+  node->shouldFreeTypeRef = false;
+/*  node->type = new TypeRef();
   node->type->isResolved           = true;
   node->type->resolvedType         = GetTypeByName(context->parse, "int");
   node->type->isMutable            = false;
@@ -192,14 +199,16 @@ void TypeChecker::VisitNode(ConstantNode<int>* node, TypeCheckingContext* contex
   node->type->isArray              = false;
   node->type->isArraySizeResolved  = true;
   node->type->arraySize            = 0u;
-  node->shouldFreeTypeRef          = true;
+  node->shouldFreeTypeRef          = true;*/
 
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(ConstantNode<float>* node, TypeCheckingContext* context)
 {
-  node->type = new TypeRef();
+  node->type = context->target->intrinsicTypes[FLOAT_INTRINSIC];
+  node->shouldFreeTypeRef = false;
+/*  node->type = new TypeRef();
   node->type->isResolved           = true;
   node->type->resolvedType         = GetTypeByName(context->parse, "float");
   node->type->isMutable            = false;
@@ -208,14 +217,16 @@ void TypeChecker::VisitNode(ConstantNode<float>* node, TypeCheckingContext* cont
   node->type->isArray              = false;
   node->type->isArraySizeResolved  = true;
   node->type->arraySize            = 0u;
-  node->shouldFreeTypeRef          = true;
+  node->shouldFreeTypeRef          = true;*/
 
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(ConstantNode<bool>* node, TypeCheckingContext* context)
 {
-  node->type = new TypeRef();
+  node->type = context->target->intrinsicTypes[BOOL_INTRINSIC];
+  node->shouldFreeTypeRef = false;
+/*  node->type = new TypeRef();
   node->type->isResolved           = true;
   node->type->resolvedType         = GetTypeByName(context->parse, "bool");
   node->type->isMutable            = false;
@@ -224,14 +235,16 @@ void TypeChecker::VisitNode(ConstantNode<bool>* node, TypeCheckingContext* conte
   node->type->isArray              = false;
   node->type->isArraySizeResolved  = true;
   node->type->arraySize            = 0u;
-  node->shouldFreeTypeRef          = true;
+  node->shouldFreeTypeRef          = true;*/
 
   if (node->next) Dispatch(node->next, context);
 }
 
 void TypeChecker::VisitNode(StringNode* node, TypeCheckingContext* context)
 {
-  node->type = new TypeRef();
+  node->type = context->target->intrinsicTypes[STRING_INTRINSIC];
+  node->shouldFreeTypeRef = false;
+/*  node->type = new TypeRef();
   node->type->isResolved           = true;
   node->type->resolvedType         = GetTypeByName(context->parse, "string");
   node->type->isMutable            = false;
@@ -240,7 +253,7 @@ void TypeChecker::VisitNode(StringNode* node, TypeCheckingContext* context)
   node->type->isArray              = false;
   node->type->isArraySizeResolved  = true;
   node->type->arraySize            = 0u;
-  node->shouldFreeTypeRef          = true;
+  node->shouldFreeTypeRef          = true;*/
 
   if (node->next) Dispatch(node->next, context);
 }

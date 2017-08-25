@@ -5,6 +5,7 @@
 
 #include <passes/passes.hpp>
 #include <string>
+#include <target.hpp>
 
 struct DotState
 {
@@ -26,7 +27,7 @@ struct DotState
   FILE*         f;
 };
 
-void DotEmitterPass::Apply(ParseResult& parse)
+void DotEmitterPass::Apply(ParseResult& parse, TargetMachine* /*target*/)
 {
   for (CodeThing* code : parse.codeThings)
   {

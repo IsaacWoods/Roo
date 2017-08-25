@@ -22,14 +22,12 @@ ParseResult::ParseResult()
   ,types()
   ,strings()
   ,filesToLink()
-{
-}
+{ }
 
 DependencyDef::DependencyDef(DependencyDef::Type type, const std::string& path)
   :type(type)
   ,path(path)
-{
-}
+{ }
 
 StringConstant::StringConstant(ParseResult& parse, const std::string& str)
   :str(str)
@@ -52,8 +50,7 @@ TypeDef::TypeDef(const std::string& name)
   ,members()
   ,errorState(new ErrorState())
   ,size(UINT_MAX)
-{
-}
+{ }
 
 TypeDef::~TypeDef()
 {
@@ -75,8 +72,20 @@ TypeRef::TypeRef()
   ,isArray(false)
   ,isArraySizeResolved(false)
   ,arraySizeExpression(nullptr)
-{
-}
+{ }
+
+TypeRef::TypeRef(TypeDef* resolvedType, bool isMutable, bool isReference, bool isReferenceMutable, bool isArray,
+                 unsigned int arraySize)
+  :name(resolvedType->name)
+  ,resolvedType(resolvedType)
+  ,isResolved(true)
+  ,isMutable(isMutable)
+  ,isReference(isReference)
+  ,isReferenceMutable(isReferenceMutable)
+  ,isArray(isArray)
+  ,isArraySizeResolved(true)
+  ,arraySize(arraySize)
+{ }
 
 TypeRef::~TypeRef()
 {

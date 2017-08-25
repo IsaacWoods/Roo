@@ -308,6 +308,8 @@ bool IsNodeOfType(ASTNode* node)
   return (strcmp(typeid(*node).name(), TYPE_NAME) == 0);
 }
 
+struct TargetMachine;
+
 template<typename R, typename T>
 struct ASTPass
 {
@@ -333,7 +335,7 @@ struct ASTPass
   virtual R VisitNode(InfiniteLoopNode*             , T* = nullptr) = 0;
   virtual R VisitNode(ConstructNode*                , T* = nullptr) = 0;
 
-  virtual void Apply(ParseResult& parse) = 0;
+  virtual void Apply(ParseResult& parse, TargetMachine* target) = 0;
 
   /*
    * This is required since we can't use a normal visitor pattern (because we can't template a virtual function,

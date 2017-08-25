@@ -12,7 +12,7 @@
   {\
     Name() : ASTPass() { }\
     \
-    void Apply(ParseResult& parse);\
+    void Apply(ParseResult& parse, TargetMachine* target);\
     \
     R VisitNode(BreakNode* node                  , T*);\
     R VisitNode(ReturnNode* node                 , T*);\

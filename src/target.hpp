@@ -6,6 +6,7 @@
 #pragma once
 
 #include <string>
+#include <ir.hpp>
 
 struct InstructionPrecolorer;
 struct CodeGenerator;
@@ -36,7 +37,8 @@ struct BaseRegisterDef
  */
 struct TargetMachine
 {
-  TargetMachine(const std::string& name, unsigned int numRegisters,
+  TargetMachine(const std::string& name, ParseResult& parse,
+                                         unsigned int numRegisters,
                                          unsigned int numGeneralRegisters,
                                          unsigned int generalRegisterSize,
                                          unsigned int numIntParamColors,
@@ -54,6 +56,7 @@ struct TargetMachine
 
   unsigned int      numIntParamColors;
   unsigned int*     intParamColors;
-
   unsigned int      functionReturnColor;
+
+  TypeRef*          intrinsicTypes[NUM_INTRINSIC_OP_TYPES];
 };
