@@ -4,6 +4,7 @@
  */
 
 #include <target.hpp>
+#include <error.hpp>
 #include <codegen.hpp>
 #include <elf/elf.hpp>
 
@@ -29,11 +30,30 @@ TargetMachine::TargetMachine(const std::string& name, ParseResult& parse,
   ,functionReturnColor(functionReturnColor)
   ,intrinsicTypes{}
 {
-  intrinsicTypes[UNSIGNED_INT_INTRINSIC] = new TypeRef(GetTypeByName(parse, "uint"));
-  intrinsicTypes[SIGNED_INT_INTRINSIC]   = new TypeRef(GetTypeByName(parse, "int"));
-  intrinsicTypes[FLOAT_INTRINSIC]        = new TypeRef(GetTypeByName(parse, "float"));
-  intrinsicTypes[BOOL_INTRINSIC]         = new TypeRef(GetTypeByName(parse, "bool"));
-  intrinsicTypes[STRING_INTRINSIC]       = new TypeRef(GetTypeByName(parse, "string"));
+  if (!(intrinsicTypes[UNSIGNED_INT_INTRINSIC] = new TypeRef(GetTypeByName(parse, "uint"))))
+  {
+    RaiseError(ERROR_UNDEFINED_TYPE, "uint");
+  }
+
+  if (!(intrinsicTypes[SIGNED_INT_INTRINSIC] = new TypeRef(GetTypeByName(parse, "int"))))
+  {
+    RaiseError(ERROR_UNDEFINED_TYPE, "int");
+  }
+
+  if (!(intrinsicTypes[FLOAT_INTRINSIC] = new TypeRef(GetTypeByName(parse, "float"))))
+  {
+    RaiseError(ERROR_UNDEFINED_TYPE, "float");
+  }
+
+  if (!(intrinsicTypes[BOOL_INTRINSIC] = new TypeRef(GetTypeByName(parse, "bool"))))
+  {
+    RaiseError(ERROR_UNDEFINED_TYPE, "bool");
+  }
+
+  if (!(intrinsicTypes[STRING_INTRINSIC] = new TypeRef(GetTypeByName(parse, "string"))))
+  {
+    RaiseError(ERROR_UNDEFINED_TYPE, "string");
+  }
 }
 
 TargetMachine::~TargetMachine()
