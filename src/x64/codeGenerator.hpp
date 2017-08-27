@@ -9,6 +9,7 @@
 #include <ir.hpp>
 #include <codegen.hpp>
 #include <elf/elf.hpp>
+#include <x64/x64.hpp>
 
 struct CodeGenerator_x64 : CodeGenerator
 {
@@ -39,4 +40,6 @@ struct CodeGenerator_x64 : CodeGenerator
   void Visit(UnaryOpInstruction* instruction,   void*);
   void Visit(BinaryOpInstruction* instruction,  void*);
   void Visit(CallInstruction* instruction,      void*);
+private:
+  void MoveSlotToRegister(Reg_x64 reg, Slot* slot);
 };

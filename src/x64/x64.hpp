@@ -9,8 +9,6 @@
 #include <cstdint>
 #include <ir.hpp>
 #include <codegen.hpp>
-#include <x64/precolorer.hpp>
-#include <x64/codeGenerator.hpp>
 
 enum Reg_x64
 {

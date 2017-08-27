@@ -4,6 +4,8 @@
  */
 
 #include <x64/x64.hpp>
+#include <x64/precolorer.hpp>
+#include <x64/codeGenerator.hpp>
 
 RegisterDef_x64::RegisterDef_x64(BaseRegisterDef::Usage usage, const std::string& name, uint8_t opcodeOffset)
   :BaseRegisterDef(usage, name)

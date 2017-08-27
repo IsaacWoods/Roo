@@ -414,87 +414,67 @@ void CodeGenerator_x64::Visit(UnaryOpInstruction* instruction, void*)
   }
 }
 
+/*
+ * This only has to handle intrinsic binary operations.
+ */
 void CodeGenerator_x64::Visit(BinaryOpInstruction* instruction, void*)
 {
   Assert(instruction->result->IsColored(), "Result must be in a register");
-  if (instruction->left->IsConstant())
+  Reg_x64 resultReg = static_cast<Reg_x64>(instruction->result->color);
+  MoveSlotToRegister(resultReg, instruction->left);
+
+  switch (instruction->type)
   {
-    switch (instruction->left->GetType())
+    /*
+     * x64 treats uses the same ALU circuitry for unsigned and signed integers, and so we can treat them the same.
+     */
+    case UNSIGNED_INT_INTRINSIC:
+    case SIGNED_INT_INTRINSIC:
     {
-      case SlotType::UNSIGNED_INT_CONSTANT:
+      if (instruction->right->IsColored())
       {
-        E(I::MOV_REG_IMM32, dynamic_cast<ConstantSlot<unsigned int>*>(instruction->left)->value);
-      } break;
-
-      case SlotType::INT_CONSTANT:
+        switch (instruction->op)
+        {
+          case BinaryOpInstruction::Operation::ADD:       E(I::ADD_REG_REG, resultReg, instruction->right->color); break;
+          case BinaryOpInstruction::Operation::SUBTRACT:  E(I::SUB_REG_REG, resultReg, instruction->right->color); break;
+          case BinaryOpInstruction::Operation::MULTIPLY:  E(I::MUL_REG_REG, resultReg, instruction->right->color); break;
+          case BinaryOpInstruction::Operation::DIVIDE:    E(I::DIV_REG_REG, resultReg, instruction->right->color); break;
+        }
+      }
+      else
       {
-        E(I::MOV_REG_IMM32, dynamic_cast<ConstantSlot<int>*>(instruction->left)->value);
-      };
-
-      case SlotType::FLOAT_CONSTANT:
-      {
-        // TODO
-      } break;
-
-      default:
-      {
-        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator_x64::BinaryOpInstruction");
-      } break;
-    }
-  }
-  else
-  {
-    E(I::MOV_REG_REG, instruction->result->color, instruction->left->color);
-  }
-
-  if (instruction->right->IsColored())
-  {
-    switch (instruction->op)
-    {
-      case BinaryOpInstruction::Operation::ADD:       E(I::ADD_REG_REG, instruction->result->color, instruction->right->color); break;
-      case BinaryOpInstruction::Operation::SUBTRACT:  E(I::SUB_REG_REG, instruction->result->color, instruction->right->color); break;
-      case BinaryOpInstruction::Operation::MULTIPLY:  E(I::MUL_REG_REG, instruction->result->color, instruction->right->color); break;
-      case BinaryOpInstruction::Operation::DIVIDE:    E(I::DIV_REG_REG, instruction->result->color, instruction->right->color); break;
-    }
-  }
-  else
-  {
-    switch (instruction->right->GetType())
-    {
-      case SlotType::UNSIGNED_INT_CONSTANT:
-      {
+        Assert(instruction->right->GetType() == SlotType::UNSIGNED_INT_CONSTANT ||
+               instruction->right->GetType() == SlotType::INT_CONSTANT, "Intrinsic type doesn't match slot");
         ConstantSlot<unsigned int>* slot = dynamic_cast<ConstantSlot<unsigned int>*>(instruction->right);
         switch (instruction->op)
         {
-          case BinaryOpInstruction::Operation::ADD:       E(I::ADD_REG_IMM32, instruction->result->color, slot->value); break;
-          case BinaryOpInstruction::Operation::SUBTRACT:  E(I::SUB_REG_IMM32, instruction->result->color, slot->value); break;
-          case BinaryOpInstruction::Operation::MULTIPLY:  E(I::MUL_REG_IMM32, instruction->result->color, slot->value); break;
-          case BinaryOpInstruction::Operation::DIVIDE:    E(I::DIV_REG_IMM32, instruction->result->color, slot->value); break;
+          case BinaryOpInstruction::Operation::ADD:       E(I::ADD_REG_IMM32, resultReg, slot->value); break;
+          case BinaryOpInstruction::Operation::SUBTRACT:  E(I::SUB_REG_IMM32, resultReg, slot->value); break;
+          case BinaryOpInstruction::Operation::MULTIPLY:  E(I::MUL_REG_IMM32, resultReg, slot->value); break;
+          case BinaryOpInstruction::Operation::DIVIDE:    E(I::DIV_REG_IMM32, resultReg, slot->value); break;
         }
-      } break;
+      }
+    } break;
 
-      case SlotType::INT_CONSTANT:
-      {
-        ConstantSlot<int>* slot = dynamic_cast<ConstantSlot<int>*>(instruction->right);
-        switch (instruction->op)
-        {
-          case BinaryOpInstruction::Operation::ADD:       E(I::ADD_REG_IMM32, instruction->result->color, slot->value); break;
-          case BinaryOpInstruction::Operation::SUBTRACT:  E(I::SUB_REG_IMM32, instruction->result->color, slot->value); break;
-          case BinaryOpInstruction::Operation::MULTIPLY:  E(I::MUL_REG_IMM32, instruction->result->color, slot->value); break;
-          case BinaryOpInstruction::Operation::DIVIDE:    E(I::DIV_REG_IMM32, instruction->result->color, slot->value); break;
-        }
-      } break;
+    case FLOAT_INTRINSIC:
+    {
+      // TODO
+    } break;
 
-      case SlotType::FLOAT_CONSTANT:
-      {
-        // TODO
-      } break;
+    case BOOL_INTRINSIC:
+    {
+      // TODO
+    } break;
 
-      default:
-      {
-        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, "SlotType", "CodeGenerator_x64::BinaryOp");
-      } break;
-    }
+    case STRING_INTRINSIC:
+    {
+      // TODO
+    } break;
+
+    case NUM_INTRINSIC_OP_TYPES:
+    {
+      RaiseError(ICE_GENERIC, "Unhandled intrinsic op type in x64 code generator");
+    } break;
   }
 }
 
@@ -542,5 +522,38 @@ void CodeGenerator_x64::Visit(CallInstruction* instruction, void*)
 
   #undef SAVE_REG
   #undef RESTORE_REG
+}
+
+void CodeGenerator_x64::MoveSlotToRegister(Reg_x64 reg, Slot* slot)
+{
+  if (slot->IsConstant())
+  {
+    switch (slot->GetType())
+    {
+      case SlotType::UNSIGNED_INT_CONSTANT:
+      {
+        E(I::MOV_REG_IMM32, reg, dynamic_cast<ConstantSlot<unsigned int>*>(slot)->value);
+      } break;
+
+      case SlotType::INT_CONSTANT:
+      {
+        E(I::MOV_REG_IMM32, reg, static_cast<ConstantSlot<int>*>(slot)->value);
+      };
+
+      case SlotType::FLOAT_CONSTANT:
+      {
+        // TODO
+      } break;
+
+      default:
+      {
+        RaiseError(code->errorState, ICE_UNHANDLED_SLOT_TYPE, slot->AsString().c_str(), "MoveSlotToRegister");
+      } break;
+    }
+  }
+  else
+  {
+    E(I::MOV_REG_REG, reg, slot->color);
+  }
 }
 #undef E

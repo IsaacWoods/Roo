@@ -83,46 +83,83 @@ void TypeChecker::VisitNode(BinaryOpNode* node, TypeCheckingContext* context)
   Dispatch(node->left, context);
   Dispatch(node->right, context);
 
-  // XXX: This is some random code stolen from a WIP bit of the AIR generator. It is the base logic for deciding on
-  // which intrinsic operation type to use if this isn't an overloaded operation.
+  /*
+   * Firstly, we handle intrinsic operations
+   */
+  if (AreTypeRefsCompatible(node->left->type, context->target->intrinsicTypes[UNSIGNED_INT_INTRINSIC]) &&
+      AreTypeRefsCompatible(node->right->type, context->target->intrinsicTypes[UNSIGNED_INT_INTRINSIC]))
+  {
+    node->type = context->target->intrinsicTypes[UNSIGNED_INT_INTRINSIC];
+    node->intrinsicType = UNSIGNED_INT_INTRINSIC;
+    node->shouldFreeTypeRef = false;
+  }
+  else if (AreTypeRefsCompatible(node->left->type, context->target->intrinsicTypes[SIGNED_INT_INTRINSIC]) &&
+           AreTypeRefsCompatible(node->right->type, context->target->intrinsicTypes[SIGNED_INT_INTRINSIC]))
+  {
+    node->type = context->target->intrinsicTypes[SIGNED_INT_INTRINSIC];
+    node->intrinsicType = SIGNED_INT_INTRINSIC;
+    node->shouldFreeTypeRef = false;
+  }
+  else if (AreTypeRefsCompatible(node->left->type, context->target->intrinsicTypes[FLOAT_INTRINSIC]) &&
+           AreTypeRefsCompatible(node->right->type, context->target->intrinsicTypes[FLOAT_INTRINSIC]))
+  {
+    node->type = context->target->intrinsicTypes[FLOAT_INTRINSIC];
+    node->intrinsicType = FLOAT_INTRINSIC;
+    node->shouldFreeTypeRef = false;
+  }
+  else if (AreTypeRefsCompatible(node->left->type, context->target->intrinsicTypes[BOOL_INTRINSIC]) &&
+           AreTypeRefsCompatible(node->right->type, context->target->intrinsicTypes[BOOL_INTRINSIC]))
+  {
+    node->type = context->target->intrinsicTypes[BOOL_INTRINSIC];
+    node->intrinsicType = BOOL_INTRINSIC;
+    node->shouldFreeTypeRef = false;
+  }
+  else if (AreTypeRefsCompatible(node->left->type, context->target->intrinsicTypes[STRING_INTRINSIC]) &&
+           AreTypeRefsCompatible(node->right->type, context->target->intrinsicTypes[STRING_INTRINSIC]))
+  {
     /*
-     * We can assume that everything has been correctly type checked, and so both sides of the intrinsic operation
-     * should be of the same type.
+     * TODO: Strings are a bit special, so check the operation to see if we actually handle the intrinsic case
      */
-/*    if (left->IsConstant())
+    node->type = context->target->intrinsicTypes[STRING_INTRINSIC];
+    node->intrinsicType = STRING_INTRINSIC;
+    node->shouldFreeTypeRef = false;
+  }
+  else
+  {
+    /*
+     * We couldn't find a suitable intrinsic operator that we know should exist, so we try to find an overloaded
+     * operator that fits the types instead (this also resolves the CodeThing to call for overloaded operations)
+     */
+    for (CodeThing* thing : context->parse.codeThings)
     {
-      switch (left->GetType())
+      if (thing->type != CodeThing::Type::OPERATOR || thing->params.size() != 2u)
       {
-        case UNSIGNED_INT_CONSTANT: type = BinaryOpInstruction::OperationType::UNSIGNED_INT;  break;
-        case SIGNED_INT_CONSTANT:   type = BinaryOpInstruction::OperationType::SIGNED_INT;    break;
-        case FLOAT_CONSTANT:        type = BinaryOpInstruction::OperationType::FLOAT;         break;
-        default:
+        continue;
+      }
+
+      TokenType token = static_cast<OperatorThing*>(thing)->token;
+      if ((token == TOKEN_PLUS    && node->op == BinaryOpNode::Operator::ADD)      ||
+          (token == TOKEN_MINUS   && node->op == BinaryOpNode::Operator::SUBTRACT) ||
+          (token == TOKEN_ASTERIX && node->op == BinaryOpNode::Operator::MULTIPLY) ||
+          (token == TOKEN_SLASH   && node->op == BinaryOpNode::Operator::DIVIDE))
+      {
+        if (AreTypeRefsCompatible(node->left->type, &(thing->params[0u]->type)) &&
+            AreTypeRefsCompatible(node->right->type, &(thing->params[1u]->type)))
         {
-          RaiseError(ICE_GENERIC_UNHANDLED_SLOT_TYPE, left->AsString(), "BinaryOp::LeftIsConstant");
-        } break;
+          node->overloadedOperator = thing;
+          node->type = thing->returnType;
+          node->shouldFreeTypeRef = false;
+          break;
+        }
       }
     }
-    else if (right->IsConstant())
+
+    if (!(node->overloadedOperator))
     {
-      switch (right->GetType())
-      {
-        case UNSIGNED_INT_CONSTANT: type = BinaryOpInstruction::OperationType::UNSIGNED_INT;  break;
-        case SIGNED_INT_CONSTANT:   type = BinaryOpInstruction::OperationType::SIGNED_INT;    break;
-        case FLOAT_CONSTANT:        type = BinaryOpInstruction::OperationType::FLOAT;         break;
-        default:
-        {
-          RaiseError(ICE_GENERIC_UNHANDLED_SLOT_TYPE, right->AsString(), "BinaryOp::RightIsConstant");
-        } break;
-      }
+      RaiseError(context->code->errorState, ERROR_MISSING_OPERATOR, node->left->type->AsString().c_str(),
+                                                                     node->right->type->AsString().c_str());
     }
-    else
-    {*/
-      /*
-       * Neither slot is constant, so we need to derive the operation's type from somewhere else.
-       */
-//      Assert(false, "Derive type of intrinsic without constant value\n");
-      // TODO
-//    }
+  }
 
   if (node->next) Dispatch(node->next, context);
 }
