@@ -208,5 +208,60 @@ struct CodeThingErrorState : ErrorState
   CodeThing* thing;
 };
 
-void RaiseError(ErrorState* state, Error e, ...);
-void RaiseError(Error e, ...);
+extern const char* g_levelColors[];
+extern const char* g_levelStrings[];
+extern ErrorDef g_errors[NUM_ERRORS];
+void ReportErrorInErrorReporter();
+void PrintStackTrace();
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-security"
+template<typename... Ts>
+void RaiseError(ErrorState* state, Error e, Ts... args)
+{
+  const ErrorDef& def = g_errors[e];
+
+  // Mark to the error state that an error has occured in its domain
+  state->hasErrored = true;
+
+  /*
+   *  We can't use the snprintf trick here to dynamically allocate the string buffer, because we can't use the
+   *  list twice
+   */
+  char message[1024u];
+  snprintf(message, 1024u, def.messageFmt, args...);
+  state->PrintError(message, def);
+
+  if (e == ICE_FAILED_ASSERTION)
+  {
+    PrintStackTrace();
+  }
+
+  state->Poison(def.poisonStrategy);
+}
+
+template<typename... Ts>
+void RaiseError(Error e, Ts... args)
+{
+  const ErrorDef& def = g_errors[e];
+
+  char message[1024u];
+  snprintf(message, 1024u, def.messageFmt, args...);
+  fprintf(stderr, "%s%s: \x1B[0m%s\n", g_levelColors[def.level], g_levelStrings[def.level], message);
+
+  if (e == ICE_FAILED_ASSERTION)
+  {
+    PrintStackTrace();
+  }
+
+  // --- Make sure it doesn't expect us to poison anything - we can't without an ErrorState ---
+  if (def.poisonStrategy == GIVE_UP)
+  {
+    Crash();
+  }
+  else if (def.poisonStrategy != DO_NOTHING)
+  {
+    ReportErrorInErrorReporter();
+  }
+}
+#pragma clang diagnostic pop

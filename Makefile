@@ -6,10 +6,15 @@
 # correct flags!
 TIER ?= "DEV"
 
-CXX ?= clang++
+CXX = clang++
 IGNORED_WARNINGS = -Wno-unused-result -Wno-trigraphs -Wno-vla -Wno-nested-anon-types -Wno-missing-braces -Wno-vla-extension
 CFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc $(IGNORED_WARNINGS)
 LFLAGS = -Wall -Wextra -pedantic -O0 -std=c++1z -g -Isrc
+
+ifeq ($(CXX), clang++)
+	CFLAGS += -stdlib=libc++
+	LFLAGS += -stdlib=libc++
+endif
 
 ifeq ($(TIER), "DEV")
 	CFLAGS += -Werror -O0

@@ -123,13 +123,13 @@ CodeThingErrorState::CodeThingErrorState(CodeThing* thing)
  * XXX: `Assert` must not be used in the following methods, because it executes `RaiseError` to report errors.
  * Instead, use this method to crash with a relatively helpful message.
  */
-#define REPORT_ERROR_IN_ERROR_REPORTER()\
-  {\
-  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);\
-  Crash();\
-  }
+void ReportErrorInErrorReporter()
+{
+  fprintf(stderr, "\x1B[1;31m!!! MEGA ICE !!!\x1B[0m The error reporting system has broken, if you're seeing this message in production, please file a bug report! (%s:%d)", __FILE__, __LINE__);
+  Crash();
+}
 
-static void PrintStackTrace()
+void PrintStackTrace()
 {
 #ifdef PRINT_STACK_TRACE
   #ifdef __linux__
@@ -142,7 +142,7 @@ static void PrintStackTrace()
     if (!strings)
     {
       perror("backtrace_symbols");
-      REPORT_ERROR_IN_ERROR_REPORTER();
+      ReportErrorInErrorReporter();
     }
 
     for (unsigned int i = 0u;
@@ -155,61 +155,7 @@ static void PrintStackTrace()
     free(strings);
   #else
     fprintf(stderr, "Printing stacktraces is not supported on your platform, please turn it off before compiling\n");
-    REPORT_ERROR_IN_ERROR_REPORTER();
+    ReportErrorInErrorReporter();
   #endif
 #endif
-}
-
-void RaiseError(ErrorState* state, Error e, ...)
-{
-  va_list args;
-  va_start(args, (unsigned int)e);
-  const ErrorDef& def = g_errors[e];
-
-  // Mark to the error state that an error has occured in its domain
-  state->hasErrored = true;
-
-  /*
-   *  We can't use the vsnprintf trick here to dynamically allocate the string buffer, because we can't use the
-   *  list twice
-   */
-  char message[1024u];
-  vsnprintf(message, 1024u, def.messageFmt, args);
-  state->PrintError(message, def);
-  va_end(args);
-
-  if (e == ICE_FAILED_ASSERTION)
-  {
-    PrintStackTrace();
-  }
-
-  state->Poison(def.poisonStrategy);
-}
-
-void RaiseError(Error e, ...)
-{
-  va_list args;
-  va_start(args, (unsigned int)e);
-  const ErrorDef& def = g_errors[e];
-
-  char message[1024u];
-  vsnprintf(message, 1024u, def.messageFmt, args);
-
-  fprintf(stderr, "%s%s: \x1B[0m%s\n", g_levelColors[def.level], g_levelStrings[def.level], message);
-  va_end(args);
-
-  if (e == ICE_FAILED_ASSERTION)
-  {
-    PrintStackTrace();
-  }
-
-  // --- Make sure it doesn't expect us to poison anything - we can't without an ErrorState ---
-  if (def.poisonStrategy == GIVE_UP)
-  {
-    Crash();
-  }
-  else if (def.poisonStrategy != DO_NOTHING)
-  {
-    REPORT_ERROR_IN_ERROR_REPORTER();
-  }
 }
