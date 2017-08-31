@@ -37,7 +37,7 @@ fn Main() -> int
   Print("Hello, World!\n")
 
   // Make and print a color
-  myColor : color(1.0f, 0.0f, 1.0f, 1.0f)
+  myColor : color{1.0f, 0.0f, 1.0f, 1.0f}
   PrintColor(myColor)
 
   return 0

@@ -227,16 +227,16 @@ VariableDef* RooParser::ParseVariableDef()
     Consume(TOKEN_EQUALS);
     variable->initExpression = new VariableAssignmentNode(new VariableNode(variable), ParseExpression(), true);
   }
-  else if (Match(TOKEN_LEFT_PAREN))
+  else if (Match(TOKEN_LEFT_BRACE))
   {
-    // Parse a type construction of the form `x : X(a, b, c)`
+    // Parse a type construction of the form `x : X({a, b, c}`
     Log(*this, "--> Type construction\n");
-    Consume(TOKEN_LEFT_PAREN);
+    Consume(TOKEN_LEFT_BRACE);
     std::vector<ASTNode*> items;
 
-    if (Match(TOKEN_RIGHT_PAREN))
+    if (Match(TOKEN_RIGHT_BRACE))
     {
-      Consume(TOKEN_RIGHT_PAREN, false);
+      Consume(TOKEN_RIGHT_BRACE, false);
     }
     else
     {
@@ -250,7 +250,7 @@ VariableDef* RooParser::ParseVariableDef()
         }
         else
         {
-          Consume(TOKEN_RIGHT_PAREN, false);
+          Consume(TOKEN_RIGHT_BRACE, false);
           break;
         }
       }

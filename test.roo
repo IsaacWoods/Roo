@@ -2,13 +2,20 @@
 
 import Prelude
 
+type Vec2
+{
+  x : int
+  y : int
+}
+
 #[Entry]
 fn Main() -> int
 {
   a : int = 4
   i : uint = 4u + 5u
+  v : Vec2{3, 5}
 
-  if (i == 9u)
+  if (v.x == 3)
   {
     Print("Yas\n")
   }
