@@ -14,6 +14,7 @@ matrix:
             - clang
             - g++-6
             - nasm
+            - libc++-dev
       env:
         - CC=clang
         - CXX=clang++
@@ -25,6 +26,7 @@ matrix:
           packages:
             - g++-6
             - nasm
+            - libc++-dev
       env:
         - CC=gcc-6
         - CXX=g++-6
