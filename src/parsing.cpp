@@ -765,6 +765,7 @@ static void InitParseletMaps()
     P_BITWISE_OR,               // |
     P_BITWISE_XOR,              // ^
     P_BITWISE_AND,              // &
+    P_COMPARITIVE_COMPOSITE,    // && and ||
     P_EQUALS_RELATIONAL,        // == and !=
     P_COMPARATIVE_RELATIONAL,   // <, <=, > and >=
     P_BITWISE_SHIFTING,         // >> and <<
@@ -787,6 +788,8 @@ static void InitParseletMaps()
   g_precedenceTable[TOKEN_DOT]                    = P_MEMBER_ACCESS;
   g_precedenceTable[TOKEN_DOUBLE_PLUS]            = P_PREFIX;
   g_precedenceTable[TOKEN_DOUBLE_MINUS]           = P_PREFIX;
+  g_precedenceTable[TOKEN_DOUBLE_AND]             = P_COMPARITIVE_COMPOSITE;
+  g_precedenceTable[TOKEN_DOUBLE_OR]              = P_COMPARITIVE_COMPOSITE;
   g_precedenceTable[TOKEN_EQUALS_EQUALS]          = P_EQUALS_RELATIONAL;
   g_precedenceTable[TOKEN_BANG_EQUALS]            = P_EQUALS_RELATIONAL;
   g_precedenceTable[TOKEN_GREATER_THAN]           = P_COMPARATIVE_RELATIONAL;
@@ -1056,6 +1059,56 @@ static void InitParseletMaps()
 
       Log(parser, "<-- [PARSELET] Conditional\n");
       return new ConditionNode(condition, left, right);
+    };
+
+  // Parses a composite conditional
+  g_infixMap[TOKEN_DOUBLE_AND] =
+  g_infixMap[TOKEN_DOUBLE_OR]  =
+    [](RooParser& parser, ASTNode* left) -> ASTNode*
+    {
+      Log(parser, "--> [PARSELET] Composite conditional(");
+
+      if (!IsNodeOfType<ConditionNode>(left))
+      {
+        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "condition", "lhs of composite condition");
+        return nullptr;
+      }
+
+      TokenType compositeToken = parser.PeekToken().type;
+      parser.NextToken();
+      ASTNode* right = parser.ParseExpression();
+
+      if (!IsNodeOfType<ConditionNode>(right))
+      {
+        RaiseError(parser.errorState, ERROR_EXPECTED_BUT_GOT, "condition", "rhs of composite condition");
+        return nullptr;
+      }
+
+      CompositeConditionNode::Type compositeType;
+      switch (compositeToken)
+      {
+        case TOKEN_DOUBLE_AND:
+        {
+          compositeType = CompositeConditionNode::Type::AND;
+          Log(parser, "AND)\n");
+        } break;
+
+        case TOKEN_DOUBLE_OR:
+        {
+          compositeType = CompositeConditionNode::Type::OR;
+          Log(parser, "OR)\n");
+        }break;
+
+        default:
+        {
+          RaiseError(parser.errorState, ICE_UNHANDLED_TOKEN_TYPE, "CompositeConditionalParselet", GetTokenName(parser.PeekToken().type));
+          __builtin_unreachable();
+        } break;
+      }
+
+      Log(parser, "<-- [PARSELET] Composite conditional\n");
+      return new CompositeConditionNode(compositeType, reinterpret_cast<ConditionNode*>(left),
+                                                       reinterpret_cast<ConditionNode*>(right));
     };
 
   // Parses a function call

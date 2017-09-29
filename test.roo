@@ -15,7 +15,7 @@ fn Main() -> int
   i : uint = 4u + 5u
   v : Vec2{3, 5}
 
-  if (v.x == 3)
+  if (v.x == 3 || v.y == 5)
   {
     Print("Yas\n")
   }

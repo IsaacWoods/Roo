@@ -161,6 +161,24 @@ struct ConditionNode : ASTNode
   ASTNode*  right;
 };
 
+struct CompositeConditionNode : ASTNode
+{
+  enum Type
+  {
+    AND,
+    OR
+  };
+
+  std::string AsString();
+
+  CompositeConditionNode(Type type, ConditionNode* left, ConditionNode* right);
+  ~CompositeConditionNode();
+
+  Type            type;
+  ConditionNode*  left;
+  ConditionNode*  right;
+};
+
 struct BranchNode : ASTNode
 {
   BranchNode(ASTNode* condition, ASTNode* thenCode, ASTNode* elseCode);

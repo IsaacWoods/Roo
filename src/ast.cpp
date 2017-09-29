@@ -5,6 +5,8 @@
 
 #include <ast.hpp>
 
+using namespace std::string_literals;
+
 ASTNode::ASTNode()
   :next(nullptr)
   ,prev(nullptr)
@@ -185,8 +187,36 @@ std::string ConditionNode::AsString()
     case ConditionNode::Condition::GREATER_THAN_OR_EQUAL:   return FormatString("(%s)>=(%s)", left ->AsString().c_str(),
                                                                                               right->AsString().c_str());
   }
+}
 
-  __builtin_unreachable();
+CompositeConditionNode::CompositeConditionNode(CompositeConditionNode::Type type, ConditionNode* left, ConditionNode* right)
+  :ASTNode()
+  ,type(type)
+  ,left(left)
+  ,right(right)
+{
+}
+
+CompositeConditionNode::~CompositeConditionNode()
+{
+  delete left;
+  delete right;
+}
+
+std::string CompositeConditionNode::AsString()
+{
+  switch (type)
+  {
+    case CompositeConditionNode::Type::AND:
+    {
+      return "("s + left->AsString() + " && " + right->AsString() + ")";
+    }
+
+    case CompositeConditionNode::Type::OR:
+    {
+      return "("s + left->AsString() + " || " + right->AsString() + ")";
+    }
+  }
 }
 
 BranchNode::BranchNode(ASTNode* condition, ASTNode* thenCode, ASTNode* elseCode)
