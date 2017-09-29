@@ -308,26 +308,36 @@ void TypeChecker::VisitNode(VariableAssignmentNode* node, TypeCheckingContext* c
   Dispatch(node->variable, context);
   Dispatch(node->newValue, context);
 
+  /*
+   * This handles whether we can assign to the variable at all (regarding mutability), so we can now
+   * disregard whether the mutabilities match after this (you can assign a immutable to a mutable, as
+   * long as it doesn't copy).
+   */
   if (!(node->ignoreImmutability) && !(node->variable->type->isMutable))
   {
-    RaiseError(context->code->errorState, ERROR_ASSIGN_TO_IMMUTABLE, node->variable->AsString().c_str());
+    RaiseError(context->code->errorState, ERROR_ASSIGN_TO_IMMUTABLE,
+                                          node->variable->AsString().c_str());
   }
 
   if (!(node->variable->type && node->variable->type->isResolved))
   {
-    RaiseError(context->code->errorState, ERROR_MISSING_TYPE_INFORMATION, "Couldn't deduce left-side of assignment");
+    RaiseError(context->code->errorState, ERROR_MISSING_TYPE_INFORMATION,
+                                          "Couldn't deduce left-side of assignment");
     goto TypeError;
   }
 
   if (!(node->newValue->type && node->newValue->type->isResolved))
   {
-    RaiseError(context->code->errorState, ERROR_MISSING_TYPE_INFORMATION, "Couldn't deduce right-side of assignment");
+    RaiseError(context->code->errorState, ERROR_MISSING_TYPE_INFORMATION,
+                                          "Couldn't deduce right-side of assignment");
     goto TypeError;
   }
   
   if (!AreTypeRefsCompatible(node->variable->type, node->newValue->type, false))
   {
-    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_ASSIGN, node->newValue->AsString().c_str(), node->variable->type->name.c_str());
+    RaiseError(context->code->errorState, ERROR_INCOMPATIBLE_ASSIGN,
+                                          node->newValue->AsString().c_str(),
+                                          node->variable->type->name.c_str());
   }
 
 TypeError:

@@ -321,7 +321,8 @@ bool AreTypeRefsCompatible(TypeRef* a, TypeRef* b, bool careAboutMutability)
       return false;
     }
 
-    if ((a->isReference && b->isReference) && (a->isReferenceMutable != b->isReferenceMutable))
+    if ((a->isReference && b->isReference) &&
+        (a->isReferenceMutable != b->isReferenceMutable))
     {
       return false;
     }

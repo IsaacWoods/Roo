@@ -102,6 +102,11 @@ int main()
     RaiseError(errorState, ERROR_COMPILE_ERRORS);
   }
 
+  if (result.name == "")  // TODO: Better way to detect no program name given
+  {
+    RaiseError(errorState, ERROR_NO_PROGRAM_NAME);
+  }
+
   TargetMachine* target = new TargetMachine_x64(result);
   CompleteIR(result, target);
 
@@ -155,11 +160,6 @@ int main()
   // --- Generate AIR for each code thing ---
   AirGenerator airGenerator;
   airGenerator.Apply(result, target);
-
-  if (result.name == "")  // TODO: Better way to detect no program name given
-  {
-    RaiseError(errorState, ERROR_NO_PROGRAM_NAME);
-  }
 
   Generate(result.name, target, result);
 
