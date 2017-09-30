@@ -137,6 +137,14 @@ void VariableResolverPass::VisitNode(ConditionNode* node, CodeThing* code)
   if (node->next) Dispatch(node->next, code);
 }
 
+void VariableResolverPass::VisitNode(CompositeConditionNode* node, CodeThing* code)
+{
+  Dispatch(node->left, code);
+  Dispatch(node->right, code);
+
+  if (node->next) Dispatch(node->next, code);
+}
+
 void VariableResolverPass::VisitNode(BranchNode* node, CodeThing* code)
 {
   Dispatch(node->condition, code);

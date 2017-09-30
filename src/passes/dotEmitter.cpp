@@ -176,6 +176,30 @@ char* DotEmitterPass::VisitNode(ConditionNode* node, DotState* state)
   return nodeName;
 }
 
+char* DotEmitterPass::VisitNode(CompositeConditionNode* node, DotState* state)
+{
+  char* nodeName = GetNextNode(state);
+
+  switch (node->type)
+  {
+    case CompositeConditionNode::Type::AND:
+    {
+      EMIT_WITH_LABEL("&&");
+    } break;
+
+    case CompositeConditionNode::Type::OR:
+    {
+      EMIT_WITH_LABEL("||");
+    } break;
+  }
+
+  LINK_CHILD(node->left);
+  LINK_CHILD(node->right);
+
+  VISIT_NEXT();
+  return nodeName;
+}
+
 char* DotEmitterPass::VisitNode(BranchNode* node, DotState* state)
 {
   char* nodeName = GetNextNode(state);

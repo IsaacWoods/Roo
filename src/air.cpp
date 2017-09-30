@@ -539,6 +539,12 @@ Slot* AirGenerator::VisitNode(ConditionNode* node, AirState* state)
   return nullptr;
 }
 
+Slot* AirGenerator::VisitNode(CompositeConditionNode* /*node*/, AirState* /*state*/)
+{
+  // TODO
+  return nullptr;
+}
+
 Slot* AirGenerator::VisitNode(BranchNode* node, AirState* state)
 {
   Dispatch(node->condition, state);

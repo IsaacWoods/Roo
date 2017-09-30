@@ -369,6 +369,7 @@ struct AirGenerator : ASTPass<Slot*, AirState>
   Slot* VisitNode(BinaryOpNode* node                , AirState* state);
   Slot* VisitNode(VariableNode* node                , AirState* state);
   Slot* VisitNode(ConditionNode* node               , AirState* state);
+  Slot* VisitNode(CompositeConditionNode* node      , AirState* state);
   Slot* VisitNode(BranchNode* node                  , AirState* state);
   Slot* VisitNode(WhileNode* node                   , AirState* state);
   Slot* VisitNode(ConstantNode<unsigned int>* node  , AirState* state);

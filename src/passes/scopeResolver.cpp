@@ -113,6 +113,28 @@ void ScopeResolverPass::VisitNode(ConditionNode* node, CodeThing* code)
   if (node->next) Dispatch(node->next, code);
 }
 
+void ScopeResolverPass::VisitNode(CompositeConditionNode* node, CodeThing* code)
+{
+  if (!(node->containingScope))
+  {
+    node->containingScope = node->prev->containingScope;
+  }
+
+  if (!(node->left->containingScope))
+  {
+    node->left->containingScope = node->containingScope;
+  }
+
+  if (!(node->right->containingScope))
+  {
+    node->right->containingScope = node->containingScope;
+  }
+
+  Dispatch(node->left, code);
+  Dispatch(node->right, code);
+  if (node->next) Dispatch(node->next, code);
+}
+
 void ScopeResolverPass::VisitNode(BranchNode* node, CodeThing* code)
 {
   if (!(node->containingScope))

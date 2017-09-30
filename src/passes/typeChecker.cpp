@@ -184,6 +184,18 @@ void TypeChecker::VisitNode(ConditionNode* node, TypeCheckingContext* context)
   if (node->next) Dispatch(node->next, context);
 }
 
+void TypeChecker::VisitNode(CompositeConditionNode* node, TypeCheckingContext* context)
+{
+  Dispatch(node->left, context);
+  Dispatch(node->right, context);
+
+  /*
+   * The only requirement is that `left` and `right` are both conditions, which is
+   * ensured on the type level, so we don't need to type-check anything.
+   */
+  if (node->next) Dispatch(node->next, context);
+}
+
 void TypeChecker::VisitNode(BranchNode* node, TypeCheckingContext* context)
 {
   Dispatch(node->condition, context);

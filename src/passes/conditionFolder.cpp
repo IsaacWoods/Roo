@@ -28,6 +28,16 @@ bool ConditionFolderPass::VisitNode(ConditionNode* node, CodeThing* code)
   return false;
 }
 
+bool ConditionFolderPass::VisitNode(CompositeConditionNode* node, CodeThing* code)
+{
+  // TODO
+  Dispatch(node->left, code);
+  Dispatch(node->right, code);
+
+  if (node->next) (void)Dispatch(node->next, code);
+  return false;
+}
+
 bool ConditionFolderPass::VisitNode(BranchNode* node, CodeThing* code)
 {
   Dispatch(node->thenCode, code);
@@ -73,6 +83,10 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, CodeThing* code)
   {
     // TODO: check if both sides are constant and evaluate the condition. Replace with correct side of branch
   }
+  else if (IsNodeOfType<CompositeConditionNode>(node->condition))
+  {
+    // TODO: check if everything is constant and evaluate the condition. Replace with correct branch
+  }
   else
   {
     RaiseError(ICE_UNHANDLED_NODE_TYPE, "ConditionFolderPass::BranchNode", node->condition->AsString().c_str());
@@ -82,6 +96,10 @@ bool ConditionFolderPass::VisitNode(BranchNode* node, CodeThing* code)
   return false;
 }
 
+/*
+ * TODO: Should we issue a warning when we create an InfiniteLoopNode (the user in most cases
+ * probably didn't want one) (or would this just be annoying, perhaps a NOTE instead?)
+ */
 bool ConditionFolderPass::VisitNode(WhileNode* node, CodeThing* code)
 {
   ASTNode* nextNode = node->next;
@@ -107,6 +125,10 @@ bool ConditionFolderPass::VisitNode(WhileNode* node, CodeThing* code)
     delete node;
   }
   else if (IsNodeOfType<ConditionNode>(node->condition))
+  {
+    // TODO
+  }
+  else if (IsNodeOfType<CompositeConditionNode>(node->condition))
   {
     // TODO
   }

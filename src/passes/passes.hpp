@@ -20,6 +20,7 @@
     R VisitNode(BinaryOpNode* node               , T*);\
     R VisitNode(VariableNode* node               , T*);\
     R VisitNode(ConditionNode* node              , T*);\
+    R VisitNode(CompositeConditionNode* node     , T*);\
     R VisitNode(BranchNode* node                 , T*);\
     R VisitNode(WhileNode* node                  , T*);\
     R VisitNode(ConstantNode<unsigned int>* node , T*);\

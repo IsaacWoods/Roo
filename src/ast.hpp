@@ -339,6 +339,7 @@ struct ASTPass
   virtual R VisitNode(BinaryOpNode*                 , T* = nullptr) = 0;
   virtual R VisitNode(VariableNode*                 , T* = nullptr) = 0;
   virtual R VisitNode(ConditionNode*                , T* = nullptr) = 0;
+  virtual R VisitNode(CompositeConditionNode*       , T* = nullptr) = 0;
   virtual R VisitNode(BranchNode*                   , T* = nullptr) = 0;
   virtual R VisitNode(WhileNode*                    , T* = nullptr) = 0;
   virtual R VisitNode(ConstantNode<unsigned int>*   , T* = nullptr) = 0;
@@ -382,6 +383,7 @@ struct ASTPass
     else DISPATCH(BinaryOpNode)
     else DISPATCH(VariableNode)
     else DISPATCH(ConditionNode)
+    else DISPATCH(CompositeConditionNode)
     else DISPATCH(BranchNode)
     else DISPATCH(WhileNode)
     else DISPATCH(ConstantNode<unsigned int>)
